@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 type Makefile struct {
@@ -119,6 +120,29 @@ func (p *parser) parseRule(line []byte, sep int) AST {
 	return ast
 }
 
+func (p *parser) parseInclude(line string, oplen int) AST {
+	ast := &IncludeAST{
+		expr: line[oplen+1:],
+		op:   line[:oplen],
+	}
+	ast.filename = p.filename
+	ast.lineno = p.lineno
+	return ast
+}
+
+func (p *parser) parseLine(line string) AST {
+	if strings.HasPrefix(line, "include ") {
+		return p.parseInclude(line, len("include"))
+	}
+	if strings.HasPrefix(line, "-include ") {
+		return p.parseInclude(line, len("-include"))
+	}
+	ast := &RawExprAST{expr: line}
+	ast.filename = p.filename
+	ast.lineno = p.lineno
+	return ast
+}
+
 func (p *parser) parse() (mk Makefile, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -148,10 +172,8 @@ func (p *parser) parse() (mk Makefile, err error) {
 			}
 		}
 		if ast == nil && len(bytes.TrimSpace(line)) > 0 {
-			a := &RawExprAST{expr: string(line)}
-			a.filename = p.filename
-			a.lineno = p.lineno
-			p.mk.stmts = append(p.mk.stmts, a)
+			ast = p.parseLine(string(line))
+			p.mk.stmts = append(p.mk.stmts, ast)
 		}
 	}
 	return p.mk, nil

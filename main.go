@@ -12,7 +12,8 @@ func main() {
 		stmt.show()
 	}
 
-	er, err := Eval(mk)
+	vars := make(map[string]string)
+	er, err := Eval(mk, vars)
 	if err != nil {
 		panic(err)
 	}

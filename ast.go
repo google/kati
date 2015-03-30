@@ -68,3 +68,17 @@ func (ast *RawExprAST) eval(ev *Evaluator) {
 func (ast *RawExprAST) show() {
 	Log("%s", ast.expr)
 }
+
+type IncludeAST struct {
+	ASTBase
+	expr string
+	op   string
+}
+
+func (ast *IncludeAST) eval(ev *Evaluator) {
+	ev.evalInclude(ast)
+}
+
+func (ast *IncludeAST) show() {
+	Log("include %s", ast.expr)
+}

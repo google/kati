@@ -31,11 +31,11 @@ type Evaluator struct {
 	lineno   int
 }
 
-func newEvaluator() *Evaluator {
+func newEvaluator(vars map[string]string) *Evaluator {
 	return &Evaluator{
 		outVars: make(map[string]string),
 		refs:    make(map[string]bool),
-		vars:    make(map[string]string),
+		vars:    vars,
 		funcs: map[string]Func{
 			"wildcard": funcWildcard,
 			"shell":    funcShell,
@@ -153,12 +153,56 @@ func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
 	}
 }
 
+func (ev *Evaluator) getVars() map[string]string {
+	vars := make(map[string]string)
+	for k, v := range ev.vars {
+		vars[k] = v
+	}
+	for k, v := range ev.outVars {
+		vars[k] = v
+	}
+	return vars
+}
+
+func (ev *Evaluator) evalInclude(ast *IncludeAST) {
+	ev.filename = ast.filename
+	ev.lineno = ast.lineno
+
+	// TODO: Handle glob
+	files := strings.Split(ev.evalExpr(ast.expr), " ")
+	for _, file := range files {
+		mk, err := ParseMakefile(file)
+		if err != nil {
+			if ast.op == "include" {
+				panic(err)
+			} else {
+				continue
+			}
+		}
+
+		er, err2 := Eval(mk, ev.getVars())
+		if err2 != nil {
+			panic(err2)
+		}
+
+		for k, v := range er.vars {
+			ev.outVars[k] = v
+		}
+		for _, r := range er.rules {
+			ev.outRules = append(ev.outRules, r)
+		}
+		for r, _ := range er.refs {
+			ev.refs[r] = true
+		}
+	}
+}
+
 func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
-func Eval(mk Makefile) (er *EvalResult, err error) {
-	ev := newEvaluator()
+func Eval(mk Makefile, vars map[string]string) (er *EvalResult, err error) {
+	ev := newEvaluator(vars)
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic: %v", r)
