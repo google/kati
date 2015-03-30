@@ -103,7 +103,7 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 				ev.refs[varname] = true
 				value = ev.outVars[varname]
 			}
-			buf.WriteString(value)
+			buf.WriteString(ev.evalExpr(value))
 
 		default:
 			buf.WriteByte(ch)
@@ -122,7 +122,15 @@ func (ev *Evaluator) evalExpr(ex string) string {
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	lhs := ev.evalExpr(ast.lhs)
-	rhs := ev.evalExpr(ast.rhs)
+	var rhs string
+	switch ast.assign_type {
+	case ASSIGN_SIMPLE:
+		rhs = ev.evalExpr(ast.rhs)
+	case ASSIGN_RECURSIVE:
+		rhs = ast.rhs
+	default:
+		panic("TODO")
+	}
 	Log("ASSIGN: %s=%s", lhs, rhs)
 	ev.outVars[lhs] = rhs
 }

@@ -9,10 +9,18 @@ type ASTBase struct {
 	lineno int
 }
 
+const (
+	ASSIGN_SIMPLE      = iota // :=
+	ASSIGN_RECURSIVE          // =
+	ASSIGN_APPEND             // +=
+	ASSIGN_CONDITIONAL        // ?=
+)
+
 type AssignAST struct {
 	ASTBase
-	lhs string
-	rhs string
+	lhs         string
+	rhs         string
+	assign_type int
 }
 
 func (ast *AssignAST) eval(ev *Evaluator) {

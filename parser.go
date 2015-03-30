@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"strings"
 )
 
 type Makefile struct {
@@ -180,100 +179,64 @@ func (p *parser) readUntilEol() string {
 	}
 }
 
-func (p *parser) parseAssign(lhs string) AST {
-	ast := &AssignAST{lhs: lhs}
+func (p *parser) parseAssign(line []byte, sep int, typ int) AST {
+	Log("parseAssign %s %d", line, sep)
+	esep := sep + 1
+	if typ != ASSIGN_RECURSIVE {
+		esep++
+	}
+	lhs := string(bytes.TrimSpace(line[:sep]))
+	rhs := string(bytes.TrimLeft(line[esep:], " \t"))
+	ast := &AssignAST{lhs: lhs, rhs: rhs, assign_type: typ}
 	ast.lineno = p.lineno
-	ast.rhs = strings.TrimSpace(p.readUntilEol())
 	return ast
 }
 
-func (p *parser) parseRule(lhs string) AST {
-	ast := &RuleAST{lhs: lhs}
+func (p *parser) parseRule(line []byte, sep int) AST {
+	lhs := string(bytes.TrimSpace(line[:sep]))
+	rhs := string(bytes.TrimSpace(line[sep+1:]))
+	ast := &RuleAST{
+		lhs: lhs,
+		rhs: rhs,
+	}
 	ast.lineno = p.lineno
-	ast.rhs = strings.TrimSpace(p.readUntilEol())
 	for {
-		ch, err := p.readByte()
-		if err != nil {
-			return ast
-		}
-		switch ch {
-		case '\n':
-			continue
-		case '\t':
-			ast.cmds = append(ast.cmds, strings.TrimSpace(p.readUntilEol()))
-			continue
-		default:
-			p.unreadByte()
-			return ast
+		line := p.readLine()
+		if len(line) == 0 {
+			break
+		} else if line[0] == '\t' {
+			ast.cmds = append(ast.cmds, string(bytes.TrimSpace(line)))
+		} else {
+			p.unreadLine(line)
+			break
 		}
 	}
+	return ast
 }
 
 func (p *parser) parse() (Makefile, error) {
 	for !p.done {
 		line := p.readLine()
 
+		var ast AST
 		for i, ch := range line {
 			switch ch {
 			case ':':
-				// TODO: Handle := and ::=.
-				lhs := string(bytes.TrimSpace(line[:i]))
-				rhs := string(bytes.TrimSpace(line[i+1:]))
-				ast := &RuleAST{
-					lhs: lhs,
-					rhs: rhs,
+				if i+1 < len(line) && line[i+1] == '=' {
+					ast = p.parseAssign(line, i, ASSIGN_SIMPLE)
+				} else {
+					ast = p.parseRule(line, i)
 				}
-				ast.lineno = p.lineno
-				for {
-					line := p.readLine()
-					if len(line) == 0 {
-						break
-					} else if line[0] == '\t' {
-						ast.cmds = append(ast.cmds, string(bytes.TrimSpace(line)))
-					} else {
-						p.unreadLine(line)
-						break
-					}
-				}
-				p.mk.stmts = append(p.mk.stmts, ast)
 			case '=':
-				lhs := string(bytes.TrimSpace(line[:i]))
-				rhs := string(bytes.TrimLeft(line[i+1:], " \t"))
-				ast := &AssignAST{
-					lhs: lhs,
-					rhs: rhs,
-				}
-				ast.lineno = p.lineno
-				p.mk.stmts = append(p.mk.stmts, ast)
+				ast = p.parseAssign(line, i, ASSIGN_RECURSIVE)
 			case '?':
 				panic("TODO")
 			}
+			if ast != nil {
+				p.mk.stmts = append(p.mk.stmts, ast)
+				break
+			}
 		}
-
-		/*
-			tok, err := p.getNextToken()
-			Log("tok=%s", tok)
-			if err == io.EOF {
-				return p.mk, nil
-			} else if err != nil {
-				return p.mk, err
-			}
-			switch tok {
-			default:
-				ntok, err := p.getNextToken()
-				if err != nil {
-					return p.mk, err
-				}
-				switch ntok {
-				case "=":
-					ast := p.parseAssign(tok)
-					p.mk.stmts = append(p.mk.stmts, ast)
-				case ":":
-					ast := p.parseRule(tok)
-					p.mk.stmts = append(p.mk.stmts, ast)
-				}
-			}
-		*/
 	}
 	return p.mk, nil
 }
