@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 )
@@ -115,7 +116,12 @@ func (p *parser) parseRule(line []byte, sep int) AST {
 	return ast
 }
 
-func (p *parser) parse() (Makefile, error) {
+func (p *parser) parse() (mk Makefile, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
 	for !p.done {
 		line := p.readLine()
 

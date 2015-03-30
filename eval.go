@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -157,8 +158,13 @@ func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
-func Eval(mk Makefile) *EvalResult {
+func Eval(mk Makefile) (er *EvalResult, err error) {
 	ev := newEvaluator()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
 	for _, stmt := range mk.stmts {
 		ev.eval(stmt)
 	}
@@ -166,5 +172,5 @@ func Eval(mk Makefile) *EvalResult {
 		vars:  ev.outVars,
 		rules: ev.outRules,
 		refs:  ev.refs,
-	}
+	}, nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,7 +27,7 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-func (ex *Executor) runCommands(cmds []string) {
+func (ex *Executor) runCommands(cmds []string) error {
 	for _, cmd := range cmds {
 		fmt.Printf("%s\n", cmd)
 
@@ -37,7 +38,7 @@ func (ex *Executor) runCommands(cmds []string) {
 		}
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			panic(err)
+			return err
 		}
 		success := false
 		if cmd.ProcessState != nil {
@@ -46,60 +47,68 @@ func (ex *Executor) runCommands(cmds []string) {
 
 		fmt.Printf("%s", out)
 		if !success {
-			panic("Command failed")
+			return fmt.Errorf("command failed: %q", cmd)
 		}
 	}
+	return nil
 }
 
-func (ex *Executor) build(output string) int64 {
+func (ex *Executor) build(output string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs := getTimestamp(output)
 
 	rule, present := ex.rules[output]
 	if !present {
 		if outputTs >= 0 {
-			return outputTs
+			return outputTs, nil
 		}
-		Error("No rule to make target %q", output)
+		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
 
 	latest := int64(-1)
 	for _, input := range rule.inputs {
-		ts := ex.build(input)
+		ts, err := ex.build(input)
+		if err != nil {
+			return outputTs, err
+		}
 		if latest < ts {
 			latest = ts
 		}
 	}
 
 	if outputTs >= latest {
-		return outputTs
+		return outputTs, nil
 	}
 
-	ex.runCommands(rule.cmds)
+	err := ex.runCommands(rule.cmds)
+	if err != nil {
+		return outputTs, err
+	}
 
 	outputTs = getTimestamp(output)
 	if outputTs < 0 {
 		outputTs = time.Now().Unix()
 	}
-	return outputTs
+	return outputTs, nil
 }
 
-func (ex *Executor) exec(er *EvalResult) {
+func (ex *Executor) exec(er *EvalResult) error {
 	if len(er.rules) == 0 {
-		panic("No targets.")
+		return errors.New("no targets.")
 	}
 
 	for _, rule := range er.rules {
 		if _, present := ex.rules[rule.output]; present {
-			Warn("overiding recipie for target '%s'", rule.output)
+			Warn("overiding recipie for target %q", rule.output)
 		}
 		ex.rules[rule.output] = rule
 	}
 
-	ex.build(er.rules[0].output)
+	_, err := ex.build(er.rules[0].output)
+	return err
 }
 
-func Exec(er *EvalResult) {
+func Exec(er *EvalResult) error {
 	ex := newExecutor()
-	ex.exec(er)
+	return ex.exec(er)
 }

@@ -10,6 +10,9 @@ func main() {
 		stmt.show()
 	}
 
-	er := Eval(mk)
+	er, err := Eval(mk)
+	if err != nil {
+		panic(err)
+	}
 	Exec(er)
 }
