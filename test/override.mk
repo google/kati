@@ -1,5 +1,3 @@
-# TODO: fix
-
 test: foo
 	echo FAIL
 

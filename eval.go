@@ -10,6 +10,9 @@ type Rule struct {
 	output string
 	inputs []string
 	cmds   []string
+	filename string
+	lineno int
+	cmdLineno int
 }
 
 type EvalResult struct {
@@ -125,7 +128,11 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	ev.curRule = &Rule{}
+	ev.curRule = &Rule{
+		filename: ast.filename,
+		lineno: ast.lineno,
+		cmdLineno: ast.cmdLineno,
+	}
 	lhs := ev.evalExpr(ast.lhs)
 	ev.curRule.output = lhs
 	rhs := ev.evalExpr(ast.rhs)

@@ -43,6 +43,7 @@ type RuleAST struct {
 	lhs  string
 	rhs  string
 	cmds []string
+	cmdLineno int
 }
 
 func (ast *RuleAST) eval(ev *Evaluator) {

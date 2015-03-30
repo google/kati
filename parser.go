@@ -106,6 +106,7 @@ func (p *parser) parseRule(line []byte, sep int) AST {
 	}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
+	ast.cmdLineno = p.elineno + 1
 	for {
 		line := p.readLine()
 		if len(line) == 0 {
