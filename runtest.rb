@@ -33,6 +33,9 @@ Dir.glob('test/*.mk').sort.each do |mk|
     output = ''
 
     testcases = c.scan(/^test\d*/).sort
+    if testcases.empty?
+      testcases = ['']
+    end
 
     cleanup
     testcases.each do |tc|

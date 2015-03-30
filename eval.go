@@ -221,6 +221,26 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	}
 }
 
+func (ev *Evaluator) evalIf(ast *IfAST) {
+	var stmts []AST
+	switch ast.op {
+	case "ifdef", "ifndef":
+		value, _ := ev.getVar(ev.evalExpr(ast.lhs))
+		if (value != "") == (ast.op == "ifdef") {
+			stmts = ast.trueStmts
+		} else {
+			stmts = ast.falseStmts
+		}
+	case "ifeq", "ifneq":
+		panic("TODO")
+	default:
+		panic(fmt.Sprintf("unknown if statement: %q", ast.op))
+	}
+	for _, stmt := range stmts {
+		ev.eval(stmt)
+	}
+}
+
 func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }

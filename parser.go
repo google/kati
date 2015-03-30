@@ -14,6 +14,11 @@ type Makefile struct {
 	stmts []AST
 }
 
+type ifState struct {
+	ast     *IfAST
+	in_else bool
+}
+
 type parser struct {
 	rd       *bufio.Reader
 	mk       Makefile
@@ -23,6 +28,8 @@ type parser struct {
 	unBuf    []byte
 	hasUnBuf bool
 	done     bool
+	outStmts *[]AST
+	ifStack  []ifState
 }
 
 func exists(filename string) bool {
@@ -35,10 +42,16 @@ func exists(filename string) bool {
 }
 
 func newParser(rd io.Reader, filename string) *parser {
-	return &parser{
+	p := &parser{
 		rd:       bufio.NewReader(rd),
 		filename: filename,
 	}
+	p.outStmts = &p.mk.stmts
+	return p
+}
+
+func (p* parser) addStatement(ast AST) {
+	*p.outStmts = append(*p.outStmts, ast)
 }
 
 func (p *parser) readLine() []byte {
@@ -131,6 +144,63 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 	return ast
 }
 
+func (p *parser) parseIfdef(line string, oplen int) AST {
+	ast := &IfAST{
+		op: line[:oplen],
+		lhs: strings.TrimSpace(line[oplen+1:]),
+	}
+	ast.filename = p.filename
+	ast.lineno = p.lineno
+	p.addStatement(ast)
+	p.ifStack = append(p.ifStack, ifState{ast: ast})
+	p.outStmts = &ast.trueStmts
+	return ast
+}
+
+func (p *parser) parseIfeq(line string, oplen int) AST {
+	ast := &IfAST{
+		op: line[:oplen],
+		lhs: strings.TrimSpace(line[oplen+1:]),
+	}
+	ast.filename = p.filename
+	ast.lineno = p.lineno
+	p.addStatement(ast)
+	p.ifStack = append(p.ifStack, ifState{ast: ast})
+	p.outStmts = &ast.trueStmts
+	return ast
+}
+
+func (p *parser) checkIfStack(curKeyword string) {
+	if len(p.ifStack) == 0 {
+		Error(p.filename, p.lineno, `*** extraneous %q.`, curKeyword)
+	}
+}
+
+func (p *parser) parseElse(line string) {
+	p.checkIfStack("else")
+	state := &p.ifStack[len(p.ifStack)-1]
+	if state.in_else {
+		Error(p.filename, p.lineno, `*** only one "else" per conditional.`)
+	}
+	state.in_else = true
+	p.outStmts = &state.ast.falseStmts
+}
+
+func (p *parser) parseEndif(line string) {
+	p.checkIfStack("endif")
+	p.ifStack = p.ifStack[0:len(p.ifStack)-1]
+	if len(p.ifStack) == 0 {
+		p.outStmts = &p.mk.stmts
+	} else {
+		state := p.ifStack[len(p.ifStack)-1]
+		if state.in_else {
+			p.outStmts = &state.ast.falseStmts
+		} else {
+			p.outStmts = &state.ast.trueStmts
+		}
+	}
+}
+
 func (p *parser) parseLine(line string) AST {
 	stripped := strings.TrimLeft(line, " \t")
 	if strings.HasPrefix(stripped, "include ") {
@@ -138,6 +208,30 @@ func (p *parser) parseLine(line string) AST {
 	}
 	if strings.HasPrefix(stripped, "-include ") {
 		return p.parseInclude(stripped, len("-include"))
+	}
+	if strings.HasPrefix(stripped, "ifdef ") {
+		p.parseIfdef(stripped, len("ifdef"))
+		return nil
+	}
+	if strings.HasPrefix(stripped, "ifndef ") {
+		p.parseIfdef(stripped, len("ifndef"))
+		return nil
+	}
+	if strings.HasPrefix(stripped, "ifeq ") {
+		p.parseIfeq(stripped, len("ifeq"))
+		return nil
+	}
+	if strings.HasPrefix(stripped, "ifneq ") {
+		p.parseIfeq(stripped, len("ifneq"))
+		return nil
+	}
+	if strings.HasPrefix(stripped, "else") {
+		p.parseElse(stripped)
+		return nil
+	}
+	if strings.HasPrefix(stripped, "endif") {
+		p.parseEndif(stripped)
+		return nil
 	}
 	ast := &RawExprAST{expr: line}
 	ast.filename = p.filename
@@ -171,13 +265,15 @@ func (p *parser) parse() (mk Makefile, err error) {
 				}
 			}
 			if ast != nil {
-				p.mk.stmts = append(p.mk.stmts, ast)
+				p.addStatement(ast)
 				break
 			}
 		}
 		if ast == nil && len(bytes.TrimSpace(line)) > 0 {
 			ast = p.parseLine(string(line))
-			p.mk.stmts = append(p.mk.stmts, ast)
+			if ast != nil {
+				p.addStatement(ast)
+			}
 		}
 	}
 	return p.mk, nil

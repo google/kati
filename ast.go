@@ -92,3 +92,21 @@ func (ast *IncludeAST) eval(ev *Evaluator) {
 func (ast *IncludeAST) show() {
 	Log("include %s", ast.expr)
 }
+
+type IfAST struct {
+	ASTBase
+	op string
+	lhs string
+	rhs string // Empty if |op| is ifdef or ifndef.
+	trueStmts []AST
+	falseStmts []AST
+}
+
+func (ast *IfAST) eval(ev *Evaluator) {
+	ev.evalIf(ast)
+}
+
+func (ast *IfAST) show() {
+	// TODO
+	Log("if")
+}
