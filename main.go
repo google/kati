@@ -1,5 +1,7 @@
 package main
 
+import "os"
+
 func main() {
 	mk, err := ParseDefaultMakefile()
 	if err != nil {
@@ -14,5 +16,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	Exec(er)
+	Exec(er, os.Args[1:])
 }

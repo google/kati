@@ -92,7 +92,7 @@ func (ex *Executor) build(output string) (int64, error) {
 	return outputTs, nil
 }
 
-func (ex *Executor) exec(er *EvalResult) error {
+func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	if len(er.rules) == 0 {
 		return errors.New("no targets.")
 	}
@@ -104,11 +104,20 @@ func (ex *Executor) exec(er *EvalResult) error {
 		ex.rules[rule.output] = rule
 	}
 
-	_, err := ex.build(er.rules[0].output)
-	return err
+	if len(targets) == 0 {
+		targets = append(targets, er.rules[0].output)
+	}
+
+	for _, target := range targets {
+		_, err := ex.build(target)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func Exec(er *EvalResult) error {
+func Exec(er *EvalResult, targets []string) error {
 	ex := newExecutor()
-	return ex.exec(er)
+	return ex.exec(er, targets)
 }
