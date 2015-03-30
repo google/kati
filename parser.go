@@ -31,14 +31,6 @@ func exists(filename string) bool {
 	return true
 }
 
-func isdigit(ch byte) bool {
-	return ch >= '0' && ch <= '9'
-}
-
-func isident(ch byte) bool {
-	return (ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z' || ch == '_' || ch == '.')
-}
-
 func newParser(rd io.Reader) *parser {
 	return &parser{
 		rd: bufio.NewReader(rd),
@@ -86,97 +78,6 @@ func (p *parser) unreadLine(line []byte) {
 	}
 	p.unBuf = line
 	p.hasUnBuf = true
-}
-
-func (p *parser) readByte() (byte, error) {
-	ch, err := p.rd.ReadByte()
-	if err != nil {
-		p.done = true
-	}
-	return ch, err
-}
-
-func (p *parser) unreadByte() {
-	p.rd.UnreadByte()
-}
-
-func (p *parser) skipWhiteSpaces() error {
-	for {
-		ch, err := p.readByte()
-		if err != nil {
-			return err
-		}
-		switch ch {
-		case '\n':
-			p.lineno++
-			fallthrough
-		case '\r', ' ':
-			continue
-		default:
-			p.unreadByte()
-			return nil
-		}
-	}
-}
-
-func (p *parser) getNextToken() (string, error) {
-	if err := p.skipWhiteSpaces(); err != nil {
-		return "", err
-	}
-	ch, err := p.readByte()
-	if err != nil {
-		return "", errors.New("TODO")
-	}
-	switch ch {
-	case '$', '=':
-		return string(ch), nil
-	case ':':
-		var s []byte
-		s = append(s, ch)
-		ch, err := p.readByte()
-		if ch == ':' {
-			ch, err = p.readByte()
-		}
-		if err != nil {
-			return string(s), err
-		}
-		if ch == '=' {
-			s = append(s, ch)
-		} else {
-			p.unreadByte()
-		}
-		return string(s), nil
-	default:
-		if isident(ch) {
-			var s []byte
-			s = append(s, ch)
-			for {
-				ch, err := p.readByte()
-				if err != nil {
-					return string(s), err
-				}
-				if isident(ch) || isdigit(ch) {
-					s = append(s, ch)
-				} else {
-					p.unreadByte()
-					return string(s), nil
-				}
-			}
-		}
-	}
-
-	return "", errors.New("foobar")
-}
-
-func (p *parser) readUntilEol() string {
-	var r []byte
-	for {
-		ch, err := p.readByte()
-		if err != nil || ch == '\n' {
-			return string(r)
-		}
-		r = append(r, ch)
-	}
 }
 
 func (p *parser) parseAssign(line []byte, sep int, typ int) AST {
