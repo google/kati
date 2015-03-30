@@ -32,20 +32,24 @@ Dir.glob('test/*.mk').sort.each do |mk|
     expected = ''
     output = ''
 
-    c.scan(/^test\d*/).sort.each do |tc|
-      cleanup
-      expected += "=== #{tc} ===\n" + `make 2>&1`
+    testcases = c.scan(/^test\d*/).sort
+
+    cleanup
+    testcases.each do |tc|
+      expected += "=== #{tc} ===\n" + `make #{tc} 2>&1`
       expected_files = get_output_filenames
-      cleanup
-      output += "=== #{tc} ===\n" + `../../kati 2>&1`
-      output_files = get_output_filenames
-
-      expected.gsub!(/^make\[.*\n/, '')
-      output.gsub!(/^\*kati\*.*\n/, '')
-
       expected += "\n=== FILES ===\n#{expected_files * "\n"}\n"
+    end
+
+    cleanup
+    testcases.each do |tc|
+      output += "=== #{tc} ===\n" + `../../kati #{tc} 2>&1`
+      output_files = get_output_filenames
       output += "\n=== FILES ===\n#{output_files * "\n"}\n"
     end
+
+    expected.gsub!(/^make\[.*\n/, '')
+    output.gsub!(/^\*kati\*.*\n/, '')
 
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
