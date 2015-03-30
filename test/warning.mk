@@ -1,0 +1,3 @@
+$(warning foo)
+
+test:
