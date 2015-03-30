@@ -100,8 +100,8 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	for _, rule := range er.rules {
 		if oldRule, present := ex.rules[rule.output]; present {
 			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
-				Warn(rule.filename, rule.cmdLineno, "overriding recipe for target '%s'", rule.output)
-				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old recipe for target '%s'", oldRule.output)
+				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", rule.output)
+				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", oldRule.output)
 			}
 			r := &Rule{}
 			*r = *rule

@@ -49,6 +49,10 @@ Dir.glob('test/*.mk').sort.each do |mk|
     end
 
     expected.gsub!(/^make\[.*\n/, '')
+    # Normalizations for old/new GNU make.
+    expected.gsub!(/[`'"]/, '"')
+    expected.gsub!(/ (?:commands|recipe) for target /,
+                   ' commands for target ')
     output.gsub!(/^\*kati\*.*\n/, '')
 
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
