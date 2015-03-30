@@ -120,7 +120,7 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.lineno = ast.lineno
 
 	lhs := ev.evalExpr(ast.lhs)
-	rhs := ast.evalRHS(ev)
+	rhs := ast.evalRHS(ev, lhs)
 	Log("ASSIGN: %s=%s", lhs, rhs)
 	ev.outVars[lhs] = rhs
 }
@@ -163,6 +163,18 @@ func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
 		// TODO: Fix rule_in_var.mk.
 		Error(ast.filename, ast.lineno, "*** missing separator.")
 	}
+}
+
+func (ev *Evaluator) getVar(name string) (string, bool) {
+	value, present := ev.outVars[name]
+	if present {
+		return value, true
+	}
+	value, present = ev.vars[name]
+	if present {
+		return value, true
+	}
+	return "", false
 }
 
 func (ev *Evaluator) getVars() map[string]string {

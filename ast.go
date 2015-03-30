@@ -23,14 +23,23 @@ func (ast *AssignAST) eval(ev *Evaluator) {
 	ev.evalAssign(ast)
 }
 
-func (ast *AssignAST) evalRHS(ev *Evaluator) string {
+func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) string {
 	switch ast.op {
 	case ":=":
 		return ev.evalExpr(ast.rhs)
 	case "=":
 		return ast.rhs
-	default: // "+=", "?="
-		panic(fmt.Sprintf("not implemented assign op: %q", ast.op))
+	case "+=":
+		prev, _ := ev.getVar(lhs)
+		return fmt.Sprintf("%s %s", prev, ev.evalExpr(ast.rhs))
+	case "?=":
+		prev, present := ev.getVar(lhs)
+		if present {
+			return prev
+		}
+		return ev.evalExpr(ast.rhs)
+	default:
+		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}
 }
 

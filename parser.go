@@ -164,8 +164,10 @@ func (p *parser) parse() (mk Makefile, err error) {
 				}
 			case '=':
 				ast = p.parseAssign(line, i, i+1)
-			case '?':
-				panic("TODO")
+			case '?', '+':
+				if i+1 < len(line) && line[i+1] == '=' {
+					ast = p.parseAssign(line, i, i+2)
+				}
 			}
 			if ast != nil {
 				p.mk.stmts = append(p.mk.stmts, ast)
