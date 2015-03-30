@@ -1,14 +1,7 @@
 package main
 
-type ASTType int
-
-const (
-	ASTAssign ASTType = iota
-	ASTRule
-)
-
 type AST interface {
-	typ() ASTType
+	eval(*Evaluator)
 	show()
 }
 
@@ -22,8 +15,8 @@ type AssignAST struct {
 	rhs string
 }
 
-func (ast *AssignAST) typ() ASTType {
-	return ASTAssign
+func (ast *AssignAST) eval(ev *Evaluator) {
+	ev.evalAssign(ast)
 }
 
 func (ast *AssignAST) show() {
@@ -37,8 +30,8 @@ type RuleAST struct {
 	cmds []string
 }
 
-func (ast *RuleAST) typ() ASTType {
-	return ASTRule
+func (ast *RuleAST) eval(ev *Evaluator) {
+	ev.evalRule(ast)
 }
 
 func (ast *RuleAST) show() {

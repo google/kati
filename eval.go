@@ -146,12 +146,7 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 }
 
 func (ev *Evaluator) eval(ast AST) {
-	switch ast.typ() {
-	case ASTAssign:
-		ev.evalAssign(ast.(*AssignAST))
-	case ASTRule:
-		ev.evalRule(ast.(*RuleAST))
-	}
+	ast.eval(ev)
 }
 
 func Eval(mk Makefile) *EvalResult {
