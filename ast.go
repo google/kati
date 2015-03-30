@@ -6,7 +6,8 @@ type AST interface {
 }
 
 type ASTBase struct {
-	lineno int
+	filename string
+	lineno   int
 }
 
 const (
@@ -47,4 +48,17 @@ func (ast *RuleAST) show() {
 	for _, cmd := range ast.cmds {
 		Log("\t%s", cmd)
 	}
+}
+
+type RawExprAST struct {
+	ASTBase
+	expr string
+}
+
+func (ast *RawExprAST) eval(ev *Evaluator) {
+	ev.evalRawExpr(ast)
+}
+
+func (ast *RawExprAST) show() {
+	Log("%s", ast.expr)
 }

@@ -154,6 +154,13 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 	ev.curRule = nil
 }
 
+func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
+	result := ev.evalExpr(ast.expr)
+	if result != "" {
+		fmt.Printf("%s:%d: *** missing separator.  Stop.\n", ast.filename, ast.lineno)
+	}
+}
+
 func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }

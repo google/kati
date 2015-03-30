@@ -16,6 +16,7 @@ type Makefile struct {
 type parser struct {
 	rd       *bufio.Reader
 	mk       Makefile
+	filename string
 	lineno   int
 	elineno  int // lineno == elineno unless there is trailing '\'.
 	unBuf    []byte
@@ -32,9 +33,10 @@ func exists(filename string) bool {
 	return true
 }
 
-func newParser(rd io.Reader) *parser {
+func newParser(rd io.Reader, filename string) *parser {
 	return &parser{
-		rd: bufio.NewReader(rd),
+		rd:       bufio.NewReader(rd),
+		filename: filename,
 	}
 }
 
@@ -47,6 +49,7 @@ func (p *parser) readLine() []byte {
 	p.lineno = p.elineno
 	line, err := p.rd.ReadBytes('\n')
 	p.lineno++
+	p.elineno = p.lineno
 	if err == io.EOF {
 		p.done = true
 	} else if err != nil {
@@ -90,6 +93,7 @@ func (p *parser) parseAssign(line []byte, sep int, typ int) AST {
 	lhs := string(bytes.TrimSpace(line[:sep]))
 	rhs := string(bytes.TrimLeft(line[esep:], " \t"))
 	ast := &AssignAST{lhs: lhs, rhs: rhs, assign_type: typ}
+	ast.filename = p.filename
 	ast.lineno = p.lineno
 	return ast
 }
@@ -101,6 +105,7 @@ func (p *parser) parseRule(line []byte, sep int) AST {
 		lhs: lhs,
 		rhs: rhs,
 	}
+	ast.filename = p.filename
 	ast.lineno = p.lineno
 	for {
 		line := p.readLine()
@@ -144,6 +149,12 @@ func (p *parser) parse() (mk Makefile, err error) {
 				break
 			}
 		}
+		if ast == nil && len(bytes.TrimSpace(line)) > 0 {
+			a := &RawExprAST{expr: string(line)}
+			a.filename = p.filename
+			a.lineno = p.lineno
+			p.mk.stmts = append(p.mk.stmts, a)
+		}
 	}
 	return p.mk, nil
 }
@@ -154,7 +165,7 @@ func ParseMakefile(filename string) (Makefile, error) {
 		return Makefile{}, err
 	}
 	defer f.Close()
-	parser := newParser(f)
+	parser := newParser(f, filename)
 	return parser.parse()
 }
 
