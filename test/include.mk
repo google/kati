@@ -6,4 +6,4 @@ test2: foo
 bar:
 	echo OK
 
--include foo.d missing.d
+ -include foo.d missing.d

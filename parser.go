@@ -132,11 +132,12 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 }
 
 func (p *parser) parseLine(line string) AST {
-	if strings.HasPrefix(line, "include ") {
-		return p.parseInclude(line, len("include"))
+	stripped := strings.TrimLeft(line, " \t")
+	if strings.HasPrefix(stripped, "include ") {
+		return p.parseInclude(stripped, len("include"))
 	}
-	if strings.HasPrefix(line, "-include ") {
-		return p.parseInclude(line, len("-include"))
+	if strings.HasPrefix(stripped, "-include ") {
+		return p.parseInclude(stripped, len("-include"))
 	}
 	ast := &RawExprAST{expr: line}
 	ast.filename = p.filename
