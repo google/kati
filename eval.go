@@ -165,6 +165,7 @@ func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
 
 	result := ev.evalExpr(ast.expr)
 	if result != "" {
+		// TODO: Fix rule_in_var.mk.
 		fmt.Printf("%s:%d: *** missing separator.  Stop.\n", ast.filename, ast.lineno)
 	}
 }

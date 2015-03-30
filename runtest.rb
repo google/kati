@@ -17,6 +17,8 @@ end
 Dir.glob('test/*.mk').sort.each do |mk|
   c = File.read(mk)
 
+  expected_failure = c =~ /\A# TODO/
+
   name = mk[/([^\/]+)\.mk$/, 1]
   dir = "out/#{name}"
   FileUtils.rm_rf(dir)
@@ -49,10 +51,18 @@ Dir.glob('test/*.mk').sort.each do |mk|
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
 
     if expected != output
-      puts "#{name}: FAIL"
-      puts `diff -u out.make out.kati`
+      if expected_failure
+        puts "#{name}: FAIL (expected)"
+      else
+        puts "#{name}: FAIL"
+        puts `diff -u out.make out.kati`
+      end
     else
-      puts "#{name}: OK"
+      if expected_failure
+        puts "#{name}: PASS (unexpected)"
+      else
+        puts "#{name}: PASS"
+      end
     end
   end
 end
