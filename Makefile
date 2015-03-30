@@ -5,7 +5,10 @@ all: kati
 kati: $(GOSRC)
 	env $(shell go env) go build -o $@ .
 
-test:
+test: all
 	ruby runtest.rb
+
+clean:
+	rm -rf out kati
 
 .PHONY: test
