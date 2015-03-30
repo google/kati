@@ -3,9 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os/exec"
-	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -28,6 +25,8 @@ type Evaluator struct {
 	vars     map[string]string
 	curRule  *Rule
 
+	funcs map[string]Func
+
 	filename string
 	lineno   int
 }
@@ -37,39 +36,23 @@ func newEvaluator() *Evaluator {
 		outVars: make(map[string]string),
 		refs:    make(map[string]bool),
 		vars:    make(map[string]string),
+		funcs: map[string]Func{
+			"wildcard": funcWildcard,
+			"shell":    funcShell,
+			"warning":  funcWarning,
+		},
 	}
 }
 
 func (ev *Evaluator) evalFunction(ex string) (string, bool) {
-	if strings.HasPrefix(ex, "wildcard ") {
-		arg := ex[len("wildcard "):]
-
-		files, err := filepath.Glob(arg)
-		if err != nil {
-			panic(err)
-		}
-		return strings.Join(files, " "), true
-	} else if strings.HasPrefix(ex, "shell ") {
-		arg := ex[len("shell "):]
-
-		args := []string{"/bin/sh", "-c", arg}
-		cmd := exec.Cmd{
-			Path: args[0],
-			Args: args,
-		}
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			panic(err)
-		}
-		re, err := regexp.Compile(`\s`)
-		if err != nil {
-			panic(err)
-		}
-		return string(re.ReplaceAllString(string(out), " ")), true
-	} else if strings.HasPrefix(ex, "warning ") {
-		arg := ex[len("warning "):]
-		fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
-		return "", true
+	i := strings.IndexAny(ex, " \t")
+	if i < 0 {
+		return "", false
+	}
+	cmd := strings.TrimSpace(ex[:i])
+	args := strings.TrimLeft(ex[i+1:], " \t")
+	if f, ok := ev.funcs[cmd]; ok {
+		return f(ev, args), true
 	}
 	return "", false
 }
