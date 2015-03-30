@@ -238,7 +238,7 @@ func (p *parser) parse() (Makefile, error) {
 				p.mk.stmts = append(p.mk.stmts, ast)
 			case '=':
 				lhs := string(bytes.TrimSpace(line[:i]))
-				rhs := string(bytes.TrimSpace(line[i+1:]))
+				rhs := string(bytes.TrimLeft(line[i+1:], " \t"))
 				ast := &AssignAST{
 					lhs: lhs,
 					rhs: rhs,
