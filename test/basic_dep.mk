@@ -1,5 +1,3 @@
-# TODO: fix
-
 test1: foo
 	echo test1
 
