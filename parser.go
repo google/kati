@@ -84,15 +84,13 @@ func (p *parser) unreadLine(line []byte) {
 	p.hasUnBuf = true
 }
 
-func (p *parser) parseAssign(line []byte, sep int, typ int) AST {
-	Log("parseAssign %s %d", line, sep)
-	esep := sep + 1
-	if typ != ASSIGN_RECURSIVE {
-		esep++
+func (p *parser) parseAssign(line []byte, sep, esep int) AST {
+	Log("parseAssign %s %s", line, line[sep:esep])
+	ast := &AssignAST{
+		lhs: string(bytes.TrimSpace(line[:sep])),
+		rhs: string(bytes.TrimLeft(line[esep:], " \t")),
+		op:  string(line[sep:esep]),
 	}
-	lhs := string(bytes.TrimSpace(line[:sep]))
-	rhs := string(bytes.TrimLeft(line[esep:], " \t"))
-	ast := &AssignAST{lhs: lhs, rhs: rhs, assign_type: typ}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
 	return ast
@@ -135,12 +133,12 @@ func (p *parser) parse() (mk Makefile, err error) {
 			switch ch {
 			case ':':
 				if i+1 < len(line) && line[i+1] == '=' {
-					ast = p.parseAssign(line, i, ASSIGN_SIMPLE)
+					ast = p.parseAssign(line, i, i+2)
 				} else {
 					ast = p.parseRule(line, i)
 				}
 			case '=':
-				ast = p.parseAssign(line, i, ASSIGN_RECURSIVE)
+				ast = p.parseAssign(line, i, i+1)
 			case '?':
 				panic("TODO")
 			}

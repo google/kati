@@ -133,15 +133,7 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.lineno = ast.lineno
 
 	lhs := ev.evalExpr(ast.lhs)
-	var rhs string
-	switch ast.assign_type {
-	case ASSIGN_SIMPLE:
-		rhs = ev.evalExpr(ast.rhs)
-	case ASSIGN_RECURSIVE:
-		rhs = ast.rhs
-	default:
-		panic("TODO")
-	}
+	rhs := ast.evalRHS(ev)
 	Log("ASSIGN: %s=%s", lhs, rhs)
 	ev.outVars[lhs] = rhs
 }
