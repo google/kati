@@ -222,19 +222,24 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 }
 
 func (ev *Evaluator) evalIf(ast *IfAST) {
-	var stmts []AST
+	var isTrue bool
 	switch ast.op {
 	case "ifdef", "ifndef":
 		value, _ := ev.getVar(ev.evalExpr(ast.lhs))
-		if (value != "") == (ast.op == "ifdef") {
-			stmts = ast.trueStmts
-		} else {
-			stmts = ast.falseStmts
-		}
+		isTrue = (value != "") == (ast.op == "ifdef")
 	case "ifeq", "ifneq":
-		panic("TODO")
+		lhs := ev.evalExpr(ast.lhs)
+		rhs := ev.evalExpr(ast.rhs)
+		isTrue = (lhs == rhs) == (ast.op == "ifeq")
 	default:
 		panic(fmt.Sprintf("unknown if statement: %q", ast.op))
+	}
+
+	var stmts []AST
+	if isTrue {
+		stmts = ast.trueStmts
+	} else {
+		stmts = ast.falseStmts
 	}
 	for _, stmt := range stmts {
 		ev.eval(stmt)

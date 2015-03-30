@@ -56,29 +56,27 @@ else
 RESULT += FAIL
 endif
 
-# TODO: Support ifeq and ifneq
+ifeq ($(VAR),var)
+RESULT += PASS
+else
+RESULT += FAIL
+endif
+ifneq ($(VAR),var)
+RESULT += FAIL
+else
+RESULT += PASS
+endif
 
-# ifeq ($(VAR),var)
-# RESULT += PASS
-# else
-# RESULT += FAIL
-# endif
-# ifneq ($(VAR),var)
-# RESULT += FAIL
-# else
-# RESULT += PASS
-# endif
-
-# ifeq ($(UNDEFINED),)
-# RESULT += PASS
-# else
-# RESULT += FAIL
-# endif
-# ifeq (,$(UNDEFINED))
-# RESULT += PASS
-# else
-# RESULT += FAIL
-# endif
+ifeq ($(UNDEFINED),)
+RESULT += PASS
+else
+RESULT += FAIL
+endif
+ifeq (,$(UNDEFINED))
+RESULT += PASS
+else
+RESULT += FAIL
+endif
 
 # TODO: Support?
 # ifeq "$(VAR)" "var"

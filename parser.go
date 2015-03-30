@@ -157,10 +157,61 @@ func (p *parser) parseIfdef(line string, oplen int) AST {
 	return ast
 }
 
+func (p *parser) parseEq(s string) (string, string, bool) {
+	if len(s) == 0 || s[0] != '(' {
+		return "", "", false
+	}
+
+	// TODO: Double-quotes will not be handled properly.
+	i := 0
+	paren_cnt := 0
+	in_rhs := false
+	var lhs []byte
+	var rhs []byte
+	for {
+		i++
+		if i == len(s) {
+			return "", "", false
+		}
+		ch := s[i]
+		if ch == '(' {
+			paren_cnt++
+		} else if ch == ')' {
+			paren_cnt--
+			if paren_cnt < 0 {
+				if in_rhs {
+					break
+				} else {
+					return "", "", false
+				}
+			}
+		} else if ch == ',' {
+			if in_rhs {
+				return "", "", false
+			} else {
+				in_rhs = true
+				continue
+			}
+		}
+		if in_rhs {
+			rhs = append(rhs, ch)
+		} else {
+			lhs = append(lhs, ch)
+		}
+	}
+	return string(lhs), string(rhs), true
+}
+
 func (p *parser) parseIfeq(line string, oplen int) AST {
+	lhs, rhs, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]))
+	if !ok {
+		Error(p.filename, p.lineno, `*** invalid syntax in conditional.`)
+	}
+
 	ast := &IfAST{
 		op: line[:oplen],
-		lhs: strings.TrimSpace(line[oplen+1:]),
+		lhs: lhs,
+		rhs: rhs,
 	}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
