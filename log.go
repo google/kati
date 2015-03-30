@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 )
 
 func Log(f string, a ...interface{}) {
@@ -18,11 +19,8 @@ func Warn(filename string, lineno int, f string, a ...interface{}) {
 	fmt.Printf(f, a...)
 }
 
-func Error(f string, a ...interface{}) {
-	var buf bytes.Buffer
-	buf.WriteString("error: ")
-	buf.WriteString(f)
-	buf.WriteByte('\n')
-	fmt.Printf(buf.String(), a...)
-	panic("")
+func Error(filename string, lineno int, f string, a ...interface{}) {
+	f = fmt.Sprintf("%s:%d: %s\n", filename, lineno, f)
+	fmt.Printf(f, a...)
+	os.Exit(2)
 }
