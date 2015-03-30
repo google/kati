@@ -21,18 +21,18 @@ type EvalResult struct {
 }
 
 type Evaluator struct {
-	out_vars  map[string]string
-	out_rules []*Rule
-	refs      map[string]bool
-	vars      map[string]string
-	cur_rule  *Rule
+	outVars  map[string]string
+	outRules []*Rule
+	refs     map[string]bool
+	vars     map[string]string
+	curRule  *Rule
 }
 
 func newEvaluator() *Evaluator {
 	return &Evaluator{
-		out_vars: make(map[string]string),
-		refs:     make(map[string]bool),
-		vars:     make(map[string]string),
+		outVars: make(map[string]string),
+		refs:    make(map[string]bool),
+		vars:    make(map[string]string),
 	}
 }
 
@@ -57,7 +57,7 @@ func (ev *Evaluator) evalFunction(ex string) (string, bool) {
 		if err != nil {
 			panic(err)
 		}
-		re, err := regexp.Compile("\\s")
+		re, err := regexp.Compile(`\s`)
 		if err != nil {
 			panic(err)
 		}
@@ -81,7 +81,7 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 			var varname string
 			switch ex[i] {
 			case '@':
-				buf.WriteString(ev.cur_rule.output)
+				buf.WriteString(ev.curRule.output)
 				i++
 				continue
 			case '(':
@@ -101,7 +101,7 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 			value, present := ev.vars[varname]
 			if !present {
 				ev.refs[varname] = true
-				value = ev.out_vars[varname]
+				value = ev.outVars[varname]
 			}
 			buf.WriteString(value)
 
@@ -124,32 +124,32 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	lhs := ev.evalExpr(ast.lhs)
 	rhs := ev.evalExpr(ast.rhs)
 	Log("ASSIGN: %s=%s", lhs, rhs)
-	ev.out_vars[lhs] = rhs
+	ev.outVars[lhs] = rhs
 }
 
 func (ev *Evaluator) evalRule(ast *RuleAST) {
-	ev.cur_rule = &Rule{}
+	ev.curRule = &Rule{}
 	lhs := ev.evalExpr(ast.lhs)
-	ev.cur_rule.output = lhs
+	ev.curRule.output = lhs
 	rhs := ev.evalExpr(ast.rhs)
 	if rhs != "" {
-		ev.cur_rule.inputs = strings.Split(rhs, " ")
+		ev.curRule.inputs = strings.Split(rhs, " ")
 	}
 	var cmds []string
 	for _, cmd := range ast.cmds {
 		cmds = append(cmds, ev.evalExpr(cmd))
 	}
 	Log("RULE: %s=%s", lhs, rhs)
-	ev.cur_rule.cmds = cmds
-	ev.out_rules = append(ev.out_rules, ev.cur_rule)
-	ev.cur_rule = nil
+	ev.curRule.cmds = cmds
+	ev.outRules = append(ev.outRules, ev.curRule)
+	ev.curRule = nil
 }
 
 func (ev *Evaluator) eval(ast AST) {
 	switch ast.typ() {
-	case AST_ASSIGN:
+	case ASTAssign:
 		ev.evalAssign(ast.(*AssignAST))
-	case AST_RULE:
+	case ASTRule:
 		ev.evalRule(ast.(*RuleAST))
 	}
 }
@@ -160,8 +160,8 @@ func Eval(mk Makefile) *EvalResult {
 		ev.eval(stmt)
 	}
 	return &EvalResult{
-		vars:  ev.out_vars,
-		rules: ev.out_rules,
+		vars:  ev.outVars,
+		rules: ev.outRules,
 		refs:  ev.refs,
 	}
 }

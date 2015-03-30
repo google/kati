@@ -14,13 +14,13 @@ type Makefile struct {
 }
 
 type parser struct {
-	rd         *bufio.Reader
-	mk         Makefile
-	lineno     int
-	elineno    int // lineno == elineno unless there is trailing '\'.
-	un_buf     []byte
-	has_un_buf bool
-	done       bool
+	rd       *bufio.Reader
+	mk       Makefile
+	lineno   int
+	elineno  int // lineno == elineno unless there is trailing '\'.
+	unBuf    []byte
+	hasUnBuf bool
+	done     bool
 }
 
 func exists(filename string) bool {
@@ -47,9 +47,9 @@ func newParser(rd io.Reader) *parser {
 }
 
 func (p *parser) readLine() []byte {
-	if p.has_un_buf {
-		p.has_un_buf = false
-		return p.un_buf
+	if p.hasUnBuf {
+		p.hasUnBuf = false
+		return p.unBuf
 	}
 
 	p.lineno = p.elineno
@@ -82,11 +82,11 @@ func (p *parser) readLine() []byte {
 }
 
 func (p *parser) unreadLine(line []byte) {
-	if p.has_un_buf {
+	if p.hasUnBuf {
 		panic("unreadLine twice!")
 	}
-	p.un_buf = line
-	p.has_un_buf = true
+	p.unBuf = line
+	p.hasUnBuf = true
 }
 
 func (p *parser) readByte() (byte, error) {
@@ -283,6 +283,7 @@ func ParseMakefile(filename string) (Makefile, error) {
 	if err != nil {
 		return Makefile{}, err
 	}
+	defer f.Close()
 	parser := newParser(f)
 	return parser.parse()
 }
@@ -294,5 +295,5 @@ func ParseDefaultMakefile() (Makefile, error) {
 			return ParseMakefile(filename)
 		}
 	}
-	return Makefile{}, errors.New("No targets specified and no makefile found.")
+	return Makefile{}, errors.New("no targets specified and no makefile found.")
 }

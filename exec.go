@@ -17,6 +17,7 @@ func newExecutor() *Executor {
 	}
 }
 
+// TODO(ukai): use time.Time?
 func getTimestamp(filename string) int64 {
 	st, err := os.Stat(filename)
 	if err != nil {
@@ -52,14 +53,14 @@ func (ex *Executor) runCommands(cmds []string) {
 
 func (ex *Executor) build(output string) int64 {
 	Log("Building: %s", output)
-	output_ts := getTimestamp(output)
+	outputTs := getTimestamp(output)
 
 	rule, present := ex.rules[output]
 	if !present {
-		if output_ts >= 0 {
-			return output_ts
+		if outputTs >= 0 {
+			return outputTs
 		}
-		Error("No rule to make target '%s'", output)
+		Error("No rule to make target %q", output)
 	}
 
 	latest := int64(-1)
@@ -70,17 +71,17 @@ func (ex *Executor) build(output string) int64 {
 		}
 	}
 
-	if output_ts >= latest {
-		return output_ts
+	if outputTs >= latest {
+		return outputTs
 	}
 
 	ex.runCommands(rule.cmds)
 
-	output_ts = getTimestamp(output)
-	if output_ts < 0 {
-		output_ts = time.Now().Unix()
+	outputTs = getTimestamp(output)
+	if outputTs < 0 {
+		outputTs = time.Now().Unix()
 	}
-	return output_ts
+	return outputTs
 }
 
 func (ex *Executor) exec(er *EvalResult) {

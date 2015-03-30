@@ -1,12 +1,14 @@
 package main
 
+type ASTType int
+
 const (
-	AST_ASSIGN = iota
-	AST_RULE
+	ASTAssign ASTType = iota
+	ASTRule
 )
 
 type AST interface {
-	typ() int
+	typ() ASTType
 	show()
 }
 
@@ -20,8 +22,8 @@ type AssignAST struct {
 	rhs string
 }
 
-func (ast *AssignAST) typ() int {
-	return AST_ASSIGN
+func (ast *AssignAST) typ() ASTType {
+	return ASTAssign
 }
 
 func (ast *AssignAST) show() {
@@ -35,8 +37,8 @@ type RuleAST struct {
 	cmds []string
 }
 
-func (ast *RuleAST) typ() int {
-	return AST_RULE
+func (ast *RuleAST) typ() ASTType {
+	return ASTRule
 }
 
 func (ast *RuleAST) show() {
