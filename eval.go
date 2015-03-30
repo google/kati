@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -135,9 +136,13 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 	}
 	lhs := ev.evalExpr(ast.lhs)
 	ev.curRule.output = lhs
-	rhs := ev.evalExpr(ast.rhs)
+	rhs := strings.TrimSpace(ev.evalExpr(ast.rhs))
 	if rhs != "" {
-		ev.curRule.inputs = strings.Split(rhs, " ")
+		re, err := regexp.Compile(`\s+`)
+		if err != nil {
+			panic(err)
+		}
+		ev.curRule.inputs = re.Split(rhs, -1)
 	}
 	var cmds []string
 	for _, cmd := range ast.cmds {
