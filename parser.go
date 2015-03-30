@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -13,10 +14,13 @@ type Makefile struct {
 }
 
 type parser struct {
-	rd     *bufio.Reader
-	mk     Makefile
-	lineno int
-	done   bool
+	rd         *bufio.Reader
+	mk         Makefile
+	lineno     int
+	elineno    int // lineno == elineno unless there is trailing '\'.
+	un_buf     []byte
+	has_un_buf bool
+	done       bool
 }
 
 func exists(filename string) bool {
@@ -40,6 +44,49 @@ func newParser(rd io.Reader) *parser {
 	return &parser{
 		rd: bufio.NewReader(rd),
 	}
+}
+
+func (p *parser) readLine() []byte {
+	if p.has_un_buf {
+		p.has_un_buf = false
+		return p.un_buf
+	}
+
+	p.lineno = p.elineno
+	line, err := p.rd.ReadBytes('\n')
+	p.lineno++
+	if err == io.EOF {
+		p.done = true
+	} else if err != nil {
+		panic(err)
+	}
+
+	if len(line) > 0 {
+		line = line[0 : len(line)-1]
+	}
+
+	// TODO: Handle \\ at the end of the line?
+	for len(line) > 0 && line[len(line)-1] == '\\' {
+		line = line[:len(line)-1]
+		nline := p.readLine()
+		p.elineno++
+		line = append(line, nline...)
+	}
+
+	index := bytes.IndexByte(line, '#')
+	if index >= 0 {
+		line = line[:index]
+	}
+
+	return line
+}
+
+func (p *parser) unreadLine(line []byte) {
+	if p.has_un_buf {
+		panic("unreadLine twice!")
+	}
+	p.un_buf = line
+	p.has_un_buf = true
 }
 
 func (p *parser) readByte() (byte, error) {
@@ -163,29 +210,70 @@ func (p *parser) parseRule(lhs string) AST {
 }
 
 func (p *parser) parse() (Makefile, error) {
-	for {
-		tok, err := p.getNextToken()
-		Log("tok=%s", tok)
-		if err == io.EOF {
-			return p.mk, nil
-		} else if err != nil {
-			return p.mk, err
+	for !p.done {
+		line := p.readLine()
+
+		for i, ch := range line {
+			switch ch {
+			case ':':
+				// TODO: Handle := and ::=.
+				lhs := string(bytes.TrimSpace(line[:i]))
+				rhs := string(bytes.TrimSpace(line[i+1:]))
+				ast := &RuleAST{
+					lhs: lhs,
+					rhs: rhs,
+				}
+				ast.lineno = p.lineno
+				for {
+					line := p.readLine()
+					if len(line) == 0 {
+						break
+					} else if line[0] == '\t' {
+						ast.cmds = append(ast.cmds, string(bytes.TrimSpace(line)))
+					} else {
+						p.unreadLine(line)
+						break
+					}
+				}
+				p.mk.stmts = append(p.mk.stmts, ast)
+			case '=':
+				lhs := string(bytes.TrimSpace(line[:i]))
+				rhs := string(bytes.TrimSpace(line[i+1:]))
+				ast := &AssignAST{
+					lhs: lhs,
+					rhs: rhs,
+				}
+				ast.lineno = p.lineno
+				p.mk.stmts = append(p.mk.stmts, ast)
+			case '?':
+				panic("TODO")
+			}
 		}
-		switch tok {
-		default:
-			ntok, err := p.getNextToken()
-			if err != nil {
+
+		/*
+			tok, err := p.getNextToken()
+			Log("tok=%s", tok)
+			if err == io.EOF {
+				return p.mk, nil
+			} else if err != nil {
 				return p.mk, err
 			}
-			switch ntok {
-			case "=":
-				ast := p.parseAssign(tok)
-				p.mk.stmts = append(p.mk.stmts, ast)
-			case ":":
-				ast := p.parseRule(tok)
-				p.mk.stmts = append(p.mk.stmts, ast)
+			switch tok {
+			default:
+				ntok, err := p.getNextToken()
+				if err != nil {
+					return p.mk, err
+				}
+				switch ntok {
+				case "=":
+					ast := p.parseAssign(tok)
+					p.mk.stmts = append(p.mk.stmts, ast)
+				case ":":
+					ast := p.parseRule(tok)
+					p.mk.stmts = append(p.mk.stmts, ast)
+				}
 			}
-		}
+		*/
 	}
 	return p.mk, nil
 }
