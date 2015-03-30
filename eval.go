@@ -27,6 +27,9 @@ type Evaluator struct {
 	refs     map[string]bool
 	vars     map[string]string
 	curRule  *Rule
+
+	filename string
+	lineno   int
 }
 
 func newEvaluator() *Evaluator {
@@ -63,6 +66,10 @@ func (ev *Evaluator) evalFunction(ex string) (string, bool) {
 			panic(err)
 		}
 		return string(re.ReplaceAllString(string(out), " ")), true
+	} else if strings.HasPrefix(ex, "warning ") {
+		arg := ex[len("warning "):]
+		fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
+		return "", true
 	}
 	return "", false
 }
@@ -122,6 +129,9 @@ func (ev *Evaluator) evalExpr(ex string) string {
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
+	ev.filename = ast.filename
+	ev.lineno = ast.lineno
+
 	lhs := ev.evalExpr(ast.lhs)
 	var rhs string
 	switch ast.assign_type {
@@ -137,6 +147,9 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 }
 
 func (ev *Evaluator) evalRule(ast *RuleAST) {
+	ev.filename = ast.filename
+	ev.lineno = ast.lineno
+
 	ev.curRule = &Rule{}
 	lhs := ev.evalExpr(ast.lhs)
 	ev.curRule.output = lhs
@@ -155,6 +168,9 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 }
 
 func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
+	ev.filename = ast.filename
+	ev.lineno = ast.lineno
+
 	result := ev.evalExpr(ast.expr)
 	if result != "" {
 		fmt.Printf("%s:%d: *** missing separator.  Stop.\n", ast.filename, ast.lineno)
