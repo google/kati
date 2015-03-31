@@ -157,52 +157,76 @@ func (p *parser) parseIfdef(line string, oplen int) AST {
 	return ast
 }
 
-func (p *parser) parseEq(s string) (string, string, bool) {
-	if len(s) == 0 || s[0] != '(' {
-		return "", "", false
+func closeParen(ch byte) (byte, error) {
+	switch ch {
+	case '(':
+		return ')', nil
+	case '{':
+		return '}', nil
+	default:
+		return 0, fmt.Errorf("unexpected paren %c", ch)
 	}
+}
 
+// parseExpr parses s as expr.
+// The expr should starts with '(' or '{' and returns strings
+// separeted by ',' before ')' or '}' respectively, and an index for the rest.
+func parseExpr(s string) ([]string, int, error) {
+	if len(s) == 0 {
+		return nil, 0, errors.New("empty expr")
+	}
+	paren, err := closeParen(s[0])
+	if err != nil {
+		return nil, 0, err
+	}
+	parenCnt := make(map[byte]int)
 	i := 0
-	parenCnt := 0
-	inRhs := false
-	var lhs []byte
-	var rhs []byte
+	ia := 1
+	var args []string
+Loop:
 	for {
 		i++
 		if i == len(s) {
-			return "", "", false
+			return nil, 0, errors.New("unexpected end of expr")
 		}
 		ch := s[i]
-		if ch == '(' {
-			parenCnt++
-		} else if ch == ')' {
-			parenCnt--
-			if parenCnt < 0 {
-				if inRhs {
-					break
-				} else {
-					return "", "", false
-				}
+		switch ch {
+		case '(', '{':
+			cch, err := closeParen(ch)
+			if err != nil {
+				return nil, 0, err
 			}
-		} else if ch == ',' {
-			if inRhs {
-				return "", "", false
-			} else {
-				inRhs = true
-				continue
+			parenCnt[cch]++
+		case ')', '}':
+			parenCnt[ch]--
+			if ch == paren && parenCnt[ch] < 0 {
+				break Loop
 			}
-		}
-		if inRhs {
-			rhs = append(rhs, ch)
-		} else {
-			lhs = append(lhs, ch)
+		case ',':
+			if parenCnt[')'] == 0 && parenCnt['}'] == 0 {
+				args = append(args, s[ia:i])
+				ia = i + 1
+			}
 		}
 	}
-	return string(lhs), string(rhs), true
+	args = append(args, s[ia:i])
+	return args, i + 1, nil
+}
+
+func parseEq(s string) (string, string, bool) {
+	args, _, err := parseExpr(s)
+	if err != nil {
+		return "", "", false
+	}
+	if len(args) != 2 {
+		return "", "", false
+	}
+	// TODO: check rest?
+	return args[0], args[1], true
 }
 
 func (p *parser) parseIfeq(line string, oplen int) AST {
-	lhs, rhs, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]))
+	lhs, rhs, ok := parseEq(strings.TrimSpace(line[oplen+1:]))
 	if !ok {
 		Error(p.filename, p.lineno, `*** invalid syntax in conditional.`)
 	}

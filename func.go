@@ -10,14 +10,25 @@ import (
 
 // Func is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
-// TODO(ukai): *Evaluator -> eval context or so?
 // TODO(ukai): return error instead of panic?
-type Func func(*Evaluator, string) string
+type Func func(*Evaluator, []string) string
+
+func funcSubst(ev *Evaluator, args []string) string {
+	Log("subst %q", args)
+	if len(args) != 3 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `subst'."))
+	}
+	from := ev.evalExpr(args[0])
+	to := ev.evalExpr(args[1])
+	text := ev.evalExpr(args[2])
+	return strings.Replace(text, from, to, -1)
+}
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
-func funcWildcard(_ *Evaluator, arg string) string {
-	Log("wildcard %q", arg)
-	files, err := filepath.Glob(arg)
+func funcWildcard(ev *Evaluator, args []string) string {
+	Log("wildcard %q", args)
+	pattern := ev.evalExpr(strings.Join(args, ","))
+	files, err := filepath.Glob(pattern)
 	if err != nil {
 		panic(err)
 	}
@@ -25,12 +36,13 @@ func funcWildcard(_ *Evaluator, arg string) string {
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
-func funcShell(_ *Evaluator, arg string) string {
-	Log("shell %q", arg)
-	args := []string{"/bin/sh", "-c", arg}
+func funcShell(ev *Evaluator, args []string) string {
+	Log("shell %q", args)
+	arg := ev.evalExpr(strings.Join(args, ","))
+	cmdline := []string{"/bin/sh", "-c", arg}
 	cmd := exec.Cmd{
-		Path: args[0],
-		Args: args,
+		Path: cmdline[0],
+		Args: cmdline,
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -44,8 +56,9 @@ func funcShell(_ *Evaluator, arg string) string {
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
-func funcWarning(ev *Evaluator, arg string) string {
-	Log("warning %q", arg)
+func funcWarning(ev *Evaluator, args []string) string {
+	Log("warning %q", args)
+	arg := ev.evalExpr(strings.Join(args, ","))
 	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
 	return ""
 }

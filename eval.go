@@ -41,6 +41,7 @@ func newEvaluator(vars map[string]string) *Evaluator {
 		refs:    make(map[string]bool),
 		vars:    vars,
 		funcs: map[string]Func{
+			"subst":    funcSubst,
 			"wildcard": funcWildcard,
 			"shell":    funcShell,
 			"warning":  funcWarning,
@@ -48,29 +49,33 @@ func newEvaluator(vars map[string]string) *Evaluator {
 	}
 }
 
-func (ev *Evaluator) evalFunction(ex string) (string, bool) {
-	i := strings.IndexAny(ex, " \t")
+func (ev *Evaluator) evalFunction(args []string) (string, bool) {
+	if len(args) == 0 {
+		return "", false
+	}
+	i := strings.IndexAny(args[0], " \t")
 	if i < 0 {
 		return "", false
 	}
-	cmd := strings.TrimSpace(ex[:i])
-	args := strings.TrimLeft(ex[i+1:], " \t")
+	cmd := strings.TrimSpace(args[0][:i])
+	args[0] = strings.TrimLeft(args[0][i+1:], " \t")
 	if f, ok := ev.funcs[cmd]; ok {
 		return f(ev, args), true
 	}
 	return "", false
 }
 
-func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
+func (ev *Evaluator) evalExprSlice(ex string) (string, int) {
 	var buf bytes.Buffer
 	i := 0
-	for i < len(ex) && ex[i] != term {
+Loop:
+	for i < len(ex) {
 		ch := ex[i]
 		i++
 		switch ch {
 		case '$':
-			if i >= len(ex) || ex[i] == term {
-				continue
+			if i >= len(ex) {
+				break Loop
 			}
 
 			var varname string
@@ -80,18 +85,16 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 				i++
 				continue
 			case '(', '{':
-				var cp byte = ')'
-				if ex[i] == '{' {
-					cp = '}'
+				args, rest, err := parseExpr(ex[i:])
+				if err != nil {
 				}
-				v, j := ev.evalExprSlice(ex[i+1:], cp)
-				i += j + 2
-				if r, done := ev.evalFunction(v); done {
+				i += rest
+				if r, done := ev.evalFunction(args); done {
 					buf.WriteString(r)
 					continue
 				}
 
-				varname = v
+				varname = strings.Join(args, ",")
 			default:
 				varname = string(ex[i])
 				i++
@@ -112,7 +115,7 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 }
 
 func (ev *Evaluator) evalExpr(ex string) string {
-	r, i := ev.evalExprSlice(ex, 0)
+	r, i := ev.evalExprSlice(ex)
 	if len(ex) != i {
 		panic(fmt.Sprintf("Had a null character? %q, %d", ex, i))
 	}

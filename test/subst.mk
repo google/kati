@@ -1,5 +1,3 @@
-# TODO
-
 # http://www.gnu.org/software/make/manual/make.html#Syntax-of-Functions
 comma:= ,
 empty:=
