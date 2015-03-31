@@ -1,4 +1,3 @@
-# TODO:
 prefix = M
 pattern = ${prefix}*
 files = $(wildcard $(pattern))

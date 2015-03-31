@@ -8,11 +8,11 @@ import (
 )
 
 type Rule struct {
-	output string
-	inputs []string
-	cmds   []string
-	filename string
-	lineno int
+	output    string
+	inputs    []string
+	cmds      []string
+	filename  string
+	lineno    int
 	cmdLineno int
 }
 
@@ -79,8 +79,12 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 				buf.WriteString(ev.curRule.output)
 				i++
 				continue
-			case '(':
-				v, j := ev.evalExprSlice(ex[i+1:], ')')
+			case '(', '{':
+				var cp byte = ')'
+				if ex[i] == '{' {
+					cp = '}'
+				}
+				v, j := ev.evalExprSlice(ex[i+1:], cp)
 				i += j + 2
 				if r, done := ev.evalFunction(v); done {
 					buf.WriteString(r)
@@ -110,7 +114,7 @@ func (ev *Evaluator) evalExprSlice(ex string, term byte) (string, int) {
 func (ev *Evaluator) evalExpr(ex string) string {
 	r, i := ev.evalExprSlice(ex, 0)
 	if len(ex) != i {
-		panic("Had a null character?")
+		panic(fmt.Sprintf("Had a null character? %q, %d", ex, i))
 	}
 	return r
 }
@@ -130,8 +134,8 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 	ev.lineno = ast.lineno
 
 	ev.curRule = &Rule{
-		filename: ast.filename,
-		lineno: ast.lineno,
+		filename:  ast.filename,
+		lineno:    ast.lineno,
 		cmdLineno: ast.cmdLineno,
 	}
 	lhs := ev.evalExpr(ast.lhs)
