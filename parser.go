@@ -15,8 +15,8 @@ type Makefile struct {
 }
 
 type ifState struct {
-	ast     *IfAST
-	in_else bool
+	ast    *IfAST
+	inElse bool
 }
 
 type parser struct {
@@ -163,8 +163,8 @@ func (p *parser) parseEq(s string) (string, string, bool) {
 	}
 
 	i := 0
-	paren_cnt := 0
-	in_rhs := false
+	parenCnt := 0
+	inRhs := false
 	var lhs []byte
 	var rhs []byte
 	for {
@@ -174,25 +174,25 @@ func (p *parser) parseEq(s string) (string, string, bool) {
 		}
 		ch := s[i]
 		if ch == '(' {
-			paren_cnt++
+			parenCnt++
 		} else if ch == ')' {
-			paren_cnt--
-			if paren_cnt < 0 {
-				if in_rhs {
+			parenCnt--
+			if parenCnt < 0 {
+				if inRhs {
 					break
 				} else {
 					return "", "", false
 				}
 			}
 		} else if ch == ',' {
-			if in_rhs {
+			if inRhs {
 				return "", "", false
 			} else {
-				in_rhs = true
+				inRhs = true
 				continue
 			}
 		}
-		if in_rhs {
+		if inRhs {
 			rhs = append(rhs, ch)
 		} else {
 			lhs = append(lhs, ch)
@@ -229,10 +229,10 @@ func (p *parser) checkIfStack(curKeyword string) {
 func (p *parser) parseElse(line string) {
 	p.checkIfStack("else")
 	state := &p.ifStack[len(p.ifStack)-1]
-	if state.in_else {
+	if state.inElse {
 		Error(p.filename, p.lineno, `*** only one "else" per conditional.`)
 	}
-	state.in_else = true
+	state.inElse = true
 	p.outStmts = &state.ast.falseStmts
 }
 
@@ -243,7 +243,7 @@ func (p *parser) parseEndif(line string) {
 		p.outStmts = &p.mk.stmts
 	} else {
 		state := p.ifStack[len(p.ifStack)-1]
-		if state.in_else {
+		if state.inElse {
 			p.outStmts = &state.ast.falseStmts
 		} else {
 			p.outStmts = &state.ast.trueStmts
