@@ -8,7 +8,7 @@ kati: $(GOSRC)
 go_test: $(GOSRC)
 	env $(shell go env) go test .
 
-test: all
+test: all go_test
 	ruby runtest.rb
 
 clean:
