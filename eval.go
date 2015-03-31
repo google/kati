@@ -18,6 +18,7 @@ type Evaluator struct {
 	refs     map[string]bool
 	vars     map[string]string
 	curRule  *Rule
+	inCommand bool
 
 	funcs map[string]Func
 
@@ -106,14 +107,6 @@ Loop:
 	return buf.String(), i
 }
 
-func (ev *Evaluator) evalExprCommand(ex string) string {
-	r, i := ev.evalExprSlice(ex)
-	if len(ex) != i {
-		panic(fmt.Sprintf("Had a null character? %q, %d", ex, i))
-	}
-	return r
-}
-
 func expandCommandVars(cmd string, output string) string {
 	// Fast path.
 	if strings.IndexByte(cmd, '$') < 0 {
@@ -143,8 +136,16 @@ func expandCommandVars(cmd string, output string) string {
 }
 
 func (ev *Evaluator) evalExpr(ex string) string {
-	ex = ev.evalExprCommand(ex)
-	return expandCommandVars(ex, "")
+	r, i := ev.evalExprSlice(ex)
+	if len(ex) != i {
+		panic(fmt.Sprintf("Had a null character? %q, %d", ex, i))
+	}
+	ex = r
+	// We will expand command variables later.
+	if !ev.inCommand {
+		ex = expandCommandVars(ex, "")
+	}
+	return ex
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
@@ -186,7 +187,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 
 	var cmds []string
 	for _, cmd := range ast.cmds {
-		cmds = append(cmds, ev.evalExprCommand(cmd))
+		ev.inCommand = true
+		cmds = append(cmds, ev.evalExpr(cmd))
+		ev.inCommand = false
 	}
 
 	// TODO: Pretty print.
