@@ -5,7 +5,7 @@ import (
 )
 
 type Rule struct {
-	output    string
+	outputs   []string
 	inputs    []string
 	cmds      []string
 	filename  string
@@ -19,7 +19,6 @@ func (r *Rule) parse(line string) {
 		Error(r.filename, r.lineno, "*** missing separator.")
 	}
 
-	lhs := line[:colonIndex]
-	r.output = lhs
+	r.outputs = splitSpaces(line[:colonIndex])
 	r.inputs = splitSpaces(line[colonIndex+1:])
 }

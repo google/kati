@@ -99,22 +99,24 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	}
 
 	for _, rule := range er.rules {
-		if oldRule, present := ex.rules[rule.output]; present {
-			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
-				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", rule.output)
-				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", oldRule.output)
+		for _, output := range rule.outputs {
+			if oldRule, present := ex.rules[output]; present {
+				if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
+					Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
+					Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
+				}
+				r := &Rule{}
+				*r = *rule
+				r.inputs = append(r.inputs, oldRule.inputs...)
+				ex.rules[output] = r
+			} else {
+				ex.rules[output] = rule
 			}
-			r := &Rule{}
-			*r = *rule
-			r.inputs = append(r.inputs, oldRule.inputs...)
-			ex.rules[rule.output] = r
-		} else {
-			ex.rules[rule.output] = rule
 		}
 	}
 
 	if len(targets) == 0 {
-		targets = append(targets, er.rules[0].output)
+		targets = append(targets, er.rules[0].outputs[0])
 	}
 
 	for _, target := range targets {
