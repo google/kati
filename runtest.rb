@@ -59,7 +59,8 @@ Dir.glob('test/*.mk').sort.each do |mk|
       output += "\n=== FILES ===\n#{output_files * "\n"}\n"
     end
 
-    expected.gsub!(/^make\[.*\n/, '')
+    expected.gsub!(/^make\[\d+\]: (Entering|Leaving) directory.*\n/, '')
+    expected.gsub!(/^make\[\d+\]: /, '')
     # Normalizations for old/new GNU make.
     expected.gsub!(/[`'"]/, '"')
     expected.gsub!(/ (?:commands|recipe) for target /,

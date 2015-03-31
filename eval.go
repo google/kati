@@ -175,6 +175,11 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		cmdLineno: ast.cmdLineno,
 	}
 	ev.curRule.parse(line)
+	// It seems rules with no outputs are siliently ignored.
+	if len(ev.curRule.outputs) == 0 {
+		ev.curRule = nil
+		return
+	}
 
 	var cmds []string
 	for _, cmd := range ast.cmds {

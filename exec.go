@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -95,7 +94,7 @@ func (ex *Executor) build(output string) (int64, error) {
 
 func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	if len(er.rules) == 0 {
-		return errors.New("no targets.")
+		ErrorNoLocation("*** No targets.")
 	}
 
 	for _, rule := range er.rules {

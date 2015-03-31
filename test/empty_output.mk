@@ -1,4 +1,5 @@
-$(warning foo)
+:
+	echo FAIL
 
 test:
 	echo PASS

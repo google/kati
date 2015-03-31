@@ -24,3 +24,9 @@ func Error(filename string, lineno int, f string, a ...interface{}) {
 	fmt.Printf(f, a...)
 	os.Exit(2)
 }
+
+func ErrorNoLocation(f string, a ...interface{}) {
+	f = fmt.Sprintf("%s\n", f)
+	fmt.Printf(f, a...)
+	os.Exit(2)
+}
