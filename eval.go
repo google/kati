@@ -174,7 +174,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		lineno:    ast.lineno,
 		cmdLineno: ast.cmdLineno,
 	}
-	ev.curRule.parse(line)
+	if err := ev.curRule.parse(line); err != "" {
+		Error(ast.filename, ast.lineno, err)
+	}
 	// It seems rules with no outputs are siliently ignored.
 	if len(ev.curRule.outputs) == 0 {
 		ev.curRule = nil

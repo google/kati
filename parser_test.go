@@ -47,8 +47,7 @@ func TestParseExpr(t *testing.T) {
 		}
 		if got, want := args, tc.args; !reflect.DeepEqual(got, want) {
 			t.Errorf(`parseExpr(%q)=%q, _, _; want %q, _, _`, tc.in, got, want)
-		}
-		if got, want := tc.in[rest:], tc.rest; got != want {
+		} else if got, want := tc.in[rest:], tc.rest; got != want {
 			t.Errorf(`parseExpr(%q)=_, %q, _; want _, %q, _`, tc.in, got, want)
 		}
 	}
