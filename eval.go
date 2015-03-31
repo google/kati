@@ -200,19 +200,6 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.curRule = nil
 }
 
-/*
-func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
-	ev.filename = ast.filename
-	ev.lineno = ast.lineno
-
-	result := ev.evalExpr(ast.expr)
-	if result != "" {
-		// TODO: Fix rule_in_var.mk.
-		Error(ast.filename, ast.lineno, "*** missing separator.")
-	}
-}
-*/
-
 func (ev *Evaluator) getVar(name string) (string, bool) {
 	value, present := ev.outVars[name]
 	if present {
