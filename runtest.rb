@@ -21,8 +21,11 @@ Dir.glob('test/*.mk').sort.each do |mk|
 
   name = mk[/([^\/]+)\.mk$/, 1]
   dir = "out/#{name}"
-  FileUtils.rm_rf(dir)
+
   FileUtils.mkdir_p(dir)
+  Dir.glob("#{dir}/*").each do |fname|
+    FileUtils.rm_rf(fname)
+  end
 
   Dir.chdir(dir) do
     File.open("Makefile", 'w') do |ofile|
