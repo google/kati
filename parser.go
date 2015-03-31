@@ -110,12 +110,16 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	return ast
 }
 
-func (p *parser) parseRule(line []byte, sep int) AST {
-	lhs := string(bytes.TrimSpace(line[:sep]))
-	rhs := string(bytes.TrimSpace(line[sep+1:]))
-	ast := &RuleAST{
-		lhs: lhs,
-		rhs: rhs,
+func (p *parser) parseMaybeRule(line string) AST {
+	if len(strings.TrimSpace(line)) == 0 {
+		return nil
+	}
+	if line[0] == '\t' {
+		Error(p.filename, p.lineno, "*** commands commence before first target.")
+	}
+
+	ast := &MaybeRuleAST{
+		expr: line,
 	}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
@@ -312,13 +316,6 @@ func (p *parser) parseKeywords(line string) bool {
 	return false
 }
 
-func (p *parser) parseLine(line string) AST {
-	ast := &RawExprAST{expr: line}
-	ast.filename = p.filename
-	ast.lineno = p.lineno
-	return ast
-}
-
 func (p *parser) parse() (mk Makefile, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -339,7 +336,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 				if i+1 < len(line) && line[i+1] == '=' {
 					ast = p.parseAssign(line, i, i+2)
 				} else {
-					ast = p.parseRule(line, i)
+					ast = p.parseMaybeRule(string(line))
 				}
 			case '=':
 				ast = p.parseAssign(line, i, i+1)
@@ -353,9 +350,11 @@ func (p *parser) parse() (mk Makefile, err error) {
 				break
 			}
 		}
-		if ast == nil && len(bytes.TrimSpace(line)) > 0 {
-			ast = p.parseLine(string(line))
-			p.addStatement(ast)
+		if ast == nil {
+			ast = p.parseMaybeRule(string(line))
+			if ast != nil {
+				p.addStatement(ast)
+			}
 		}
 	}
 	return p.mk, nil

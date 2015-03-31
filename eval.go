@@ -132,18 +132,32 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.outVars[lhs] = rhs
 }
 
-func (ev *Evaluator) evalRule(ast *RuleAST) {
+func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
+
+	line := ev.evalExpr(ast.expr)
+	if strings.TrimSpace(line) == "" {
+		if len(ast.cmds) > 0 {
+			Error(ast.filename, ast.cmdLineno, "*** commands commence before first target.")
+		}
+		return
+	}
 
 	ev.curRule = &Rule{
 		filename:  ast.filename,
 		lineno:    ast.lineno,
 		cmdLineno: ast.cmdLineno,
 	}
-	lhs := ev.evalExpr(ast.lhs)
+
+	colonIndex := strings.IndexByte(line, ':')
+	if colonIndex < 0 {
+		Error(ast.filename, ast.lineno, "*** missing separator.")
+	}
+
+	lhs := line[:colonIndex]
 	ev.curRule.output = lhs
-	rhs := strings.TrimSpace(ev.evalExpr(ast.rhs))
+	rhs := strings.TrimSpace(line[colonIndex+1:])
 	if rhs != "" {
 		re, err := regexp.Compile(`\s+`)
 		if err != nil {
@@ -155,12 +169,13 @@ func (ev *Evaluator) evalRule(ast *RuleAST) {
 	for _, cmd := range ast.cmds {
 		cmds = append(cmds, ev.evalExpr(cmd))
 	}
-	Log("RULE: %s=%s", lhs, rhs)
+	Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 	ev.curRule.cmds = cmds
 	ev.outRules = append(ev.outRules, ev.curRule)
 	ev.curRule = nil
 }
 
+/*
 func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
@@ -171,6 +186,7 @@ func (ev *Evaluator) evalRawExpr(ast *RawExprAST) {
 		Error(ast.filename, ast.lineno, "*** missing separator.")
 	}
 }
+*/
 
 func (ev *Evaluator) getVar(name string) (string, bool) {
 	value, present := ev.outVars[name]

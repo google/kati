@@ -47,36 +47,24 @@ func (ast *AssignAST) show() {
 	Log("%s=%s", ast.lhs, ast.rhs)
 }
 
-type RuleAST struct {
+// Note we cannot be sure what this is, until all variables in |expr|
+// are expanded.
+type MaybeRuleAST struct {
 	ASTBase
-	lhs       string
-	rhs       string
+	expr      string
 	cmds      []string
 	cmdLineno int
 }
 
-func (ast *RuleAST) eval(ev *Evaluator) {
-	ev.evalRule(ast)
+func (ast *MaybeRuleAST) eval(ev *Evaluator) {
+	ev.evalMaybeRule(ast)
 }
 
-func (ast *RuleAST) show() {
-	Log("%s: %s", ast.lhs, ast.rhs)
+func (ast *MaybeRuleAST) show() {
+	Log("%s", ast.expr)
 	for _, cmd := range ast.cmds {
 		Log("\t%s", cmd)
 	}
-}
-
-type RawExprAST struct {
-	ASTBase
-	expr string
-}
-
-func (ast *RawExprAST) eval(ev *Evaluator) {
-	ev.evalRawExpr(ast)
-}
-
-func (ast *RawExprAST) show() {
-	Log("%s", ast.expr)
 }
 
 type IncludeAST struct {
