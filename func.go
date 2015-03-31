@@ -15,6 +15,7 @@ type Func func(*Evaluator, []string) string
 
 func funcSubst(ev *Evaluator, args []string) string {
 	Log("subst %q", args)
+	// TODO: Actually, having more than three arguments is valid.
 	if len(args) != 3 {
 		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `subst'."))
 	}
@@ -22,6 +23,21 @@ func funcSubst(ev *Evaluator, args []string) string {
 	to := ev.evalExpr(args[1])
 	text := ev.evalExpr(args[2])
 	return strings.Replace(text, from, to, -1)
+}
+
+func funcPatsubst(ev *Evaluator, args []string) string {
+	Log("patsubst %q", args)
+	// TODO: Actually, having more than three arguments is valid.
+	if len(args) != 3 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `patsubst'."))
+	}
+	pat := ev.evalExpr(args[0])
+	repl := ev.evalExpr(args[1])
+	texts := splitSpaces(ev.evalExpr(args[2]))
+	for i, text := range texts {
+		texts[i] = substPattern(pat, repl, text)
+	}
+	return strings.Join(texts, " ")
 }
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
