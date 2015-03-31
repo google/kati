@@ -67,6 +67,13 @@ func (ex *Executor) build(output string) (int64, error) {
 
 	latest := int64(-1)
 	for _, input := range rule.inputs {
+		if len(rule.outputPatterns) > 0 {
+			if len(rule.outputPatterns) > 1 {
+				panic("TODO: multiple output pattern is not supported yet")
+			}
+			input = substPattern(rule.outputPatterns[0], input, output)
+		}
+
 		ts, err := ex.build(input)
 		if err != nil {
 			return outputTs, err
