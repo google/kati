@@ -50,7 +50,7 @@ func newParser(rd io.Reader, filename string) *parser {
 	return p
 }
 
-func (p* parser) addStatement(ast AST) {
+func (p *parser) addStatement(ast AST) {
 	*p.outStmts = append(*p.outStmts, ast)
 }
 
@@ -146,7 +146,7 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 
 func (p *parser) parseIfdef(line string, oplen int) AST {
 	ast := &IfAST{
-		op: line[:oplen],
+		op:  line[:oplen],
 		lhs: strings.TrimSpace(line[oplen+1:]),
 	}
 	ast.filename = p.filename
@@ -209,7 +209,7 @@ func (p *parser) parseIfeq(line string, oplen int) AST {
 	}
 
 	ast := &IfAST{
-		op: line[:oplen],
+		op:  line[:oplen],
 		lhs: lhs,
 		rhs: rhs,
 	}
@@ -239,7 +239,7 @@ func (p *parser) parseElse(line string) {
 
 func (p *parser) parseEndif(line string) {
 	p.checkIfStack("endif")
-	p.ifStack = p.ifStack[0:len(p.ifStack)-1]
+	p.ifStack = p.ifStack[0 : len(p.ifStack)-1]
 	if len(p.ifStack) == 0 {
 		p.outStmts = &p.mk.stmts
 	} else {

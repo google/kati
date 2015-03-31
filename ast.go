@@ -49,9 +49,9 @@ func (ast *AssignAST) show() {
 
 type RuleAST struct {
 	ASTBase
-	lhs  string
-	rhs  string
-	cmds []string
+	lhs       string
+	rhs       string
+	cmds      []string
 	cmdLineno int
 }
 
@@ -95,10 +95,10 @@ func (ast *IncludeAST) show() {
 
 type IfAST struct {
 	ASTBase
-	op string
-	lhs string
-	rhs string // Empty if |op| is ifdef or ifndef.
-	trueStmts []AST
+	op         string
+	lhs        string
+	rhs        string // Empty if |op| is ifdef or ifndef.
+	trueStmts  []AST
 	falseStmts []AST
 }
 
