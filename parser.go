@@ -275,38 +275,44 @@ func (p *parser) parseEndif(line string) {
 	}
 }
 
-func (p *parser) parseLine(line string) AST {
+func (p *parser) parseKeywords(line string) bool {
 	stripped := strings.TrimLeft(line, " \t")
 	if strings.HasPrefix(stripped, "include ") {
-		return p.parseInclude(stripped, len("include"))
+		p.addStatement(p.parseInclude(stripped, len("include")))
+		return true
 	}
 	if strings.HasPrefix(stripped, "-include ") {
-		return p.parseInclude(stripped, len("-include"))
+		p.addStatement(p.parseInclude(stripped, len("-include")))
+		return true
 	}
 	if strings.HasPrefix(stripped, "ifdef ") {
 		p.parseIfdef(stripped, len("ifdef"))
-		return nil
+		return true
 	}
 	if strings.HasPrefix(stripped, "ifndef ") {
 		p.parseIfdef(stripped, len("ifndef"))
-		return nil
+		return true
 	}
 	if strings.HasPrefix(stripped, "ifeq ") {
 		p.parseIfeq(stripped, len("ifeq"))
-		return nil
+		return true
 	}
 	if strings.HasPrefix(stripped, "ifneq ") {
 		p.parseIfeq(stripped, len("ifneq"))
-		return nil
+		return true
 	}
 	if strings.HasPrefix(stripped, "else") {
 		p.parseElse(stripped)
-		return nil
+		return true
 	}
 	if strings.HasPrefix(stripped, "endif") {
 		p.parseEndif(stripped)
-		return nil
+		return true
 	}
+	return false
+}
+
+func (p *parser) parseLine(line string) AST {
 	ast := &RawExprAST{expr: line}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
@@ -321,6 +327,10 @@ func (p *parser) parse() (mk Makefile, err error) {
 	}()
 	for !p.done {
 		line := p.readLine()
+
+		if p.parseKeywords(string(line)) {
+			continue
+		}
 
 		var ast AST
 		for i, ch := range line {
@@ -345,9 +355,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 		if ast == nil && len(bytes.TrimSpace(line)) > 0 {
 			ast = p.parseLine(string(line))
-			if ast != nil {
-				p.addStatement(ast)
-			}
+			p.addStatement(ast)
 		}
 	}
 	return p.mk, nil
