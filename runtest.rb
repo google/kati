@@ -10,9 +10,14 @@ end
 
 def cleanup
   get_output_filenames.each do |fname|
-    FileUtils.rm fname
+    FileUtils.rm_rf fname
   end
 end
+
+expected_failures = []
+unexpected_passes = []
+failures = []
+passes = []
 
 Dir.glob('test/*.mk').sort.each do |mk|
   c = File.read(mk)
@@ -71,16 +76,51 @@ Dir.glob('test/*.mk').sort.each do |mk|
     if expected != output
       if expected_failure
         puts "#{name}: FAIL (expected)"
+        expected_failures << name
       else
         puts "#{name}: FAIL"
         puts `diff -u out.make out.kati`
+        failures << name
       end
     else
       if expected_failure
         puts "#{name}: PASS (unexpected)"
+        unexpected_passes << name
       else
         puts "#{name}: PASS"
+        passes << name
       end
     end
   end
+end
+
+puts
+
+if !expected_failures.empty?
+  puts "=== Expected failures ==="
+  expected_failures.each do |n|
+    puts n
+  end
+end
+
+if !unexpected_passes.empty?
+  puts "=== Unexpected passes ==="
+  unexpected_passes.each do |n|
+    puts n
+  end
+end
+
+if !failures.empty?
+  puts "=== Failures ==="
+  failures.each do |n|
+    puts n
+  end
+end
+
+puts
+
+if !unexpected_passes.empty? || !failures.empty?
+  puts 'FAIL!'
+else
+  puts 'PASS!'
 end
