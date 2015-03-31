@@ -56,6 +56,8 @@ Dir.glob('test/*.mk').sort.each do |mk|
     expected.gsub!(/[`'"]/, '"')
     expected.gsub!(/ (?:commands|recipe) for target /,
                    ' commands for target ')
+    expected.gsub!(/ (?:commands|recipe) commences /,
+                   ' commands commence ')
     expected.gsub!(' (did you mean TAB instead of 8 spaces?)', '')
     expected.gsub!(/\s+Stop\.$/, '')
     output.gsub!(/^\*kati\*.*\n/, '')
