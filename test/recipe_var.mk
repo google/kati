@@ -1,0 +1,4 @@
+foo=FAIL
+
+$$:
+	echo "$@"

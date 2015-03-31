@@ -27,8 +27,9 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-func (ex *Executor) runCommands(cmds []string) error {
+func (ex *Executor) runCommands(cmds []string, output string) error {
 	for _, cmd := range cmds {
+		cmd = expandCommandVars(cmd, output)
 		fmt.Printf("%s\n", cmd)
 
 		args := []string{"/bin/sh", "-c", cmd}
@@ -80,7 +81,7 @@ func (ex *Executor) build(output string) (int64, error) {
 		return outputTs, nil
 	}
 
-	err := ex.runCommands(rule.cmds)
+	err := ex.runCommands(rule.cmds, output)
 	if err != nil {
 		return outputTs, err
 	}

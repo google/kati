@@ -70,8 +70,9 @@ Loop:
 
 			var varname string
 			switch ex[i] {
-			case '@':
-				buf.WriteString(ev.curRule.output)
+			case '@', '$':
+				buf.WriteByte('$')
+				buf.WriteByte(ex[i])
 				i++
 				continue
 			case '(', '{':
@@ -104,12 +105,45 @@ Loop:
 	return buf.String(), i
 }
 
-func (ev *Evaluator) evalExpr(ex string) string {
+func (ev *Evaluator) evalExprCommand(ex string) string {
 	r, i := ev.evalExprSlice(ex)
 	if len(ex) != i {
 		panic(fmt.Sprintf("Had a null character? %q, %d", ex, i))
 	}
 	return r
+}
+
+func expandCommandVars(cmd string, output string) string {
+	// Fast path.
+	if strings.IndexByte(cmd, '$') < 0 {
+		return cmd
+	}
+
+	var buf bytes.Buffer
+	i := 0
+	for i < len(cmd) {
+		ch := cmd[i]
+		i++
+		if ch != '$' || i >= len(cmd) {
+			buf.WriteByte(ch)
+			continue
+		}
+		switch cmd[i] {
+		case '@':
+			buf.WriteString(output)
+		case '$':
+			buf.WriteByte('$')
+		default:
+			panic(fmt.Sprintf("TODO: not implemented yet: $%c", cmd[i]))
+		}
+		i++
+	}
+	return buf.String()
+}
+
+func (ev *Evaluator) evalExpr(ex string) string {
+	ex = ev.evalExprCommand(ex)
+	return expandCommandVars(ex, "")
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
@@ -144,7 +178,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 
 	var cmds []string
 	for _, cmd := range ast.cmds {
-		cmds = append(cmds, ev.evalExpr(cmd))
+		cmds = append(cmds, ev.evalExprCommand(cmd))
 	}
 
 	// TODO: Pretty print.
