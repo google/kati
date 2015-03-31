@@ -3,18 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
 )
-
-type Rule struct {
-	output    string
-	inputs    []string
-	cmds      []string
-	filename  string
-	lineno    int
-	cmdLineno int
-}
 
 type EvalResult struct {
 	vars  map[string]string
@@ -137,6 +127,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.lineno = ast.lineno
 
 	line := ev.evalExpr(ast.expr)
+
 	if strings.TrimSpace(line) == "" {
 		if len(ast.cmds) > 0 {
 			Error(ast.filename, ast.cmdLineno, "*** commands commence before first target.")
@@ -149,27 +140,16 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		lineno:    ast.lineno,
 		cmdLineno: ast.cmdLineno,
 	}
+	ev.curRule.parse(line)
 
-	colonIndex := strings.IndexByte(line, ':')
-	if colonIndex < 0 {
-		Error(ast.filename, ast.lineno, "*** missing separator.")
-	}
-
-	lhs := line[:colonIndex]
-	ev.curRule.output = lhs
-	rhs := strings.TrimSpace(line[colonIndex+1:])
-	if rhs != "" {
-		re, err := regexp.Compile(`\s+`)
-		if err != nil {
-			panic(err)
-		}
-		ev.curRule.inputs = re.Split(rhs, -1)
-	}
 	var cmds []string
 	for _, cmd := range ast.cmds {
 		cmds = append(cmds, ev.evalExpr(cmd))
 	}
-	Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
+
+	// TODO: Pretty print.
+	//Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
+
 	ev.curRule.cmds = cmds
 	ev.outRules = append(ev.outRules, ev.curRule)
 	ev.curRule = nil

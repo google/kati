@@ -1,3 +1,4 @@
 # TODO(hamaji): Fix.
 
-all: ; echo PASS
+all: ; echo PASS1
+	echo PASS2
