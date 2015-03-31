@@ -16,6 +16,7 @@ type Func func(*Evaluator, string) string
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
 func funcWildcard(_ *Evaluator, arg string) string {
+	Log("wildcard %q", arg)
 	files, err := filepath.Glob(arg)
 	if err != nil {
 		panic(err)
@@ -25,6 +26,7 @@ func funcWildcard(_ *Evaluator, arg string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 func funcShell(_ *Evaluator, arg string) string {
+	Log("shell %q", arg)
 	args := []string{"/bin/sh", "-c", arg}
 	cmd := exec.Cmd{
 		Path: args[0],
@@ -43,6 +45,7 @@ func funcShell(_ *Evaluator, arg string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
 func funcWarning(ev *Evaluator, arg string) string {
+	Log("warning %q", arg)
 	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
 	return ""
 }
