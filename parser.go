@@ -162,7 +162,6 @@ func (p *parser) parseEq(s string) (string, string, bool) {
 		return "", "", false
 	}
 
-	// TODO: Double-quotes will not be handled properly.
 	i := 0
 	paren_cnt := 0
 	in_rhs := false
