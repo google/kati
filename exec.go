@@ -99,6 +99,20 @@ func replaceSuffix(s string, newsuf string) string {
 	return fmt.Sprintf("%s.%s", s[:len(s)-len(oldsuf)], newsuf)
 }
 
+func (ex *Executor) canPickImplicitRule(rule *Rule, output string) bool {
+	outputPattern := rule.outputPatterns[0]
+	if !matchPattern(outputPattern, output) {
+		return false
+	}
+	for _, input := range rule.inputs {
+		input = substPattern(outputPattern, input, output)
+		if !exists(input) {
+			return false
+		}
+	}
+	return true
+}
+
 func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	rule, present := ex.rules[output]
 	if present {
@@ -106,7 +120,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	}
 
 	for _, rule := range ex.implicitRules {
-		if matchPattern(rule.outputPatterns[0], output) {
+		if ex.canPickImplicitRule(rule, output) {
 			return rule, true
 		}
 	}
