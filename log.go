@@ -7,6 +7,10 @@ import (
 )
 
 func Log(f string, a ...interface{}) {
+	if noKatiLogFlag {
+		return
+	}
+
 	var buf bytes.Buffer
 	buf.WriteString("*kati*: ")
 	buf.WriteString(f)

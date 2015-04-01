@@ -1,8 +1,21 @@
 package main
 
-import "os"
+import (
+	"flag"
+)
+
+var noKatiLogFlag bool
+
+func parseFlags() {
+	// TODO: Make this default and replace this by -d flag.
+	flag.BoolVar(&noKatiLogFlag, "no_kati_log", false, "No verbose kati specific log")
+
+	flag.Parse()
+}
 
 func main() {
+	parseFlags()
+
 	bmk := GetBootstrapMakefile()
 
 	mk, err := ParseDefaultMakefile()
@@ -22,7 +35,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = Exec(er, os.Args[1:])
+	err = Exec(er, flag.Args())
 	if err != nil {
 		panic(err)
 	}
