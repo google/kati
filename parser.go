@@ -421,3 +421,27 @@ func ParseDefaultMakefile() (Makefile, error) {
 	}
 	return Makefile{}, errors.New("no targets specified and no makefile found.")
 }
+
+func GetBootstrapMakefile() Makefile {
+	bootstrap := `
+CC:=cc
+CXX:=g++
+# TODO: Add more builtin vars.
+
+# http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
+# The document above is actually not correct. See default.c:
+# http://git.savannah.gnu.org/cgit/make.git/tree/default.c?id=4.1
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<
+.cc.o:
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<
+# TODO: Add more builtin rules.
+`
+	rd := strings.NewReader(bootstrap)
+	parser := newParser(rd, "*bootstrap*")
+	mk, err := parser.parse()
+	if err != nil {
+		panic(err)
+	}
+	return mk
+}
