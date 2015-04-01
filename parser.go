@@ -119,8 +119,12 @@ func (p *parser) parseMaybeRule(line string) AST {
 		Error(p.filename, p.lineno, "*** commands commence before first target.")
 	}
 
-	ast := &MaybeRuleAST{
-		expr: line,
+	ast := &MaybeRuleAST{}
+	if i := strings.IndexByte(line, ';'); i >= 0 {
+		ast.expr = line[:i]
+		ast.cmds = append(ast.cmds, strings.TrimSpace(line[i+1:]))
+	} else {
+		ast.expr = line
 	}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
