@@ -155,7 +155,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	}
 	Log("rule %q => outputs:%q, inputs:%q", line, ev.curRule.outputs, ev.curRule.inputs)
 	// It seems rules with no outputs are siliently ignored.
-	if len(ev.curRule.outputs) == 0 {
+	if len(ev.curRule.outputs) == 0 && len(ev.curRule.outputPatterns) == 0 {
 		ev.curRule = nil
 		return
 	}

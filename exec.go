@@ -10,12 +10,15 @@ import (
 )
 
 type Executor struct {
-	rules map[string]*Rule
+	rules         map[string]*Rule
+	implicitRules []*Rule
+	suffixRules   map[string]*Rule
 }
 
 func newExecutor() *Executor {
 	return &Executor{
-		rules: make(map[string]*Rule),
+		rules:       make(map[string]*Rule),
+		suffixRules: make(map[string]*Rule),
 	}
 }
 
@@ -86,11 +89,26 @@ func escapeVar(v string) string {
 	return strings.Replace(v, "$", "$$", -1)
 }
 
+func (ex *Executor) pickRule(output string) (*Rule, bool) {
+	rule, present := ex.rules[output]
+	if present {
+		return rule, true
+	}
+
+	for _, rule := range ex.implicitRules {
+		if matchPattern(rule.outputPatterns[0], output) {
+			return rule, true
+		}
+	}
+
+	return nil, false
+}
+
 func (ex *Executor) build(vars map[string]string, output string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs := getTimestamp(output)
 
-	rule, present := ex.rules[output]
+	rule, present := ex.pickRule(output)
 	if !present {
 		if outputTs >= 0 {
 			return outputTs, nil
@@ -152,27 +170,58 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 	return outputTs, nil
 }
 
-func (ex *Executor) exec(er *EvalResult, targets []string) error {
+func (ex *Executor) populateExplicitRule(rule *Rule) {
+	for _, output := range rule.outputs {
+		if oldRule, present := ex.rules[output]; present {
+			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
+				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
+				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
+			}
+			r := &Rule{}
+			*r = *rule
+			r.inputs = append(r.inputs, oldRule.inputs...)
+			ex.rules[output] = r
+		} else {
+			ex.rules[output] = rule
+		}
+	}
+}
+
+func (ex *Executor) populateImplicitRule(rule *Rule) {
+	for _, outputPattern := range rule.outputPatterns {
+		r := &Rule{}
+		*r = *rule
+		r.outputPatterns = []string{outputPattern}
+		ex.implicitRules = append(ex.implicitRules, r)
+	}
+}
+
+func (ex *Executor) populateRules(er *EvalResult) {
 	if len(er.rules) == 0 {
 		ErrorNoLocation("*** No targets.")
 	}
 
 	for _, rule := range er.rules {
-		for _, output := range rule.outputs {
-			if oldRule, present := ex.rules[output]; present {
-				if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
-					Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
-					Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
-				}
-				r := &Rule{}
-				*r = *rule
-				r.inputs = append(r.inputs, oldRule.inputs...)
-				ex.rules[output] = r
-			} else {
-				ex.rules[output] = rule
-			}
+		ex.populateExplicitRule(rule)
+
+		if len(rule.outputs) == 0 {
+			ex.populateImplicitRule(rule)
 		}
 	}
+
+	// Reverse the implicit rule for easier lookup.
+	for i, r := range ex.implicitRules {
+		if i >= len(ex.implicitRules) / 2 {
+			break
+		}
+		j := len(ex.implicitRules)-i-1
+		ex.implicitRules[i] = ex.implicitRules[j]
+		ex.implicitRules[j] = r
+	}
+}
+
+func (ex *Executor) exec(er *EvalResult, targets []string) error {
+	ex.populateRules(er)
 
 	if len(targets) == 0 {
 		targets = append(targets, er.rules[0].outputs[0])

@@ -30,6 +30,17 @@ func splitSpaces(s string) []string {
 	return spacesRe.Split(s, -1)
 }
 
+func matchPattern(pat string, str string) bool {
+	patPercentIndex := strings.IndexByte(pat, '%')
+	if patPercentIndex < 0 {
+		return pat == str
+	}
+
+	patPrefix := pat[:patPercentIndex]
+	patSuffix := pat[patPercentIndex+1:]
+	return strings.HasPrefix(str, patPrefix) && strings.HasSuffix(str, patSuffix)
+}
+
 func substPattern(pat string, repl string, str string) string {
 	patPercentIndex := strings.IndexByte(pat, '%')
 	if patPercentIndex < 0 {
