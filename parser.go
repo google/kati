@@ -279,41 +279,59 @@ func (p *parser) parseEndif(line string) {
 	}
 }
 
+var directives = map[string]func(*parser, string){
+	"include ":  includeDirective,
+	"-include ": sincludeDirective,
+	"sinclude":  sincludeDirective,
+	"ifdef ":    ifdefDirective,
+	"ifndef ":   ifndefDirective,
+	"ifeq ":     ifeqDirective,
+	"ifneq ":    ifneqDirective,
+	"else":      elseDirective,
+	"endif":     endifDirective,
+}
+
 func (p *parser) parseKeywords(line string) bool {
 	stripped := strings.TrimLeft(line, " \t")
-	if strings.HasPrefix(stripped, "include ") {
-		p.addStatement(p.parseInclude(stripped, len("include")))
-		return true
-	}
-	if strings.HasPrefix(stripped, "-include ") {
-		p.addStatement(p.parseInclude(stripped, len("-include")))
-		return true
-	}
-	if strings.HasPrefix(stripped, "ifdef ") {
-		p.parseIfdef(stripped, len("ifdef"))
-		return true
-	}
-	if strings.HasPrefix(stripped, "ifndef ") {
-		p.parseIfdef(stripped, len("ifndef"))
-		return true
-	}
-	if strings.HasPrefix(stripped, "ifeq ") {
-		p.parseIfeq(stripped, len("ifeq"))
-		return true
-	}
-	if strings.HasPrefix(stripped, "ifneq ") {
-		p.parseIfeq(stripped, len("ifneq"))
-		return true
-	}
-	if strings.HasPrefix(stripped, "else") {
-		p.parseElse(stripped)
-		return true
-	}
-	if strings.HasPrefix(stripped, "endif") {
-		p.parseEndif(stripped)
-		return true
+	for prefix, f := range directives {
+		if strings.HasPrefix(stripped, prefix) {
+			f(p, stripped)
+			return true
+		}
 	}
 	return false
+}
+
+func includeDirective(p *parser, line string) {
+	p.addStatement(p.parseInclude(line, len("include")))
+}
+
+func sincludeDirective(p *parser, line string) {
+	p.addStatement(p.parseInclude(line, len("-include")))
+}
+
+func ifdefDirective(p *parser, line string) {
+	p.parseIfdef(line, len("ifdef"))
+}
+
+func ifndefDirective(p *parser, line string) {
+	p.parseIfdef(line, len("ifndef"))
+}
+
+func ifeqDirective(p *parser, line string) {
+	p.parseIfeq(line, len("ifeq"))
+}
+
+func ifneqDirective(p *parser, line string) {
+	p.parseIfeq(line, len("ifneq"))
+}
+
+func elseDirective(p *parser, line string) {
+	p.parseElse(line)
+}
+
+func endifDirective(p *parser, line string) {
+	p.parseEndif(line)
 }
 
 func (p *parser) parse() (mk Makefile, err error) {
