@@ -1,5 +1,3 @@
-# TODO(hamaji): Fix.
-
 # Preparation: create foo.c
 test1:
 	touch foo.c

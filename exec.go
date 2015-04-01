@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"os"
 	"os/exec"
 	"strings"
@@ -101,6 +102,14 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 		}
 	}
 
+	outputSuffix := filepath.Ext(output)
+	if len(outputSuffix) > 0 && outputSuffix[0] == '.' {
+		rule, present := ex.suffixRules[outputSuffix[1:]]
+		if present {
+			return rule, true
+		}
+	}
+
 	return nil, false
 }
 
@@ -123,6 +132,12 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 				panic("TODO: multiple output pattern is not supported yet")
 			}
 			input = substPattern(rule.outputPatterns[0], input, output)
+		} else if rule.isSuffixRule {
+			// TODO: Factor out the logic around suffix rules and use
+			// it from substitution references.
+			// http://www.gnu.org/software/make/manual/make.html#Substitution-Refs
+			outputSuffix := filepath.Ext(output)
+			input = fmt.Sprintf("%s.%s", output[:len(output)-len(outputSuffix)], input)
 		}
 
 		ts, err := ex.build(vars, input)
@@ -170,8 +185,32 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 	return outputTs, nil
 }
 
+func (ex *Executor) maybePopulateSuffixRule(rule *Rule, output string) {
+	if len(output) == 0 || output[0] != '.' {
+		return
+	}
+	rest := output[1:]
+	dotIndex := strings.IndexByte(rest, '.')
+	// If there is only a single dot or the third dot, this is not a
+	// suffix rule.
+	if dotIndex < 0 || strings.IndexByte(rest[dotIndex+1:], '.') >= 0 {
+		return
+	}
+
+	// This is a suffix rule.
+	inputSuffix := rest[:dotIndex]
+	outputSuffix := rest[dotIndex+1:]
+	r := &Rule{}
+	*r = *rule
+	r.inputs = []string{inputSuffix}
+	r.isSuffixRule = true
+	ex.suffixRules[outputSuffix] = r
+}
+
 func (ex *Executor) populateExplicitRule(rule *Rule) {
 	for _, output := range rule.outputs {
+		ex.maybePopulateSuffixRule(rule, output)
+
 		if oldRule, present := ex.rules[output]; present {
 			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
 				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)

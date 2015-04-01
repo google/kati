@@ -9,6 +9,7 @@ type Rule struct {
 	inputs         []string
 	outputPatterns []string
 	isDoubleColon  bool
+	isSuffixRule   bool
 	cmds           []string
 	filename       string
 	lineno         int
