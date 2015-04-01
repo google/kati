@@ -430,6 +430,7 @@ func GetBootstrapMakefile() Makefile {
 	bootstrap := `
 CC:=cc
 CXX:=g++
+MAKE:=kati
 # TODO: Add more builtin vars.
 
 # http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
