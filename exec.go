@@ -13,14 +13,14 @@ import (
 type Executor struct {
 	rules         map[string]*Rule
 	implicitRules []*Rule
-	suffixRules   map[string]*Rule
+	suffixRules   map[string][]*Rule
 	firstRule     *Rule
 }
 
 func newExecutor() *Executor {
 	return &Executor{
 		rules:       make(map[string]*Rule),
-		suffixRules: make(map[string]*Rule),
+		suffixRules: make(map[string][]*Rule),
 	}
 }
 
@@ -91,6 +91,14 @@ func escapeVar(v string) string {
 	return strings.Replace(v, "$", "$$", -1)
 }
 
+func replaceSuffix(s string, newsuf string) string {
+	// TODO: Factor out the logic around suffix rules and use
+	// it from substitution references.
+	// http://www.gnu.org/software/make/manual/make.html#Substitution-Refs
+	oldsuf := filepath.Ext(s)
+	return fmt.Sprintf("%s.%s", s[:len(s)-len(oldsuf)], newsuf)
+}
+
 func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	rule, present := ex.rules[output]
 	if present {
@@ -105,9 +113,16 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 
 	outputSuffix := filepath.Ext(output)
 	if len(outputSuffix) > 0 && outputSuffix[0] == '.' {
-		rule, present := ex.suffixRules[outputSuffix[1:]]
+		rules, present := ex.suffixRules[outputSuffix[1:]]
 		if present {
-			return rule, true
+			for _, rule := range rules {
+				if len(rule.inputs) != 1 {
+					panic(fmt.Sprintf("unexpected number of input for a suffix rule (%d)", len(rule.inputs)))
+				}
+				if exists(replaceSuffix(output, rule.inputs[0])) {
+					return rule, true
+				}
+			}
 		}
 	}
 
@@ -135,11 +150,7 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 			}
 			input = substPattern(rule.outputPatterns[0], input, output)
 		} else if rule.isSuffixRule {
-			// TODO: Factor out the logic around suffix rules and use
-			// it from substitution references.
-			// http://www.gnu.org/software/make/manual/make.html#Substitution-Refs
-			outputSuffix := filepath.Ext(output)
-			input = fmt.Sprintf("%s.%s", output[:len(output)-len(outputSuffix)], input)
+			input = replaceSuffix(output, input)
 		}
 		actualInputs = append(actualInputs, input)
 
@@ -211,7 +222,7 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 	*r = *rule
 	r.inputs = []string{inputSuffix}
 	r.isSuffixRule = true
-	ex.suffixRules[outputSuffix] = r
+	ex.suffixRules[outputSuffix] = append([]*Rule{r}, ex.suffixRules[outputSuffix]...)
 	return true
 }
 
