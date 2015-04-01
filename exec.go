@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -28,7 +29,6 @@ func getTimestamp(filename string) int64 {
 
 func (ex *Executor) runCommands(cmds []string, output string) error {
 	for _, cmd := range cmds {
-		cmd = expandCommandVars(cmd, output)
 		fmt.Printf("%s\n", cmd)
 
 		args := []string{"/bin/sh", "-c", cmd}
@@ -53,7 +53,11 @@ func (ex *Executor) runCommands(cmds []string, output string) error {
 	return nil
 }
 
-func (ex *Executor) build(output string) (int64, error) {
+func escapeVar(v string) string {
+	return strings.Replace(v, "$", "$$", -1)
+}
+
+func (ex *Executor) build(vars map[string]string, output string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs := getTimestamp(output)
 
@@ -74,7 +78,7 @@ func (ex *Executor) build(output string) (int64, error) {
 			input = substPattern(rule.outputPatterns[0], input, output)
 		}
 
-		ts, err := ex.build(input)
+		ts, err := ex.build(vars, input)
 		if err != nil {
 			return outputTs, err
 		}
@@ -87,7 +91,27 @@ func (ex *Executor) build(output string) (int64, error) {
 		return outputTs, nil
 	}
 
-	err := ex.runCommands(rule.cmds, output)
+	localVars := make(map[string]string)
+	for k, v := range vars {
+		localVars[k] = v
+	}
+	// automatic variables.
+	localVars["@"] = escapeVar(output)
+	Log("local vars: %q", localVars)
+	ev := newEvaluator(localVars)
+	var cmds []string
+	for _, cmd := range rule.cmds {
+		if strings.IndexByte(cmd, '$') < 0 {
+			// fast path.
+			cmds = append(cmds, cmd)
+			continue
+		}
+		ecmd := ev.evalExpr(cmd)
+		Log("build eval:%q => %q", cmd, ecmd)
+		cmds = append(cmds, strings.Split(ecmd, "\n")...)
+	}
+
+	err := ex.runCommands(cmds, output)
 	if err != nil {
 		return outputTs, err
 	}
@@ -126,7 +150,7 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	}
 
 	for _, target := range targets {
-		_, err := ex.build(target)
+		_, err := ex.build(er.vars, target)
 		if err != nil {
 			return err
 		}

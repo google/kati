@@ -1,4 +1,3 @@
-# TODO
 foo = $(realpath ./foo)
 bar = $(realpath ./bar)
 

@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+// TODO(ukai): vars should be map[string]*Var
+// stackable map?
+// type VarMap struct { parent *VarMap; vars map[string]*Var } ?
+// type Var struct { val, origin, flavor string} ?
+
 type EvalResult struct {
 	vars  map[string]string
 	rules []*Rule
@@ -13,12 +18,11 @@ type EvalResult struct {
 }
 
 type Evaluator struct {
-	outVars   map[string]string
-	outRules  []*Rule
-	refs      map[string]bool
-	vars      map[string]string
-	curRule   *Rule
-	inCommand bool
+	outVars  map[string]string
+	outRules []*Rule
+	refs     map[string]bool
+	vars     map[string]string
+	curRule  *Rule
 
 	funcs map[string]Func
 
@@ -74,9 +78,8 @@ Loop:
 
 			var varname string
 			switch ex[i] {
-			case '@', '$':
+			case '$':
 				buf.WriteByte('$')
-				buf.WriteByte(ex[i])
 				i++
 				continue
 			case '(', '{':
@@ -100,6 +103,7 @@ Loop:
 				ev.refs[varname] = true
 				value = ev.outVars[varname]
 			}
+			Log("var %q=>%q [%t]", varname, value, present)
 			buf.WriteString(ev.evalExpr(value))
 
 		default:
@@ -109,45 +113,12 @@ Loop:
 	return buf.String(), i
 }
 
-func expandCommandVars(cmd string, output string) string {
-	// Fast path.
-	if strings.IndexByte(cmd, '$') < 0 {
-		return cmd
-	}
-
-	var buf bytes.Buffer
-	i := 0
-	for i < len(cmd) {
-		ch := cmd[i]
-		i++
-		if ch != '$' || i >= len(cmd) {
-			buf.WriteByte(ch)
-			continue
-		}
-		switch cmd[i] {
-		case '@':
-			buf.WriteString(output)
-		case '$':
-			buf.WriteByte('$')
-		default:
-			panic(fmt.Sprintf("TODO: not implemented yet: $%c", cmd[i]))
-		}
-		i++
-	}
-	return buf.String()
-}
-
 func (ev *Evaluator) evalExpr(ex string) string {
 	r, i := ev.evalExprSlice(ex)
 	if len(ex) != i {
 		panic(fmt.Sprintf("Had a null character? %q, %d", ex, i))
 	}
-	ex = r
-	// We will expand command variables later.
-	if !ev.inCommand {
-		ex = expandCommandVars(ex, "")
-	}
-	return ex
+	return r
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
@@ -165,6 +136,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.lineno = ast.lineno
 
 	line := ev.evalExpr(ast.expr)
+	Log("rule? %q=>%q", ast.expr, line)
 
 	if strings.TrimSpace(line) == "" {
 		if len(ast.cmds) > 0 {
@@ -181,23 +153,17 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if err := ev.curRule.parse(line); err != "" {
 		Error(ast.filename, ast.lineno, err)
 	}
+	Log("rule %q => outputs:%q, inputs:%q", line, ev.curRule.outputs, ev.curRule.inputs)
 	// It seems rules with no outputs are siliently ignored.
 	if len(ev.curRule.outputs) == 0 {
 		ev.curRule = nil
 		return
 	}
 
-	var cmds []string
-	for _, cmd := range ast.cmds {
-		ev.inCommand = true
-		cmds = append(cmds, strings.Split(ev.evalExpr(cmd), "\n")...)
-		ev.inCommand = false
-	}
-
 	// TODO: Pretty print.
 	//Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
-	ev.curRule.cmds = cmds
+	ev.curRule.cmds = ast.cmds
 	ev.outRules = append(ev.outRules, ev.curRule)
 	ev.curRule = nil
 }

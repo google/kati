@@ -13,9 +13,13 @@ func main() {
 	}
 
 	vars := make(map[string]string)
+	// TODO(ukai): environment variables.
 	er, err := Eval(mk, vars)
 	if err != nil {
 		panic(err)
 	}
-	Exec(er, os.Args[1:])
+	err = Exec(er, os.Args[1:])
+	if err != nil {
+		panic(err)
+	}
 }
