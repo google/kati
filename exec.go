@@ -231,12 +231,18 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
-			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 && !isSuffixRule {
+			if oldRule.isDoubleColon != rule.isDoubleColon {
+				Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
+			}
+			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 && !isSuffixRule && !rule.isDoubleColon {
 				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
 				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
 			}
 			r := &Rule{}
 			*r = *rule
+			if rule.isDoubleColon {
+				r.cmds = append(oldRule.cmds, r.cmds...)
+			}
 			r.inputs = append(r.inputs, oldRule.inputs...)
 			ex.rules[output] = r
 		} else {

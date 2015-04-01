@@ -1,5 +1,3 @@
-# TODO(hamaji): Fix
-
 test::
 	echo FOO
 test::
