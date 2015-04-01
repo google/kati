@@ -6,4 +6,4 @@ test1:
 test2: foo.o
 
 .c.o:
-	echo PASS
+	echo PASS $@ $< $^

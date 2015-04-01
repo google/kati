@@ -126,6 +126,7 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 	}
 
 	latest := int64(-1)
+	var actualInputs []string
 	for _, input := range rule.inputs {
 		if len(rule.outputPatterns) > 0 {
 			if len(rule.outputPatterns) > 1 {
@@ -139,6 +140,7 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 			outputSuffix := filepath.Ext(output)
 			input = fmt.Sprintf("%s.%s", output[:len(output)-len(outputSuffix)], input)
 		}
+		actualInputs = append(actualInputs, input)
 
 		ts, err := ex.build(vars, input)
 		if err != nil {
@@ -159,6 +161,10 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 	}
 	// automatic variables.
 	localVars["@"] = escapeVar(output)
+	if len(actualInputs) > 0 {
+		localVars["<"] = escapeVar(actualInputs[0])
+		localVars["^"] = escapeVar(strings.Join(actualInputs, " "))
+	}
 	Log("local vars: %q", localVars)
 	ev := newEvaluator(localVars)
 	var cmds []string
