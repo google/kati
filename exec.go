@@ -177,6 +177,19 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 		}
 	}
 
+	for _, input := range rule.orderOnlyInputs {
+		if exists(input) {
+			continue
+		}
+		ts, err := ex.build(vars, input)
+		if err != nil {
+			return outputTs, err
+		}
+		if latest < ts {
+			latest = ts
+		}
+	}
+
 	if outputTs >= latest {
 		return outputTs, nil
 	}

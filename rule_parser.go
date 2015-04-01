@@ -5,19 +5,36 @@ import (
 )
 
 type Rule struct {
-	outputs        []string
-	inputs         []string
-	outputPatterns []string
-	isDoubleColon  bool
-	isSuffixRule   bool
-	cmds           []string
-	filename       string
-	lineno         int
-	cmdLineno      int
+	outputs         []string
+	inputs          []string
+	orderOnlyInputs []string
+	outputPatterns  []string
+	isDoubleColon   bool
+	isSuffixRule    bool
+	cmds            []string
+	filename        string
+	lineno          int
+	cmdLineno       int
 }
 
 func isPatternRule(s string) bool {
 	return strings.IndexByte(s, '%') >= 0
+}
+
+func (r *Rule) parseInputs(s string) {
+	inputs := splitSpaces(s)
+	isOrderOnly := false
+	for _, input := range inputs {
+		if input == "|" {
+			isOrderOnly = true
+			continue
+		}
+		if isOrderOnly {
+			r.orderOnlyInputs = append(r.orderOnlyInputs, input)
+		} else {
+			r.inputs = append(r.inputs, input)
+		}
+	}
 }
 
 func (r *Rule) parse(line string) string {
@@ -47,7 +64,7 @@ func (r *Rule) parse(line string) string {
 	rest := line[index:]
 	index = strings.IndexByte(rest, ':')
 	if index < 0 {
-		r.inputs = splitSpaces(rest)
+		r.parseInputs(rest)
 		return ""
 	}
 
@@ -70,7 +87,7 @@ func (r *Rule) parse(line string) string {
 	if !isPatternRule(r.outputPatterns[0]) {
 		return "*** target pattern contains no '%'."
 	}
-	r.inputs = splitSpaces(third)
+	r.parseInputs(third)
 
 	return ""
 }

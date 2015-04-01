@@ -72,6 +72,14 @@ func TestRuleParser(t *testing.T) {
 			in:  "foo.o: foo.o: %.c",
 			err: "*** target pattern contains no '%'.",
 		},
+		{
+			in:  "foo: bar | baz",
+			want: Rule{
+				outputs:         []string{"foo"},
+				inputs:          []string{"bar"},
+				orderOnlyInputs: []string{"baz"},
+			},
+		},
 		/* TODO
 		{
 			in:  "foo.o: %.c: %.c",
