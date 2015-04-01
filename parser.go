@@ -30,6 +30,7 @@ type parser struct {
 	done     bool
 	outStmts *[]AST
 	ifStack  []ifState
+	inDef    []string
 }
 
 func exists(filename string) bool {
@@ -289,6 +290,7 @@ var directives = map[string]func(*parser, string){
 	"ifneq ":    ifneqDirective,
 	"else":      elseDirective,
 	"endif":     endifDirective,
+	"define ":   defineDirective,
 }
 
 func (p *parser) parseKeywords(line string) bool {
@@ -334,6 +336,10 @@ func endifDirective(p *parser, line string) {
 	p.parseEndif(line)
 }
 
+func defineDirective(p *parser, line string) {
+	p.inDef = []string{strings.TrimLeft(line[len("define "):], " \t")}
+}
+
 func (p *parser) parse() (mk Makefile, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -342,6 +348,24 @@ func (p *parser) parse() (mk Makefile, err error) {
 	}()
 	for !p.done {
 		line := p.readLine()
+
+		if len(p.inDef) > 0 {
+			if strings.TrimLeft(string(line), " ") == "endef" {
+				Log("multilineAssign %q", p.inDef)
+				ast := &AssignAST{
+					lhs: p.inDef[0],
+					rhs: strings.Join(p.inDef[1:], "\n"),
+					op:  "=",
+				}
+				ast.filename = p.filename
+				ast.lineno = p.lineno - len(p.inDef)
+				p.addStatement(ast)
+				p.inDef = nil
+				continue
+			}
+			p.inDef = append(p.inDef, string(line))
+			continue
+		}
 
 		if p.parseKeywords(string(line)) {
 			continue
