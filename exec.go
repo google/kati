@@ -14,6 +14,7 @@ type Executor struct {
 	rules         map[string]*Rule
 	implicitRules []*Rule
 	suffixRules   map[string]*Rule
+	firstRule     *Rule
 }
 
 func newExecutor() *Executor {
@@ -191,16 +192,16 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 	return outputTs, nil
 }
 
-func (ex *Executor) maybePopulateSuffixRule(rule *Rule, output string) {
+func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 	if len(output) == 0 || output[0] != '.' {
-		return
+		return false
 	}
 	rest := output[1:]
 	dotIndex := strings.IndexByte(rest, '.')
 	// If there is only a single dot or the third dot, this is not a
 	// suffix rule.
 	if dotIndex < 0 || strings.IndexByte(rest[dotIndex+1:], '.') >= 0 {
-		return
+		return false
 	}
 
 	// This is a suffix rule.
@@ -211,14 +212,15 @@ func (ex *Executor) maybePopulateSuffixRule(rule *Rule, output string) {
 	r.inputs = []string{inputSuffix}
 	r.isSuffixRule = true
 	ex.suffixRules[outputSuffix] = r
+	return true
 }
 
 func (ex *Executor) populateExplicitRule(rule *Rule) {
 	for _, output := range rule.outputs {
-		ex.maybePopulateSuffixRule(rule, output)
+		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
-			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 {
+			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 && !isSuffixRule {
 				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
 				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
 			}
@@ -228,6 +230,9 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 			ex.rules[output] = r
 		} else {
 			ex.rules[output] = rule
+			if ex.firstRule == nil && !isSuffixRule {
+				ex.firstRule = rule
+			}
 		}
 	}
 }
@@ -242,10 +247,6 @@ func (ex *Executor) populateImplicitRule(rule *Rule) {
 }
 
 func (ex *Executor) populateRules(er *EvalResult) {
-	if len(er.rules) == 0 {
-		ErrorNoLocation("*** No targets.")
-	}
-
 	for _, rule := range er.rules {
 		ex.populateExplicitRule(rule)
 
@@ -269,7 +270,10 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	ex.populateRules(er)
 
 	if len(targets) == 0 {
-		targets = append(targets, er.rules[0].outputs[0])
+		if ex.firstRule == nil {
+			ErrorNoLocation("*** No targets.")
+		}
+		targets = append(targets, ex.firstRule.outputs[0])
 	}
 
 	for _, target := range targets {
