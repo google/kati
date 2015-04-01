@@ -35,6 +35,8 @@ func newEvaluator(vars map[string]string) *Evaluator {
 			"subst":    funcSubst,
 			"patsubst": funcPatsubst,
 			"wildcard": funcWildcard,
+			"realpath": funcRealpath,
+			"abspath":  funcAbspath,
 			"shell":    funcShell,
 			"warning":  funcWarning,
 		},

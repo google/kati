@@ -11,6 +11,7 @@ import (
 // Func is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
 // TODO(ukai): return error instead of panic?
+// TODO(ukai): each func has nargs, and don't split , more than narg?
 type Func func(*Evaluator, []string) string
 
 func funcSubst(ev *Evaluator, args []string) string {
@@ -47,6 +48,43 @@ func funcWildcard(ev *Evaluator, args []string) string {
 		panic(err)
 	}
 	return strings.Join(files, " ")
+}
+
+func funcRealpath(ev *Evaluator, args []string) string {
+	Log("realpath %q", args)
+	names := strings.Split(ev.evalExpr(strings.Join(args, ",")), " \t")
+	var realpaths []string
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		name, err := filepath.Abs(name)
+		if err != nil {
+			Log("abs: %v", err)
+			continue
+		}
+		name, err = filepath.EvalSymlinks(name)
+		if err != nil {
+			Log("realpath: %v", err)
+			continue
+		}
+		realpaths = append(realpaths, name)
+	}
+	return strings.Join(realpaths, " ")
+}
+
+func funcAbspath(ev *Evaluator, args []string) string {
+	Log("abspath %q", args)
+	names := strings.Split(ev.evalExpr(strings.Join(args, ",")), " \t")
+	var realpaths []string
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		name, err := filepath.Abs(name)
+		if err != nil {
+			Log("abs: %v", err)
+			continue
+		}
+		realpaths = append(realpaths, name)
+	}
+	return strings.Join(realpaths, " ")
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function

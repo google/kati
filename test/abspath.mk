@@ -1,4 +1,3 @@
-# TODO
 foo = $(abspath ./foo)
 
 test:
