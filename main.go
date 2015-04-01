@@ -5,10 +5,12 @@ import (
 )
 
 var noKatiLogFlag bool
+var makefileFlag string
 
 func parseFlags() {
 	// TODO: Make this default and replace this by -d flag.
 	flag.BoolVar(&noKatiLogFlag, "no_kati_log", false, "No verbose kati specific log")
+	flag.StringVar(&makefileFlag, "f", "", "Use it as a makefile")
 
 	flag.Parse()
 }
@@ -18,7 +20,13 @@ func main() {
 
 	bmk := GetBootstrapMakefile()
 
-	mk, err := ParseDefaultMakefile()
+	var mk Makefile
+	var err error
+	if len(makefileFlag) > 0 {
+		mk, err = ParseMakefile(makefileFlag)
+	} else {
+		mk, err = ParseDefaultMakefile()
+	}
 	if err != nil {
 		panic(err)
 	}
