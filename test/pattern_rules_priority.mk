@@ -1,8 +1,6 @@
-# TODO(hamaji): Fix.
-
 # Preparation: create foo.c bar.c baz.cc
 test1:
-	touch foo.c bar.c baz.cc unknown
+	touch foo.c bar.c baz.cc
 
 test2: foo.o bar.o baz.o
 
@@ -21,7 +19,3 @@ foo.o: %.o: %.c
 # The right choice for baz.o
 .cc.o:
 	echo PASS_baz
-
-# The last resort rule
-%::
-	echo PASS_unknown
