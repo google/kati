@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -28,8 +29,29 @@ func getTimestamp(filename string) int64 {
 }
 
 func (ex *Executor) runCommands(cmds []string, output string) error {
+Loop:
 	for _, cmd := range cmds {
-		fmt.Printf("%s\n", cmd)
+		echo := true
+		ignoreErr := false
+		for {
+			if cmd == "" {
+				continue Loop
+			}
+			switch cmd[0] {
+			case '@':
+				echo = false
+				cmd = cmd[1:]
+				continue
+			case '-':
+				ignoreErr = true
+				cmd = cmd[1:]
+				continue
+			}
+			break
+		}
+		if echo {
+			fmt.Printf("%s\n", cmd)
+		}
 
 		args := []string{"/bin/sh", "-c", cmd}
 		cmd := exec.Cmd{
@@ -37,17 +59,24 @@ func (ex *Executor) runCommands(cmds []string, output string) error {
 			Args: args,
 		}
 		out, err := cmd.CombinedOutput()
+		exit := 0
 		if err != nil {
-			return err
+			exit = 1
+			if err, ok := err.(*exec.ExitError); ok {
+				if w, ok := err.ProcessState.Sys().(syscall.WaitStatus); ok {
+					exit = w.ExitStatus()
+				}
+			} else {
+				return err
+			}
 		}
-		success := false
-		if cmd.ProcessState != nil {
-			success = cmd.ProcessState.Success()
-		}
-
 		fmt.Printf("%s", out)
-		if !success {
-			return fmt.Errorf("command failed: %q", cmd)
+		if exit != 0 {
+			if ignoreErr {
+				fmt.Printf("[%s] Error %d (ignored)\n", output, exit)
+				continue
+			}
+			return fmt.Errorf("command failed: %q. Error %d", cmd, exit)
 		}
 	}
 	return nil
