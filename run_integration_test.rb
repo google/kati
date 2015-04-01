@@ -24,28 +24,34 @@ class TestCase
     @target = target
   end
 
-  def normalize_log(log)
-    log.gsub(/\s+/, '').split("\n").sort.join("\n")
+  def normalize_log(log, out)
+    log = log.gsub(/[ \t]+/, ' ').split("\n").sort.join("\n")
+    File.open(out, 'w') do |of|
+      of.print log
+    end
+    log
   end
 
   def run
     @checkout.call(self)
 
     Dir.chdir(@name) do
+      @prepare.call(self)
+
       @clean.call(self)
       puts "Running make for #{@name}..."
-      system("make > make.log 2>&1")
+      system("make #{@target} > make.log 2>&1")
 
       @clean.call(self)
       puts "Running kati for #{@name}..."
-      system("../../kati > kati.log 2>&1")
+      system("../../kati #{@target} > kati.log 2>&1")
 
       make_log = File.read('make.log')
       kati_log = File.read('kati.log')
       kati_log.gsub!(/^\*kati\*.*\n/, '')
 
-      make_log = normalize_log(make_log)
-      kati_log = normalize_log(kati_log)
+      make_log = normalize_log(make_log, 'make-normalized.log')
+      kati_log = normalize_log(kati_log, 'kati-normalized.log')
       if make_log == kati_log
         puts "#{@name}: OK"
         return true
@@ -76,6 +82,9 @@ DO_NOTHING = Proc.new{|tc|}
 MAKE_CLEAN = Proc.new{|tc|
   check_command("make clean > /dev/null")
 }
+CONFIGURE = Proc.new{|tc|
+  check_command("./configure > /dev/null")
+}
 
 TESTS = [
     GitTestCase.new('maloader',
@@ -83,11 +92,23 @@ TESTS = [
                     '5d125933bc6c141bed05c309c2dc0e14ada6f5c7',
                     DO_NOTHING,
                     MAKE_CLEAN,
-                    nil)
+                    ''),
+    GitTestCase.new('glog',
+                    'https://github.com/google/glog',
+                    '1b0b08c8dda1659027677966b03a3ff3c488e549',
+                    CONFIGURE,
+                    MAKE_CLEAN,
+                    ''),
 ]
 
 fails = []
 TESTS.each do |tc|
+  if !ARGV.empty?
+    if !ARGV.include?(tc.name)
+      next
+    end
+  end
+
   if !tc.run
     fails << tc.name
   end
@@ -102,6 +123,7 @@ else
   fails.each do |n|
     puts n
   end
+  puts
 
   puts "FAIL!"
 end
