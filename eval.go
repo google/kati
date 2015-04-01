@@ -13,11 +13,11 @@ type EvalResult struct {
 }
 
 type Evaluator struct {
-	outVars  map[string]string
-	outRules []*Rule
-	refs     map[string]bool
-	vars     map[string]string
-	curRule  *Rule
+	outVars   map[string]string
+	outRules  []*Rule
+	refs      map[string]bool
+	vars      map[string]string
+	curRule   *Rule
 	inCommand bool
 
 	funcs map[string]Func
@@ -154,7 +154,7 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 
 	lhs := ev.evalExpr(ast.lhs)
 	rhs := ast.evalRHS(ev, lhs)
-	Log("ASSIGN: %s=%s", lhs, rhs)
+	Log("ASSIGN: %s=%q", lhs, rhs)
 	ev.outVars[lhs] = rhs
 }
 
@@ -188,7 +188,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	var cmds []string
 	for _, cmd := range ast.cmds {
 		ev.inCommand = true
-		cmds = append(cmds, ev.evalExpr(cmd))
+		cmds = append(cmds, strings.Split(ev.evalExpr(cmd), "\n")...)
 		ev.inCommand = false
 	}
 

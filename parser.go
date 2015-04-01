@@ -100,7 +100,7 @@ func (p *parser) unreadLine(line []byte) {
 }
 
 func (p *parser) parseAssign(line []byte, sep, esep int) AST {
-	Log("parseAssign %s %s", line, line[sep:esep])
+	Log("parseAssign %q op:%q", line, line[sep:esep])
 	ast := &AssignAST{
 		lhs: string(bytes.TrimSpace(line[:sep])),
 		rhs: string(bytes.TrimLeft(line[esep:], " \t")),

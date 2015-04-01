@@ -1,4 +1,3 @@
-# TODO
 # http://www.gnu.org/software/make/manual/make.html#Multi_002dLine
 # Note: in make 4.x
 # define name =

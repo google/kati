@@ -44,7 +44,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) string {
 }
 
 func (ast *AssignAST) show() {
-	Log("%s=%s", ast.lhs, ast.rhs)
+	Log("%s=%q", ast.lhs, ast.rhs)
 }
 
 // Note we cannot be sure what this is, until all variables in |expr|
