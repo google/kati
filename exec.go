@@ -57,6 +57,9 @@ Loop:
 		if echo {
 			fmt.Printf("%s\n", cmd)
 		}
+		if dryRunFlag {
+			continue
+		}
 
 		args := []string{"/bin/sh", "-c", cmd}
 		cmd := exec.Cmd{

@@ -6,12 +6,14 @@ import (
 
 var noKatiLogFlag bool
 var makefileFlag string
+var dryRunFlag bool
 
 func parseFlags() {
 	// TODO: Make this default and replace this by -d flag.
 	flag.BoolVar(&noKatiLogFlag, "no_kati_log", false, "No verbose kati specific log")
 	flag.StringVar(&makefileFlag, "f", "", "Use it as a makefile")
 
+	flag.BoolVar(&dryRunFlag, "n", false, "Only print the commands that would be executed")
 	flag.Parse()
 }
 
