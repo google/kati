@@ -75,6 +75,7 @@ Dir.glob('test/*.mk').sort.each do |mk|
 
     # kati specific log messages.
     output.gsub!(/^\*kati\*.*\n/, '')
+    output.gsub!(/[`'"]/, '"')
 
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}

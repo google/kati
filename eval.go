@@ -86,6 +86,7 @@ Loop:
 				}
 
 				varname = strings.Join(args, ",")
+				varname = ev.evalExpr(varname)
 			default:
 				varname = string(ex[i])
 				i++
@@ -96,7 +97,7 @@ Loop:
 			if !value.IsDefined() {
 				value = ev.outVars.Lookup(varname)
 			}
-			Log("var %q=>%q", varname, value)
+			Log("var %q=>%q=>%q", varname, value, value.Eval(ev))
 			buf.WriteString(value.Eval(ev))
 
 		default:

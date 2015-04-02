@@ -1,5 +1,3 @@
-# TODO
-
 var1 = $($(bar))
 var2 = $$(bar)
 var3 := $($(bar))
