@@ -107,6 +107,13 @@ func funcShell(ev *Evaluator, args []string) string {
 	return string(re.ReplaceAllString(string(out), " "))
 }
 
+// https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function
+func funcFlavor(ev *Evaluator, args []string) string {
+	Log("flavor %q", args)
+	vname := strings.Join(args, ",")
+	return ev.LookupVar(vname).Flavor()
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
 func funcWarning(ev *Evaluator, args []string) string {
 	Log("warning %q", args)

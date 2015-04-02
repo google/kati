@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -87,10 +87,6 @@ Loop:
 	return nil
 }
 
-func escapeVar(v string) string {
-	return strings.Replace(v, "$", "$$", -1)
-}
-
 func replaceSuffix(s string, newsuf string) string {
 	// TODO: Factor out the logic around suffix rules and use
 	// it from substitution references.
@@ -143,7 +139,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	return nil, false
 }
 
-func (ex *Executor) build(vars map[string]string, output string) (int64, error) {
+func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs := getTimestamp(output)
 
@@ -194,17 +190,19 @@ func (ex *Executor) build(vars map[string]string, output string) (int64, error) 
 		return outputTs, nil
 	}
 
-	localVars := make(map[string]string)
-	for k, v := range vars {
-		localVars[k] = v
-	}
+	localVars := NewVarTab(vars)
 	// automatic variables.
-	localVars["@"] = escapeVar(output)
+	localVars.Assign("@", SimpleVar{value: output, origin: "automatic"})
 	if len(actualInputs) > 0 {
-		localVars["<"] = escapeVar(actualInputs[0])
-		localVars["^"] = escapeVar(strings.Join(actualInputs, " "))
+		localVars.Assign("<", SimpleVar{
+			value:  actualInputs[0],
+			origin: "automatic",
+		})
+		localVars.Assign("^", SimpleVar{
+			value:  strings.Join(actualInputs, " "),
+			origin: "automatic",
+		})
 	}
-	Log("local vars: %q", localVars)
 	ev := newEvaluator(localVars)
 	var cmds []string
 	for _, cmd := range rule.cmds {
@@ -301,10 +299,10 @@ func (ex *Executor) populateRules(er *EvalResult) {
 
 	// Reverse the implicit rule for easier lookup.
 	for i, r := range ex.implicitRules {
-		if i >= len(ex.implicitRules) / 2 {
+		if i >= len(ex.implicitRules)/2 {
 			break
 		}
-		j := len(ex.implicitRules)-i-1
+		j := len(ex.implicitRules) - i - 1
 		ex.implicitRules[i] = ex.implicitRules[j]
 		ex.implicitRules[j] = r
 	}

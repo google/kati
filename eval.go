@@ -6,22 +6,15 @@ import (
 	"strings"
 )
 
-// TODO(ukai): vars should be map[string]*Var
-// stackable map?
-// type VarMap struct { parent *VarMap; vars map[string]*Var } ?
-// type Var struct { val, origin, flavor string} ?
-
 type EvalResult struct {
-	vars  map[string]string
+	vars  *VarTab
 	rules []*Rule
-	refs  map[string]bool
 }
 
 type Evaluator struct {
-	outVars  map[string]string
+	outVars  *VarTab
 	outRules []*Rule
-	refs     map[string]bool
-	vars     map[string]string
+	vars     *VarTab
 	curRule  *Rule
 
 	funcs map[string]Func
@@ -30,10 +23,9 @@ type Evaluator struct {
 	lineno   int
 }
 
-func newEvaluator(vars map[string]string) *Evaluator {
+func newEvaluator(vars *VarTab) *Evaluator {
 	return &Evaluator{
-		outVars: make(map[string]string),
-		refs:    make(map[string]bool),
+		outVars: NewVarTab(nil),
 		vars:    vars,
 		funcs: map[string]Func{
 			"subst":    funcSubst,
@@ -42,6 +34,7 @@ func newEvaluator(vars map[string]string) *Evaluator {
 			"realpath": funcRealpath,
 			"abspath":  funcAbspath,
 			"shell":    funcShell,
+			"flavor":   funcFlavor,
 			"warning":  funcWarning,
 		},
 	}
@@ -98,13 +91,13 @@ Loop:
 				i++
 			}
 
-			value, present := ev.vars[varname]
-			if !present {
-				ev.refs[varname] = true
-				value = ev.outVars[varname]
+			// TODO: lookup order is correct?
+			value := ev.vars.Lookup(varname)
+			if !value.IsDefined() {
+				value = ev.outVars.Lookup(varname)
 			}
-			Log("var %q=>%q [%t]", varname, value, present)
-			buf.WriteString(ev.evalExpr(value))
+			Log("var %q=>%q", varname, value)
+			buf.WriteString(value.Eval(ev))
 
 		default:
 			buf.WriteByte(ch)
@@ -127,8 +120,8 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 
 	lhs := ev.evalExpr(ast.lhs)
 	rhs := ast.evalRHS(ev, lhs)
-	Log("ASSIGN: %s=%q", lhs, rhs)
-	ev.outVars[lhs] = rhs
+	Log("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+	ev.outVars.Assign(lhs, rhs)
 }
 
 func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
@@ -168,25 +161,21 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.curRule = nil
 }
 
-func (ev *Evaluator) getVar(name string) (string, bool) {
-	value, present := ev.outVars[name]
-	if present {
-		return value, true
+func (ev *Evaluator) LookupVar(name string) Var {
+	v := ev.outVars.Lookup(name)
+	if v.IsDefined() {
+		return v
 	}
-	value, present = ev.vars[name]
-	if present {
-		return value, true
-	}
-	return "", false
+	return ev.vars.Lookup(name)
 }
 
-func (ev *Evaluator) getVars() map[string]string {
-	vars := make(map[string]string)
-	for k, v := range ev.vars {
-		vars[k] = v
+func (ev *Evaluator) VarTab() *VarTab {
+	vars := NewVarTab(nil)
+	for k, v := range ev.vars.Vars() {
+		vars.Assign(k, v)
 	}
-	for k, v := range ev.outVars {
-		vars[k] = v
+	for k, v := range ev.outVars.Vars() {
+		vars.Assign(k, v)
 	}
 	return vars
 }
@@ -207,19 +196,16 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 			}
 		}
 
-		er, err2 := Eval(mk, ev.getVars())
+		er, err2 := Eval(mk, ev.VarTab())
 		if err2 != nil {
 			panic(err2)
 		}
 
-		for k, v := range er.vars {
-			ev.outVars[k] = v
+		for k, v := range er.vars.Vars() {
+			ev.outVars.Assign(k, v)
 		}
 		for _, r := range er.rules {
 			ev.outRules = append(ev.outRules, r)
-		}
-		for r, _ := range er.refs {
-			ev.refs[r] = true
 		}
 	}
 }
@@ -228,12 +214,14 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 	var isTrue bool
 	switch ast.op {
 	case "ifdef", "ifndef":
-		value, _ := ev.getVar(ev.evalExpr(ast.lhs))
-		isTrue = (value != "") == (ast.op == "ifdef")
+		value := ev.LookupVar(ev.evalExpr(ast.lhs)).Eval(ev)
+		isTrue = value != "" == (ast.op == "ifdef")
+		Log("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
 	case "ifeq", "ifneq":
 		lhs := ev.evalExpr(ast.lhs)
 		rhs := ev.evalExpr(ast.rhs)
 		isTrue = (lhs == rhs) == (ast.op == "ifeq")
+		Log("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs)
 	default:
 		panic(fmt.Sprintf("unknown if statement: %q", ast.op))
 	}
@@ -253,7 +241,7 @@ func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
-func Eval(mk Makefile, vars map[string]string) (er *EvalResult, err error) {
+func Eval(mk Makefile, vars *VarTab) (er *EvalResult, err error) {
 	ev := newEvaluator(vars)
 	defer func() {
 		if r := recover(); r != nil {
@@ -266,6 +254,5 @@ func Eval(mk Makefile, vars map[string]string) (er *EvalResult, err error) {
 	return &EvalResult{
 		vars:  ev.outVars,
 		rules: ev.outRules,
-		refs:  ev.refs,
 	}, nil
 }

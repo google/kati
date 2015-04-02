@@ -29,7 +29,7 @@ func main() {
 
 	mk.stmts = append(bmk.stmts, mk.stmts...)
 
-	vars := make(map[string]string)
+	vars := NewVarTab(nil)
 	// TODO(ukai): environment variables.
 	er, err := Eval(mk, vars)
 	if err != nil {

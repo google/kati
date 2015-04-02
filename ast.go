@@ -23,21 +23,26 @@ func (ast *AssignAST) eval(ev *Evaluator) {
 	ev.evalAssign(ast)
 }
 
-func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) string {
+func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	switch ast.op {
 	case ":=":
-		return ev.evalExpr(ast.rhs)
+		// TODO: origin
+		return SimpleVar{value: ev.evalExpr(ast.rhs)}
 	case "=":
-		return ast.rhs
+		return RecursiveVar{expr: ast.rhs}
 	case "+=":
-		prev, _ := ev.getVar(lhs)
-		return fmt.Sprintf("%s %s", prev, ev.evalExpr(ast.rhs))
+		prev := ev.LookupVar(lhs)
+		return RecursiveVar{
+			expr: fmt.Sprintf("%s %s", prev, ev.evalExpr(ast.rhs)),
+		}
 	case "?=":
-		prev, present := ev.getVar(lhs)
-		if present {
+		prev := ev.LookupVar(lhs)
+		if prev.IsDefined() {
 			return prev
 		}
-		return ev.evalExpr(ast.rhs)
+		return RecursiveVar{
+			expr: ev.evalExpr(ast.rhs),
+		}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}

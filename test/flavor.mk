@@ -1,4 +1,3 @@
-# TODO: We need at least simple/undefined for
 # https://android.googlesource.com/platform/external/compiler-rt/+/master/make/util.mk#44
 
 A=a
