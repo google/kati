@@ -22,6 +22,7 @@ func funcSubst(ev *Evaluator, args []string) string {
 	from := ev.evalExpr(args[0])
 	to := ev.evalExpr(args[1])
 	text := ev.evalExpr(strings.Join(args[2:], ","))
+	Log("subst from:%q to:%q text:%q", from, to, text)
 	return strings.Replace(text, from, to, -1)
 }
 
@@ -48,6 +49,20 @@ func funcWildcard(ev *Evaluator, args []string) string {
 		panic(err)
 	}
 	return strings.Join(files, " ")
+}
+
+// https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
+func funcDir(ev *Evaluator, args []string) string {
+	Log("dir %q", args)
+	name := ev.evalExpr(args[0])
+	if name == "" {
+		return ""
+	}
+	if _, err := filepath.Glob(name); err != nil {
+		Log("dir %q err:%v", name, err)
+		return ""
+	}
+	return filepath.Dir(name) + string(filepath.Separator)
 }
 
 func funcRealpath(ev *Evaluator, args []string) string {
@@ -105,6 +120,27 @@ func funcShell(ev *Evaluator, args []string) string {
 		panic(err)
 	}
 	return string(re.ReplaceAllString(string(out), " "))
+}
+
+// https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
+func funcCall(ev *Evaluator, args []string) string {
+	Log("call %q", args)
+	f := ev.LookupVar(args[0]).String()
+	Log("call func %q => %q", args[0], f)
+	localVars := NewVarTab(ev.VarTab())
+	for i, argstr := range args[1:] {
+		arg := ev.evalExpr(argstr)
+		Log("call $%d: %q=>%q", i+1, argstr, arg)
+		localVars.Assign(fmt.Sprintf("%d", i+1),
+			RecursiveVar{
+				expr:   arg,
+				origin: "automatic", // ??
+			})
+	}
+	ev = newEvaluator(localVars)
+	r := ev.evalExpr(f)
+	Log("call %q return %q", args[0], r)
+	return r
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function

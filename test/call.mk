@@ -1,5 +1,3 @@
-# TODO
-
 # from gyp-generated Makefile
 empty :=
 space := $(empty) $(empty)
