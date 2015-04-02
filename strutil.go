@@ -3,63 +3,64 @@ package main
 import (
 	"regexp"
 	"strings"
+	"sync"
 )
 
-var isStrutilInitialized bool
+var strinit sync.Once
 var spacesRe *regexp.Regexp
 
-func maybeInitStrutil() {
-	if isStrutilInitialized {
-		return
-	}
-
+func initStrutil() {
 	var err error
 	spacesRe, err = regexp.Compile(`\s+`)
 	if err != nil {
 		panic(err)
 	}
-	isStrutilInitialized = true
 }
 
 func splitSpaces(s string) []string {
-	maybeInitStrutil()
+	strinit.Do(initStrutil)
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return []string{}
+		return nil
 	}
 	return spacesRe.Split(s, -1)
 }
 
 func matchPattern(pat string, str string) bool {
-	patPercentIndex := strings.IndexByte(pat, '%')
-	if patPercentIndex < 0 {
+	s := strings.SplitN(pat, "%", 2)
+	if len(s) != 2 {
 		return pat == str
 	}
-
-	patPrefix := pat[:patPercentIndex]
-	patSuffix := pat[patPercentIndex+1:]
-	return strings.HasPrefix(str, patPrefix) && strings.HasSuffix(str, patSuffix)
+	return strings.HasPrefix(str, s[0]) && strings.HasSuffix(str, s[1])
 }
 
 func substPattern(pat string, repl string, str string) string {
-	patPercentIndex := strings.IndexByte(pat, '%')
-	if patPercentIndex < 0 {
+	ps := strings.SplitN(pat, "%", 2)
+	if len(ps) != 2 {
 		if str == pat {
 			return repl
-		} else {
+		}
+		return str
+	}
+	in := str
+	trimed := str
+	if ps[0] != "" {
+		trimed = strings.TrimPrefix(in, ps[0])
+		if trimed == in {
+			return str
+		}
+	}
+	in = trimed
+	if ps[1] != "" {
+		trimed = strings.TrimSuffix(in, ps[1])
+		if trimed == in {
 			return str
 		}
 	}
 
-	patPrefix := pat[:patPercentIndex]
-	patSuffix := pat[patPercentIndex+1:]
-	replPercentIndex := strings.IndexByte(repl, '%')
-	if strings.HasPrefix(str, patPrefix) && strings.HasSuffix(str, patSuffix) {
-		if replPercentIndex < 0 {
-			return repl
-		} else {
-			return repl[:replPercentIndex] + str[patPercentIndex:len(str)-len(patSuffix)] + repl[replPercentIndex+1:]
-		}
+	rs := strings.SplitN(repl, "%", 2)
+	if len(rs) != 2 {
+		return repl
 	}
-	return str
+	return rs[0] + trimed + rs[1]
 }
