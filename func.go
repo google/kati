@@ -58,10 +58,6 @@ func funcDir(ev *Evaluator, args []string) string {
 	if name == "" {
 		return ""
 	}
-	if _, err := filepath.Glob(name); err != nil {
-		Log("dir %q err:%v", name, err)
-		return ""
-	}
 	return filepath.Dir(name) + string(filepath.Separator)
 }
 
