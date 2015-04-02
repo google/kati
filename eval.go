@@ -27,11 +27,13 @@ func newEvaluator(vars *VarTab) *Evaluator {
 	return &Evaluator{
 		outVars: NewVarTab(nil),
 		vars:    vars,
+		// TODO(ukai): use singleton global func tab?
 		funcs: map[string]Func{
 			"subst":    funcSubst,
 			"patsubst": funcPatsubst,
 			"wildcard": funcWildcard,
 			"dir":      funcDir,
+			"notdir":   funcNotdir,
 			"realpath": funcRealpath,
 			"abspath":  funcAbspath,
 			"shell":    funcShell,

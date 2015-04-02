@@ -54,11 +54,20 @@ func funcWildcard(ev *Evaluator, args []string) string {
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
 func funcDir(ev *Evaluator, args []string) string {
 	Log("dir %q", args)
-	name := ev.evalExpr(args[0])
+	name := ev.evalExpr(strings.Join(args, ","))
 	if name == "" {
 		return ""
 	}
 	return filepath.Dir(name) + string(filepath.Separator)
+}
+
+func funcNotdir(ev *Evaluator, args []string) string {
+	Log("notdir %q", args)
+	name := ev.evalExpr(strings.Join(args, ","))
+	if name == "" || name == string(filepath.Separator) {
+		return ""
+	}
+	return filepath.Base(name)
 }
 
 func funcRealpath(ev *Evaluator, args []string) string {
