@@ -41,9 +41,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		if prev.IsDefined() {
 			return prev
 		}
-		return RecursiveVar{
-			expr: ev.evalExpr(ast.rhs),
-		}
+		return RecursiveVar{expr: ast.rhs}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}
