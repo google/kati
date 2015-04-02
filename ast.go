@@ -32,9 +32,10 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		return RecursiveVar{expr: ast.rhs}
 	case "+=":
 		prev := ev.LookupVar(lhs)
-		return RecursiveVar{
-			expr: fmt.Sprintf("%s %s", prev, ev.evalExpr(ast.rhs)),
+		if !prev.IsDefined() {
+			return RecursiveVar{expr: ast.rhs}
 		}
+		return prev.Append(ev, ast.rhs)
 	case "?=":
 		prev := ev.LookupVar(lhs)
 		if prev.IsDefined() {

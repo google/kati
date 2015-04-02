@@ -10,6 +10,7 @@ type Var interface {
 type Value interface {
 	String() string
 	Eval(ev *Evaluator) string
+	Append(*Evaluator, string) Var
 }
 
 type SimpleVar struct {
@@ -23,6 +24,10 @@ func (v SimpleVar) IsDefined() bool { return true }
 
 func (v SimpleVar) String() string            { return v.value }
 func (v SimpleVar) Eval(ev *Evaluator) string { return v.value }
+func (v SimpleVar) Append(ev *Evaluator, s string) Var {
+	v.value += " " + ev.evalExpr(s)
+	return v
+}
 
 type RecursiveVar struct {
 	expr   string
@@ -32,18 +37,28 @@ type RecursiveVar struct {
 func (v RecursiveVar) Flavor() string  { return "recursive" }
 func (v RecursiveVar) Origin() string  { return v.origin }
 func (v RecursiveVar) IsDefined() bool { return true }
-func (v RecursiveVar) String() string  { return v.expr }
+
+func (v RecursiveVar) String() string { return v.expr }
 func (v RecursiveVar) Eval(ev *Evaluator) string {
 	return ev.evalExpr(v.expr)
+}
+func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
+	v.expr += " " + s
+	return v
 }
 
 type UndefinedVar struct{}
 
-func (_ UndefinedVar) Flavor() string            { return "undefined" }
-func (_ UndefinedVar) Origin() string            { return "" }
-func (_ UndefinedVar) IsDefined() bool           { return false }
-func (_ UndefinedVar) String() string            { return "" }
-func (_ UndefinedVar) Eval(ev *Evaluator) string { return "" }
+func (_ UndefinedVar) Flavor() string  { return "undefined" }
+func (_ UndefinedVar) Origin() string  { return "" }
+func (_ UndefinedVar) IsDefined() bool { return false }
+func (_ UndefinedVar) String() string  { return "" }
+func (_ UndefinedVar) Eval(ev *Evaluator) string {
+	return ""
+}
+func (_ UndefinedVar) Append(*Evaluator, string) Var {
+	return UndefinedVar{}
+}
 
 type VarTab struct {
 	m      map[string]Var

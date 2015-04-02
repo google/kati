@@ -1,4 +1,3 @@
-# TODO
 S:=simple
 R=recursive
 
