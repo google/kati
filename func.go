@@ -164,20 +164,32 @@ func funcWildcard(ev *Evaluator, args []string) string {
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
 func funcDir(ev *Evaluator, args []string) string {
 	Log("dir %q", args)
-	name := ev.evalExpr(strings.Join(args, ","))
-	if name == "" {
+	names := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	if len(names) == 0 {
 		return ""
 	}
-	return filepath.Dir(name) + string(filepath.Separator)
+	var dirs []string
+	for _, name := range names {
+		dirs = append(dirs, filepath.Dir(name)+string(filepath.Separator))
+	}
+	return strings.Join(dirs, " ")
 }
 
 func funcNotdir(ev *Evaluator, args []string) string {
 	Log("notdir %q", args)
-	name := ev.evalExpr(strings.Join(args, ","))
-	if name == "" || name == string(filepath.Separator) {
+	names := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	if len(names) == 0 {
 		return ""
 	}
-	return filepath.Base(name)
+	var notdirs []string
+	for _, name := range names {
+		if name == string(filepath.Separator) {
+			notdirs = append(notdirs, "")
+			continue
+		}
+		notdirs = append(notdirs, filepath.Base(name))
+	}
+	return strings.Join(notdirs, " ")
 }
 
 func funcSuffix(ev *Evaluator, args []string) string {
