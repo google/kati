@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -60,11 +61,84 @@ func funcFindstring(ev *Evaluator, args []string) string {
 // filter
 // filter-out
 // sort
-// word
-// wordlist
-// words
-// firstword
-// lastword
+
+func numericValueForFunc(ev *Evaluator, a string, funcName string, nth string) int {
+	a = strings.TrimSpace(ev.evalExpr(a))
+	n, err := strconv.Atoi(a)
+	if err != nil || n < 0 {
+		Error(ev.filename, ev.lineno, `*** non-numeric %s argument to "%s" function: "%s".`, nth, funcName, a)
+	}
+	return n
+}
+
+func funcWord(ev *Evaluator, args []string) string {
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `word'.", len(args)))
+	}
+	index := numericValueForFunc(ev, args[0], "word", "first")
+	if index == 0 {
+		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
+	}
+	toks := splitSpaces(ev.evalExpr(strings.Join(args[1:], ",")))
+	if index-1 >= len(toks) {
+		return ""
+	}
+	return ev.evalExpr(toks[index-1])
+}
+
+func funcWordlist(ev *Evaluator, args []string) string {
+	if len(args) < 3 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `wordlist'.", len(args)))
+	}
+	si := numericValueForFunc(ev, args[0], "wordlist", "first")
+	if si == 0 {
+		Error(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: ""`, args[0])
+	}
+	ei := numericValueForFunc(ev, args[1], "wordlist", "second")
+	if ei == 0 {
+		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: ""`, args[1])
+	}
+
+	toks := splitSpaces(ev.evalExpr(strings.Join(args[2:], ",")))
+	if si-1 >= len(toks) {
+		return ""
+	}
+	if ei-1 >= len(toks) {
+		ei = len(toks)
+	}
+
+	return strings.Join(toks[si-1:ei], " ")
+}
+
+func funcWords(ev *Evaluator, args []string) string {
+	if len(args) <= 0 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `words'.", len(args)))
+	}
+	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	return strconv.Itoa(len(toks))
+}
+
+func funcFirstword(ev *Evaluator, args []string) string {
+	if len(args) <= 0 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `firstword'.", len(args)))
+	}
+	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	if len(toks) == 0 {
+		return ""
+	}
+	return toks[0]
+}
+
+func funcLastword(ev *Evaluator, args []string) string {
+	if len(args) <= 0 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `lastword'.", len(args)))
+	}
+	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	if len(toks) == 0 {
+		return ""
+	}
+	return toks[len(toks)-1]
+}
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
 func funcWildcard(ev *Evaluator, args []string) string {

@@ -207,6 +207,8 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 		})
 	}
 	ev := newEvaluator(localVars)
+	ev.filename = rule.filename
+	ev.lineno = rule.cmdLineno
 	var cmds []string
 	for _, cmd := range rule.cmds {
 		if strings.IndexByte(cmd, '$') < 0 {
