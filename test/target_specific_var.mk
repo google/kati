@@ -1,4 +1,3 @@
-# TODO
 # https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
 
 CFLAGS = -O

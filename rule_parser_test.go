@@ -7,29 +7,30 @@ import (
 
 func TestRuleParser(t *testing.T) {
 	for _, tc := range []struct {
-		in   string
-		want Rule
-		err  string
-	} {
+		in     string
+		want   Rule
+		assign *AssignAST
+		err    string
+	}{
 		{
-			in:   "foo: bar",
+			in: "foo: bar",
 			want: Rule{
 				outputs: []string{"foo"},
 				inputs:  []string{"bar"},
 			},
 		},
 		{
-			in:   "foo: bar baz",
+			in: "foo: bar baz",
 			want: Rule{
 				outputs: []string{"foo"},
 				inputs:  []string{"bar", "baz"},
 			},
 		},
 		{
-			in:   "foo:: bar",
+			in: "foo:: bar",
 			want: Rule{
-				outputs: []string{"foo"},
-				inputs:  []string{"bar"},
+				outputs:       []string{"foo"},
+				inputs:        []string{"bar"},
 				isDoubleColon: true,
 			},
 		},
@@ -38,7 +39,7 @@ func TestRuleParser(t *testing.T) {
 			err: "*** missing separator.",
 		},
 		{
-			in:  "%.o: %.c",
+			in: "%.o: %.c",
 			want: Rule{
 				outputPatterns: []string{"%.o"},
 				inputs:         []string{"%.c"},
@@ -49,7 +50,7 @@ func TestRuleParser(t *testing.T) {
 			err: "*** mixed implicit and normal rules: deprecated syntax",
 		},
 		{
-			in:  "foo.o: %.o: %.c %.h",
+			in: "foo.o: %.o: %.c %.h",
 			want: Rule{
 				outputs:        []string{"foo.o"},
 				outputPatterns: []string{"%.o"},
@@ -73,11 +74,22 @@ func TestRuleParser(t *testing.T) {
 			err: "*** target pattern contains no '%'.",
 		},
 		{
-			in:  "foo: bar | baz",
+			in: "foo: bar | baz",
 			want: Rule{
 				outputs:         []string{"foo"},
 				inputs:          []string{"bar"},
 				orderOnlyInputs: []string{"baz"},
+			},
+		},
+		{
+			in: "foo: CFLAGS = -g",
+			want: Rule{
+				outputs: []string{"foo"},
+			},
+			assign: &AssignAST{
+				lhs: "CFLAGS",
+				rhs: "-g",
+				op:  "=",
 			},
 		},
 		/* TODO
@@ -88,12 +100,36 @@ func TestRuleParser(t *testing.T) {
 		*/
 	} {
 		got := &Rule{}
-		err := got.parse(tc.in)
-		if err != tc.err {
-			t.Errorf(`r.parse(%q)=%s, want %s`, tc.in, err, tc.err)
+		assign, err := got.parse(tc.in)
+		if tc.err != "" {
+			if err == nil {
+				t.Errorf(`r.parse(%q)=_, <nil>, want _, %q`, tc.in, tc.err)
+				continue
+			}
+			if got, want := err.Error(), tc.err; got != want {
+				t.Errorf(`r.parse(%q)=_, %s, want %s`, tc.in, got, want)
+			}
+			continue
 		}
-		if err == "" && !reflect.DeepEqual(*got, tc.want) {
+		if err != nil {
+			t.Errorf(`r.parse(%q)=_, %v; want nil error`, tc.in, err)
+			continue
+		}
+		if !reflect.DeepEqual(*got, tc.want) {
 			t.Errorf(`r.parse(%q); r=%q, want %q`, tc.in, *got, tc.want)
+		}
+		if tc.assign != nil {
+			if assign == nil {
+				t.Errorf(`r.parse(%q)=<nil>; want=%v`, tc.in, tc.assign)
+				continue
+			}
+			if got, want := assign, tc.assign; !reflect.DeepEqual(got, want) {
+				t.Errorf(`r.parse(%q)=%v; want=%v`, got, want)
+			}
+			continue
+		}
+		if assign != nil {
+			t.Errorf(`r.parse(%q)=%v; want=<nil>`, tc.in, assign)
 		}
 	}
 }

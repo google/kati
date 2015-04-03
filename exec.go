@@ -152,6 +152,12 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 		}
 		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
+	if rule.vars != nil {
+		vars = NewVarTab(vars)
+		for k, v := range rule.vars.m {
+			vars.Assign(k, v)
+		}
+	}
 
 	latest := int64(-1)
 	var actualInputs []string
@@ -260,6 +266,20 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
+			if oldRule.vars != nil || rule.vars != nil {
+				oldRule.isDoubleColon = rule.isDoubleColon
+				switch {
+				case rule.vars == nil && oldRule.vars != nil:
+					rule.vars = oldRule.vars
+				case rule.vars != nil && oldRule.vars == nil:
+				case rule.vars != nil && oldRule.vars != nil:
+					// parent would be the same vars?
+					for k, v := range rule.vars.m {
+						oldRule.vars.m[k] = v
+					}
+					rule.vars = oldRule.vars
+				}
+			}
 			if oldRule.isDoubleColon != rule.isDoubleColon {
 				Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
 			}

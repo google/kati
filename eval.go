@@ -15,7 +15,6 @@ type Evaluator struct {
 	outVars  *VarTab
 	outRules []*Rule
 	vars     *VarTab
-	curRule  *Rule
 
 	funcs map[string]Func
 
@@ -141,13 +140,18 @@ func (ev *Evaluator) evalExpr(ex string) string {
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
+	lhs, rhs := ev.evalAssignAST(ast)
+	Log("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+	ev.outVars.Assign(lhs, rhs)
+}
+
+func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
 	lhs := ev.evalExpr(ast.lhs)
 	rhs := ast.evalRHS(ev, lhs)
-	Log("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
-	ev.outVars.Assign(lhs, rhs)
+	return lhs, rhs
 }
 
 func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
@@ -164,27 +168,35 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		return
 	}
 
-	ev.curRule = &Rule{
+	rule := &Rule{
 		filename:  ast.filename,
 		lineno:    ast.lineno,
 		cmdLineno: ast.cmdLineno,
 	}
-	if err := ev.curRule.parse(line); err != "" {
-		Error(ast.filename, ast.lineno, err)
+	assign, err := rule.parse(line)
+	if err != nil {
+		Error(ast.filename, ast.lineno, err.Error())
 	}
-	Log("rule %q => outputs:%q, inputs:%q", line, ev.curRule.outputs, ev.curRule.inputs)
+	Log("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
 	// It seems rules with no outputs are siliently ignored.
-	if len(ev.curRule.outputs) == 0 && len(ev.curRule.outputPatterns) == 0 {
-		ev.curRule = nil
+	if len(rule.outputs) == 0 && len(rule.outputPatterns) == 0 {
 		return
 	}
 
 	// TODO: Pretty print.
 	//Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
-	ev.curRule.cmds = ast.cmds
-	ev.outRules = append(ev.outRules, ev.curRule)
-	ev.curRule = nil
+	if assign != nil {
+		if len(ast.cmds) > 0 {
+			Error(ast.filename, ast.lineno, "*** commands commence before first target.  Stop.")
+		}
+		rule.vars = NewVarTab(nil)
+		lhs, rhs := ev.evalAssignAST(assign)
+		rule.vars.Assign(lhs, rhs)
+	} else {
+		rule.cmds = ast.cmds
+	}
+	ev.outRules = append(ev.outRules, rule)
 }
 
 func (ev *Evaluator) LookupVar(name string) Var {
