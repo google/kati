@@ -222,9 +222,32 @@ Loop:
 	return args, i + 1, nil
 }
 
+func parseTwoQuotes(s string) ([]string, bool) {
+	toks := splitSpaces(s)
+	if len(toks) != 2 {
+		return nil, false
+	}
+	var args []string
+	for _, tok := range toks {
+		if len(tok) < 2 {
+			return nil, false
+		}
+		ti := len(tok) - 1
+		if tok[0] != tok[ti] || (tok[0] != '\'' && tok[ti] != '"') {
+			return nil, false
+		}
+		args = append(args, tok[1:ti])
+	}
+	return args, true
+}
+
 func parseEq(s string) (string, string, bool) {
 	args, _, err := parseExpr(s)
 	if err != nil {
+		args, ok := parseTwoQuotes(s)
+		if ok {
+			return args[0], args[1], true
+		}
 		return "", "", false
 	}
 	if len(args) != 2 {
