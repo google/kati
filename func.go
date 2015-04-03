@@ -263,6 +263,37 @@ func funcAbspath(ev *Evaluator, args []string) string {
 	return strings.Join(realpaths, " ")
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Foreach-Function
+func funcForeach(ev *Evaluator, args []string) string {
+	if len(args) < 3 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `foreach'.", len(args)))
+	}
+	var result []string
+	varName := ev.evalExpr(args[0])
+	values := splitSpaces(ev.evalExpr(args[1]))
+	expr := strings.Join(args[2:], ",")
+	for _, val := range values {
+		newVars := NewVarTab(ev.vars)
+		newVars.Assign(varName,
+			SimpleVar{
+				value:  val,
+				origin: "automatic",
+			})
+		oldVars := ev.vars
+		ev.vars = newVars
+		result = append(result, ev.evalExpr(expr))
+		ev.vars = oldVars
+	}
+	return strings.Join(result, " ")
+}
+
+// http://www.gnu.org/software/make/manual/make.html#Eval-Function
+func funcEval(ev *Evaluator, args []string) string {
+	// TODO(hamaji)
+	//ev.evalExpr(strings.Join(args, ","))
+	return ""
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 func funcShell(ev *Evaluator, args []string) string {
 	Log("shell %q", args)

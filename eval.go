@@ -48,6 +48,8 @@ func newEvaluator(vars *VarTab) *Evaluator {
 			"addprefix":  funcAddprefix,
 			"realpath":   funcRealpath,
 			"abspath":    funcAbspath,
+			"foreach":    funcForeach,
+			"eval":       funcEval,
 			"shell":      funcShell,
 			"call":       funcCall,
 			"flavor":     funcFlavor,
