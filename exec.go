@@ -94,8 +94,7 @@ func replaceSuffix(s string, newsuf string) string {
 	// TODO: Factor out the logic around suffix rules and use
 	// it from substitution references.
 	// http://www.gnu.org/software/make/manual/make.html#Substitution-Refs
-	oldsuf := filepath.Ext(s)
-	return fmt.Sprintf("%s.%s", s[:len(s)-len(oldsuf)], newsuf)
+	return fmt.Sprintf("%s.%s", stripExt(s), newsuf)
 }
 
 func (ex *Executor) canPickImplicitRule(rule *Rule, output string) bool {

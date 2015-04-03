@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -63,4 +64,9 @@ func substPattern(pat string, repl string, str string) string {
 		return repl
 	}
 	return rs[0] + trimed + rs[1]
+}
+
+func stripExt(s string) string {
+	suf := filepath.Ext(s)
+	return s[:len(s)-len(suf)]
 }

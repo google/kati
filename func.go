@@ -130,17 +130,11 @@ func funcWordlist(ev *Evaluator, args []string) string {
 }
 
 func funcWords(ev *Evaluator, args []string) string {
-	if len(args) <= 0 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `words'.", len(args)))
-	}
 	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
 	return strconv.Itoa(len(toks))
 }
 
 func funcFirstword(ev *Evaluator, args []string) string {
-	if len(args) <= 0 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `firstword'.", len(args)))
-	}
 	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
 	if len(toks) == 0 {
 		return ""
@@ -149,9 +143,6 @@ func funcFirstword(ev *Evaluator, args []string) string {
 }
 
 func funcLastword(ev *Evaluator, args []string) string {
-	if len(args) <= 0 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `lastword'.", len(args)))
-	}
 	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
 	if len(toks) == 0 {
 		return ""
@@ -187,6 +178,52 @@ func funcNotdir(ev *Evaluator, args []string) string {
 		return ""
 	}
 	return filepath.Base(name)
+}
+
+func funcSuffix(ev *Evaluator, args []string) string {
+	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	var result []string
+	for _, tok := range toks {
+		e := filepath.Ext(tok)
+		if len(e) > 0 {
+			result = append(result, e)
+		}
+	}
+	return strings.Join(result, " ")
+}
+
+func funcBasename(ev *Evaluator, args []string) string {
+	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	var result []string
+	for _, tok := range toks {
+		b := stripExt(tok)
+		result = append(result, b)
+	}
+	return strings.Join(result, " ")
+}
+
+func funcAddsuffix(ev *Evaluator, args []string) string {
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `addsuffix'.", len(args)))
+	}
+	suf := ev.evalExpr(args[0])
+	toks := splitSpaces(ev.evalExpr(strings.Join(args[1:], ",")))
+	for i, tok := range toks {
+		toks[i] = fmt.Sprintf("%s%s", tok, suf)
+	}
+	return strings.Join(toks, " ")
+}
+
+func funcAddprefix(ev *Evaluator, args []string) string {
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `addprefix'.", len(args)))
+	}
+	pre := ev.evalExpr(args[0])
+	toks := splitSpaces(ev.evalExpr(strings.Join(args[1:], ",")))
+	for i, tok := range toks {
+		toks[i] = fmt.Sprintf("%s%s", pre, tok)
+	}
+	return strings.Join(toks, " ")
 }
 
 func funcRealpath(ev *Evaluator, args []string) string {
