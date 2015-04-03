@@ -134,7 +134,7 @@ func (p *parser) parseMaybeRule(line string) AST {
 		if len(line) == 0 {
 			break
 		} else if line[0] == '\t' {
-			ast.cmds = append(ast.cmds, string(bytes.TrimSpace(line)))
+			ast.cmds = append(ast.cmds, string(bytes.TrimLeft(line, " \t")))
 		} else {
 			p.unreadLine(line)
 			break

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -118,13 +117,12 @@ func funcShell(ev *Evaluator, args []string) string {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		panic(err)
+		Log("$(shell %q) failed: %q", args, err)
 	}
-	re, err := regexp.Compile(`\s`)
-	if err != nil {
-		panic(err)
-	}
-	return string(re.ReplaceAllString(string(out), " "))
+
+	r := string(out)
+	r = strings.TrimRight(r, "\n")
+	return strings.Replace(r, "\n", " ", -1)
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
