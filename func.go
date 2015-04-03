@@ -154,9 +154,23 @@ func funcFlavor(ev *Evaluator, args []string) string {
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
+func funcInfo(ev *Evaluator, args []string) string {
+	Log("warning %q", args)
+	arg := ev.evalExpr(strings.Join(args, ","))
+	fmt.Printf("%s\n", arg)
+	return ""
+}
+
 func funcWarning(ev *Evaluator, args []string) string {
 	Log("warning %q", args)
 	arg := ev.evalExpr(strings.Join(args, ","))
 	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
+	return ""
+}
+
+func funcError(ev *Evaluator, args []string) string {
+	Log("warning %q", args)
+	arg := ev.evalExpr(strings.Join(args, ","))
+	Error(ev.filename, ev.lineno, "*** %s.", arg)
 	return ""
 }

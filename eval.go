@@ -39,7 +39,9 @@ func newEvaluator(vars *VarTab) *Evaluator {
 			"shell":    funcShell,
 			"call":     funcCall,
 			"flavor":   funcFlavor,
+			"info":     funcInfo,
 			"warning":  funcWarning,
+			"error":    funcError,
 		},
 	}
 }

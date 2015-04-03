@@ -1,0 +1,4 @@
+
+$(error foo)
+
+test:
