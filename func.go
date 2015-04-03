@@ -46,7 +46,14 @@ func funcStrip(ev *Evaluator, args []string) string {
 }
 
 func funcFindstring(ev *Evaluator, args []string) string {
-	// TODO(hamaji): Implement
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `findstring'.", len(args)))
+	}
+	f := ev.evalExpr(args[0])
+	text := ev.evalExpr(strings.Join(args[1:], ","))
+	if strings.Index(text, f) >= 0 {
+		return f
+	}
 	return ""
 }
 
