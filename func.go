@@ -12,30 +12,33 @@ import (
 // Func is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
 // TODO(ukai): return error instead of panic?
-// TODO(ukai): each func has nargs, and don't split , more than narg?
 type Func func(*Evaluator, []string) string
+
+func arity(name string, req int, args []string) []string {
+	if len(args) < req {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `%s'.", len(args), name))
+	}
+	args[req-1] = strings.Join(args[req-1:], ",")
+	// TODO(ukai): ev.evalExpr for all args?
+	Log("%s %q", name, args)
+	return args
+}
 
 // http://www.gnu.org/software/make/manual/make.html#Text-Functions
 func funcSubst(ev *Evaluator, args []string) string {
-	Log("subst %q", args)
-	if len(args) < 3 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `subst'.", len(args)))
-	}
+	args = arity("subst", 3, args)
 	from := ev.evalExpr(args[0])
 	to := ev.evalExpr(args[1])
-	text := ev.evalExpr(strings.Join(args[2:], ","))
+	text := ev.evalExpr(args[2])
 	Log("subst from:%q to:%q text:%q", from, to, text)
 	return strings.Replace(text, from, to, -1)
 }
 
 func funcPatsubst(ev *Evaluator, args []string) string {
-	Log("patsubst %q", args)
-	if len(args) < 3 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `patsubst'.", len(args)))
-	}
+	args = arity("patsubst", 3, args)
 	pat := ev.evalExpr(args[0])
 	repl := ev.evalExpr(args[1])
-	texts := splitSpaces(ev.evalExpr(strings.Join(args[2:], ",")))
+	texts := splitSpaces(ev.evalExpr(args[2]))
 	for i, text := range texts {
 		texts[i] = substPattern(pat, repl, text)
 	}
@@ -43,30 +46,56 @@ func funcPatsubst(ev *Evaluator, args []string) string {
 }
 
 func funcStrip(ev *Evaluator, args []string) string {
-	text := ev.evalExpr(strings.Join(args, ","))
+	args = arity("strip", 1, args)
+	text := ev.evalExpr(args[0])
 	return strings.TrimSpace(text)
 }
 
 func funcFindstring(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `findstring'.", len(args)))
-	}
+	args = arity("findstring", 2, args)
 	f := ev.evalExpr(args[0])
-	text := ev.evalExpr(strings.Join(args[1:], ","))
+	text := ev.evalExpr(args[1])
 	if strings.Index(text, f) >= 0 {
 		return f
 	}
 	return ""
 }
 
-// filter
-// filter-out
+func funcFilter(ev *Evaluator, args []string) string {
+	args = arity("filter", 2, args)
+	patterns := splitSpaces(ev.evalExpr(args[0]))
+	texts := splitSpaces(ev.evalExpr(args[1]))
+	var result []string
+	for _, text := range texts {
+		for _, pat := range patterns {
+			if matchPattern(pat, text) {
+				result = append(result, text)
+			}
+		}
+	}
+	return strings.Join(result, " ")
+}
+
+func funcFilterOut(ev *Evaluator, args []string) string {
+	args = arity("filter-out", 2, args)
+	patterns := splitSpaces(ev.evalExpr(args[0]))
+	texts := splitSpaces(ev.evalExpr(args[1]))
+	var result []string
+Loop:
+	for _, text := range texts {
+		for _, pat := range patterns {
+			if matchPattern(pat, text) {
+				continue Loop
+			}
+		}
+		result = append(result, text)
+	}
+	return strings.Join(result, " ")
+}
 
 func funcSort(ev *Evaluator, args []string) string {
-	if len(args) <= 0 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `sort'.", len(args)))
-	}
-	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("sort", 1, args)
+	toks := splitSpaces(ev.evalExpr(args[0]))
 	sort.Strings(toks)
 
 	// Remove duplicate words.
@@ -91,14 +120,12 @@ func numericValueForFunc(ev *Evaluator, a string, funcName string, nth string) i
 }
 
 func funcWord(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `word'.", len(args)))
-	}
+	args = arity("word", 2, args)
 	index := numericValueForFunc(ev, args[0], "word", "first")
 	if index == 0 {
 		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
 	}
-	toks := splitSpaces(ev.evalExpr(strings.Join(args[1:], ",")))
+	toks := splitSpaces(ev.evalExpr(args[1]))
 	if index-1 >= len(toks) {
 		return ""
 	}
@@ -106,9 +133,7 @@ func funcWord(ev *Evaluator, args []string) string {
 }
 
 func funcWordlist(ev *Evaluator, args []string) string {
-	if len(args) < 3 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `wordlist'.", len(args)))
-	}
+	args = arity("wordlist", 3, args)
 	si := numericValueForFunc(ev, args[0], "wordlist", "first")
 	if si == 0 {
 		Error(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: ""`, args[0])
@@ -118,7 +143,7 @@ func funcWordlist(ev *Evaluator, args []string) string {
 		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: ""`, args[1])
 	}
 
-	toks := splitSpaces(ev.evalExpr(strings.Join(args[2:], ",")))
+	toks := splitSpaces(ev.evalExpr(args[2]))
 	if si-1 >= len(toks) {
 		return ""
 	}
@@ -130,12 +155,14 @@ func funcWordlist(ev *Evaluator, args []string) string {
 }
 
 func funcWords(ev *Evaluator, args []string) string {
-	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("words", 1, args)
+	toks := splitSpaces(ev.evalExpr(args[0]))
 	return strconv.Itoa(len(toks))
 }
 
 func funcFirstword(ev *Evaluator, args []string) string {
-	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("firstword", 1, args)
+	toks := splitSpaces(ev.evalExpr(args[0]))
 	if len(toks) == 0 {
 		return ""
 	}
@@ -143,7 +170,8 @@ func funcFirstword(ev *Evaluator, args []string) string {
 }
 
 func funcLastword(ev *Evaluator, args []string) string {
-	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("lastword", 1, args)
+	toks := splitSpaces(ev.evalExpr(args[0]))
 	if len(toks) == 0 {
 		return ""
 	}
@@ -152,8 +180,8 @@ func funcLastword(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
 func funcWildcard(ev *Evaluator, args []string) string {
-	Log("wildcard %q", args)
-	pattern := ev.evalExpr(strings.Join(args, ","))
+	args = arity("wildcard", 1, args)
+	pattern := ev.evalExpr(args[0])
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		panic(err)
@@ -163,8 +191,8 @@ func funcWildcard(ev *Evaluator, args []string) string {
 
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
 func funcDir(ev *Evaluator, args []string) string {
-	Log("dir %q", args)
-	names := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("dir", 1, args)
+	names := splitSpaces(ev.evalExpr(args[0]))
 	if len(names) == 0 {
 		return ""
 	}
@@ -176,8 +204,8 @@ func funcDir(ev *Evaluator, args []string) string {
 }
 
 func funcNotdir(ev *Evaluator, args []string) string {
-	Log("notdir %q", args)
-	names := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("notdir", 1, args)
+	names := splitSpaces(ev.evalExpr(args[0]))
 	if len(names) == 0 {
 		return ""
 	}
@@ -193,7 +221,8 @@ func funcNotdir(ev *Evaluator, args []string) string {
 }
 
 func funcSuffix(ev *Evaluator, args []string) string {
-	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("suffix", 1, args)
+	toks := splitSpaces(ev.evalExpr(args[0]))
 	var result []string
 	for _, tok := range toks {
 		e := filepath.Ext(tok)
@@ -205,7 +234,8 @@ func funcSuffix(ev *Evaluator, args []string) string {
 }
 
 func funcBasename(ev *Evaluator, args []string) string {
-	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	args = arity("basename", 1, args)
+	toks := splitSpaces(ev.evalExpr(args[0]))
 	var result []string
 	for _, tok := range toks {
 		b := stripExt(tok)
@@ -215,11 +245,9 @@ func funcBasename(ev *Evaluator, args []string) string {
 }
 
 func funcAddsuffix(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `addsuffix'.", len(args)))
-	}
+	args = arity("addsuffix", 2, args)
 	suf := ev.evalExpr(args[0])
-	toks := splitSpaces(ev.evalExpr(strings.Join(args[1:], ",")))
+	toks := splitSpaces(ev.evalExpr(args[1]))
 	for i, tok := range toks {
 		toks[i] = fmt.Sprintf("%s%s", tok, suf)
 	}
@@ -227,11 +255,9 @@ func funcAddsuffix(ev *Evaluator, args []string) string {
 }
 
 func funcAddprefix(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `addprefix'.", len(args)))
-	}
+	args = arity("addprefix", 2, args)
 	pre := ev.evalExpr(args[0])
-	toks := splitSpaces(ev.evalExpr(strings.Join(args[1:], ",")))
+	toks := splitSpaces(ev.evalExpr(args[1]))
 	for i, tok := range toks {
 		toks[i] = fmt.Sprintf("%s%s", pre, tok)
 	}
@@ -239,11 +265,10 @@ func funcAddprefix(ev *Evaluator, args []string) string {
 }
 
 func funcRealpath(ev *Evaluator, args []string) string {
-	Log("realpath %q", args)
-	names := strings.Split(ev.evalExpr(strings.Join(args, ",")), " \t")
+	args = arity("realpath", 1, args)
+	names := splitSpaces(ev.evalExpr(args[0]))
 	var realpaths []string
 	for _, name := range names {
-		name = strings.TrimSpace(name)
 		name, err := filepath.Abs(name)
 		if err != nil {
 			Log("abs: %v", err)
@@ -260,11 +285,10 @@ func funcRealpath(ev *Evaluator, args []string) string {
 }
 
 func funcAbspath(ev *Evaluator, args []string) string {
-	Log("abspath %q", args)
-	names := strings.Split(ev.evalExpr(strings.Join(args, ",")), " \t")
+	args = arity("abspath", 1, args)
+	names := splitSpaces(ev.evalExpr(args[0]))
 	var realpaths []string
 	for _, name := range names {
-		name = strings.TrimSpace(name)
 		name, err := filepath.Abs(name)
 		if err != nil {
 			Log("abs: %v", err)
@@ -277,15 +301,12 @@ func funcAbspath(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
 func funcIf(ev *Evaluator, args []string) string {
-	if len(args) < 3 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `if'.", len(args)))
-	}
+	args = arity("if", 3, args)
 	cond := ev.evalExpr(args[0])
-	if len(cond) > 0 {
+	if cond != "" {
 		return ev.evalExpr(args[1])
-	} else {
-		return ev.evalExpr(strings.Join(args[2:], ","))
 	}
+	return ev.evalExpr(args[2])
 }
 
 func funcOr(ev *Evaluator, args []string) string {
@@ -293,7 +314,7 @@ func funcOr(ev *Evaluator, args []string) string {
 		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `or'.", len(args)))
 	}
 	cond := ev.evalExpr(args[0])
-	if len(cond) == 0 {
+	if cond == "" {
 		// For some reason, "and" and "or" do not use args[2:]
 		return ev.evalExpr(strings.TrimSpace(args[1]))
 	}
@@ -305,7 +326,7 @@ func funcAnd(ev *Evaluator, args []string) string {
 		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `and'.", len(args)))
 	}
 	cond := ev.evalExpr(args[0])
-	if len(cond) > 0 {
+	if cond != "" {
 		// For some reason, "and" and "or" do not use args[2:]
 		return ev.evalExpr(strings.TrimSpace(args[1]))
 	}
@@ -314,13 +335,11 @@ func funcAnd(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Foreach-Function
 func funcForeach(ev *Evaluator, args []string) string {
-	if len(args) < 3 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `foreach'.", len(args)))
-	}
+	args = arity("foreach", 3, args)
 	var result []string
 	varName := ev.evalExpr(args[0])
 	values := splitSpaces(ev.evalExpr(args[1]))
-	expr := strings.Join(args[2:], ",")
+	expr := args[2]
 	for _, val := range values {
 		newVars := NewVarTab(ev.vars)
 		newVars.Assign(varName,
@@ -338,7 +357,8 @@ func funcForeach(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Eval-Function
 func funcEval(ev *Evaluator, args []string) string {
-	s := ev.evalExpr(strings.Join(args, ","))
+	args = arity("eval", 1, args)
+	s := ev.evalExpr(args[0])
 	mk, err := ParseMakefileString(s, "*eval*")
 	if err != nil {
 		panic(err)
@@ -361,8 +381,8 @@ func funcEval(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 func funcShell(ev *Evaluator, args []string) string {
-	Log("shell %q", args)
-	arg := ev.evalExpr(strings.Join(args, ","))
+	args = arity("shell", 1, args)
+	arg := ev.evalExpr(args[0])
 	cmdline := []string{"/bin/sh", "-c", arg}
 	cmd := exec.Cmd{
 		Path: cmdline[0],
@@ -380,7 +400,6 @@ func funcShell(ev *Evaluator, args []string) string {
 
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
 func funcCall(ev *Evaluator, args []string) string {
-	Log("call %q", args)
 	f := ev.LookupVar(args[0]).String()
 	Log("call func %q => %q", args[0], f)
 	localVars := NewVarTab(ev.VarTab())
@@ -401,29 +420,29 @@ func funcCall(ev *Evaluator, args []string) string {
 
 // https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function
 func funcFlavor(ev *Evaluator, args []string) string {
-	Log("flavor %q", args)
-	vname := strings.Join(args, ",")
+	args = arity("flavor", 1, args)
+	vname := args[0]
 	return ev.LookupVar(vname).Flavor()
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
 func funcInfo(ev *Evaluator, args []string) string {
-	Log("warning %q", args)
-	arg := ev.evalExpr(strings.Join(args, ","))
+	args = arity("warning", 1, args)
+	arg := ev.evalExpr(args[0])
 	fmt.Printf("%s\n", arg)
 	return ""
 }
 
 func funcWarning(ev *Evaluator, args []string) string {
-	Log("warning %q", args)
-	arg := ev.evalExpr(strings.Join(args, ","))
+	args = arity("warning", 1, args)
+	arg := ev.evalExpr(args[0])
 	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
 	return ""
 }
 
 func funcError(ev *Evaluator, args []string) string {
-	Log("warning %q", args)
-	arg := ev.evalExpr(strings.Join(args, ","))
+	args = arity("error", 1, args)
+	arg := ev.evalExpr(args[0])
 	Error(ev.filename, ev.lineno, "*** %s.", arg)
 	return ""
 }

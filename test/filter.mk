@@ -1,4 +1,3 @@
-# TODO
 sources := foo.c bar.c baz.s ugh.h
 
 test:
