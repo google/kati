@@ -1,5 +1,3 @@
-# TODO(hamaji)
-
 test1:
 	touch server.c server_priv.c server_access.c
 	touch client.c client_api.c client_mem.c

@@ -289,8 +289,24 @@ func funcForeach(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Eval-Function
 func funcEval(ev *Evaluator, args []string) string {
-	// TODO(hamaji)
-	//ev.evalExpr(strings.Join(args, ","))
+	s := ev.evalExpr(strings.Join(args, ","))
+	mk, err := ParseMakefileString(s, "*eval*")
+	if err != nil {
+		panic(err)
+	}
+
+	er, err2 := Eval(mk, ev.VarTab())
+	if err2 != nil {
+		panic(err2)
+	}
+
+	for k, v := range er.vars.Vars() {
+		ev.outVars.Assign(k, v)
+	}
+	for _, r := range er.rules {
+		ev.outRules = append(ev.outRules, r)
+	}
+
 	return ""
 }
 
