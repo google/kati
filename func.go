@@ -302,7 +302,7 @@ func funcAbspath(ev *Evaluator, args []string) string {
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
 func funcIf(ev *Evaluator, args []string) string {
 	args = arity("if", 3, args)
-	cond := ev.evalExpr(args[0])
+	cond := ev.evalExpr(strings.TrimSpace(args[0]))
 	if cond != "" {
 		return ev.evalExpr(args[1])
 	}
@@ -310,27 +310,24 @@ func funcIf(ev *Evaluator, args []string) string {
 }
 
 func funcOr(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `or'.", len(args)))
+	for _, arg := range args {
+		cond := ev.evalExpr(strings.TrimSpace(arg))
+		if cond != "" {
+			return cond
+		}
 	}
-	cond := ev.evalExpr(args[0])
-	if cond == "" {
-		// For some reason, "and" and "or" do not use args[2:]
-		return ev.evalExpr(strings.TrimSpace(args[1]))
-	}
-	return cond
+	return ""
 }
 
 func funcAnd(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `and'.", len(args)))
+	var cond string
+	for _, arg := range args {
+		cond = ev.evalExpr(strings.TrimSpace(arg))
+		if cond == "" {
+			return ""
+		}
 	}
-	cond := ev.evalExpr(args[0])
-	if cond != "" {
-		// For some reason, "and" and "or" do not use args[2:]
-		return ev.evalExpr(strings.TrimSpace(args[1]))
-	}
-	return ""
+	return cond
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Foreach-Function
