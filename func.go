@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -60,7 +61,25 @@ func funcFindstring(ev *Evaluator, args []string) string {
 
 // filter
 // filter-out
-// sort
+
+func funcSort(ev *Evaluator, args []string) string {
+	if len(args) <= 0 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `sort'.", len(args)))
+	}
+	toks := splitSpaces(ev.evalExpr(strings.Join(args, ",")))
+	sort.Strings(toks)
+
+	// Remove duplicate words.
+	var prev string
+	var result []string
+	for _, tok := range toks {
+		if prev != tok {
+			result = append(result, tok)
+			prev = tok
+		}
+	}
+	return strings.Join(result, " ")
+}
 
 func numericValueForFunc(ev *Evaluator, a string, funcName string, nth string) int {
 	a = strings.TrimSpace(ev.evalExpr(a))

@@ -33,6 +33,7 @@ func newEvaluator(vars *VarTab) *Evaluator {
 			"patsubst":   funcPatsubst,
 			"strip":      funcStrip,
 			"findstring": funcFindstring,
+			"sort":       funcSort,
 			"word":       funcWord,
 			"wordlist":   funcWordlist,
 			"words":      funcWords,
