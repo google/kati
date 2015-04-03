@@ -13,6 +13,7 @@ import (
 // TODO(ukai): each func has nargs, and don't split , more than narg?
 type Func func(*Evaluator, []string) string
 
+// http://www.gnu.org/software/make/manual/make.html#Text-Functions
 func funcSubst(ev *Evaluator, args []string) string {
 	Log("subst %q", args)
 	if len(args) < 3 {
@@ -38,6 +39,25 @@ func funcPatsubst(ev *Evaluator, args []string) string {
 	}
 	return strings.Join(texts, " ")
 }
+
+func funcStrip(ev *Evaluator, args []string) string {
+	text := ev.evalExpr(strings.Join(args, ","))
+	return strings.TrimSpace(text)
+}
+
+func funcFindstring(ev *Evaluator, args []string) string {
+	// TODO(hamaji): Implement
+	return ""
+}
+
+// filter
+// filter-out
+// sort
+// word
+// wordlist
+// words
+// firstword
+// lastword
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
 func funcWildcard(ev *Evaluator, args []string) string {
