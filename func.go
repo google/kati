@@ -263,6 +263,43 @@ func funcAbspath(ev *Evaluator, args []string) string {
 	return strings.Join(realpaths, " ")
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
+func funcIf(ev *Evaluator, args []string) string {
+	if len(args) < 3 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `if'.", len(args)))
+	}
+	cond := ev.evalExpr(args[0])
+	if len(cond) > 0 {
+		return ev.evalExpr(args[1])
+	} else {
+		return ev.evalExpr(strings.Join(args[2:], ","))
+	}
+}
+
+func funcOr(ev *Evaluator, args []string) string {
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `or'.", len(args)))
+	}
+	cond := ev.evalExpr(args[0])
+	if len(cond) == 0 {
+		// For some reason, "and" and "or" do not use args[2:]
+		return ev.evalExpr(strings.TrimSpace(args[1]))
+	}
+	return cond
+}
+
+func funcAnd(ev *Evaluator, args []string) string {
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `and'.", len(args)))
+	}
+	cond := ev.evalExpr(args[0])
+	if len(cond) > 0 {
+		// For some reason, "and" and "or" do not use args[2:]
+		return ev.evalExpr(strings.TrimSpace(args[1]))
+	}
+	return ""
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Foreach-Function
 func funcForeach(ev *Evaluator, args []string) string {
 	if len(args) < 3 {
