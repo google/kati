@@ -190,7 +190,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.lineno = ast.lineno
 
 	// TODO: Handle glob
-	files := strings.Split(ev.evalExpr(ast.expr), " ")
+	files := splitSpaces(ev.evalExpr(ast.expr))
 	for _, file := range files {
 		mk, err := ParseMakefile(file)
 		if err != nil {
