@@ -352,6 +352,12 @@ func funcForeach(ev *Evaluator, args []string) string {
 	return strings.Join(result, " ")
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Value-Function
+func funcValue(ev *Evaluator, args []string) string {
+	v := ev.LookupVar(strings.Join(args, ","))
+	return v.String()
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Eval-Function
 func funcEval(ev *Evaluator, args []string) string {
 	args = arity("eval", 1, args)
