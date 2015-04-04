@@ -50,7 +50,7 @@ func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
 type UndefinedVar struct{}
 
 func (_ UndefinedVar) Flavor() string  { return "undefined" }
-func (_ UndefinedVar) Origin() string  { return "" }
+func (_ UndefinedVar) Origin() string  { return "undefined" }
 func (_ UndefinedVar) IsDefined() bool { return false }
 func (_ UndefinedVar) String() string  { return "" }
 func (_ UndefinedVar) Eval(ev *Evaluator) string {

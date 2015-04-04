@@ -55,6 +55,7 @@ func newEvaluator(vars *VarTab) *Evaluator {
 			"foreach":    funcForeach,
 			"value":      funcValue,
 			"eval":       funcEval,
+			"origin":     funcOrigin,
 			"shell":      funcShell,
 			"call":       funcCall,
 			"flavor":     funcFlavor,

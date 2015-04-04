@@ -382,6 +382,12 @@ func funcEval(ev *Evaluator, args []string) string {
 	return ""
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Origin-Function
+func funcOrigin(ev *Evaluator, args []string) string {
+	v := ev.LookupVar(strings.Join(args, ","))
+	return v.Origin()
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 func funcShell(ev *Evaluator, args []string) string {
 	args = arity("shell", 1, args)

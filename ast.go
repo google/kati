@@ -26,14 +26,13 @@ func (ast *AssignAST) eval(ev *Evaluator) {
 func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	switch ast.op {
 	case ":=":
-		// TODO: origin
-		return SimpleVar{value: ev.evalExpr(ast.rhs)}
+		return SimpleVar{value: ev.evalExpr(ast.rhs), origin: "file"}
 	case "=":
-		return RecursiveVar{expr: ast.rhs}
+		return RecursiveVar{expr: ast.rhs, origin: "file"}
 	case "+=":
 		prev := ev.LookupVar(lhs)
 		if !prev.IsDefined() {
-			return RecursiveVar{expr: ast.rhs}
+			return RecursiveVar{expr: ast.rhs, origin: "file"}
 		}
 		return prev.Append(ev, ast.rhs)
 	case "?=":
@@ -41,7 +40,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		if prev.IsDefined() {
 			return prev
 		}
-		return RecursiveVar{expr: ast.rhs}
+		return RecursiveVar{expr: ast.rhs, origin: "file"}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}
