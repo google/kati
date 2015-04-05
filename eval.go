@@ -278,7 +278,7 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		lhs := ev.evalExpr(ast.lhs)
 		rhs := ev.evalExpr(ast.rhs)
 		isTrue = (lhs == rhs) == (ast.op == "ifeq")
-		Log("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs)
+		Log("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
 	default:
 		panic(fmt.Sprintf("unknown if statement: %q", ast.op))
 	}
