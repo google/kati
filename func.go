@@ -301,12 +301,18 @@ func funcAbspath(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
 func funcIf(ev *Evaluator, args []string) string {
-	args = arity("if", 3, args)
+	if len(args) < 2 {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%2) to function `if'.", len(args)))
+	}
 	cond := ev.evalExpr(strings.TrimSpace(args[0]))
 	if cond != "" {
 		return ev.evalExpr(args[1])
 	}
-	return ev.evalExpr(args[2])
+	var results []string
+	for _, part := range args[2:] {
+		results = append(results, ev.evalExpr(part))
+	}
+	return strings.Join(results, ",")
 }
 
 func funcOr(ev *Evaluator, args []string) string {

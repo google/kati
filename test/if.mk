@@ -1,6 +1,8 @@
 TRUE:=foo
 FALSE:=
 
+$(if ${TRUE}, $(info PASS))
+$(if ${FALSE}, $(info FAIL))
 $(if ${TRUE}, $(info PASS), $(info FAIL))
 $(if ${FALSE}, $(info FAIL), $(info PASS))
 $(info $(if ${TRUE}, PASS, FAIL))
