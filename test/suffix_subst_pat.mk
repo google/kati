@@ -1,4 +1,4 @@
 foo:= hoge.c mgoe.c
 
 test:
-	echo $(foo:.c=.o)
+	echo $(foo:%.c=%.o)

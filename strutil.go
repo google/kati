@@ -27,7 +27,7 @@ func splitSpaces(s string) []string {
 	return spacesRe.Split(s, -1)
 }
 
-func matchPattern(pat string, str string) bool {
+func matchPattern(pat, str string) bool {
 	s := strings.SplitN(pat, "%", 2)
 	if len(s) != 2 {
 		return pat == str
@@ -35,7 +35,7 @@ func matchPattern(pat string, str string) bool {
 	return strings.HasPrefix(str, s[0]) && strings.HasSuffix(str, s[1])
 }
 
-func substPattern(pat string, repl string, str string) string {
+func substPattern(pat, repl, str string) string {
 	ps := strings.SplitN(pat, "%", 2)
 	if len(ps) != 2 {
 		if str == pat {
@@ -64,6 +64,14 @@ func substPattern(pat string, repl string, str string) string {
 		return repl
 	}
 	return rs[0] + trimed + rs[1]
+}
+
+func substRef(pat, repl, str string) string {
+	if strings.IndexByte(pat, '%') >= 0 && strings.IndexByte(repl, '%') >= 0 {
+		return substPattern(pat, repl, str)
+	}
+	str = strings.TrimSuffix(str, pat)
+	return str + repl
 }
 
 func stripExt(s string) string {

@@ -96,6 +96,7 @@ Loop:
 			}
 
 			var varname string
+			var subst []string
 			switch ex[i] {
 			case '$':
 				buf.WriteByte('$')
@@ -112,6 +113,14 @@ Loop:
 				}
 
 				varname = strings.Join(args, ",")
+				vs := strings.SplitN(varname, ":", 2)
+				if len(vs) == 2 {
+					ss := strings.SplitN(vs[1], "=", 2)
+					if len(ss) == 2 {
+						varname = vs[0]
+						subst = ss
+					}
+				}
 				varname = ev.evalExpr(varname)
 			default:
 				varname = string(ex[i])
@@ -123,8 +132,16 @@ Loop:
 			if !value.IsDefined() {
 				value = ev.outVars.Lookup(varname)
 			}
-			Log("var %q=>%q=>%q", varname, value, value.Eval(ev))
-			buf.WriteString(value.Eval(ev))
+			val := value.Eval(ev)
+			Log("var %q=>%q=>%q", varname, value, val)
+			if subst != nil {
+				var vals []string
+				for _, v := range splitSpaces(val) {
+					vals = append(vals, substRef(subst[0], subst[1], v))
+				}
+				val = strings.Join(vals, " ")
+			}
+			buf.WriteString(val)
 
 		default:
 			buf.WriteByte(ch)
