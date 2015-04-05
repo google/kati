@@ -179,6 +179,26 @@ func funcLastword(ev *Evaluator, args []string) string {
 }
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
+func funcJoin(ev *Evaluator, args []string) string {
+	args = arity("join", 2, args)
+	list1 := splitSpaces(ev.evalExpr(args[0]))
+	list2 := splitSpaces(ev.evalExpr(args[1]))
+	var results []string
+	for i, v := range list1 {
+		if i < len(list2) {
+			results = append(results, v+list2[i])
+			continue
+		}
+		results = append(results, v)
+	}
+	if len(list2) > len(list1) {
+		for _, v := range list2[len(list1):] {
+			results = append(results, v)
+		}
+	}
+	return strings.Join(results, " ")
+}
+
 func funcWildcard(ev *Evaluator, args []string) string {
 	args = arity("wildcard", 1, args)
 	pattern := ev.evalExpr(args[0])

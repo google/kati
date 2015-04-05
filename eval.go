@@ -40,6 +40,7 @@ func newEvaluator(vars *VarTab) *Evaluator {
 			"words":      funcWords,
 			"firstword":  funcFirstword,
 			"lastword":   funcLastword,
+			"join":       funcJoin,
 			"wildcard":   funcWildcard,
 			"dir":        funcDir,
 			"notdir":     funcNotdir,

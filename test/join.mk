@@ -1,4 +1,3 @@
-# TODO
 foo:=$(join a b,.c .o)
 
 # produces `a.c b.o'.
