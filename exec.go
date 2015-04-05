@@ -39,6 +39,7 @@ Loop:
 		echo := true
 		ignoreErr := false
 		for {
+			cmd = strings.TrimLeft(cmd, " \t")
 			if cmd == "" {
 				continue Loop
 			}
