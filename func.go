@@ -354,7 +354,8 @@ func funcForeach(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Value-Function
 func funcValue(ev *Evaluator, args []string) string {
-	v := ev.LookupVar(strings.Join(args, ","))
+	args = arity("value", 1, args)
+	v := ev.LookupVar(args[0])
 	return v.String()
 }
 
@@ -384,7 +385,8 @@ func funcEval(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function
 func funcOrigin(ev *Evaluator, args []string) string {
-	v := ev.LookupVar(strings.Join(args, ","))
+	args = arity("origin", 1, args)
+	v := ev.LookupVar(args[0])
 	return v.Origin()
 }
 
