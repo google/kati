@@ -161,6 +161,9 @@ func (ev *Evaluator) evalExpr(ex string) string {
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	lhs, rhs := ev.evalAssignAST(ast)
 	Log("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+	if len(lhs) == 0 {
+		Error(ast.filename, ast.lineno, "*** empty variable name.")
+	}
 	ev.outVars.Assign(lhs, rhs)
 }
 
