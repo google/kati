@@ -128,10 +128,9 @@ Loop:
 				i++
 			}
 
-			// TODO: lookup order is correct?
-			value := ev.vars.Lookup(varname)
+			value := ev.outVars.Lookup(varname)
 			if !value.IsDefined() {
-				value = ev.outVars.Lookup(varname)
+				value = ev.vars.Lookup(varname)
 			}
 			val := value.Eval(ev)
 			Log("var %q=>%q=>%q", varname, value, val)
