@@ -212,6 +212,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		}
 		rule.vars = NewVarTab(nil)
 		lhs, rhs := ev.evalAssignAST(assign)
+		Log("rule outputs:%q assign:%q=%q (flavor:%q)", rule.outputs, lhs, rhs, rhs.Flavor())
 		rule.vars.Assign(lhs, rhs)
 	} else {
 		rule.cmds = ast.cmds

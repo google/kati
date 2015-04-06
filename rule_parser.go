@@ -50,7 +50,7 @@ func (r *Rule) parseVar(s string) *AssignAST {
 	assign.filename = r.filename
 	assign.lineno = r.lineno
 	// TODO(ukai): support override, export.
-	switch s[eq-1 : eq] {
+	switch s[eq-1 : eq+1] {
 	case ":=":
 		assign.lhs = strings.TrimSpace(s[:eq-1])
 		assign.op = ":="

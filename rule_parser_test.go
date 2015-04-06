@@ -92,6 +92,28 @@ func TestRuleParser(t *testing.T) {
 				op:  "=",
 			},
 		},
+		{
+			in: "foo: CFLAGS=-g",
+			want: Rule{
+				outputs: []string{"foo"},
+			},
+			assign: &AssignAST{
+				lhs: "CFLAGS",
+				rhs: "-g",
+				op:  "=",
+			},
+		},
+		{
+			in: "foo: CFLAGS := -g",
+			want: Rule{
+				outputs: []string{"foo"},
+			},
+			assign: &AssignAST{
+				lhs: "CFLAGS",
+				rhs: "-g",
+				op:  ":=",
+			},
+		},
 		/* TODO
 		{
 			in:  "foo.o: %.c: %.c",
@@ -120,11 +142,11 @@ func TestRuleParser(t *testing.T) {
 		}
 		if tc.assign != nil {
 			if assign == nil {
-				t.Errorf(`r.parse(%q)=<nil>; want=%v`, tc.in, tc.assign)
+				t.Errorf(`r.parse(%q)=<nil>; want=%#v`, tc.in, tc.assign)
 				continue
 			}
 			if got, want := assign, tc.assign; !reflect.DeepEqual(got, want) {
-				t.Errorf(`r.parse(%q)=%v; want=%v`, got, want)
+				t.Errorf(`r.parse(%q)=%#v; want=%#v`, tc.in, got, want)
 			}
 			continue
 		}
