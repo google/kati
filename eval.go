@@ -15,6 +15,7 @@ type Evaluator struct {
 	outVars  *VarTab
 	outRules []*Rule
 	vars     *VarTab
+	lastRule *Rule
 
 	funcs map[string]Func
 
@@ -159,6 +160,7 @@ func (ev *Evaluator) evalExpr(ex string) string {
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
+	ev.lastRule = nil
 	lhs, rhs := ev.evalAssignAST(ast)
 	Log("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
 	if len(lhs) == 0 {
@@ -177,6 +179,7 @@ func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 }
 
 func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
+	ev.lastRule = nil
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
@@ -184,32 +187,24 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	Log("rule? %q=>%q", ast.expr, line)
 
 	if strings.TrimSpace(line) == "" {
-		if len(ast.cmds) > 0 {
-			Error(ast.filename, ast.cmdLineno, "*** commands commence before first target.")
-		}
 		return
 	}
 
 	rule := &Rule{
 		filename:  ast.filename,
 		lineno:    ast.lineno,
-		cmdLineno: ast.cmdLineno,
 	}
 	assign, err := rule.parse(line)
 	if err != nil {
 		Error(ast.filename, ast.lineno, err.Error())
 	}
 	Log("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
-	// It seems rules with no outputs are siliently ignored.
-	if len(rule.outputs) == 0 && len(rule.outputPatterns) == 0 {
-		return
-	}
 
 	// TODO: Pretty print.
 	//Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
-		if len(ast.cmds) > 0 {
+		if len(ast.cmd) > 0 {
 			Error(ast.filename, ast.lineno, "*** commands commence before first target.  Stop.")
 		}
 		rule.vars = NewVarTab(nil)
@@ -217,10 +212,25 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		Log("rule outputs:%q assign:%q=%q (flavor:%q)", rule.outputs, lhs, rhs, rhs.Flavor())
 		rule.vars.Assign(lhs, rhs)
 	} else {
-		rule.cmds = ast.cmds
+		if len(ast.cmd) > 0 {
+			rule.cmds = append(rule.cmds, ast.cmd)
+		}
 		Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	}
+	ev.lastRule = rule
 	ev.outRules = append(ev.outRules, rule)
+}
+
+func (ev *Evaluator) evalCommand(ast *CommandAST) {
+	ev.filename = ast.filename
+	ev.lineno = ast.lineno
+	if ev.lastRule == nil {
+		Error(ast.filename, ast.lineno, "*** commands commence before first target.")
+	}
+	ev.lastRule.cmds = append(ev.lastRule.cmds, ast.cmd)
+	if ev.lastRule.cmdLineno == 0 {
+		ev.lastRule.cmdLineno = ast.lineno
+	}
 }
 
 func (ev *Evaluator) LookupVar(name string) Var {
@@ -243,6 +253,7 @@ func (ev *Evaluator) VarTab() *VarTab {
 }
 
 func (ev *Evaluator) evalInclude(ast *IncludeAST) {
+	ev.lastRule = nil
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 

@@ -58,8 +58,7 @@ func (ast *AssignAST) show() {
 type MaybeRuleAST struct {
 	ASTBase
 	expr      string
-	cmds      []string
-	cmdLineno int
+	cmd       string
 }
 
 func (ast *MaybeRuleAST) eval(ev *Evaluator) {
@@ -68,9 +67,22 @@ func (ast *MaybeRuleAST) eval(ev *Evaluator) {
 
 func (ast *MaybeRuleAST) show() {
 	Log("%s", ast.expr)
-	for _, cmd := range ast.cmds {
-		Log("\t%s", strings.Replace(cmd, "\n", `\n`, -1))
+	if ast.cmd != "" {
+		Log("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
 	}
+}
+
+type CommandAST struct {
+	ASTBase
+	cmd      string
+}
+
+func (ast *CommandAST) eval(ev *Evaluator) {
+	ev.evalCommand(ast)
+}
+
+func (ast *CommandAST) show() {
+	Log("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
 }
 
 type IncludeAST struct {

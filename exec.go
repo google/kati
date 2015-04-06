@@ -324,7 +324,12 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 }
 
 func (ex *Executor) populateExplicitRule(rule *Rule) {
+	// It seems rules with no outputs are siliently ignored.
+	if len(rule.outputs) == 0 {
+		return
+	}
 	for _, output := range rule.outputs {
+
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {

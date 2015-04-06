@@ -1,5 +1,3 @@
-# TODO(hamaji): fix
-
 test1:
 	echo TEST
 ifdef UNDEFINED

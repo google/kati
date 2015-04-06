@@ -95,9 +95,7 @@ func removeComment(line []byte) []byte {
 	return line
 }
 
-func (p *parser) readMakefileLine() []byte {
-	line := p.readLine()
-
+func (p *parser) processMakefileLine(line []byte) []byte {
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
 		line = line[:len(line)-1]
@@ -109,9 +107,7 @@ func (p *parser) readMakefileLine() []byte {
 	return removeComment(line)
 }
 
-func (p *parser) readRecipeLine() []byte {
-	line := p.readLine()
-
+func (p *parser) processRecipeLine(line []byte) []byte {
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
 		line = append(line, '\n')
@@ -147,19 +143,17 @@ func (p *parser) parseMaybeRule(line string) AST {
 	if len(strings.TrimSpace(line)) == 0 {
 		return nil
 	}
-	if line[0] == '\t' {
-		Error(p.filename, p.lineno, "*** commands commence before first target.")
-	}
 
 	ast := &MaybeRuleAST{}
 	if i := strings.IndexByte(line, ';'); i >= 0 {
 		ast.expr = line[:i]
-		ast.cmds = append(ast.cmds, strings.TrimSpace(line[i+1:]))
+		ast.cmd = strings.TrimSpace(line[i+1:])
 	} else {
 		ast.expr = line
 	}
 	ast.filename = p.filename
 	ast.lineno = p.lineno
+	/*
 	ast.cmdLineno = p.elineno + 1
 	for {
 		line := p.readRecipeLine()
@@ -172,6 +166,7 @@ func (p *parser) parseMaybeRule(line string) AST {
 			break
 		}
 	}
+    */
 	return ast
 }
 
@@ -406,9 +401,10 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 	}()
 	for !p.done {
-		line := p.readMakefileLine()
+		line := p.readLine()
 
 		if len(p.inDef) > 0 {
+			line = p.processMakefileLine(line)
 			if strings.TrimLeft(string(line), " ") == "endef" {
 				Log("multilineAssign %q", p.inDef)
 				ast := &AssignAST{
@@ -426,6 +422,18 @@ func (p *parser) parse() (mk Makefile, err error) {
 			continue
 		}
 
+		if len(line) == 0 {
+			continue
+		}
+		if line[0] == '\t' {
+			ast := &CommandAST{cmd: string(p.processRecipeLine(line[1:]))}
+			ast.filename = p.filename
+			ast.lineno = p.lineno
+			p.addStatement(ast)
+			continue
+		}
+
+		line = p.processMakefileLine(line)
 		if p.parseKeywords(string(line)) {
 			continue
 		}
