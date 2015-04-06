@@ -71,9 +71,7 @@ func (p *parser) readLine() []byte {
 		panic(err)
 	}
 
-	if len(line) > 0 {
-		line = line[0 : len(line)-1]
-	}
+	line = bytes.TrimRight(line, "\n")
 
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
