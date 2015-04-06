@@ -1,5 +1,7 @@
+base := base
 dirs := a b c d
-files := $(foreach dir,$(dirs),$(dir)/*)
+dir := FAIL
+files := $(foreach dir,$(dirs),$(foreach subdir,$(dirs),$(dir)/$(subdir)/$(base)))
 
 test:
 	echo $(files)

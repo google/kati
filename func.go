@@ -366,17 +366,19 @@ func funcForeach(ev *Evaluator, args []string) string {
 	varName := ev.evalExpr(args[0])
 	values := splitSpaces(ev.evalExpr(args[1]))
 	expr := args[2]
+	oldVal := ev.outVars.Lookup(varName)
 	for _, val := range values {
-		newVars := NewVarTab(ev.vars)
-		newVars.Assign(varName,
+		ev.outVars.Assign(varName,
 			SimpleVar{
 				value:  val,
 				origin: "automatic",
 			})
-		oldVars := ev.vars
-		ev.vars = newVars
 		result = append(result, ev.evalExpr(expr))
-		ev.vars = oldVars
+	}
+	if oldVal.IsDefined() {
+		ev.outVars.Assign(varName, oldVal)
+	} else {
+		ev.outVars.Delete(varName)
 	}
 	return strings.Join(result, " ")
 }

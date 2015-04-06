@@ -98,3 +98,7 @@ func (vt *VarTab) Lookup(name string) Var {
 func (vt *VarTab) Assign(name string, v Var) {
 	vt.m[name] = v
 }
+
+func (vt *VarTab) Delete(name string) {
+	delete(vt.m, name)
+}
