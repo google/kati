@@ -398,7 +398,22 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 
 		var ast AST
+		var parenStack []byte
 		for i, ch := range line {
+			switch ch {
+			case '(', '{':
+				parenStack = append(parenStack, ch)
+			case ')', '}':
+				if len(parenStack) == 0 {
+					Warn(p.filename, p.lineno, "Unmatched parens: %s", line)
+				} else {
+					parenStack = parenStack[:len(parenStack)-1]
+				}
+			}
+			if len(parenStack) > 0 {
+				continue
+			}
+
 			switch ch {
 			case ':':
 				if i+1 < len(line) && line[i+1] == '=' {
