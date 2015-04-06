@@ -1,4 +1,3 @@
-# TODO
 test: foo.c
 
 # simplified case for gyp-generated action targets

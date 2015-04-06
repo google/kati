@@ -353,6 +353,8 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 			*r = *rule
 			if rule.isDoubleColon {
 				r.cmds = append(oldRule.cmds, r.cmds...)
+			} else if len(oldRule.cmds) > 0 && len(rule.cmds) == 0 {
+				r.cmds = oldRule.cmds
 			}
 			r.inputs = append(r.inputs, oldRule.inputs...)
 			ex.rules[output] = r
