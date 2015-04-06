@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type AST interface {
 	eval(*Evaluator)
@@ -66,7 +69,7 @@ func (ast *MaybeRuleAST) eval(ev *Evaluator) {
 func (ast *MaybeRuleAST) show() {
 	Log("%s", ast.expr)
 	for _, cmd := range ast.cmds {
-		Log("\t%s", cmd)
+		Log("\t%s", strings.Replace(cmd, "\n", `\n`, -1))
 	}
 }
 

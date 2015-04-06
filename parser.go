@@ -73,6 +73,31 @@ func (p *parser) readLine() []byte {
 
 	line = bytes.TrimRight(line, "\n")
 
+	return line
+}
+
+func removeComment(line []byte) []byte {
+	var parenStack []byte
+	for i, ch := range line {
+		switch ch {
+		case '(', '{':
+			parenStack = append(parenStack, ch)
+		case ')', '}':
+			if len(parenStack) > 0 {
+				parenStack = parenStack[:len(parenStack)-1]
+			}
+		case '#':
+			if len(parenStack) == 0 {
+				return line[:i]
+			}
+		}
+	}
+	return line
+}
+
+func (p *parser) readMakefileLine() []byte {
+	line := p.readLine()
+
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
 		line = line[:len(line)-1]
@@ -81,12 +106,20 @@ func (p *parser) readLine() []byte {
 		p.lineno = lineno
 		line = append(line, nline...)
 	}
+	return removeComment(line)
+}
 
-	index := bytes.IndexByte(line, '#')
-	if index >= 0 {
-		line = line[:index]
+func (p *parser) readRecipeLine() []byte {
+	line := p.readLine()
+
+	// TODO: Handle \\ at the end of the line?
+	for len(line) > 0 && line[len(line)-1] == '\\' {
+		line = append(line, '\n')
+		lineno := p.lineno
+		nline := p.readLine()
+		p.lineno = lineno
+		line = append(line, nline...)
 	}
-
 	return line
 }
 
@@ -129,7 +162,7 @@ func (p *parser) parseMaybeRule(line string) AST {
 	ast.lineno = p.lineno
 	ast.cmdLineno = p.elineno + 1
 	for {
-		line := p.readLine()
+		line := p.readRecipeLine()
 		if len(line) == 0 {
 			break
 		} else if line[0] == '\t' {
@@ -373,7 +406,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 	}()
 	for !p.done {
-		line := p.readLine()
+		line := p.readMakefileLine()
 
 		if len(p.inDef) > 0 {
 			if strings.TrimLeft(string(line), " ") == "endef" {
