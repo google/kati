@@ -286,7 +286,7 @@ func parseEq(s string) (string, string, bool) {
 		return "", "", false
 	}
 	// TODO: check rest?
-	return args[0], args[1], true
+	return args[0], strings.TrimLeft(args[1], " \t"), true
 }
 
 func (p *parser) parseIfeq(line string, oplen int) AST {
