@@ -19,7 +19,7 @@ unexpected_passes = []
 failures = []
 passes = []
 
-Dir.glob('test/*.mk').sort.each do |mk|
+Dir.glob('testcase/*.mk').sort.each do |mk|
   c = File.read(mk)
 
   expected_failure = c =~ /\A# TODO/
