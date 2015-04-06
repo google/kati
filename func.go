@@ -449,8 +449,11 @@ func funcCall(ev *Evaluator, args []string) string {
 				origin: "automatic", // ??
 			})
 	}
-	ev = newEvaluator(localVars)
+
+	oldVars := ev.vars
+	ev.vars = localVars
 	r := ev.evalExpr(f)
+	ev.vars = oldVars
 	Log("call %q return %q", args[0], r)
 	return r
 }

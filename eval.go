@@ -245,6 +245,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	// TODO: Handle glob
 	files := splitSpaces(ev.evalExpr(ast.expr))
 	for _, file := range files {
+		Log("Reading makefile `%s'", file)
 		mk, err := ParseMakefile(file)
 		if err != nil {
 			if ast.op == "include" {
