@@ -333,7 +333,7 @@ func (ex *Executor) populateRules(er *EvalResult) {
 	}
 }
 
-func (ex *Executor) exec(er *EvalResult, targets []string) error {
+func (ex *Executor) exec(er *EvalResult, targets []string, vars *VarTab) error {
 	ex.populateRules(er)
 
 	if len(targets) == 0 {
@@ -344,7 +344,7 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	}
 
 	for _, target := range targets {
-		_, err := ex.build(er.vars, target)
+		_, err := ex.build(vars, target)
 		if err != nil {
 			return err
 		}
@@ -352,7 +352,7 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	return nil
 }
 
-func Exec(er *EvalResult, targets []string) error {
+func Exec(er *EvalResult, targets []string, vars *VarTab) error {
 	ex := newExecutor()
-	return ex.exec(er, targets)
+	return ex.exec(er, targets, vars)
 }

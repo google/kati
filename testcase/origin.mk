@@ -9,8 +9,9 @@ test:
 	echo $(origin FOO BAR)
 	echo $(origin FOO,BAR)
 	echo $(origin UNDEFINED)
+	echo $(origin PATH)
 
-# TODO: support default, environment, environment override, command
-# line, and override.
+# TODO: support default, environment override, command line, and
+# override.
 # TODO: Also add more tests especially for += and ?=
-# echo $(origin PATH)
+

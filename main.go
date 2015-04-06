@@ -1,6 +1,11 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
 
 var noKatiLogFlag bool
 var makefileFlag string
@@ -63,12 +68,28 @@ func main() {
 	mk.stmts = append(bmk.stmts, mk.stmts...)
 
 	vars := NewVarTab(nil)
-	// TODO(ukai): environment variables.
+	for _, env := range os.Environ() {
+		kv := strings.SplitN(env, "=", 2)
+		Log("envvar %q", kv)
+		if len(kv) < 2 {
+			panic(fmt.Sprintf("A weird environ variable %q", kv))
+		}
+		vars.Assign(kv[0], RecursiveVar{
+			expr:   kv[1],
+			origin: "environment",
+		})
+	}
+	// TODO(ukai): make variables in commandline.
 	er, err := Eval(mk, vars)
 	if err != nil {
 		panic(err)
 	}
-	err = Exec(er, flag.Args())
+
+	for k, v := range er.vars.Vars() {
+		vars.Assign(k, v)
+	}
+
+	err = Exec(er, flag.Args(), vars)
 	if err != nil {
 		panic(err)
 	}
