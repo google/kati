@@ -115,31 +115,72 @@ func (ex *Executor) canPickImplicitRule(rule *Rule, output string) bool {
 func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	rule, present := ex.rules[output]
 	if present {
-		return rule, true
-	}
-
-	for _, rule := range ex.implicitRules {
-		if ex.canPickImplicitRule(rule, output) {
+		if len(rule.cmds) > 0 {
 			return rule, true
 		}
+		// If none of the explicit rules for a target has commands,
+		// then `make' searches for an applicable implicit rule to
+		// find some commands.
+	}
+
+	for _, irule := range ex.implicitRules {
+		if !ex.canPickImplicitRule(irule, output) {
+			continue
+		}
+		if rule != nil {
+			r := &Rule{}
+			*r = *rule
+			r.outputPatterns = irule.outputPatterns
+			// implicit rule's prerequisites will be used for $<
+			r.inputs = append(irule.inputs, r.inputs...)
+			if irule.vars != nil {
+				r.vars = NewVarTab(rule.vars)
+				for k, v := range irule.vars.m {
+					r.vars.Assign(k, v)
+				}
+			}
+			r.cmds = irule.cmds
+			// TODO(ukai): filename, lineno?
+			r.cmdLineno = irule.cmdLineno
+			return r, true
+		}
+		// TODO(ukai): check len(irule.cmd) ?
+		return irule, true
 	}
 
 	outputSuffix := filepath.Ext(output)
-	if len(outputSuffix) > 0 && outputSuffix[0] == '.' {
-		rules, present := ex.suffixRules[outputSuffix[1:]]
-		if present {
-			for _, rule := range rules {
-				if len(rule.inputs) != 1 {
-					panic(fmt.Sprintf("unexpected number of input for a suffix rule (%d)", len(rule.inputs)))
-				}
-				if exists(replaceSuffix(output, rule.inputs[0])) {
-					return rule, true
-				}
-			}
-		}
+	if !strings.HasPrefix(outputSuffix, ".") {
+		return rule, rule != nil
 	}
-
-	return nil, false
+	rules, present := ex.suffixRules[outputSuffix[1:]]
+	if !present {
+		return rule, rule != nil
+	}
+	for _, irule := range rules {
+		if len(irule.inputs) != 1 {
+			panic(fmt.Sprintf("unexpected number of input for a suffix rule (%d)", len(irule.inputs)))
+		}
+		if !exists(replaceSuffix(output, irule.inputs[0])) {
+			continue
+		}
+		if rule != nil {
+			r := &Rule{}
+			*r = *rule
+			// TODO(ukai): input order is correct?
+			r.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
+			r.vars = NewVarTab(rule.vars)
+			for k, v := range irule.vars.m {
+				r.vars.Assign(k, v)
+			}
+			r.cmds = irule.cmds
+			// TODO(ukai): filename, lineno?
+			r.cmdLineno = irule.cmdLineno
+			return r, true
+		}
+		// TODO(ukai): check len(irule.cmd) ?
+		return irule, true
+	}
+	return rule, rule != nil
 }
 
 func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
@@ -162,6 +203,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 
 	latest := int64(-1)
 	var actualInputs []string
+	Log("Building: %s inputs:%q", output, rule.inputs)
 	for _, input := range rule.inputs {
 		if len(rule.outputPatterns) > 0 {
 			if len(rule.outputPatterns) > 1 {

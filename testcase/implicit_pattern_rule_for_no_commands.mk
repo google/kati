@@ -1,4 +1,3 @@
-# TODO
 test: foo.c foo.h
 
 foo.c foo.h:
