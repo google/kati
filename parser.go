@@ -463,8 +463,10 @@ func ParseDefaultMakefile() (Makefile, error) {
 	return Makefile{}, errors.New("no targets specified and no makefile found.")
 }
 
-func ParseMakefileString(s string, name string) (Makefile, error) {
+func ParseMakefileString(s string, name string, lineno int) (Makefile, error) {
 	rd := strings.NewReader(s)
 	parser := newParser(rd, name)
+	parser.lineno = lineno - 1
+	parser.elineno = lineno
 	return parser.parse()
 }

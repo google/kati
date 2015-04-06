@@ -389,7 +389,7 @@ func funcValue(ev *Evaluator, args []string) string {
 func funcEval(ev *Evaluator, args []string) string {
 	args = arity("eval", 1, args)
 	s := ev.evalExpr(args[0])
-	mk, err := ParseMakefileString(s, "*eval*")
+	mk, err := ParseMakefileString(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
 	}

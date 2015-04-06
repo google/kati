@@ -38,7 +38,7 @@ MAKE_VERSION:=3.81
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<
 # TODO: Add more builtin rules.
 `
-	mk, err := ParseMakefileString(bootstrap, "*bootstrap*")
+	mk, err := ParseMakefileString(bootstrap, "*bootstrap*", 0)
 	if err != nil {
 		panic(err)
 	}
