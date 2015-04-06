@@ -6,4 +6,8 @@ C+=c
 D?=d
 
 all:
-	echo $(flavor A) $(flavor B) $(flavor C) $(flavor D) $(flavor E) $(flavor PATH)
+	echo $(flavor A) $(flavor B) $(flavor C) $(flavor D) $(flavor E)
+	echo $(flavor PATH)
+
+# For some reason, $(flavor MAKECMDGOALS) should be "undefined"
+# echo $(flavor MAKECMDGOALS)

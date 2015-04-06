@@ -20,7 +20,7 @@ func parseFlags() {
 	flag.Parse()
 }
 
-func getBootstrapMakefile() Makefile {
+func getBootstrapMakefile(targets []string) Makefile {
 	bootstrap := `
 CC:=cc
 CXX:=g++
@@ -38,6 +38,7 @@ MAKE_VERSION:=3.81
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<
 # TODO: Add more builtin rules.
 `
+	bootstrap = fmt.Sprintf("%s\nMAKECMDGOALS:=%s\n", bootstrap, strings.Join(targets, " "))
 	mk, err := ParseMakefileString(bootstrap, "*bootstrap*", 0)
 	if err != nil {
 		panic(err)
@@ -47,8 +48,9 @@ MAKE_VERSION:=3.81
 
 func main() {
 	parseFlags()
+	targets := flag.Args()
 
-	bmk := getBootstrapMakefile()
+	bmk := getBootstrapMakefile(targets)
 
 	var mk Makefile
 	var err error
@@ -89,7 +91,7 @@ func main() {
 		vars.Assign(k, v)
 	}
 
-	err = Exec(er, flag.Args(), vars)
+	err = Exec(er, targets, vars)
 	if err != nil {
 		panic(err)
 	}
