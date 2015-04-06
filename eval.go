@@ -218,6 +218,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		rule.vars.Assign(lhs, rhs)
 	} else {
 		rule.cmds = ast.cmds
+		Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	}
 	ev.outRules = append(ev.outRules, rule)
 }

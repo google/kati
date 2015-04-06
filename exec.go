@@ -34,6 +34,10 @@ func getTimestamp(filename string) int64 {
 }
 
 func (ex *Executor) exists(target string) bool {
+	_, present := ex.rules[target]
+	if present {
+		return true
+	}
 	rule, present := ex.rules[".PHONY"]
 	if present {
 		for _, input := range rule.inputs {
@@ -239,7 +243,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	}
 
 	for _, input := range rule.orderOnlyInputs {
-		if ex.exists(input) {
+		if exists(input) {
 			continue
 		}
 		ts, err := ex.build(vars, input)
@@ -272,6 +276,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
 	var cmds []string
+	Log("Building: %s cmds:%q", output, rule.cmds)
 	for _, cmd := range rule.cmds {
 		if strings.IndexByte(cmd, '$') < 0 {
 			// fast path.

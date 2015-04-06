@@ -1,4 +1,3 @@
-# TODO
 test: foo
 
 foo: foo.o
