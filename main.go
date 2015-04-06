@@ -24,6 +24,7 @@ func getBootstrapMakefile(targets []string) Makefile {
 	bootstrap := `
 CC:=cc
 CXX:=g++
+AR:=ar
 MAKE:=kati
 # Pretend to be GNU make 3.81, for compatibility.
 MAKE_VERSION:=3.81
