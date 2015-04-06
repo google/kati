@@ -436,7 +436,7 @@ func funcShell(ev *Evaluator, args []string) string {
 func funcCall(ev *Evaluator, args []string) string {
 	f := ev.LookupVar(args[0]).String()
 	Log("call func %q => %q", args[0], f)
-	localVars := NewVarTab(ev.VarTab())
+	localVars := NewVarTab(ev.vars)
 	for i, argstr := range args[1:] {
 		arg := ev.evalExpr(argstr)
 		Log("call $%d: %q=>%q", i+1, argstr, arg)
