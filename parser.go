@@ -76,8 +76,9 @@ func (p *parser) readLine() []byte {
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
 		line = line[:len(line)-1]
+		lineno := p.lineno
 		nline := p.readLine()
-		p.elineno++
+		p.lineno = lineno
 		line = append(line, nline...)
 	}
 
