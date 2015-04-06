@@ -464,7 +464,7 @@ func funcFlavor(ev *Evaluator, args []string) string {
 
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
 func funcInfo(ev *Evaluator, args []string) string {
-	args = arity("warning", 1, args)
+	args = arity("info", 1, args)
 	arg := ev.evalExpr(args[0])
 	fmt.Printf("%s\n", arg)
 	return ""
