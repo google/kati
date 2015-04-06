@@ -33,6 +33,18 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
+func (ex *Executor) exists(target string) bool {
+	rule, present := ex.rules[".PHONY"]
+	if present {
+		for _, input := range rule.inputs {
+			if target == input {
+				return true
+			}
+		}
+	}
+	return exists(target)
+}
+
 func (ex *Executor) runCommands(cmds []string, output string) error {
 Loop:
 	for _, cmd := range cmds {
@@ -105,7 +117,7 @@ func (ex *Executor) canPickImplicitRule(rule *Rule, output string) bool {
 	}
 	for _, input := range rule.inputs {
 		input = substPattern(outputPattern, input, output)
-		if !exists(input) {
+		if !ex.exists(input) {
 			return false
 		}
 	}
@@ -160,7 +172,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 		if len(irule.inputs) != 1 {
 			panic(fmt.Sprintf("unexpected number of input for a suffix rule (%d)", len(irule.inputs)))
 		}
-		if !exists(replaceSuffix(output, irule.inputs[0])) {
+		if !ex.exists(replaceSuffix(output, irule.inputs[0])) {
 			continue
 		}
 		if rule != nil {
@@ -169,8 +181,10 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			// TODO(ukai): input order is correct?
 			r.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
 			r.vars = NewVarTab(rule.vars)
-			for k, v := range irule.vars.m {
-				r.vars.Assign(k, v)
+			if irule.vars != nil {
+				for k, v := range irule.vars.m {
+					r.vars.Assign(k, v)
+				}
 			}
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
@@ -225,7 +239,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	}
 
 	for _, input := range rule.orderOnlyInputs {
-		if exists(input) {
+		if ex.exists(input) {
 			continue
 		}
 		ts, err := ex.build(vars, input)

@@ -1,4 +1,3 @@
-# TODO
 test: foo.x
 
 test2: all
