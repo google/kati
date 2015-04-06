@@ -201,12 +201,15 @@ func funcJoin(ev *Evaluator, args []string) string {
 
 func funcWildcard(ev *Evaluator, args []string) string {
 	args = arity("wildcard", 1, args)
-	pattern := ev.evalExpr(args[0])
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		panic(err)
+	var result []string
+	for _, pattern := range splitSpaces(ev.evalExpr(args[0])) {
+		files, err := filepath.Glob(pattern)
+		if err != nil {
+			panic(err)
+		}
+		result = append(result, files...)
 	}
-	return strings.Join(files, " ")
+	return strings.Join(result, " ")
 }
 
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
