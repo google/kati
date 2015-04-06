@@ -397,16 +397,8 @@ func funcEval(ev *Evaluator, args []string) string {
 		panic(err)
 	}
 
-	er, err2 := Eval(mk, ev.VarTab())
-	if err2 != nil {
-		panic(err2)
-	}
-
-	for k, v := range er.vars.Vars() {
-		ev.outVars.Assign(k, v)
-	}
-	for _, r := range er.rules {
-		ev.outRules = append(ev.outRules, r)
+	for _, stmt := range mk.stmts {
+		ev.eval(stmt)
 	}
 
 	return ""
