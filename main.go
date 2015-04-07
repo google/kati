@@ -82,6 +82,8 @@ func main() {
 			origin: "environment",
 		})
 	}
+	vars.Assign("MAKEFILE_LIST", SimpleVar{ value: "", origin: "file" })
+
 	// TODO(ukai): make variables in commandline.
 	er, err := Eval(mk, vars)
 	if err != nil {

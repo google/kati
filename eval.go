@@ -322,6 +322,11 @@ func Eval(mk Makefile, vars *VarTab) (er *EvalResult, err error) {
 			err = fmt.Errorf("panic: %v", r)
 		}
 	}()
+
+	makefile_list := vars.Lookup("MAKEFILE_LIST")
+	makefile_list = makefile_list.Append(ev, mk.filename)
+	ev.outVars.Assign("MAKEFILE_LIST", makefile_list)
+
 	for _, stmt := range mk.stmts {
 		ev.eval(stmt)
 	}

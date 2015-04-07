@@ -40,7 +40,7 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
     expected = ''
     output = ''
 
-    testcases = c.scan(/^test\d*/).sort
+    testcases = c.scan(/^test\d*/).sort.uniq
     if testcases.empty?
       testcases = ['']
     end

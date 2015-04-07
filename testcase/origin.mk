@@ -10,6 +10,7 @@ test:
 	echo $(origin FOO,BAR)
 	echo $(origin UNDEFINED)
 	echo $(origin PATH)
+	echo $(origin MAKEFILE_LIST)
 
 # TODO: support default, environment override, command line, and
 # override.

@@ -11,7 +11,8 @@ import (
 )
 
 type Makefile struct {
-	stmts []AST
+	filename string
+	stmts    []AST
 }
 
 type ifState struct {
@@ -22,7 +23,6 @@ type ifState struct {
 type parser struct {
 	rd       *bufio.Reader
 	mk       Makefile
-	filename string
 	lineno   int
 	elineno  int // lineno == elineno unless there is trailing '\'.
 	unBuf    []byte
@@ -45,8 +45,8 @@ func exists(filename string) bool {
 func newParser(rd io.Reader, filename string) *parser {
 	p := &parser{
 		rd:       bufio.NewReader(rd),
-		filename: filename,
 	}
+	p.mk.filename = filename
 	p.outStmts = &p.mk.stmts
 	return p
 }
@@ -134,7 +134,7 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 		rhs: string(bytes.TrimLeft(line[esep:], " \t")),
 		op:  string(line[sep:esep]),
 	}
-	ast.filename = p.filename
+	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	return ast
 }
@@ -151,7 +151,7 @@ func (p *parser) parseMaybeRule(line string) AST {
 	} else {
 		ast.expr = line
 	}
-	ast.filename = p.filename
+	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	/*
 	ast.cmdLineno = p.elineno + 1
@@ -175,7 +175,7 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 		expr: line[oplen+1:],
 		op:   line[:oplen],
 	}
-	ast.filename = p.filename
+	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	return ast
 }
@@ -185,7 +185,7 @@ func (p *parser) parseIfdef(line string, oplen int) AST {
 		op:  line[:oplen],
 		lhs: strings.TrimSpace(line[oplen+1:]),
 	}
-	ast.filename = p.filename
+	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	p.addStatement(ast)
 	p.ifStack = append(p.ifStack, ifState{ast: ast})
@@ -287,7 +287,7 @@ func parseEq(s string) (string, string, bool) {
 func (p *parser) parseIfeq(line string, oplen int) AST {
 	lhs, rhs, ok := parseEq(strings.TrimSpace(line[oplen+1:]))
 	if !ok {
-		Error(p.filename, p.lineno, `*** invalid syntax in conditional.`)
+		Error(p.mk.filename, p.lineno, `*** invalid syntax in conditional.`)
 	}
 
 	ast := &IfAST{
@@ -295,7 +295,7 @@ func (p *parser) parseIfeq(line string, oplen int) AST {
 		lhs: lhs,
 		rhs: rhs,
 	}
-	ast.filename = p.filename
+	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	p.addStatement(ast)
 	p.ifStack = append(p.ifStack, ifState{ast: ast})
@@ -305,7 +305,7 @@ func (p *parser) parseIfeq(line string, oplen int) AST {
 
 func (p *parser) checkIfStack(curKeyword string) {
 	if len(p.ifStack) == 0 {
-		Error(p.filename, p.lineno, `*** extraneous %q.`, curKeyword)
+		Error(p.mk.filename, p.lineno, `*** extraneous %q.`, curKeyword)
 	}
 }
 
@@ -313,7 +313,7 @@ func (p *parser) parseElse(line string) {
 	p.checkIfStack("else")
 	state := &p.ifStack[len(p.ifStack)-1]
 	if state.inElse {
-		Error(p.filename, p.lineno, `*** only one "else" per conditional.`)
+		Error(p.mk.filename, p.lineno, `*** only one "else" per conditional.`)
 	}
 	state.inElse = true
 	p.outStmts = &state.ast.falseStmts
@@ -412,7 +412,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 					rhs: strings.Join(p.inDef[1:], "\n"),
 					op:  "=",
 				}
-				ast.filename = p.filename
+				ast.filename = p.mk.filename
 				ast.lineno = p.lineno - len(p.inDef)
 				p.addStatement(ast)
 				p.inDef = nil
@@ -427,7 +427,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 		if line[0] == '\t' {
 			ast := &CommandAST{cmd: string(p.processRecipeLine(line[1:]))}
-			ast.filename = p.filename
+			ast.filename = p.mk.filename
 			ast.lineno = p.lineno
 			p.addStatement(ast)
 			continue
@@ -446,7 +446,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 				parenStack = append(parenStack, ch)
 			case ')', '}':
 				if len(parenStack) == 0 {
-					Warn(p.filename, p.lineno, "Unmatched parens: %s", line)
+					Warn(p.mk.filename, p.lineno, "Unmatched parens: %s", line)
 				} else {
 					parenStack = parenStack[:len(parenStack)-1]
 				}
