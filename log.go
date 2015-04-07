@@ -23,6 +23,11 @@ func Warn(filename string, lineno int, f string, a ...interface{}) {
 	fmt.Printf(f, a...)
 }
 
+func WarnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
+	f = fmt.Sprintf("%s:%d: %s\n", filename, lineno, f)
+	fmt.Printf(f, a...)
+}
+
 func Error(filename string, lineno int, f string, a ...interface{}) {
 	f = fmt.Sprintf("%s:%d: %s\n", filename, lineno, f)
 	fmt.Printf(f, a...)

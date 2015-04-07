@@ -16,8 +16,9 @@ type Makefile struct {
 }
 
 type ifState struct {
-	ast    *IfAST
-	inElse bool
+	ast     *IfAST
+	inElse  bool
+	numNest int
 }
 
 type parser struct {
@@ -31,6 +32,7 @@ type parser struct {
 	outStmts *[]AST
 	ifStack  []ifState
 	inDef    []string
+	numIfNest int
 }
 
 func exists(filename string) bool {
@@ -188,7 +190,7 @@ func (p *parser) parseIfdef(line string, oplen int) AST {
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	p.addStatement(ast)
-	p.ifStack = append(p.ifStack, ifState{ast: ast})
+	p.ifStack = append(p.ifStack, ifState{ast: ast, numNest: p.numIfNest})
 	p.outStmts = &ast.trueStmts
 	return ast
 }
@@ -298,7 +300,7 @@ func (p *parser) parseIfeq(line string, oplen int) AST {
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	p.addStatement(ast)
-	p.ifStack = append(p.ifStack, ifState{ast: ast})
+	p.ifStack = append(p.ifStack, ifState{ast: ast, numNest: p.numIfNest})
 	p.outStmts = &ast.trueStmts
 	return ast
 }
@@ -317,24 +319,45 @@ func (p *parser) parseElse(line string) {
 	}
 	state.inElse = true
 	p.outStmts = &state.ast.falseStmts
+
+	nextIf := strings.TrimSpace(line[len("else"):])
+	if len(nextIf) == 0 {
+		return
+	}
+	var ifDirectives = map[string]func(*parser, string){
+		"ifdef ":    ifdefDirective,
+		"ifndef ":   ifndefDirective,
+		"ifeq ":     ifeqDirective,
+		"ifneq ":    ifneqDirective,
+	}
+	p.numIfNest = state.numNest + 1
+	if p.parseKeywords(nextIf, ifDirectives) {
+		p.numIfNest = 0
+		return
+	}
+	p.numIfNest = 0
+	WarnNoPrefix(p.mk.filename, p.lineno, "extraneous text after `else` directive")
 }
 
 func (p *parser) parseEndif(line string) {
 	p.checkIfStack("endif")
-	p.ifStack = p.ifStack[0 : len(p.ifStack)-1]
-	if len(p.ifStack) == 0 {
-		p.outStmts = &p.mk.stmts
-	} else {
-		state := p.ifStack[len(p.ifStack)-1]
-		if state.inElse {
-			p.outStmts = &state.ast.falseStmts
+	state := p.ifStack[len(p.ifStack)-1]
+	for t := 0; t <= state.numNest; t++ {
+		p.ifStack = p.ifStack[0 : len(p.ifStack)-1]
+		if len(p.ifStack) == 0 {
+			p.outStmts = &p.mk.stmts
 		} else {
-			p.outStmts = &state.ast.trueStmts
+			state := p.ifStack[len(p.ifStack)-1]
+			if state.inElse {
+				p.outStmts = &state.ast.falseStmts
+			} else {
+				p.outStmts = &state.ast.trueStmts
+			}
 		}
 	}
 }
 
-var directives = map[string]func(*parser, string){
+var makeDirectives = map[string]func(*parser, string){
 	"include ":  includeDirective,
 	"-include ": sincludeDirective,
 	"sinclude":  sincludeDirective,
@@ -347,7 +370,7 @@ var directives = map[string]func(*parser, string){
 	"define ":   defineDirective,
 }
 
-func (p *parser) parseKeywords(line string) bool {
+func (p *parser) parseKeywords(line string, directives map[string]func(*parser, string)) bool {
 	stripped := strings.TrimLeft(line, " \t")
 	for prefix, f := range directives {
 		if strings.HasPrefix(stripped, prefix) {
@@ -434,7 +457,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 
 		line = p.processMakefileLine(line)
-		if p.parseKeywords(string(line)) {
+		if p.parseKeywords(string(line), makeDirectives) {
 			continue
 		}
 
