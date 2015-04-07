@@ -7,7 +7,7 @@ import (
 )
 
 func Log(f string, a ...interface{}) {
-	if noKatiLogFlag {
+	if !katiLogFlag {
 		return
 	}
 
