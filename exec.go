@@ -15,12 +15,16 @@ type Executor struct {
 	implicitRules []*Rule
 	suffixRules   map[string][]*Rule
 	firstRule     *Rule
+
+	// target -> timestamp
+	done map[string]int64
 }
 
 func newExecutor() *Executor {
 	return &Executor{
 		rules:       make(map[string]*Rule),
 		suffixRules: make(map[string][]*Rule),
+		done:        make(map[string]int64),
 	}
 }
 
@@ -203,7 +207,12 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 
 func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	Log("Building: %s", output)
-	outputTs := getTimestamp(output)
+	outputTs, ok := ex.done[output]
+	if ok {
+		Log("Building: %s already done: %d", outputTs)
+		return outputTs, nil
+	}
+	outputTs = getTimestamp(output)
 
 	rule, present := ex.pickRule(output)
 	if !present {
@@ -297,6 +306,8 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	if outputTs < 0 {
 		outputTs = time.Now().Unix()
 	}
+	ex.done[output] = outputTs
+	Log("Building: %s done %d", output, outputTs)
 	return outputTs, nil
 }
 

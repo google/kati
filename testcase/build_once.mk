@@ -1,4 +1,3 @@
-# TODO
 # expect protoc compile/link only once.
 test: foo
 
