@@ -68,6 +68,7 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
     expected.gsub!(/ (?:commands|recipe) commences /,
                    ' commands commence ')
     expected.gsub!(' (did you mean TAB instead of 8 spaces?)', '')
+    expected.gsub!('Extraneous text after', 'extraneous text after')
     # Not sure if this is useful.
     expected.gsub!(/\s+Stop\.$/, '')
     # GNU make 4.0 has this output.
