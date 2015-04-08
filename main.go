@@ -4,12 +4,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/pprof"
 	"strings"
 )
 
-var katiLogFlag bool
-var makefileFlag string
-var dryRunFlag bool
+var (
+	katiLogFlag  bool
+	makefileFlag string
+	dryRunFlag   bool
+	cpuprofile   string
+)
 
 func parseFlags() {
 	// TODO: Make this default and replace this by -d flag.
@@ -17,6 +21,7 @@ func parseFlags() {
 	flag.StringVar(&makefileFlag, "f", "", "Use it as a makefile")
 
 	flag.BoolVar(&dryRunFlag, "n", false, "Only print the commands that would be executed")
+	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.Parse()
 }
 
@@ -62,6 +67,14 @@ MAKE_VERSION:=3.81
 
 func main() {
 	parseFlags()
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			panic(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	clvars, targets := parseCommandLine()
 
