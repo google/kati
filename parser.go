@@ -22,16 +22,16 @@ type ifState struct {
 }
 
 type parser struct {
-	rd       *bufio.Reader
-	mk       Makefile
-	lineno   int
-	elineno  int // lineno == elineno unless there is trailing '\'.
-	unBuf    []byte
-	hasUnBuf bool
-	done     bool
-	outStmts *[]AST
-	ifStack  []ifState
-	inDef    []string
+	rd        *bufio.Reader
+	mk        Makefile
+	lineno    int
+	elineno   int // lineno == elineno unless there is trailing '\'.
+	unBuf     []byte
+	hasUnBuf  bool
+	done      bool
+	outStmts  *[]AST
+	ifStack   []ifState
+	inDef     []string
 	numIfNest int
 }
 
@@ -46,7 +46,7 @@ func exists(filename string) bool {
 
 func newParser(rd io.Reader, filename string) *parser {
 	p := &parser{
-		rd:       bufio.NewReader(rd),
+		rd: bufio.NewReader(rd),
 	}
 	p.mk.filename = filename
 	p.outStmts = &p.mk.stmts
@@ -141,13 +141,13 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	return ast
 }
 
-func (p *parser) parseMaybeRule(line string) AST {
+func (p *parser) parseMaybeRule(line string, semicolonIndex int) AST {
 	if len(strings.TrimSpace(line)) == 0 {
 		return nil
 	}
 
 	ast := &MaybeRuleAST{}
-	if i := strings.IndexByte(line, ';'); i >= 0 {
+	if i := semicolonIndex; i >= 0 {
 		ast.expr = line[:i]
 		ast.cmd = strings.TrimSpace(line[i+1:])
 	} else {
@@ -156,19 +156,19 @@ func (p *parser) parseMaybeRule(line string) AST {
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	/*
-	ast.cmdLineno = p.elineno + 1
-	for {
-		line := p.readRecipeLine()
-		if len(line) == 0 {
-			break
-		} else if line[0] == '\t' {
-			ast.cmds = append(ast.cmds, string(bytes.TrimLeft(line, " \t")))
-		} else {
-			p.unreadLine(line)
-			break
+		ast.cmdLineno = p.elineno + 1
+		for {
+			line := p.readRecipeLine()
+			if len(line) == 0 {
+				break
+			} else if line[0] == '\t' {
+				ast.cmds = append(ast.cmds, string(bytes.TrimLeft(line, " \t")))
+			} else {
+				p.unreadLine(line)
+				break
+			}
 		}
-	}
-    */
+	*/
 	return ast
 }
 
@@ -325,10 +325,10 @@ func (p *parser) parseElse(line string) {
 		return
 	}
 	var ifDirectives = map[string]func(*parser, string){
-		"ifdef ":    ifdefDirective,
-		"ifndef ":   ifndefDirective,
-		"ifeq ":     ifeqDirective,
-		"ifneq ":    ifneqDirective,
+		"ifdef ":  ifdefDirective,
+		"ifndef ": ifndefDirective,
+		"ifeq ":   ifeqDirective,
+		"ifneq ":  ifneqDirective,
 	}
 	p.numIfNest = state.numNest + 1
 	if p.parseKeywords(nextIf, ifDirectives) {
@@ -463,6 +463,8 @@ func (p *parser) parse() (mk Makefile, err error) {
 
 		var ast AST
 		var parenStack []byte
+		semicolonIndex := -1
+		isRule := false
 		for i, ch := range line {
 			switch ch {
 			case '(', '{':
@@ -483,12 +485,16 @@ func (p *parser) parse() (mk Makefile, err error) {
 				if i+1 < len(line) && line[i+1] == '=' {
 					ast = p.parseAssign(line, i, i+2)
 				} else {
-					ast = p.parseMaybeRule(string(line))
+					isRule = true
 				}
+			case ';':
+				semicolonIndex = i
 			case '=':
-				ast = p.parseAssign(line, i, i+1)
+				if !isRule {
+					ast = p.parseAssign(line, i, i+1)
+				}
 			case '?', '+':
-				if i+1 < len(line) && line[i+1] == '=' {
+				if !isRule && i+1 < len(line) && line[i+1] == '=' {
 					ast = p.parseAssign(line, i, i+2)
 				}
 			}
@@ -498,7 +504,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 			}
 		}
 		if ast == nil {
-			ast = p.parseMaybeRule(string(line))
+			ast = p.parseMaybeRule(string(line), semicolonIndex)
 			if ast != nil {
 				p.addStatement(ast)
 			}
