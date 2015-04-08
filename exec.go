@@ -363,7 +363,14 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 	if len(rule.outputs) == 0 {
 		return
 	}
+	for i, input := range rule.inputs {
+		rule.inputs[i] = filepath.Clean(input)
+	}
+	for i, orderOnlyInput := range rule.orderOnlyInputs {
+		rule.orderOnlyInputs[i] = filepath.Clean(orderOnlyInput)
+	}
 	for _, output := range rule.outputs {
+		output = filepath.Clean(output)
 
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
