@@ -186,13 +186,14 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	line := ev.evalExpr(ast.expr)
 	Log("rule? %q=>%q", ast.expr, line)
 
-	if strings.TrimSpace(line) == "" {
+	// See semicolon.mk.
+	if strings.TrimRight(line, " \t\n;") == "" {
 		return
 	}
 
 	rule := &Rule{
-		filename:  ast.filename,
-		lineno:    ast.lineno,
+		filename: ast.filename,
+		lineno:   ast.lineno,
 	}
 	assign, err := rule.parse(line)
 	if err != nil {
