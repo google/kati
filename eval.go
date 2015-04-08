@@ -226,6 +226,19 @@ func (ev *Evaluator) evalCommand(ast *CommandAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 	if ev.lastRule == nil {
+		// This could still be an assignment statement. See
+		// assign_after_tab.mk.
+		if strings.IndexByte(ast.cmd, '=') >= 0 {
+			line := strings.TrimLeft(ast.cmd, " \t")
+			mk, err := ParseMakefileString(line, ast.filename, ast.lineno)
+			if err != nil {
+				panic(err)
+			}
+			if len(mk.stmts) == 1 && mk.stmts[0].(*AssignAST) != nil {
+				ev.eval(mk.stmts[0])
+			}
+			return
+		}
 		Error(ast.filename, ast.lineno, "*** commands commence before first target.")
 	}
 	ev.lastRule.cmds = append(ev.lastRule.cmds, ast.cmd)
