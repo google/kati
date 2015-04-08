@@ -381,6 +381,16 @@ func (p *parser) parseKeywords(line string, directives map[string]func(*parser, 
 	return false
 }
 
+func (p *parser) isDirective(line string, directives map[string]func(*parser, string)) bool {
+	stripped := strings.TrimLeft(line, " \t")
+	for prefix, _ := range directives {
+		if strings.HasPrefix(stripped, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func includeDirective(p *parser, line string) {
 	p.addStatement(p.parseInclude(line, len("include")))
 }
@@ -448,6 +458,13 @@ func (p *parser) parse() (mk Makefile, err error) {
 		if len(line) == 0 {
 			continue
 		}
+
+		if p.isDirective(string(line), makeDirectives) {
+			line = p.processMakefileLine(line)
+			p.parseKeywords(string(line), makeDirectives)
+			continue
+		}
+
 		if line[0] == '\t' {
 			ast := &CommandAST{cmd: string(p.processRecipeLine(line[1:]))}
 			ast.filename = p.mk.filename
@@ -457,9 +474,6 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 
 		line = p.processMakefileLine(line)
-		if p.parseKeywords(string(line), makeDirectives) {
-			continue
-		}
 
 		var ast AST
 		var parenStack []byte
