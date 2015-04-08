@@ -1,0 +1,6 @@
+Usage of android.tgz
+
+$ mkdir -p repo/android
+$ cd repo/android
+$ tar -cvzf ../android.tgz
+$ make -n dump-products
