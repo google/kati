@@ -232,7 +232,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs, ok := ex.done[output]
 	if ok {
-		Log("Building: %s already done: %d", outputTs)
+		Log("Building: %s already done: %d", output, outputTs)
 		return outputTs, nil
 	}
 	outputTs = getTimestamp(output)
@@ -363,12 +363,6 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 	if len(rule.outputs) == 0 {
 		return
 	}
-	for i, input := range rule.inputs {
-		rule.inputs[i] = filepath.Clean(input)
-	}
-	for i, orderOnlyInput := range rule.orderOnlyInputs {
-		rule.orderOnlyInputs[i] = filepath.Clean(orderOnlyInput)
-	}
 	for _, output := range rule.outputs {
 		output = filepath.Clean(output)
 
@@ -426,6 +420,12 @@ func (ex *Executor) populateImplicitRule(rule *Rule) {
 
 func (ex *Executor) populateRules(er *EvalResult) {
 	for _, rule := range er.rules {
+		for i, input := range rule.inputs {
+			rule.inputs[i] = filepath.Clean(input)
+		}
+		for i, orderOnlyInput := range rule.orderOnlyInputs {
+			rule.orderOnlyInputs[i] = filepath.Clean(orderOnlyInput)
+		}
 		ex.populateExplicitRule(rule)
 
 		if len(rule.outputs) == 0 {
