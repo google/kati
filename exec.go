@@ -53,62 +53,85 @@ func (ex *Executor) exists(target string) bool {
 	return exists(target)
 }
 
-func (ex *Executor) runCommands(cmds []string, output string) error {
-Loop:
-	for _, cmd := range cmds {
-		echo := true
-		ignoreErr := false
-		for {
-			cmd = strings.TrimLeft(cmd, " \t")
-			if cmd == "" {
-				continue Loop
-			}
-			switch cmd[0] {
-			case '@':
-				echo = false
-				cmd = cmd[1:]
-				continue
-			case '-':
-				ignoreErr = true
-				cmd = cmd[1:]
-				continue
-			}
-			break
+type runner struct {
+	output      string
+	cmd         string
+	echo        bool
+	dryRun      bool
+	ignoreError bool
+}
+
+func evalCmd(ev *Evaluator, r runner, s string) []runner {
+	r = newRunner(r, s)
+	if strings.IndexByte(r.cmd, '$') < 0 {
+		// fast path
+		return []runner{r}
+	}
+	cmds := ev.evalExpr(r.cmd)
+	var runners []runner
+	for _, cmd := range strings.Split(cmds, "\n") {
+		runners = append(runners, newRunner(r, cmd))
+	}
+	return runners
+}
+
+func newRunner(r runner, s string) runner {
+	for {
+		s = strings.TrimLeft(s, " \t")
+		if s == "" {
+			return runner{}
 		}
-		if echo {
-			fmt.Printf("%s\n", cmd)
-		}
-		if dryRunFlag {
+		switch s[0] {
+		case '@':
+			if !r.dryRun {
+				r.echo = false
+			}
+			s = s[1:]
+			continue
+		case '-':
+			r.ignoreError = true
+			s = s[1:]
 			continue
 		}
+		break
+	}
+	r.cmd = s
+	return r
+}
 
-		args := []string{"/bin/sh", "-c", cmd}
-		cmd := exec.Cmd{
-			Path: args[0],
-			Args: args,
-		}
-		out, err := cmd.CombinedOutput()
-		exit := 0
-		if err != nil {
-			exit = 1
-			if err, ok := err.(*exec.ExitError); ok {
-				if w, ok := err.ProcessState.Sys().(syscall.WaitStatus); ok {
-					exit = w.ExitStatus()
-				}
-			} else {
-				return err
-			}
-		}
-		fmt.Printf("%s", out)
-		if exit != 0 {
-			if ignoreErr {
-				fmt.Printf("[%s] Error %d (ignored)\n", output, exit)
-				continue
-			}
-			return fmt.Errorf("command failed: %q. Error %d", cmd, exit)
+func (r runner) run() error {
+	if r.echo {
+		fmt.Printf("%s\n", r.cmd)
+	}
+	if r.dryRun {
+		return nil
+	}
+	args := []string{"/bin/sh", "-c", r.cmd}
+	cmd := exec.Cmd{
+		Path: args[0],
+		Args: args,
+	}
+	out, err := cmd.CombinedOutput()
+	fmt.Printf("%s", out)
+	exit := exitStatus(err)
+	if r.ignoreError && exit != 0 {
+		fmt.Printf("[%s] Error %d (ignored)\n", r.output, exit)
+		err = nil
+	}
+	return err
+}
+
+func exitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	exit := 1
+	if err, ok := err.(*exec.ExitError); ok {
+		if w, ok := err.ProcessState.Sys().(syscall.WaitStatus); ok {
+			return w.ExitStatus()
 		}
 	}
-	return nil
+	return exit
 }
 
 func replaceSuffix(s string, newsuf string) string {
@@ -284,22 +307,23 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	ev := newEvaluator(localVars)
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
-	var cmds []string
+	var runners []runner
 	Log("Building: %s cmds:%q", output, rule.cmds)
-	for _, cmd := range rule.cmds {
-		if strings.IndexByte(cmd, '$') < 0 {
-			// fast path.
-			cmds = append(cmds, cmd)
-			continue
-		}
-		ecmd := ev.evalExpr(cmd)
-		Log("build eval:%q => %q", cmd, ecmd)
-		cmds = append(cmds, strings.Split(ecmd, "\n")...)
+	r := runner{
+		output: output,
+		echo:   true,
+		dryRun: dryRunFlag,
 	}
-
-	err := ex.runCommands(cmds, output)
-	if err != nil {
-		return outputTs, err
+	for _, cmd := range rule.cmds {
+		runners = append(runners, evalCmd(ev, r, cmd)...)
+	}
+	for _, r := range runners {
+		err := r.run()
+		if err != nil {
+			exit := exitStatus(err)
+			fmt.Printf("[%s] Error %d: %v\n", r.output, exit, err)
+			return outputTs, err
+		}
 	}
 
 	outputTs = getTimestamp(output)
