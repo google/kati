@@ -20,6 +20,19 @@ func parseFlags() {
 	flag.Parse()
 }
 
+func parseCommandLine() ([]string, []string) {
+	var vars []string
+	var targets []string
+	for _, arg := range flag.Args() {
+		if strings.IndexByte(arg, '=') >= 0 {
+			vars = append(vars, arg)
+			continue
+		}
+		targets = append(targets, arg)
+	}
+	return vars, targets
+}
+
 func getBootstrapMakefile(targets []string) Makefile {
 	bootstrap := `
 CC:=cc
@@ -49,7 +62,8 @@ MAKE_VERSION:=3.81
 
 func main() {
 	parseFlags()
-	targets := flag.Args()
+
+	clvars, targets := parseCommandLine()
 
 	bmk := getBootstrapMakefile(targets)
 
@@ -83,6 +97,17 @@ func main() {
 		})
 	}
 	vars.Assign("MAKEFILE_LIST", SimpleVar{value: "", origin: "file"})
+	for _, v := range clvars {
+		kv := strings.SplitN(v, "=", 2)
+		Log("cmdlinevar %q", kv)
+		if len(kv) < 2 {
+			panic(fmt.Sprintf("unexpected command line var %q", kv))
+		}
+		vars.Assign(kv[0], RecursiveVar{
+			expr:   kv[1],
+			origin: "command line",
+		})
+	}
 
 	// TODO(ukai): make variables in commandline.
 	er, err := Eval(mk, vars)

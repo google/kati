@@ -96,6 +96,14 @@ func (vt *VarTab) Lookup(name string) Var {
 }
 
 func (vt *VarTab) Assign(name string, v Var) {
+	switch v.Origin() {
+	case "override", "environment override":
+	default:
+		ov := vt.Lookup(name)
+		if ov.Origin() == "command line" {
+			return
+		}
+	}
 	vt.m[name] = v
 }
 
