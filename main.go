@@ -40,7 +40,7 @@ MAKE_VERSION:=3.81
 # TODO: Add more builtin rules.
 `
 	bootstrap = fmt.Sprintf("%s\nMAKECMDGOALS:=%s\n", bootstrap, strings.Join(targets, " "))
-	mk, err := ParseMakefileString(bootstrap, "*bootstrap*", 0)
+	mk, err := ParseMakefileString(bootstrap, BootstrapMakefile, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +82,7 @@ func main() {
 			origin: "environment",
 		})
 	}
-	vars.Assign("MAKEFILE_LIST", SimpleVar{ value: "", origin: "file" })
+	vars.Assign("MAKEFILE_LIST", SimpleVar{value: "", origin: "file"})
 
 	// TODO(ukai): make variables in commandline.
 	er, err := Eval(mk, vars)

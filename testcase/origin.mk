@@ -11,8 +11,8 @@ test:
 	echo $(origin UNDEFINED)
 	echo $(origin PATH)
 	echo $(origin MAKEFILE_LIST)
+	echo $(origin CC)
 
-# TODO: support default, environment override, command line, and
-# override.
+# TODO: support environment override, command line, and override.
 # TODO: Also add more tests especially for += and ?=
 

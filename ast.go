@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const BootstrapMakefile = "*bootstrap*"
+
 type AST interface {
 	eval(*Evaluator)
 	show()
@@ -27,15 +29,19 @@ func (ast *AssignAST) eval(ev *Evaluator) {
 }
 
 func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
+	origin := "file"
+	if ast.filename == BootstrapMakefile {
+		origin = "default"
+	}
 	switch ast.op {
 	case ":=":
-		return SimpleVar{value: ev.evalExpr(ast.rhs), origin: "file"}
+		return SimpleVar{value: ev.evalExpr(ast.rhs), origin: origin}
 	case "=":
-		return RecursiveVar{expr: ast.rhs, origin: "file"}
+		return RecursiveVar{expr: ast.rhs, origin: origin}
 	case "+=":
 		prev := ev.LookupVar(lhs)
 		if !prev.IsDefined() {
-			return RecursiveVar{expr: ast.rhs, origin: "file"}
+			return RecursiveVar{expr: ast.rhs, origin: origin}
 		}
 		return prev.Append(ev, ast.rhs)
 	case "?=":
@@ -43,7 +49,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		if prev.IsDefined() {
 			return prev
 		}
-		return RecursiveVar{expr: ast.rhs, origin: "file"}
+		return RecursiveVar{expr: ast.rhs, origin: origin}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}
@@ -57,8 +63,8 @@ func (ast *AssignAST) show() {
 // are expanded.
 type MaybeRuleAST struct {
 	ASTBase
-	expr      string
-	cmd       string
+	expr string
+	cmd  string
 }
 
 func (ast *MaybeRuleAST) eval(ev *Evaluator) {
@@ -74,7 +80,7 @@ func (ast *MaybeRuleAST) show() {
 
 type CommandAST struct {
 	ASTBase
-	cmd      string
+	cmd string
 }
 
 func (ast *CommandAST) eval(ev *Evaluator) {
