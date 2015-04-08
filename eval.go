@@ -129,10 +129,7 @@ Loop:
 				i++
 			}
 
-			value := ev.outVars.Lookup(varname)
-			if !value.IsDefined() {
-				value = ev.vars.Lookup(varname)
-			}
+			value := ev.LookupVar(varname)
 			val := value.Eval(ev)
 			Log("var %q=>%q=>%q", varname, value, val)
 			if subst != nil {
