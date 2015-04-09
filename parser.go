@@ -146,12 +146,9 @@ func (p *parser) parseMaybeRule(line string, semicolonIndex int) AST {
 		return nil
 	}
 
-	ast := &MaybeRuleAST{}
-	if i := semicolonIndex; i >= 0 {
-		ast.expr = line[:i]
-		ast.cmd = strings.TrimSpace(line[i+1:])
-	} else {
-		ast.expr = line
+	ast := &MaybeRuleAST{
+		expr:           line,
+		semicolonIndex: semicolonIndex,
 	}
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
