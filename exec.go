@@ -304,7 +304,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 			origin: "automatic",
 		})
 	}
-	ev := newEvaluator(localVars)
+	ev := newEvaluator(localVars.Vars())
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
 	var runners []runner

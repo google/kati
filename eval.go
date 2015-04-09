@@ -7,14 +7,14 @@ import (
 )
 
 type EvalResult struct {
-	vars  *VarTab
+	vars  Vars
 	rules []*Rule
 }
 
 type Evaluator struct {
-	outVars  *VarTab
+	outVars  Vars
 	outRules []*Rule
-	vars     *VarTab
+	vars     Vars
 	lastRule *Rule
 
 	filename string
@@ -63,9 +63,9 @@ func InitMakeFuncTable() {
 	}
 }
 
-func newEvaluator(vars *VarTab) *Evaluator {
+func newEvaluator(vars map[string]Var) *Evaluator {
 	return &Evaluator{
-		outVars: NewVarTab(nil),
+		outVars: make(Vars),
 		vars:    vars,
 	}
 }
@@ -338,7 +338,7 @@ func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
-func Eval(mk Makefile, vars *VarTab) (er *EvalResult, err error) {
+func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 	ev := newEvaluator(vars)
 	defer func() {
 		if r := recover(); r != nil {
