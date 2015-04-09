@@ -38,5 +38,11 @@ else
 RESULT += FAIL
 endif
 
+ifeq "VAR VAR" "$(VAR) $(VAR)"
+RESULT += PASS
+else
+RESULT += FAIL
+endif
+
 test:
 	echo $(RESULT)

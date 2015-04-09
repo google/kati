@@ -73,6 +73,8 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
     expected.gsub!(/\s+Stop\.$/, '')
     # GNU make 4.0 has this output.
     expected.gsub!(/Makefile:\d+: commands for target ".*?" failed\n/, '')
+    # We treat some warnings as errors.
+    expected.gsub!(/Nothing to be done for "test"\.\n/, '')
 
     # kati specific log messages.
     output.gsub!(/^\*kati\*.*\n/, '')

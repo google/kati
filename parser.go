@@ -251,29 +251,36 @@ Loop:
 	return args, i + 1, nil
 }
 
-func parseTwoQuotes(s string) ([]string, bool) {
-	toks := splitSpaces(s)
-	if len(toks) != 2 {
-		return nil, false
-	}
+func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool) {
 	var args []string
-	for _, tok := range toks {
-		if len(tok) < 2 {
+	for i := 0; i < 2; i++ {
+		s = strings.TrimSpace(s)
+		if len(s) < 1 {
 			return nil, false
 		}
-		ti := len(tok) - 1
-		if tok[0] != tok[ti] || (tok[0] != '\'' && tok[ti] != '"') {
+
+		quote := s[0]
+		if quote != '\'' && quote != '"' {
 			return nil, false
 		}
-		args = append(args, tok[1:ti])
+		end := strings.IndexByte(s[1:], quote) + 1
+		if end < 0 {
+			return nil, false
+		}
+
+		args = append(args, s[1:end])
+		s = s[end+1:]
+	}
+	if len(s) > 0 {
+		Error(p.mk.filename, p.lineno, `extraneous text after %q directive`, op)
 	}
 	return args, true
 }
 
-func parseEq(s string) (string, string, bool) {
+func (p *parser) parseEq(s string, op string) (string, string, bool) {
 	args, _, err := parseExpr(s)
 	if err != nil {
-		args, ok := parseTwoQuotes(s)
+		args, ok := p.parseTwoQuotes(s, op)
 		if ok {
 			return args[0], args[1], true
 		}
@@ -287,13 +294,14 @@ func parseEq(s string) (string, string, bool) {
 }
 
 func (p *parser) parseIfeq(line string, oplen int) AST {
-	lhs, rhs, ok := parseEq(strings.TrimSpace(line[oplen+1:]))
+	op := line[:oplen]
+	lhs, rhs, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]), op)
 	if !ok {
 		Error(p.mk.filename, p.lineno, `*** invalid syntax in conditional.`)
 	}
 
 	ast := &IfAST{
-		op:  line[:oplen],
+		op:  op,
 		lhs: lhs,
 		rhs: rhs,
 	}
