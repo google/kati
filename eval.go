@@ -180,8 +180,12 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	line := ev.evalExpr(ast.expr)
-	Log("rule? %q=>%q", ast.expr, line)
+	expr := ast.expr
+	if ast.semicolonIndex >= 0 {
+		expr = expr[0:ast.semicolonIndex]
+	}
+	line := ev.evalExpr(expr)
+	Log("rule? %q=>%q", expr, line)
 
 	// See semicolon.mk.
 	if strings.TrimRight(line, " \t\n;") == "" {
@@ -202,16 +206,19 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	//Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
-		if len(ast.cmd) > 0 {
-			Error(ast.filename, ast.lineno, "*** commands commence before first target.  Stop.")
+		if ast.semicolonIndex >= 0 {
+			assign, err = rule.parse(ev.evalExpr(ast.expr))
+			if err != nil {
+				Error(ast.filename, ast.lineno, err.Error())
+			}
 		}
 		rule.vars = NewVarTab(nil)
 		lhs, rhs := ev.evalAssignAST(assign)
 		Log("rule outputs:%q assign:%q=%q (flavor:%q)", rule.outputs, lhs, rhs, rhs.Flavor())
 		rule.vars.Assign(lhs, rhs)
 	} else {
-		if len(ast.cmd) > 0 {
-			rule.cmds = append(rule.cmds, ast.cmd)
+		if ast.semicolonIndex > 0 {
+			rule.cmds = append(rule.cmds, ast.expr[ast.semicolonIndex+1:])
 		}
 		Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	}

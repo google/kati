@@ -63,8 +63,8 @@ func (ast *AssignAST) show() {
 // are expanded.
 type MaybeRuleAST struct {
 	ASTBase
-	expr string
-	cmd  string
+	expr           string
+	semicolonIndex int
 }
 
 func (ast *MaybeRuleAST) eval(ev *Evaluator) {
@@ -73,9 +73,6 @@ func (ast *MaybeRuleAST) eval(ev *Evaluator) {
 
 func (ast *MaybeRuleAST) show() {
 	Log("%s", ast.expr)
-	if ast.cmd != "" {
-		Log("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
-	}
 }
 
 type CommandAST struct {
