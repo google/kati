@@ -411,6 +411,9 @@ func funcValue(ev *Evaluator, args []string) string {
 func funcEval(ev *Evaluator, args []string) string {
 	args = arity("eval", 1, args)
 	s := ev.evalExpr(args[0])
+	if len(s) == 0 || (s[0] == '#' && strings.IndexByte(s, '\n') < 0) {
+		return ""
+	}
 	mk, err := ParseMakefileString(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
