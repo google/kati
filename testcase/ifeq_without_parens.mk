@@ -38,7 +38,7 @@ else
 RESULT += FAIL
 endif
 
-ifeq "VAR VAR" "$(VAR) $(VAR)"
+ifeq "var var" "$(VAR) $(VAR)"
 RESULT += PASS
 else
 RESULT += FAIL

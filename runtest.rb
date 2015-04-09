@@ -83,6 +83,11 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
 
+    if expected =~ /FAIL/
+      puts %Q(#{name} has a string "FAIL" in its expectation)
+      exit 1
+    end
+
     if expected != output
       if expected_failure
         puts "#{name}: FAIL (expected)"
