@@ -10,21 +10,26 @@ import (
 var strinit sync.Once
 var spacesRe *regexp.Regexp
 
-func initStrutil() {
-	var err error
-	spacesRe, err = regexp.Compile(`\s+`)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func splitSpaces(s string) []string {
-	strinit.Do(initStrutil)
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
+	var r []string
+	tokStart := -1
+	for i, ch := range s {
+		if ch == ' ' || ch == '\t' {
+			if tokStart >= 0 {
+				r = append(r, s[tokStart:i])
+				tokStart = -1
+			}
+		} else {
+			if tokStart < 0 {
+				tokStart = i
+			}
+		}
 	}
-	return spacesRe.Split(s, -1)
+	if tokStart >= 0 {
+		r = append(r, s[tokStart:])
+	}
+	Log("splitSpace(%q)=%q", s, r)
+	return r
 }
 
 func matchPattern(pat, str string) bool {
