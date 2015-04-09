@@ -261,17 +261,6 @@ func (ev *Evaluator) LookupVar(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
-func (ev *Evaluator) VarTab() *VarTab {
-	vars := NewVarTab(nil)
-	for k, v := range ev.vars.Vars() {
-		vars.Assign(k, v)
-	}
-	for k, v := range ev.outVars.Vars() {
-		vars.Assign(k, v)
-	}
-	return vars
-}
-
 func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
@@ -290,17 +279,27 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 			}
 		}
 
-		er, err2 := Eval(mk, ev.VarTab())
-		if err2 != nil {
-			panic(err2)
+		makefile_list := ev.outVars.Lookup("MAKEFILE_LIST")
+		makefile_list = makefile_list.Append(ev, mk.filename)
+		ev.outVars.Assign("MAKEFILE_LIST", makefile_list)
+
+		for _, stmt := range mk.stmts {
+			ev.eval(stmt)
 		}
 
-		for k, v := range er.vars.Vars() {
-			ev.outVars.Assign(k, v)
-		}
-		for _, r := range er.rules {
-			ev.outRules = append(ev.outRules, r)
-		}
+		/*
+			er, err2 := Eval(mk, ev.VarTab())
+			if err2 != nil {
+				panic(err2)
+			}
+
+			for k, v := range er.vars.Vars() {
+				ev.outVars.Assign(k, v)
+			}
+			for _, r := range er.rules {
+				ev.outRules = append(ev.outRules, r)
+			}
+		*/
 	}
 }
 
