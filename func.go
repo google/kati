@@ -9,6 +9,26 @@ import (
 	"strings"
 )
 
+type oldVar struct {
+	name  string
+	value Var
+}
+
+func newOldVar(ev *Evaluator, name string) oldVar {
+	return oldVar{
+		name:  name,
+		value: ev.outVars.Lookup(name),
+	}
+}
+
+func (old oldVar) restore(ev *Evaluator) {
+	if old.value.IsDefined() {
+		ev.outVars.Assign(old.name, old.value)
+	} else {
+		delete(ev.outVars, old.name)
+	}
+}
+
 // Func is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
 // TODO(ukai): return error instead of panic?
@@ -366,7 +386,7 @@ func funcForeach(ev *Evaluator, args []string) string {
 	varName := ev.evalExpr(args[0])
 	values := splitSpaces(ev.evalExpr(args[1]))
 	expr := args[2]
-	oldVal := ev.outVars.Lookup(varName)
+	old := newOldVar(ev, varName)
 	for _, val := range values {
 		ev.outVars.Assign(varName,
 			SimpleVar{
@@ -375,11 +395,7 @@ func funcForeach(ev *Evaluator, args []string) string {
 			})
 		result = append(result, ev.evalExpr(expr))
 	}
-	if oldVal.IsDefined() {
-		ev.outVars.Assign(varName, oldVal)
-	} else {
-		ev.outVars.Delete(varName)
-	}
+	old.restore(ev)
 	return strings.Join(result, " ")
 }
 
@@ -436,21 +452,27 @@ func funcShell(ev *Evaluator, args []string) string {
 func funcCall(ev *Evaluator, args []string) string {
 	f := ev.LookupVar(args[0]).String()
 	Log("call func %q => %q", args[0], f)
-	localVars := NewVarTab(ev.vars)
+	// Evalualte all arguments first before we modify the table.
 	for i, argstr := range args[1:] {
-		arg := ev.evalExpr(argstr)
-		Log("call $%d: %q=>%q", i+1, argstr, arg)
-		localVars.Assign(fmt.Sprintf("%d", i+1),
+		args[i+1] = ev.evalExpr(argstr)
+		Log("call $%d: %q=>%q", i+1, argstr, args[i])
+	}
+
+	var olds []oldVar
+	for i, arg := range args[1:] {
+		name := fmt.Sprintf("%d", i+1)
+		olds = append(olds, newOldVar(ev, name))
+		ev.outVars.Assign(name,
 			RecursiveVar{
 				expr:   arg,
 				origin: "automatic", // ??
 			})
 	}
 
-	oldVars := ev.vars
-	ev.vars = localVars
 	r := ev.evalExpr(f)
-	ev.vars = oldVars
+	for _, old := range olds {
+		old.restore(ev)
+	}
 	Log("call %q return %q", args[0], r)
 	return r
 }

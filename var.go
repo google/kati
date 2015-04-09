@@ -60,8 +60,10 @@ func (_ UndefinedVar) Append(*Evaluator, string) Var {
 	return UndefinedVar{}
 }
 
+type Vars map[string]Var
+
 type VarTab struct {
-	m      map[string]Var
+	m      Vars
 	parent *VarTab
 }
 
@@ -72,7 +74,7 @@ func NewVarTab(vt *VarTab) *VarTab {
 	}
 }
 
-func (vt *VarTab) Vars() map[string]Var {
+func (vt *VarTab) Vars() Vars {
 	m := make(map[string]Var)
 	if vt.parent != nil {
 		for k, v := range vt.parent.Vars() {
@@ -85,6 +87,13 @@ func (vt *VarTab) Vars() map[string]Var {
 	return m
 }
 
+func (vt Vars) Lookup(name string) Var {
+	if v, ok := vt[name]; ok {
+		return v
+	}
+	return UndefinedVar{}
+}
+
 func (vt *VarTab) Lookup(name string) Var {
 	if v, ok := vt.m[name]; ok {
 		return v
@@ -95,7 +104,7 @@ func (vt *VarTab) Lookup(name string) Var {
 	return UndefinedVar{}
 }
 
-func (vt *VarTab) Assign(name string, v Var) {
+func (vt Vars) Assign(name string, v Var) {
 	switch v.Origin() {
 	case "override", "environment override":
 	default:
@@ -104,7 +113,11 @@ func (vt *VarTab) Assign(name string, v Var) {
 			return
 		}
 	}
-	vt.m[name] = v
+	vt[name] = v
+}
+
+func (vt *VarTab) Assign(name string, v Var) {
+	vt.m.Assign(name, v)
 }
 
 func (vt *VarTab) Delete(name string) {

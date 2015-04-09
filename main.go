@@ -99,7 +99,7 @@ func main() {
 
 	mk.stmts = append(bmk.stmts, mk.stmts...)
 
-	vars := NewVarTab(nil)
+	vars := make(Vars)
 	for _, env := range os.Environ() {
 		kv := strings.SplitN(env, "=", 2)
 		Log("envvar %q", kv)
@@ -130,11 +130,15 @@ func main() {
 		panic(err)
 	}
 
-	for k, v := range er.vars.Vars() {
-		vars.Assign(k, v)
+	vartab := NewVarTab(nil)
+	for k, v := range vars {
+		vartab.Assign(k, v)
+	}
+	for k, v := range er.vars {
+		vartab.Assign(k, v)
 	}
 
-	err = Exec(er, targets, vars)
+	err = Exec(er, targets, vartab)
 	if err != nil {
 		panic(err)
 	}
