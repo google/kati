@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -435,10 +436,11 @@ func funcShell(ev *Evaluator, args []string) string {
 	arg := ev.evalExpr(args[0])
 	cmdline := []string{"/bin/sh", "-c", arg}
 	cmd := exec.Cmd{
-		Path: cmdline[0],
-		Args: cmdline,
+		Path:   cmdline[0],
+		Args:   cmdline,
+		Stderr: os.Stderr,
 	}
-	out, err := cmd.CombinedOutput()
+	out, err := cmd.Output()
 	if err != nil {
 		Log("$(shell %q) failed: %q", args, err)
 	}
