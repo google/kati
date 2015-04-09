@@ -1,8 +1,42 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 )
+
+func TestSplitSpaces(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{
+			in:   "foo",
+			want: []string{"foo"},
+		},
+		{
+			in: "  	 ",
+			want: nil,
+		},
+		{
+			in: "  foo 	  bar 	",
+			want: []string{"foo", "bar"},
+		},
+		{
+			in:   "  foo bar",
+			want: []string{"foo", "bar"},
+		},
+		{
+			in:   "foo bar  ",
+			want: []string{"foo", "bar"},
+		},
+	} {
+		got := splitSpaces(tc.in)
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf(`splitSpaces(%q)=%q, want %q`, tc.in, got, tc.want)
+		}
+	}
+}
 
 func TestSubstPattern(t *testing.T) {
 	for _, tc := range []struct {
@@ -10,7 +44,7 @@ func TestSubstPattern(t *testing.T) {
 		repl string
 		in   string
 		want string
-	} {
+	}{
 		{
 			pat:  "%.c",
 			repl: "%.o",
