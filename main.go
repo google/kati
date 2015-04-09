@@ -78,6 +78,8 @@ func main() {
 
 	clvars, targets := parseCommandLine()
 
+	InitMakeFuncTable()
+
 	bmk := getBootstrapMakefile(targets)
 
 	var mk Makefile
