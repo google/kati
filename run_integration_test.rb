@@ -25,7 +25,9 @@ class TestCase
   end
 
   def normalize_log(log, out)
-    log = log.gsub(/[ \t]+/, ' ').split("\n").sort.join("\n")
+    log = log.gsub(/[ \t]+/, ' ').split("\n").sort.join("\n").sub(/ Stop\.$/, '')
+    # This is a completely sane warning from kati for Android.
+    log.sub!(%r(build/core/product_config.mk:152: warning: Unmatched parens: .*\n), '')
     File.open(out, 'w') do |of|
       of.print log
     end
@@ -78,6 +80,20 @@ class GitTestCase < TestCase
   end
 end
 
+class AndroidTestCase < TestCase
+  def initialize
+    name = 'android'
+    checkout = Proc.new{|tc|
+      FileUtils.mkdir_p(@name)
+      Dir.chdir(@name) {
+        check_command("tar -xzf ../android.tgz")
+      }
+    }
+
+    super(name, checkout, DO_NOTHING, DO_NOTHING, 'dump-products')
+  end
+end
+
 DO_NOTHING = Proc.new{|tc|}
 MAKE_CLEAN = Proc.new{|tc|
   check_command("make clean > /dev/null")
@@ -99,6 +115,7 @@ TESTS = [
                     CONFIGURE,
                     MAKE_CLEAN,
                     ''),
+   AndroidTestCase.new(),
 ]
 
 fails = []
