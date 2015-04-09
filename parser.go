@@ -73,7 +73,7 @@ func (p *parser) readLine() []byte {
 		panic(err)
 	}
 
-	line = bytes.TrimRight(line, "\n")
+	line = bytes.TrimRight(line, "\r\n")
 
 	return line
 }
