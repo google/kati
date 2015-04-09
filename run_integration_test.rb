@@ -40,13 +40,15 @@ class TestCase
     Dir.chdir(@name) do
       @prepare.call(self)
 
-      @clean.call(self)
-      puts "Running make for #{@name}..."
-      system("make #{@target} > make.log 2>&1")
-
-      @clean.call(self)
-      puts "Running kati for #{@name}..."
-      system("../../kati #{@target} > kati.log 2>&1")
+      [['make', 'make'], ['kati', '../../kati']].each do |n, cmd|
+        @clean.call(self)
+        print "Running #{n} for #{@name}..."
+        STDOUT.flush
+        started = Time.now
+        system("#{cmd} #{@target} > #{n}.log 2>&1")
+        elapsed = Time.now - started
+        puts " %.2f secs" % elapsed
+      end
 
       make_log = File.read('make.log')
       kati_log = File.read('kati.log')
