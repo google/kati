@@ -87,6 +87,10 @@ func (ev *Evaluator) evalFunction(args []string) (string, bool) {
 }
 
 func (ev *Evaluator) evalExprSlice(ex string) (string, int) {
+	if strings.IndexByte(ex, '$') < 0 {
+		return ex, len(ex)
+	}
+
 	var buf bytes.Buffer
 	i := 0
 Loop:
