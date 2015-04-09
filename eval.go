@@ -17,54 +17,56 @@ type Evaluator struct {
 	vars     *VarTab
 	lastRule *Rule
 
-	funcs map[string]Func
-
 	filename string
 	lineno   int
+}
+
+var makeFuncTable map[string]Func
+
+func InitMakeFuncTable() {
+	makeFuncTable = map[string]Func{
+		"subst":      funcSubst,
+		"patsubst":   funcPatsubst,
+		"strip":      funcStrip,
+		"findstring": funcFindstring,
+		"filter":     funcFilter,
+		"filter-out": funcFilterOut,
+		"sort":       funcSort,
+		"word":       funcWord,
+		"wordlist":   funcWordlist,
+		"words":      funcWords,
+		"firstword":  funcFirstword,
+		"lastword":   funcLastword,
+		"join":       funcJoin,
+		"wildcard":   funcWildcard,
+		"dir":        funcDir,
+		"notdir":     funcNotdir,
+		"suffix":     funcSuffix,
+		"basename":   funcBasename,
+		"addsuffix":  funcAddsuffix,
+		"addprefix":  funcAddprefix,
+		"realpath":   funcRealpath,
+		"abspath":    funcAbspath,
+		"if":         funcIf,
+		"and":        funcAnd,
+		"or":         funcOr,
+		"foreach":    funcForeach,
+		"value":      funcValue,
+		"eval":       funcEval,
+		"origin":     funcOrigin,
+		"shell":      funcShell,
+		"call":       funcCall,
+		"flavor":     funcFlavor,
+		"info":       funcInfo,
+		"warning":    funcWarning,
+		"error":      funcError,
+	}
 }
 
 func newEvaluator(vars *VarTab) *Evaluator {
 	return &Evaluator{
 		outVars: NewVarTab(nil),
 		vars:    vars,
-		// TODO(ukai): use singleton global func tab?
-		funcs: map[string]Func{
-			"subst":      funcSubst,
-			"patsubst":   funcPatsubst,
-			"strip":      funcStrip,
-			"findstring": funcFindstring,
-			"filter":     funcFilter,
-			"filter-out": funcFilterOut,
-			"sort":       funcSort,
-			"word":       funcWord,
-			"wordlist":   funcWordlist,
-			"words":      funcWords,
-			"firstword":  funcFirstword,
-			"lastword":   funcLastword,
-			"join":       funcJoin,
-			"wildcard":   funcWildcard,
-			"dir":        funcDir,
-			"notdir":     funcNotdir,
-			"suffix":     funcSuffix,
-			"basename":   funcBasename,
-			"addsuffix":  funcAddsuffix,
-			"addprefix":  funcAddprefix,
-			"realpath":   funcRealpath,
-			"abspath":    funcAbspath,
-			"if":         funcIf,
-			"and":        funcAnd,
-			"or":         funcOr,
-			"foreach":    funcForeach,
-			"value":      funcValue,
-			"eval":       funcEval,
-			"origin":     funcOrigin,
-			"shell":      funcShell,
-			"call":       funcCall,
-			"flavor":     funcFlavor,
-			"info":       funcInfo,
-			"warning":    funcWarning,
-			"error":      funcError,
-		},
 	}
 }
 
@@ -78,7 +80,7 @@ func (ev *Evaluator) evalFunction(args []string) (string, bool) {
 	}
 	cmd := strings.TrimSpace(args[0][:i])
 	args[0] = strings.TrimLeft(args[0][i+1:], " \t")
-	if f, ok := ev.funcs[cmd]; ok {
+	if f, ok := makeFuncTable[cmd]; ok {
 		return f(ev, args), true
 	}
 	return "", false
