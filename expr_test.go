@@ -63,6 +63,7 @@ func TestParseExpr(t *testing.T) {
 								varname: literal("foo"),
 							},
 						},
+						expr: "$(subst $(space),$(,),$(foo))",
 					},
 				},
 				literal("/bar"),
@@ -86,6 +87,7 @@ func TestParseExpr(t *testing.T) {
 							},
 						},
 					},
+					expr: "$(subst $(space),$,,$(foo))",
 				},
 			},
 		},
@@ -96,16 +98,18 @@ func TestParseExpr(t *testing.T) {
 					args: []Value{
 						literal("echo '()'"),
 					},
+					expr: `$(shell echo '()')`,
 				},
 			},
 		},
 		{
-			in: `$(shell echo '()')`,
+			in: `${shell echo '()'}`,
 			val: &funcShell{
 				fclosure: fclosure{
 					args: []Value{
 						literal("echo '()'"),
 					},
+					expr: `${shell echo '()'}`,
 				},
 			},
 		},
@@ -117,6 +121,7 @@ func TestParseExpr(t *testing.T) {
 						args: []Value{
 							literal("echo '"),
 						},
+						expr: `$(shell echo ')`,
 					},
 				},
 				literal("')"),
@@ -129,6 +134,7 @@ func TestParseExpr(t *testing.T) {
 					args: []Value{
 						literal("echo ')'"),
 					},
+					expr: `${shell echo ')'}`,
 				},
 			},
 		},
@@ -140,6 +146,7 @@ func TestParseExpr(t *testing.T) {
 						args: []Value{
 							literal("echo '"),
 						},
+						expr: `${shell echo '}`,
 					},
 				},
 				literal("'}"),
@@ -152,6 +159,7 @@ func TestParseExpr(t *testing.T) {
 					args: []Value{
 						literal(`make --version | ruby -n0e 'puts $_[/Make (\d)/,1]'`),
 					},
+					expr: `$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')`,
 				},
 			},
 		},

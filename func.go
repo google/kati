@@ -46,6 +46,9 @@ type Func interface {
 	// AddArg adds value as an argument.
 	AddArg(Value)
 
+	// SetString sets original string of the func.
+	SetString(string)
+
 	Value
 }
 
@@ -100,28 +103,20 @@ func assertArity(name string, req, n int) {
 
 type fclosure struct {
 	args []Value
+	expr string
 }
 
 func (c *fclosure) AddArg(v Value) {
 	c.args = append(c.args, v)
 }
 
-func (c *fclosure) argsString() string {
-	var args []string
-	for _, arg := range c.args {
-		args = append(args, arg.String())
-	}
-	return strings.Join(args, ",")
-}
+func (c *fclosure) SetString(s string) { c.expr = s }
+func (c *fclosure) String() string     { return c.expr }
 
 // http://www.gnu.org/software/make/manual/make.html#Text-Functions
 type funcSubst struct{ fclosure }
 
 func (f *funcSubst) Arity() int { return 3 }
-func (f *funcSubst) String() string {
-	return fmt.Sprintf("${subst %s}", f.argsString())
-}
-
 func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("subst", 3, len(f.args))
 	from := ev.Value(f.args[0])
@@ -135,9 +130,6 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 type funcShell struct{ fclosure }
 
 func (f *funcShell) Arity() int { return 1 }
-func (f *funcShell) String() string {
-	return fmt.Sprintf("${shell %s}", f.argsString())
-}
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("shell", 1, len(f.args))
