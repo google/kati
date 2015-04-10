@@ -65,7 +65,7 @@ func writeBenchmarkTest(w io.Writer, fname string) {
 }
 
 func main() {
-	f, err := os.Create("testcase_benchmark_test.go")
+	f, err := os.Create("testcase_parse_benchmark_test.go")
 	if err != nil {
 		panic(err)
 	}
