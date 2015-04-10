@@ -128,7 +128,9 @@ type funcShell struct{ fclosure }
 
 func (f *funcShell) Arity() int { return 1 }
 func (f *funcShell) String() string {
-	return fmt.Sprintf("${shell %s}", f.args[1])
+	// TODO(ukai): Crash by ./run_integration_tests.rb android
+	//return fmt.Sprintf("${shell %s}", f.args[1])
+	return ""
 }
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
