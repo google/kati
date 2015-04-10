@@ -1,5 +1,10 @@
 package main
 
+//go:generate go run testcase/gen_testcase_parse_benchmark.go
+//
+// $ go generate
+// $ go test -bench .
+
 import (
 	"bufio"
 	"bytes"
