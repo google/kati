@@ -1,16 +1,17 @@
 package main
 
+import (
+	"bytes"
+	"fmt"
+	"io"
+)
+
 type Var interface {
 	Value
+	Append(*Evaluator, string) Var
 	Flavor() string
 	Origin() string
 	IsDefined() bool
-}
-
-type Value interface {
-	String() string
-	Eval(ev *Evaluator) string
-	Append(*Evaluator, string) Var
 }
 
 type SimpleVar struct {
@@ -22,15 +23,26 @@ func (v SimpleVar) Flavor() string  { return "simple" }
 func (v SimpleVar) Origin() string  { return v.origin }
 func (v SimpleVar) IsDefined() bool { return true }
 
-func (v SimpleVar) String() string            { return v.value }
-func (v SimpleVar) Eval(ev *Evaluator) string { return v.value }
+func (v SimpleVar) String() string { return v.value }
+func (v SimpleVar) Eval(w io.Writer, ev *Evaluator) {
+	fmt.Fprint(w, v.value)
+}
+
 func (v SimpleVar) Append(ev *Evaluator, s string) Var {
-	v.value += " " + ev.evalExpr(s)
+	val, _, err := parseExpr([]byte(s), nil)
+	if err != nil {
+		panic(err)
+	}
+	var buf bytes.Buffer
+	buf.WriteString(v.value)
+	buf.WriteByte(' ')
+	val.Eval(&buf, ev)
+	v.value = buf.String()
 	return v
 }
 
 type RecursiveVar struct {
-	expr   string
+	expr   Value
 	origin string
 }
 
@@ -38,12 +50,21 @@ func (v RecursiveVar) Flavor() string  { return "recursive" }
 func (v RecursiveVar) Origin() string  { return v.origin }
 func (v RecursiveVar) IsDefined() bool { return true }
 
-func (v RecursiveVar) String() string { return v.expr }
-func (v RecursiveVar) Eval(ev *Evaluator) string {
-	return ev.evalExpr(v.expr)
+func (v RecursiveVar) String() string { return v.expr.String() }
+func (v RecursiveVar) Eval(w io.Writer, ev *Evaluator) {
+	v.expr.Eval(w, ev)
 }
+
 func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
-	v.expr += " " + s
+	var buf bytes.Buffer
+	buf.WriteString(v.expr.String())
+	buf.WriteByte(' ')
+	buf.WriteString(s)
+	e, _, err := parseExpr(buf.Bytes(), nil)
+	if err != nil {
+		panic(err)
+	}
+	v.expr = e
 	return v
 }
 
@@ -53,9 +74,9 @@ func (_ UndefinedVar) Flavor() string  { return "undefined" }
 func (_ UndefinedVar) Origin() string  { return "undefined" }
 func (_ UndefinedVar) IsDefined() bool { return false }
 func (_ UndefinedVar) String() string  { return "" }
-func (_ UndefinedVar) Eval(ev *Evaluator) string {
-	return ""
+func (_ UndefinedVar) Eval(_ io.Writer, _ *Evaluator) {
 }
+
 func (_ UndefinedVar) Append(*Evaluator, string) Var {
 	return UndefinedVar{}
 }

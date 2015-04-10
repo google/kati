@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"strings"
 )
 
+// TODO(ukai): move in var.go?
 type oldVar struct {
 	name  string
 	value Var
@@ -25,34 +28,173 @@ func newOldVar(ev *Evaluator, name string) oldVar {
 func (old oldVar) restore(ev *Evaluator) {
 	if old.value.IsDefined() {
 		ev.outVars.Assign(old.name, old.value)
-	} else {
-		delete(ev.outVars, old.name)
+		return
 	}
+	delete(ev.outVars, old.name)
 }
 
 // Func is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
-// TODO(ukai): return error instead of panic?
-type Func func(*Evaluator, []string) string
 
-func arity(name string, req int, args []string) []string {
-	if len(args) < req {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `%s'.", len(args), name))
+// Func is make builtin function.
+type Func interface {
+	// Arity is max function's arity.
+	// ',' will not be handled as argument separator more than arity.
+	// 0 means varargs.
+	Arity() int
+
+	// AddArg adds value as an argument.
+	AddArg(Value)
+
+	Value
+}
+
+var (
+	funcMap = map[string]func() Func{
+		"subst": func() Func { return &funcSubst{} },
+		"shell": func() Func { return &funcShell{} },
 	}
-	args[req-1] = strings.Join(args[req-1:], ",")
-	// TODO(ukai): ev.evalExpr for all args?
-	Log("%s %q", name, args)
-	return args
+)
+
+func init() {
+	fwrap("patsubst", 3, funcPatsubst)
+	fwrap("strip", 1, funcStrip)
+	fwrap("findstring", 2, funcFindstring)
+	fwrap("filter", 2, funcFilter)
+	fwrap("filter-out", 2, funcFilterOut)
+	fwrap("sort", 1, funcSort)
+	fwrap("word", 2, funcWord)
+	fwrap("wordlist", 3, funcWordlist)
+	fwrap("words", 1, funcWords)
+	fwrap("firstword", 1, funcFirstword)
+	fwrap("lastword", 1, funcLastword)
+	fwrap("join", 2, funcJoin)
+	fwrap("wildcard", 1, funcWildcard)
+	fwrap("dir", 1, funcDir)
+	fwrap("notdir", 1, funcNotdir)
+	fwrap("suffix", 1, funcSuffix)
+	fwrap("basename", 1, funcBasename)
+	fwrap("addsuffix", 2, funcAddsuffix)
+	fwrap("addprefix", 2, funcAddprefix)
+	fwrap("realpath", 1, funcRealpath)
+	fwrap("abspath", 1, funcAbspath)
+	fwrap("if", 3, funcIf)
+	fwrap("and", 0, funcAnd)
+	fwrap("or", 0, funcOr)
+	fwrap("foreach", 3, funcForeach)
+	fwrap("value", 1, funcValue)
+	fwrap("eval", 1, funcEval)
+	fwrap("origin", 1, funcOrigin)
+	fwrap("call", 0, funcCall)
+	fwrap("flavor", 1, funcFlavor)
+	fwrap("info", 1, funcInfo)
+	fwrap("warning", 1, funcWarning)
+	fwrap("error", 1, funcError)
+}
+
+func assertArity(name string, req, n int) {
+	if n < req {
+		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `%s'.", n, name))
+	}
+}
+
+type fclosure struct {
+	args []Value
+}
+
+func (c *fclosure) AddArg(v Value) {
+	c.args = append(c.args, v)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Text-Functions
-func funcSubst(ev *Evaluator, args []string) string {
-	args = arity("subst", 3, args)
-	from := ev.evalExpr(args[0])
-	to := ev.evalExpr(args[1])
-	text := ev.evalExpr(args[2])
+type funcSubst struct{ fclosure }
+
+func (f *funcSubst) Arity() int { return 3 }
+func (f *funcSubst) String() string {
+	return fmt.Sprintf("${subst %s,%s,%s}", f.args[0], f.args[1], f.args[2])
+}
+
+func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("subst", 3, len(f.args))
+	from := ev.Value(f.args[0])
+	to := ev.Value(f.args[1])
+	text := ev.Value(f.args[2])
 	Log("subst from:%q to:%q text:%q", from, to, text)
-	return strings.Replace(text, from, to, -1)
+	w.Write(bytes.Replace(text, from, to, -1))
+}
+
+// http://www.gnu.org/software/make/manual/make.html#Shell-Function
+type funcShell struct{ fclosure }
+
+func (f *funcShell) Arity() int { return 1 }
+func (f *funcShell) String() string {
+	return fmt.Sprintf("${shell %s}", f.args[1])
+}
+
+func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("shell", 1, len(f.args))
+	arg := ev.Value(f.args[0])
+	cmdline := []string{"/bin/sh", "-c", string(arg)}
+	cmd := exec.Cmd{
+		Path:   cmdline[0],
+		Args:   cmdline,
+		Stderr: os.Stderr,
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		Log("$(shell %q) failed: %q", arg, err)
+	}
+
+	r := string(out)
+	r = strings.TrimRight(r, "\n")
+	r = strings.Replace(r, "\n", " ", -1)
+	fmt.Fprint(w, r)
+}
+
+// TODO(ukai): rewrite new style func.
+
+type fwrapclosure struct {
+	fclosure
+	name  string
+	arity int
+	f     func(ev *Evaluator, args []string) string
+}
+
+func (f *fwrapclosure) Arity() int {
+	return f.arity
+}
+
+func (f *fwrapclosure) String() string {
+	var args []string
+	for _, arg := range f.args {
+		args = append(args, arg.String())
+	}
+	return fmt.Sprintf("${%s %s}", f.name, strings.Join(args, ","))
+}
+
+func (f *fwrapclosure) Eval(w io.Writer, ev *Evaluator) {
+	var args []string
+	for _, arg := range f.args {
+		args = append(args, arg.String())
+	}
+	r := f.f(ev, args)
+	fmt.Fprint(w, r)
+}
+
+func fwrap(name string, arity int, f func(ev *Evaluator, args []string) string) {
+	funcMap[name] = func() Func {
+		return &fwrapclosure{
+			name:  name,
+			arity: arity,
+			f:     f,
+		}
+	}
+}
+
+func arity(name string, req int, args []string) []string {
+	assertArity(name, req, len(args))
+	args[req-1] = strings.Join(args[req-1:], ",")
+	return args
 }
 
 func funcPatsubst(ev *Evaluator, args []string) string {
@@ -411,7 +553,7 @@ func funcValue(ev *Evaluator, args []string) string {
 func funcEval(ev *Evaluator, args []string) string {
 	args = arity("eval", 1, args)
 	s := ev.evalExpr(args[0])
-	if len(s) == 0 || (s[0] == '#' && strings.IndexByte(s, '\n') < 0) {
+	if s == "" || (s[0] == '#' && strings.IndexByte(s, '\n') < 0) {
 		return ""
 	}
 	mk, err := ParseMakefileString(s, ev.filename, ev.lineno)
@@ -433,26 +575,6 @@ func funcOrigin(ev *Evaluator, args []string) string {
 	return v.Origin()
 }
 
-// http://www.gnu.org/software/make/manual/make.html#Shell-Function
-func funcShell(ev *Evaluator, args []string) string {
-	args = arity("shell", 1, args)
-	arg := ev.evalExpr(args[0])
-	cmdline := []string{"/bin/sh", "-c", arg}
-	cmd := exec.Cmd{
-		Path:   cmdline[0],
-		Args:   cmdline,
-		Stderr: os.Stderr,
-	}
-	out, err := cmd.Output()
-	if err != nil {
-		Log("$(shell %q) failed: %q", args, err)
-	}
-
-	r := string(out)
-	r = strings.TrimRight(r, "\n")
-	return strings.Replace(r, "\n", " ", -1)
-}
-
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
 func funcCall(ev *Evaluator, args []string) string {
 	f := ev.LookupVar(args[0]).String()
@@ -469,7 +591,7 @@ func funcCall(ev *Evaluator, args []string) string {
 		olds = append(olds, newOldVar(ev, name))
 		ev.outVars.Assign(name,
 			RecursiveVar{
-				expr:   arg,
+				expr:   tmpval([]byte(arg)),
 				origin: "automatic", // ??
 			})
 	}

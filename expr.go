@@ -1,0 +1,314 @@
+package main
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+)
+
+var (
+	errEndOfInput = errors.New("parse: unexpected end of input")
+)
+
+type Value interface {
+	String() string
+	Eval(w io.Writer, ev *Evaluator)
+}
+
+// literal is literal value.
+type literal string
+
+func (s literal) String() string { return string(s) }
+func (s literal) Eval(w io.Writer, ev *Evaluator) {
+	fmt.Fprint(w, string(s))
+}
+
+// tmpval is temporary value.
+type tmpval []byte
+
+func (t tmpval) String() string { return string(t) }
+func (t tmpval) Eval(w io.Writer, ev *Evaluator) {
+	w.Write(t)
+}
+
+// Expr is a list of values.
+type Expr []Value
+
+func (e Expr) String() string {
+	var s []string
+	for _, v := range e {
+		s = append(s, v.String())
+	}
+	return strings.Join(s, "")
+}
+
+func (e Expr) Eval(w io.Writer, ev *Evaluator) {
+	for _, v := range e {
+		v.Eval(w, ev)
+	}
+}
+
+func compactExpr(e Expr) Value {
+	if len(e) == 1 {
+		return e[0]
+	}
+	// TODO(ukai): concat literal
+	return e
+}
+
+// varref is variable reference. e.g. ${foo}.
+type varref struct {
+	varname Value
+}
+
+func (v varref) String() string {
+	varname := v.varname.String()
+	if len(varname) == 1 {
+		return fmt.Sprintf("$%s", varname)
+	}
+	return fmt.Sprintf("${%s}", varname)
+}
+
+func (v varref) Eval(w io.Writer, ev *Evaluator) {
+	vname := ev.Value(v.varname)
+	vv := ev.LookupVar(string(vname))
+	vv.Eval(w, ev)
+}
+
+// varsubst is variable substitutaion. e.g. ${var:pat=subst}.
+type varsubst struct {
+	varname Value
+	pat     Value
+	subst   Value
+}
+
+func (v varsubst) String() string {
+	return fmt.Sprintf("${%s:%s=%s}", v.varname, v.pat, v.subst)
+}
+
+func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
+	vname := ev.Value(v.varname)
+	vv := ev.LookupVar(string(vname))
+	vals := ev.Values(vv)
+	pat := ev.Value(v.pat)
+	subst := ev.Value(v.subst)
+	space := false
+	for _, val := range vals {
+		if space {
+			fmt.Fprint(w, " ")
+		}
+		fmt.Fprint(w, substRef(string(pat), string(subst), string(val)))
+		space = true
+	}
+}
+
+// parseExpr parses expression in `in` until it finds any byte in term.
+// if term is nil, it will parse to end of input.
+// if term is not nil, and it reaches to end of input, return errEndOfInput.
+// it returns parsed value, and parsed length `n`, so in[n-1] is any byte of
+// term, and in[n:] is next input.
+func parseExpr(in, term []byte) (Value, int, error) {
+	var expr Expr
+	var buf bytes.Buffer
+	i := 0
+	var saveParen byte
+	parenDepth := 0
+Loop:
+	for i < len(in) {
+		ch := in[i]
+		if bytes.IndexByte(term, ch) >= 0 {
+			break Loop
+		}
+		switch ch {
+		case '$':
+			if i+1 >= len(in) {
+				break Loop
+			}
+			if in[i+1] == '$' {
+				buf.WriteByte('$')
+				i += 2
+				continue
+			}
+			if bytes.IndexByte(term, in[i+1]) >= 0 {
+				expr = append(expr, varref{varname: literal("")})
+				i++
+				break Loop
+			}
+			if buf.Len() > 0 {
+				expr = append(expr, literal(buf.String()))
+				buf.Reset()
+			}
+			v, n, err := parseDollar(in[i:])
+			if err != nil {
+				return nil, 0, err
+			}
+			i += n
+			expr = append(expr, v)
+			continue
+		case '(', '{':
+			cp := closeParen(ch)
+			if i := bytes.IndexByte(term, cp); i >= 0 {
+				parenDepth++
+				saveParen = cp
+				term[i] = 0
+			} else if cp == saveParen {
+				parenDepth++
+			}
+		case saveParen:
+			parenDepth--
+			if parenDepth == 0 {
+				i := bytes.IndexByte(term, 0)
+				term[i] = saveParen
+				saveParen = 0
+			}
+		}
+		buf.WriteByte(ch)
+		i++
+	}
+	if buf.Len() > 0 {
+		expr = append(expr, literal(buf.String()))
+	}
+	if i == len(in) && term != nil {
+		return expr, i, errEndOfInput
+	}
+	return compactExpr(expr), i, nil
+}
+
+func closeParen(ch byte) byte {
+	switch ch {
+	case '(':
+		return ')'
+	case '{':
+		return '}'
+	}
+	return 0
+}
+
+// parseDollar parses
+//   $(func expr[, expr...])  # func = literal SP
+//   $(expr:expr=expr)
+//   $(expr)
+//   $x
+// it returns parsed value and parsed length.
+func parseDollar(in []byte) (Value, int, error) {
+	if len(in) <= 1 {
+		return nil, 0, errors.New("empty expr")
+	}
+	if in[0] != '$' {
+		return nil, 0, errors.New("should starts with $")
+	}
+	if in[1] == '$' {
+		return nil, 0, errors.New("should handle $$ as literal $")
+	}
+	paren := closeParen(in[1])
+	if paren == 0 {
+		// $x case.
+		return varref{varname: literal(string(in[1]))}, 2, nil
+	}
+	term := []byte{paren, ':', ' '}
+	var varname Expr
+	i := 2
+Again:
+	for {
+		e, n, err := parseExpr(in[i:], term)
+		if err != nil {
+			return nil, 0, err
+		}
+		varname = append(varname, e)
+		i += n
+		switch in[i] {
+		case paren:
+			// ${expr}
+			return varref{varname: compactExpr(varname)}, i + 1, nil
+		case ' ':
+			// ${e ...}
+			if token, ok := e.(literal); ok {
+				if f, ok := funcMap[string(token)]; ok {
+					v, n, err := parseFunc(f(), in[i+1:], term[:1])
+					return v, i + 1 + n, err
+				}
+			}
+			term = term[:2] // drop ' '
+			continue Again
+		case ':':
+			// ${varname:...}
+			term = term[:2]
+			term[1] = '=' // term={paren, '='}.
+			e, n, err := parseExpr(in[i+1:], term)
+			if err != nil {
+				return nil, 0, err
+			}
+			i += 1 + n
+			if in[i] == paren {
+				varname = append(varname, literal(string(":")), e)
+				return varref{varname: varname}, i + 1, nil
+			}
+			// ${varname:xx=...}
+			pat := e
+			subst, n, err := parseExpr(in[i+1:], term[:1])
+			if err != nil {
+				return nil, 0, err
+			}
+			i += 1 + n
+			// ${first:pat=e}
+			return varsubst{
+				varname: compactExpr(varname),
+				pat:     pat,
+				subst:   subst,
+			}, i + 1, nil
+		default:
+			panic(fmt.Sprintf("unexpected char"))
+		}
+	}
+}
+
+// skipSpaces skips spaces at front of `in` before any bytes in term.
+// in[n] will be the first non white space in in.
+func skipSpaces(in, term []byte) int {
+	for i := 0; i < len(in); i++ {
+		if bytes.IndexByte(term, in[i]) >= 0 {
+			return i
+		}
+		switch in[i] {
+		case ' ', '\t':
+		default:
+			return i
+		}
+	}
+	return len(in)
+}
+
+// parseFunc parses function arguments for f.
+func parseFunc(f Func, in, term []byte) (Value, int, error) {
+	arity := f.Arity()
+	term = append(term, ',')
+	i := skipSpaces(in, term)
+	if i == len(in) {
+		return f, i, nil
+	}
+	narg := 1
+	for {
+		if arity != 0 && narg >= arity {
+			// final arguments.
+			term = term[:1] // drop ','
+		}
+		v, n, err := parseExpr(in[i:], term)
+		if err != nil {
+			return nil, 0, err
+		}
+		f.AddArg(v)
+		i += n
+		narg++
+		if in[i] == term[0] {
+			i++
+			break
+		}
+		i++ // should be ','
+		if i == len(in) {
+			break
+		}
+	}
+	return f, i, nil
+}

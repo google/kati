@@ -19,6 +19,7 @@ type ASTBase struct {
 
 type AssignAST struct {
 	ASTBase
+	// TODO(ukai): use Value.
 	lhs string
 	rhs string
 	op  string
@@ -37,11 +38,19 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	case ":=":
 		return SimpleVar{value: ev.evalExpr(ast.rhs), origin: origin}
 	case "=":
-		return RecursiveVar{expr: ast.rhs, origin: origin}
+		v, _, err := parseExpr([]byte(ast.rhs), nil)
+		if err != nil {
+			panic(err)
+		}
+		return RecursiveVar{expr: v, origin: origin}
 	case "+=":
 		prev := ev.LookupVar(lhs)
 		if !prev.IsDefined() {
-			return RecursiveVar{expr: ast.rhs, origin: origin}
+			v, _, err := parseExpr([]byte(ast.rhs), nil)
+			if err != nil {
+				panic(err)
+			}
+			return RecursiveVar{expr: v, origin: origin}
 		}
 		return prev.Append(ev, ast.rhs)
 	case "?=":
@@ -49,7 +58,11 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		if prev.IsDefined() {
 			return prev
 		}
-		return RecursiveVar{expr: ast.rhs, origin: origin}
+		v, _, err := parseExpr([]byte(ast.rhs), nil)
+		if err != nil {
+			panic(err)
+		}
+		return RecursiveVar{expr: v, origin: origin}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}

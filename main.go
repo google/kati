@@ -78,8 +78,6 @@ func main() {
 
 	clvars, targets := parseCommandLine()
 
-	InitMakeFuncTable()
-
 	bmk := getBootstrapMakefile(targets)
 
 	var mk Makefile
@@ -107,7 +105,7 @@ func main() {
 			panic(fmt.Sprintf("A weird environ variable %q", kv))
 		}
 		vars.Assign(kv[0], RecursiveVar{
-			expr:   kv[1],
+			expr:   literal(kv[1]),
 			origin: "environment",
 		})
 	}
@@ -119,7 +117,7 @@ func main() {
 			panic(fmt.Sprintf("unexpected command line var %q", kv))
 		}
 		vars.Assign(kv[0], RecursiveVar{
-			expr:   kv[1],
+			expr:   literal(kv[1]),
 			origin: "command line",
 		})
 	}

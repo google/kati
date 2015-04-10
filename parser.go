@@ -136,6 +136,7 @@ func (p *parser) unreadLine(line []byte) {
 
 func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	Log("parseAssign %q op:%q", line, line[sep:esep])
+	// TODO(ukai): parse expr here.
 	ast := &AssignAST{
 		lhs: string(bytes.TrimSpace(line[:sep])),
 		rhs: string(bytes.TrimLeft(line[esep:], " \t")),
@@ -175,6 +176,7 @@ func (p *parser) parseMaybeRule(line string, semicolonIndex int) AST {
 }
 
 func (p *parser) parseInclude(line string, oplen int) AST {
+	// TODO(ukai): parse expr here
 	ast := &IncludeAST{
 		expr: line[oplen+1:],
 		op:   line[:oplen],
@@ -185,9 +187,10 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 }
 
 func (p *parser) parseIfdef(line string, oplen int) AST {
+	// TODO(ukai): parse expr here.
 	ast := &IfAST{
 		op:  line[:oplen],
-		lhs: strings.TrimSpace(line[oplen+1:]),
+		lhs: line[oplen+1:],
 	}
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
@@ -197,70 +200,13 @@ func (p *parser) parseIfdef(line string, oplen int) AST {
 	return ast
 }
 
-func closeParen(ch byte) (byte, error) {
-	switch ch {
-	case '(':
-		return ')', nil
-	case '{':
-		return '}', nil
-	default:
-		return 0, fmt.Errorf("unexpected paren %c", ch)
-	}
-}
-
-// parseExpr parses s as expr.
-// The expr should starts with '(' or '{' and returns strings
-// separeted by ',' before ')' or '}' respectively, and an index for the rest.
-func parseExpr(s string) ([]string, int, error) {
-	if len(s) == 0 {
-		return nil, 0, errors.New("empty expr")
-	}
-	paren, err := closeParen(s[0])
-	if err != nil {
-		return nil, 0, err
-	}
-	parenCnt := make(map[byte]int)
-	i := 0
-	ia := 1
-	var args []string
-Loop:
-	for {
-		i++
-		if i == len(s) {
-			return nil, 0, errors.New("unexpected end of expr")
-		}
-		ch := s[i]
-		switch ch {
-		case '(', '{':
-			cch, err := closeParen(ch)
-			if err != nil {
-				return nil, 0, err
-			}
-			parenCnt[cch]++
-		case ')', '}':
-			parenCnt[ch]--
-			if ch == paren && parenCnt[ch] < 0 {
-				break Loop
-			}
-		case ',':
-			if parenCnt[')'] == 0 && parenCnt['}'] == 0 {
-				args = append(args, s[ia:i])
-				ia = i + 1
-			}
-		}
-	}
-	args = append(args, s[ia:i])
-	return args, i + 1, nil
-}
-
 func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool) {
 	var args []string
 	for i := 0; i < 2; i++ {
 		s = strings.TrimSpace(s)
-		if len(s) < 1 {
+		if s == "" {
 			return nil, false
 		}
-
 		quote := s[0]
 		if quote != '\'' && quote != '"' {
 			return nil, false
@@ -269,7 +215,6 @@ func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool) {
 		if end < 0 {
 			return nil, false
 		}
-
 		args = append(args, s[1:end])
 		s = s[end+1:]
 	}
@@ -279,20 +224,33 @@ func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool) {
 	return args, true
 }
 
+// parse
+//  "(lhs, rhs)"
+//  "lhs, rhs"
 func (p *parser) parseEq(s string, op string) (string, string, bool) {
-	args, _, err := parseExpr(s)
-	if err != nil {
-		args, ok := p.parseTwoQuotes(s, op)
-		if ok {
-			return args[0], args[1], true
+	if s[0] == '(' && s[len(s)-1] == ')' {
+		s = s[1 : len(s)-1]
+		term := []byte{','}
+		in := []byte(s)
+		v, n, err := parseExpr(in, term)
+		if err != nil {
+			return "", "", false
 		}
+		lhs := v.String()
+		n++
+		n += skipSpaces(in[n:], nil)
+		v, n, err = parseExpr(in[n:], nil)
+		if err != nil {
+			return "", "", false
+		}
+		rhs := v.String()
+		return lhs, rhs, true
+	}
+	args, ok := p.parseTwoQuotes(s, op)
+	if !ok {
 		return "", "", false
 	}
-	if len(args) != 2 {
-		return "", "", false
-	}
-	// TODO: check rest?
-	return args[0], strings.TrimLeft(args[1], " \t"), true
+	return args[0], args[1], true
 }
 
 func (p *parser) parseIfeq(line string, oplen int) AST {

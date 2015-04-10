@@ -2,13 +2,8 @@ package main
 
 import (
 	"path/filepath"
-	"regexp"
 	"strings"
-	"sync"
 )
-
-var strinit sync.Once
-var spacesRe *regexp.Regexp
 
 func splitSpaces(s string) []string {
 	var r []string
