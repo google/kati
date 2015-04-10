@@ -22,17 +22,18 @@ type ifState struct {
 }
 
 type parser struct {
-	rd        *bufio.Reader
-	mk        Makefile
-	lineno    int
-	elineno   int // lineno == elineno unless there is trailing '\'.
-	unBuf     []byte
-	hasUnBuf  bool
-	done      bool
-	outStmts  *[]AST
-	ifStack   []ifState
-	inDef     []string
-	numIfNest int
+	rd          *bufio.Reader
+	mk          Makefile
+	lineno      int
+	elineno     int // lineno == elineno unless there is trailing '\'.
+	linenoFixed bool
+	unBuf       []byte
+	hasUnBuf    bool
+	done        bool
+	outStmts    *[]AST
+	ifStack     []ifState
+	inDef       []string
+	numIfNest   int
 }
 
 func exists(filename string) bool {
@@ -63,10 +64,14 @@ func (p *parser) readLine() []byte {
 		return p.unBuf
 	}
 
-	p.lineno = p.elineno
+	if !p.linenoFixed {
+		p.lineno = p.elineno
+	}
 	line, err := p.rd.ReadBytes('\n')
-	p.lineno++
-	p.elineno = p.lineno
+	if !p.linenoFixed {
+		p.lineno++
+		p.elineno = p.lineno
+	}
 	if err == io.EOF {
 		p.done = true
 	} else if err != nil {
@@ -555,7 +560,8 @@ func ParseDefaultMakefile() (Makefile, error) {
 func ParseMakefileString(s string, name string, lineno int) (Makefile, error) {
 	rd := strings.NewReader(s)
 	parser := newParser(rd, name)
-	parser.lineno = lineno - 1
+	parser.lineno = lineno
 	parser.elineno = lineno
+	parser.linenoFixed = true
 	return parser.parse()
 }
