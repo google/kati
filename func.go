@@ -106,12 +106,20 @@ func (c *fclosure) AddArg(v Value) {
 	c.args = append(c.args, v)
 }
 
+func (c *fclosure) argsString() string {
+	var args []string
+	for _, arg := range c.args {
+		args = append(args, arg.String())
+	}
+	return strings.Join(args, ",")
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Text-Functions
 type funcSubst struct{ fclosure }
 
 func (f *funcSubst) Arity() int { return 3 }
 func (f *funcSubst) String() string {
-	return fmt.Sprintf("${subst %s,%s,%s}", f.args[0], f.args[1], f.args[2])
+	return fmt.Sprintf("${subst %s}", f.argsString())
 }
 
 func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
@@ -128,9 +136,7 @@ type funcShell struct{ fclosure }
 
 func (f *funcShell) Arity() int { return 1 }
 func (f *funcShell) String() string {
-	// TODO(ukai): Crash by ./run_integration_tests.rb android
-	//return fmt.Sprintf("${shell %s}", f.args[1])
-	return ""
+	return fmt.Sprintf("${shell %s}", f.argsString())
 }
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
