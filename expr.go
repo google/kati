@@ -226,8 +226,7 @@ Again:
 			// ${e ...}
 			if token, ok := e.(literal); ok {
 				if f, ok := funcMap[string(token)]; ok {
-					v, n, err := parseFunc(f(), in[i+1:], term[:1])
-					return v, i + 1 + n, err
+					return parseFunc(f(), in, i+1, term[:1])
 				}
 			}
 			term = term[:2] // drop ' '
@@ -280,12 +279,15 @@ func skipSpaces(in, term []byte) int {
 	return len(in)
 }
 
-// parseFunc parses function arguments for f.
-func parseFunc(f Func, in, term []byte) (Value, int, error) {
+// parseFunc parses function arguments from in[s:] for f.
+// in[:n] will be "${func args...}"
+func parseFunc(f Func, in []byte, s int, term []byte) (Value, int, error) {
 	arity := f.Arity()
 	term = append(term, ',')
-	i := skipSpaces(in, term)
+	i := skipSpaces(in[s:], term)
+	i = s + i
 	if i == len(in) {
+		f.SetString(string(in[:i]))
 		return f, i, nil
 	}
 	narg := 1
@@ -310,5 +312,6 @@ func parseFunc(f Func, in, term []byte) (Value, int, error) {
 			break
 		}
 	}
+	f.SetString(string(in[:i]))
 	return f, i, nil
 }
