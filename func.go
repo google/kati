@@ -54,8 +54,10 @@ type Func interface {
 
 var (
 	funcMap = map[string]func() Func{
-		"subst": func() Func { return &funcSubst{} },
-		"shell": func() Func { return &funcShell{} },
+		"subst":   func() Func { return &funcSubst{} },
+		"shell":   func() Func { return &funcShell{} },
+		"call":    func() Func { return &funcCall{} },
+		"foreach": func() Func { return &funcForeach{} },
 	}
 )
 
@@ -84,11 +86,9 @@ func init() {
 	fwrap("if", 3, funcIf)
 	fwrap("and", 0, funcAnd)
 	fwrap("or", 0, funcOr)
-	fwrap("foreach", 3, funcForeach)
 	fwrap("value", 1, funcValue)
 	fwrap("eval", 1, funcEval)
 	fwrap("origin", 1, funcOrigin)
-	fwrap("call", 0, funcCall)
 	fwrap("flavor", 1, funcFlavor)
 	fwrap("info", 1, funcInfo)
 	fwrap("warning", 1, funcWarning)
@@ -149,6 +149,69 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	r = strings.TrimRight(r, "\n")
 	r = strings.Replace(r, "\n", " ", -1)
 	fmt.Fprint(w, r)
+}
+
+// https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
+type funcCall struct{ fclosure }
+
+func (f *funcCall) Arity() int { return 0 }
+
+func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
+	variable := string(ev.Value(f.args[0]))
+	v := ev.LookupVar(variable)
+	Log("call variable %q", v)
+	// Evalualte all arguments first before we modify the table.
+	var args []Value
+	for i, arg := range f.args[1:] {
+		args = append(args, tmpval(ev.Value(arg)))
+		Log("call $%d: %q=>%q", i+1, arg, args[i])
+	}
+
+	var olds []oldVar
+	for i, arg := range args {
+		name := fmt.Sprintf("%d", i+1)
+		olds = append(olds, newOldVar(ev, name))
+		ev.outVars.Assign(name,
+			SimpleVar{
+				value:  arg.String(),
+				origin: "automatic", // ??
+			})
+	}
+
+	var buf bytes.Buffer
+	v.Eval(&buf, ev)
+	for _, old := range olds {
+		old.restore(ev)
+	}
+	Log("call %q return %q", f.args[0], buf.String())
+	w.Write(buf.Bytes())
+}
+
+// http://www.gnu.org/software/make/manual/make.html#Foreach-Function
+type funcForeach struct{ fclosure }
+
+func (f *funcForeach) Arity() int { return 3 }
+
+func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("foreach", 3, len(f.args))
+	varname := string(ev.Value(f.args[0]))
+	list := ev.Values(f.args[1])
+	text := f.args[2]
+	old := newOldVar(ev, varname)
+	space := false
+	for _, word := range list {
+		ev.outVars.Assign(varname,
+			SimpleVar{
+				value:  string(word),
+				origin: "automatic",
+			})
+		if space {
+			w.Write([]byte{' '})
+		}
+		w.Write(ev.Value(text))
+		space = true
+	}
+	old.restore(ev)
 }
 
 // TODO(ukai): rewrite new style func.
@@ -522,26 +585,6 @@ func funcAnd(ev *Evaluator, args []string) string {
 	return cond
 }
 
-// http://www.gnu.org/software/make/manual/make.html#Foreach-Function
-func funcForeach(ev *Evaluator, args []string) string {
-	args = arity("foreach", 3, args)
-	var result []string
-	varName := ev.evalExpr(args[0])
-	values := splitSpaces(ev.evalExpr(args[1]))
-	expr := args[2]
-	old := newOldVar(ev, varName)
-	for _, val := range values {
-		ev.outVars.Assign(varName,
-			SimpleVar{
-				value:  val,
-				origin: "automatic",
-			})
-		result = append(result, ev.evalExpr(expr))
-	}
-	old.restore(ev)
-	return strings.Join(result, " ")
-}
-
 // http://www.gnu.org/software/make/manual/make.html#Value-Function
 func funcValue(ev *Evaluator, args []string) string {
 	args = arity("value", 1, args)
@@ -573,35 +616,6 @@ func funcOrigin(ev *Evaluator, args []string) string {
 	args = arity("origin", 1, args)
 	v := ev.LookupVar(args[0])
 	return v.Origin()
-}
-
-// https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
-func funcCall(ev *Evaluator, args []string) string {
-	f := ev.LookupVar(args[0]).String()
-	Log("call func %q => %q", args[0], f)
-	// Evalualte all arguments first before we modify the table.
-	for i, argstr := range args[1:] {
-		args[i+1] = ev.evalExpr(argstr)
-		Log("call $%d: %q=>%q", i+1, argstr, args[i+1])
-	}
-
-	var olds []oldVar
-	for i, arg := range args[1:] {
-		name := fmt.Sprintf("%d", i+1)
-		olds = append(olds, newOldVar(ev, name))
-		ev.outVars.Assign(name,
-			RecursiveVar{
-				expr:   tmpval([]byte(arg)),
-				origin: "automatic", // ??
-			})
-	}
-
-	r := ev.evalExpr(f)
-	for _, old := range olds {
-		old.restore(ev)
-	}
-	Log("call %q return %q", args[0], r)
-	return r
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function

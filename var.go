@@ -15,6 +15,7 @@ type Var interface {
 }
 
 type SimpleVar struct {
+	// TODO(ukai): string -> Value (literal or so?)
 	value  string
 	origin string
 }

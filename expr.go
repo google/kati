@@ -18,6 +18,7 @@ type Value interface {
 }
 
 // literal is literal value.
+// TODO(ukai): always use []byte?
 type literal string
 
 func (s literal) String() string { return string(s) }
@@ -26,6 +27,7 @@ func (s literal) Eval(w io.Writer, ev *Evaluator) {
 }
 
 // tmpval is temporary value.
+// TODO(ukai): Values() returns []Value? (word list?)
 type tmpval []byte
 
 func (t tmpval) String() string { return string(t) }
