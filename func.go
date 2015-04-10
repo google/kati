@@ -590,7 +590,7 @@ func funcCall(ev *Evaluator, args []string) string {
 	// Evalualte all arguments first before we modify the table.
 	for i, argstr := range args[1:] {
 		args[i+1] = ev.evalExpr(argstr)
-		Log("call $%d: %q=>%q", i+1, argstr, args[i])
+		Log("call $%d: %q=>%q", i+1, argstr, args[i+1])
 	}
 
 	var olds []oldVar
