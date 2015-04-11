@@ -82,6 +82,10 @@ var (
 		"and": func() Func { return &funcAnd{} },
 		"or":  func() Func { return &funcOr{} },
 
+		"value": func() Func { return &funcValue{} },
+
+		"eval": func() Func { return &funcEval{} },
+
 		"shell":   func() Func { return &funcShell{} },
 		"call":    func() Func { return &funcCall{} },
 		"foreach": func() Func { return &funcForeach{} },
@@ -113,8 +117,6 @@ func init() {
 		fwrap("and", 0, funcAnd)
 		fwrap("or", 0, funcOr)
 	*/
-	fwrap("value", 1, funcValue)
-	fwrap("eval", 1, funcEval)
 	fwrap("origin", 1, funcOrigin)
 	fwrap("flavor", 1, funcFlavor)
 	fwrap("info", 1, funcInfo)
@@ -627,6 +629,36 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(buf.Bytes())
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Value-Function
+type funcValue struct{ fclosure }
+
+func (f *funcValue) Arity() int { return 1 }
+func (f *funcValue) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("value", 1, len(f.args))
+	v := ev.LookupVar(f.args[0].String())
+	w.Write([]byte(v.String()))
+}
+
+// http://www.gnu.org/software/make/manual/make.html#Eval-Function
+type funcEval struct{ fclosure }
+
+func (f *funcEval) Arity() int { return 1 }
+func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("eval", 1, len(f.args))
+	s := ev.Value(f.args[0])
+	if len(s) == 0 || (s[0] == '#' && bytes.IndexByte(s, '\n') < 0) {
+		return
+	}
+	mk, err := ParseMakefileBytes(s, ev.filename, ev.lineno)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, stmt := range mk.stmts {
+		ev.eval(stmt)
+	}
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Foreach-Function
 type funcForeach struct{ fclosure }
 
@@ -698,32 +730,6 @@ func arity(name string, req int, args []string) []string {
 	assertArity(name, req, len(args))
 	args[req-1] = strings.Join(args[req-1:], ",")
 	return args
-}
-
-// http://www.gnu.org/software/make/manual/make.html#Value-Function
-func funcValue(ev *Evaluator, args []string) string {
-	args = arity("value", 1, args)
-	v := ev.LookupVar(args[0])
-	return v.String()
-}
-
-// http://www.gnu.org/software/make/manual/make.html#Eval-Function
-func funcEval(ev *Evaluator, args []string) string {
-	args = arity("eval", 1, args)
-	s := ev.evalExpr(args[0])
-	if s == "" || (s[0] == '#' && strings.IndexByte(s, '\n') < 0) {
-		return ""
-	}
-	mk, err := ParseMakefileString(s, ev.filename, ev.lineno)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, stmt := range mk.stmts {
-		ev.eval(stmt)
-	}
-
-	return ""
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function
