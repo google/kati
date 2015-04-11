@@ -15,6 +15,7 @@ type Executor struct {
 	implicitRules []*Rule
 	suffixRules   map[string][]*Rule
 	firstRule     *Rule
+	shell         string
 
 	// target -> timestamp
 	done map[string]int64
@@ -59,10 +60,11 @@ type runner struct {
 	echo        bool
 	dryRun      bool
 	ignoreError bool
+	shell       string
 }
 
-func evalCmd(ev *Evaluator, r runner, s string) []runner {
-	r = newRunner(r, s)
+func evalCmd(ev *Evaluator, r runner, s string, shell string) []runner {
+	r = newRunner(r, s, shell)
 	if strings.IndexByte(r.cmd, '$') < 0 {
 		// fast path
 		return []runner{r}
@@ -70,12 +72,13 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 	cmds := ev.evalExpr(r.cmd)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
-		runners = append(runners, newRunner(r, cmd))
+		runners = append(runners, newRunner(r, cmd, shell))
 	}
 	return runners
 }
 
-func newRunner(r runner, s string) runner {
+func newRunner(r runner, s string, shell string) runner {
+	r.shell = shell
 	for {
 		s = strings.TrimLeft(s, " \t")
 		if s == "" {
@@ -106,7 +109,7 @@ func (r runner) run() error {
 	if r.dryRun {
 		return nil
 	}
-	args := []string{"/bin/sh", "-c", r.cmd}
+	args := []string{r.shell, "-c", r.cmd}
 	cmd := exec.Cmd{
 		Path: args[0],
 		Args: args,
@@ -315,7 +318,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 		dryRun: dryRunFlag,
 	}
 	for _, cmd := range rule.cmds {
-		runners = append(runners, evalCmd(ev, r, cmd)...)
+		runners = append(runners, evalCmd(ev, r, cmd, ex.shell)...)
 	}
 	for _, r := range runners {
 		err := r.run()
@@ -445,6 +448,11 @@ func (ex *Executor) populateRules(er *EvalResult) {
 }
 
 func (ex *Executor) exec(er *EvalResult, targets []string, vars *VarTab) error {
+	// TODO: We should move this to somewhere around evalCmd so that
+	// we can handle SHELL in target specific variables.
+	shellVar := vars.Lookup("SHELL")
+	ex.shell = shellVar.String()
+
 	ex.populateRules(er)
 
 	if len(targets) == 0 {

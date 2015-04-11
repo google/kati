@@ -547,7 +547,9 @@ func (f *funcShell) Arity() int { return 1 }
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("shell", 1, len(f.args))
 	arg := ev.Value(f.args[0])
-	cmdline := []string{"/bin/sh", "-c", string(arg)}
+	shellVar := ev.LookupVar("SHELL")
+	// TODO: Should be Eval, not String.
+	cmdline := []string{shellVar.String(), "-c", string(arg)}
 	cmd := exec.Cmd{
 		Path:   cmdline[0],
 		Args:   cmdline,
