@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime/pprof"
 )
 
 func Log(f string, a ...interface{}) {
@@ -29,13 +30,15 @@ func WarnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
 }
 
 func Error(filename string, lineno int, f string, a ...interface{}) {
-	f = fmt.Sprintf("%s:%d: %s\n", filename, lineno, f)
-	fmt.Printf(f, a...)
-	os.Exit(2)
+	f = fmt.Sprintf("%s:%d: %s", filename, lineno, f)
+	ErrorNoLocation(f, a...)
 }
 
 func ErrorNoLocation(f string, a ...interface{}) {
 	f = fmt.Sprintf("%s\n", f)
 	fmt.Printf(f, a...)
+	if cpuprofile != "" {
+		pprof.StopCPUProfile()
+	}
 	os.Exit(2)
 }
