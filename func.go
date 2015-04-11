@@ -138,6 +138,11 @@ func (sw *ssvWriter) Write(b []byte) {
 	sw.w.Write(b)
 }
 
+func (sw *ssvWriter) WriteString(s string) {
+	// TODO: Ineffcient. Nice if we can remove the cast.
+	sw.Write([]byte(s))
+}
+
 func numericValueForFunc(ev *Evaluator, v Value, funcName string, nth string) int {
 	a := bytes.TrimSpace(ev.Value(v))
 	n, err := strconv.Atoi(string(a))
@@ -248,7 +253,6 @@ type funcSort struct{ fclosure }
 
 func (f *funcSort) Arity() int { return 1 }
 func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
-	// TODO: Maybe better to sort without using string.
 	assertArity("sort", 1, len(f.args))
 	toks := splitSpaces(string(ev.Value(f.args[0])))
 	sort.Strings(toks)
@@ -258,7 +262,7 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 	sw := ssvWriter{w: w}
 	for _, tok := range toks {
 		if prev != tok {
-			sw.Write([]byte(tok))
+			sw.WriteString(tok)
 			prev = tok
 		}
 	}
@@ -379,7 +383,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 			panic(err)
 		}
 		for _, file := range files {
-			sw.Write([]byte(file))
+			sw.WriteString(file)
 		}
 	}
 }
@@ -392,7 +396,7 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	names := splitSpaces(string(ev.Value(f.args[0])))
 	sw := ssvWriter{w: w}
 	for _, name := range names {
-		sw.Write([]byte(filepath.Dir(name) + string(filepath.Separator)))
+		sw.WriteString(filepath.Dir(name) + string(filepath.Separator))
 	}
 }
 
@@ -408,7 +412,7 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 			sw.Write([]byte{})
 			continue
 		}
-		sw.Write([]byte(filepath.Base(name)))
+		sw.WriteString(filepath.Base(name))
 	}
 }
 
@@ -422,7 +426,7 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 	for _, tok := range toks {
 		e := filepath.Ext(tok)
 		if len(e) > 0 {
-			sw.Write([]byte(e))
+			sw.WriteString(e)
 		}
 	}
 }
@@ -436,7 +440,7 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 	sw := ssvWriter{w: w}
 	for _, tok := range toks {
 		e := stripExt(tok)
-		sw.Write([]byte(e))
+		sw.WriteString(e)
 	}
 }
 
@@ -488,7 +492,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 			Log("realpath: %v", err)
 			continue
 		}
-		sw.Write([]byte(name))
+		sw.WriteString(name)
 	}
 }
 
@@ -505,7 +509,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 			Log("abs: %v", err)
 			continue
 		}
-		sw.Write([]byte(name))
+		sw.WriteString(name)
 	}
 }
 
