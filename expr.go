@@ -112,11 +112,20 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 // it returns parsed value, and parsed length `n`, so in[n-1] is any byte of
 // term, and in[n:] is next input.
 func parseExpr(in, term []byte) (Value, int, error) {
+	return parseExprImpl(in, term, false)
+}
+
+func parseExprImpl(in, term []byte, trimSpace bool) (Value, int, error) {
 	var expr Expr
 	var buf bytes.Buffer
 	i := 0
 	var saveParen byte
 	parenDepth := 0
+	if trimSpace {
+		for i < len(in) && (in[i] == ' ' || in[i] == '\t') {
+			i++
+		}
+	}
 Loop:
 	for i < len(in) {
 		ch := in[i]
@@ -170,7 +179,11 @@ Loop:
 		i++
 	}
 	if buf.Len() > 0 {
-		expr = append(expr, literal(buf.String()))
+		s := buf.String()
+		if trimSpace {
+			s = strings.TrimSpace(s)
+		}
+		expr = append(expr, literal(s))
 	}
 	if i == len(in) && term != nil {
 		return expr, i, errEndOfInput
@@ -227,8 +240,9 @@ Again:
 		case ' ':
 			// ${e ...}
 			if token, ok := e.(literal); ok {
-				if f, ok := funcMap[string(token)]; ok {
-					return parseFunc(f(), in, i+1, term[:1])
+				funcName := string(token)
+				if f, ok := funcMap[funcName]; ok {
+					return parseFunc(f(), in, i+1, term[:1], funcName)
 				}
 			}
 			term = term[:2] // drop ' '
@@ -283,7 +297,7 @@ func skipSpaces(in, term []byte) int {
 
 // parseFunc parses function arguments from in[s:] for f.
 // in[:n] will be "${func args...}"
-func parseFunc(f Func, in []byte, s int, term []byte) (Value, int, error) {
+func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, int, error) {
 	arity := f.Arity()
 	term = append(term, ',')
 	i := skipSpaces(in[s:], term)
@@ -298,7 +312,8 @@ func parseFunc(f Func, in []byte, s int, term []byte) (Value, int, error) {
 			// final arguments.
 			term = term[:1] // drop ','
 		}
-		v, n, err := parseExpr(in[i:], term)
+		trimSpace := (narg == 1 && funcName == "if") || funcName == "and" || funcName == "or"
+		v, n, err := parseExprImpl(in[i:], term, trimSpace)
 		if err != nil {
 			return nil, 0, err
 		}
