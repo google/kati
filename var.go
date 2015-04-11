@@ -33,10 +33,9 @@ func (v SimpleVar) Append(ev *Evaluator, s string) Var {
 	if err != nil {
 		panic(err)
 	}
-	var buf bytes.Buffer
-	buf.Write(v.value)
+	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
-	val.Eval(&buf, ev)
+	val.Eval(buf, ev)
 	v.value = buf.Bytes()
 	return v
 }
