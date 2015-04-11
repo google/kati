@@ -245,9 +245,18 @@ func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, err
 		}
 		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
+
+	var olds []oldVar
 	if rule.vars != nil {
-		vars = NewVars(vars)
-		vars.Merge(rule.vars)
+		for k, v := range rule.vars {
+			olds = append(olds, newOldVar(vars, k))
+			vars[k] = v
+		}
+		defer func() {
+			for _, old := range olds {
+				old.restore(vars)
+			}
+		}()
 	}
 
 	latest := int64(-1)
