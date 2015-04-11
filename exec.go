@@ -406,6 +406,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 				r.cmds = oldRule.cmds
 			}
 			r.inputs = append(r.inputs, oldRule.inputs...)
+			r.outputPatterns = append(r.outputPatterns, oldRule.outputPatterns...)
 			r.orderOnlyInputs = append(r.orderOnlyInputs, oldRule.orderOnlyInputs...)
 			ex.rules[output] = r
 		} else {
