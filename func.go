@@ -499,8 +499,7 @@ type funcIf struct{ fclosure }
 func (f *funcIf) Arity() int { return 3 }
 func (f *funcIf) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("if", 2, len(f.args))
-	// TODO: Remove evalExpr.
-	cond := ev.evalExpr(strings.TrimSpace(f.args[0].String()))
+	cond := ev.Value(f.args[0])
 	if len(cond) != 0 {
 		w.Write(ev.Value(f.args[1]))
 		return
@@ -516,15 +515,14 @@ type funcAnd struct{ fclosure }
 func (f *funcAnd) Arity() int { return 0 }
 func (f *funcAnd) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("and", 0, len(f.args))
-	var cond string
+	var cond []byte
 	for _, arg := range f.args {
-		// TODO: Remove evalExpr.
-		cond = ev.evalExpr(strings.TrimSpace(arg.String()))
-		if cond == "" {
+		cond = ev.Value(arg)
+		if len(cond) == 0 {
 			return
 		}
 	}
-	w.Write([]byte(cond))
+	w.Write(cond)
 }
 
 type funcOr struct{ fclosure }
@@ -533,10 +531,9 @@ func (f *funcOr) Arity() int { return 0 }
 func (f *funcOr) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("or", 0, len(f.args))
 	for _, arg := range f.args {
-		// TODO: Remove evalExpr.
-		cond := ev.evalExpr(strings.TrimSpace(arg.String()))
-		if cond != "" {
-			w.Write([]byte(cond))
+		cond := ev.Value(arg)
+		if len(cond) != 0 {
+			w.Write(cond)
 			return
 		}
 	}

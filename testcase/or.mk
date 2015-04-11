@@ -12,6 +12,7 @@ $(info $(or ${FALSE}, PASS, PASS))
 
 $(info $(or ${FALSE}, $(X)  ))
 $(info $(or ${FALSE}, $(Y)  ))
+$(info $(or ${FALSE} , PASS, PASS))
 
 test:
 	echo OK

@@ -11,6 +11,7 @@ $(info $(and ${TRUE}, PASS, PASS))
 
 $(info $(and ${TRUE}, $(X)  ))
 $(info $(and ${TRUE}, $(Y)  ))
+$(and ${FALSE} , $(info FAIL_3))
 
 test:
 	echo OK
