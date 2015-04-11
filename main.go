@@ -46,6 +46,7 @@ AR:=ar
 MAKE:=kati
 # Pretend to be GNU make 3.81, for compatibility.
 MAKE_VERSION:=3.81
+SHELL:=/bin/sh
 # TODO: Add more builtin vars.
 
 # http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
