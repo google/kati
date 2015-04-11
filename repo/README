@@ -1,6 +1,10 @@
 Usage of android.tgz
 
-$ mkdir -p repo/android
-$ cd repo/android
-$ tar -cvzf ../android.tgz
+$ mkdir -p repo
+$ tar -cvzf android.tgz
+$ cd repo
+$ cd android
 $ make -n dump-products
+
+$ ./android.sh make -n
+$ ONE_SHOT_MAKEFILE=bionic/Android.mk ./android.sh kati -n
