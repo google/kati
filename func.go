@@ -12,27 +12,6 @@ import (
 	"strings"
 )
 
-// TODO(ukai): move in var.go?
-type oldVar struct {
-	name  string
-	value Var
-}
-
-func newOldVar(ev *Evaluator, name string) oldVar {
-	return oldVar{
-		name:  name,
-		value: ev.outVars.Lookup(name),
-	}
-}
-
-func (old oldVar) restore(ev *Evaluator) {
-	if old.value.IsDefined() {
-		ev.outVars.Assign(old.name, old.value)
-		return
-	}
-	delete(ev.outVars, old.name)
-}
-
 // Func is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
 
@@ -585,7 +564,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	var olds []oldVar
 	for i, arg := range args {
 		name := fmt.Sprintf("%d", i+1)
-		olds = append(olds, newOldVar(ev, name))
+		olds = append(olds, newOldVar(ev.outVars, name))
 		ev.outVars.Assign(name,
 			SimpleVar{
 				value:  arg,
@@ -596,7 +575,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	var buf bytes.Buffer
 	v.Eval(&buf, ev)
 	for _, old := range olds {
-		old.restore(ev)
+		old.restore(ev.outVars)
 	}
 	Log("call %q return %q", f.args[0], buf.Bytes())
 	w.Write(buf.Bytes())
@@ -690,7 +669,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	varname := string(ev.Value(f.args[0]))
 	list := ev.Values(f.args[1])
 	text := f.args[2]
-	old := newOldVar(ev, varname)
+	old := newOldVar(ev.outVars, varname)
 	space := false
 	for _, word := range list {
 		ev.outVars.Assign(varname,
@@ -704,5 +683,5 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ev.Value(text))
 		space = true
 	}
-	old.restore(ev)
+	old.restore(ev.outVars)
 }

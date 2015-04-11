@@ -112,3 +112,23 @@ func (vt Vars) Merge(vt2 Vars) {
 		vt[k] = v
 	}
 }
+
+type oldVar struct {
+	name  string
+	value Var
+}
+
+func newOldVar(vars Vars, name string) oldVar {
+	return oldVar{
+		name:  name,
+		value: vars.Lookup(name),
+	}
+}
+
+func (old oldVar) restore(vars Vars) {
+	if old.value.IsDefined() {
+		vars[old.name] = old.value
+		return
+	}
+	delete(vars, old.name)
+}
