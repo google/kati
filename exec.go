@@ -179,10 +179,8 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			// implicit rule's prerequisites will be used for $<
 			r.inputs = append(irule.inputs, r.inputs...)
 			if irule.vars != nil {
-				r.vars = NewVarTab(rule.vars)
-				for k, v := range irule.vars.m {
-					r.vars.Assign(k, v)
-				}
+				r.vars = NewVars(rule.vars)
+				r.vars.Merge(irule.vars)
 			}
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
@@ -213,12 +211,8 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			*r = *rule
 			// TODO(ukai): input order is correct?
 			r.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
-			r.vars = NewVarTab(rule.vars)
-			if irule.vars != nil {
-				for k, v := range irule.vars.m {
-					r.vars.Assign(k, v)
-				}
-			}
+			r.vars = NewVars(rule.vars)
+			r.vars.Merge(irule.vars)
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
 			r.cmdLineno = irule.cmdLineno
@@ -230,7 +224,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	return rule, rule != nil
 }
 
-func (ex *Executor) build(vars *VarTab, output string, neededBy string) (int64, error) {
+func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs, ok := ex.done[output]
 	if ok {
@@ -252,10 +246,8 @@ func (ex *Executor) build(vars *VarTab, output string, neededBy string) (int64, 
 		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
 	if rule.vars != nil {
-		vars = NewVarTab(vars)
-		for k, v := range rule.vars.m {
-			vars.Assign(k, v)
-		}
+		vars = NewVars(vars)
+		vars.Merge(rule.vars)
 	}
 
 	latest := int64(-1)
@@ -298,7 +290,7 @@ func (ex *Executor) build(vars *VarTab, output string, neededBy string) (int64, 
 		return outputTs, nil
 	}
 
-	localVars := NewVarTab(vars)
+	localVars := vars
 	// automatic variables.
 	localVars.Assign("@", SimpleVar{value: []byte(output), origin: "automatic"})
 	if len(actualInputs) > 0 {
@@ -306,12 +298,17 @@ func (ex *Executor) build(vars *VarTab, output string, neededBy string) (int64, 
 			value:  []byte(actualInputs[0]),
 			origin: "automatic",
 		})
-		localVars.Assign("^", SimpleVar{
-			value:  []byte(strings.Join(actualInputs, " ")),
+	} else {
+		localVars.Assign("<", SimpleVar{
+			value:  []byte{},
 			origin: "automatic",
 		})
 	}
-	ev := newEvaluator(localVars.Vars())
+	localVars.Assign("^", SimpleVar{
+		value:  []byte(strings.Join(actualInputs, " ")),
+		origin: "automatic",
+	})
+	ev := newEvaluator(localVars)
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
 	var runners []runner
@@ -389,9 +386,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 				case rule.vars != nil && oldRule.vars == nil:
 				case rule.vars != nil && oldRule.vars != nil:
 					// parent would be the same vars?
-					for k, v := range rule.vars.m {
-						oldRule.vars.m[k] = v
-					}
+					oldRule.vars.Merge(rule.vars)
 					rule.vars = oldRule.vars
 				}
 			}
@@ -457,7 +452,7 @@ func (ex *Executor) populateRules(er *EvalResult) {
 	}
 }
 
-func (ex *Executor) exec(er *EvalResult, targets []string, vars *VarTab) error {
+func (ex *Executor) exec(er *EvalResult, targets []string, vars Vars) error {
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
 	shellVar := vars.Lookup("SHELL")
@@ -481,7 +476,7 @@ func (ex *Executor) exec(er *EvalResult, targets []string, vars *VarTab) error {
 	return nil
 }
 
-func Exec(er *EvalResult, targets []string, vars *VarTab) error {
+func Exec(er *EvalResult, targets []string, vars Vars) error {
 	ex := newExecutor()
 	return ex.exec(er, targets, vars)
 }

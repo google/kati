@@ -82,44 +82,9 @@ func (_ UndefinedVar) Append(*Evaluator, string) Var {
 
 type Vars map[string]Var
 
-type VarTab struct {
-	m      Vars
-	parent *VarTab
-}
-
-func NewVarTab(vt *VarTab) *VarTab {
-	return &VarTab{
-		m:      make(map[string]Var),
-		parent: vt,
-	}
-}
-
-func (vt *VarTab) Vars() Vars {
-	m := make(map[string]Var)
-	if vt.parent != nil {
-		for k, v := range vt.parent.Vars() {
-			m[k] = v
-		}
-	}
-	for k, v := range vt.m {
-		m[k] = v
-	}
-	return m
-}
-
 func (vt Vars) Lookup(name string) Var {
 	if v, ok := vt[name]; ok {
 		return v
-	}
-	return UndefinedVar{}
-}
-
-func (vt *VarTab) Lookup(name string) Var {
-	if v, ok := vt.m[name]; ok {
-		return v
-	}
-	if vt.parent != nil {
-		return vt.parent.Lookup(name)
 	}
 	return UndefinedVar{}
 }
@@ -136,10 +101,14 @@ func (vt Vars) Assign(name string, v Var) {
 	vt[name] = v
 }
 
-func (vt *VarTab) Assign(name string, v Var) {
-	vt.m.Assign(name, v)
+func NewVars(vt Vars) Vars {
+	r := make(Vars)
+	r.Merge(vt)
+	return r
 }
 
-func (vt *VarTab) Delete(name string) {
-	delete(vt.m, name)
+func (vt Vars) Merge(vt2 Vars) {
+	for k, v := range vt2 {
+		vt[k] = v
+	}
 }

@@ -144,7 +144,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}
 		}
-		rule.vars = NewVarTab(nil)
+		rule.vars = make(Vars)
 		lhs, rhs := ev.evalAssignAST(assign)
 		Log("rule outputs:%q assign:%q=%q (flavor:%q)", rule.outputs, lhs, rhs, rhs.Flavor())
 		rule.vars.Assign(lhs, rhs)
@@ -221,20 +221,6 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 		for _, stmt := range mk.stmts {
 			ev.eval(stmt)
 		}
-
-		/*
-			er, err2 := Eval(mk, ev.VarTab())
-			if err2 != nil {
-				panic(err2)
-			}
-
-			for k, v := range er.vars.Vars() {
-				ev.outVars.Assign(k, v)
-			}
-			for _, r := range er.rules {
-				ev.outRules = append(ev.outRules, r)
-			}
-		*/
 	}
 }
 
