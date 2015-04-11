@@ -31,6 +31,7 @@ func WarnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
 
 func Error(filename string, lineno int, f string, a ...interface{}) {
 	f = fmt.Sprintf("%s:%d: %s", filename, lineno, f)
+	maybeWriteHeapProfile()
 	ErrorNoLocation(f, a...)
 }
 
@@ -40,5 +41,6 @@ func ErrorNoLocation(f string, a ...interface{}) {
 	if cpuprofile != "" {
 		pprof.StopCPUProfile()
 	}
+	maybeWriteHeapProfile()
 	os.Exit(2)
 }
