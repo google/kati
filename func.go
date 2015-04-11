@@ -54,25 +54,37 @@ type Func interface {
 
 var (
 	funcMap = map[string]func() Func{
-		"patsubst": func() Func { return &funcPatsubst{} },
-		"strip":    func() Func { return &funcStrip{} },
-		"subst":    func() Func { return &funcSubst{} },
-		"shell":    func() Func { return &funcShell{} },
-		"call":     func() Func { return &funcCall{} },
-		"foreach":  func() Func { return &funcForeach{} },
+		"patsubst":   func() Func { return &funcPatsubst{} },
+		"strip":      func() Func { return &funcStrip{} },
+		"subst":      func() Func { return &funcSubst{} },
+		"findstring": func() Func { return &funcFindstring{} },
+		"filter":     func() Func { return &funcFilter{} },
+		"filter-out": func() Func { return &funcFilterOut{} },
+		"sort":       func() Func { return &funcSort{} },
+		"word":       func() Func { return &funcWord{} },
+		"wordlist":   func() Func { return &funcWordlist{} },
+		"words":      func() Func { return &funcWords{} },
+		"firstword":  func() Func { return &funcFirstword{} },
+		"lastword":   func() Func { return &funcLastword{} },
+
+		"shell":   func() Func { return &funcShell{} },
+		"call":    func() Func { return &funcCall{} },
+		"foreach": func() Func { return &funcForeach{} },
 	}
 )
 
 func init() {
-	fwrap("findstring", 2, funcFindstring)
-	fwrap("filter", 2, funcFilter)
-	fwrap("filter-out", 2, funcFilterOut)
-	fwrap("sort", 1, funcSort)
-	fwrap("word", 2, funcWord)
-	fwrap("wordlist", 3, funcWordlist)
-	fwrap("words", 1, funcWords)
-	fwrap("firstword", 1, funcFirstword)
-	fwrap("lastword", 1, funcLastword)
+	/*
+		fwrap("findstring", 2, funcFindstring)
+		fwrap("filter", 2, funcFilter)
+		fwrap("filter-out", 2, funcFilterOut)
+		fwrap("sort", 1, funcSort)
+		fwrap("word", 2, funcWord)
+		fwrap("wordlist", 3, funcWordlist)
+		fwrap("words", 1, funcWords)
+		fwrap("firstword", 1, funcFirstword)
+		fwrap("lastword", 1, funcLastword)
+	*/
 	fwrap("join", 2, funcJoin)
 	fwrap("wildcard", 1, funcWildcard)
 	fwrap("dir", 1, funcDir)
@@ -99,6 +111,29 @@ func assertArity(name string, req, n int) {
 	if n < req {
 		panic(fmt.Sprintf("*** insufficient number of arguments (%d) to function `%s'.", n, name))
 	}
+}
+
+// A space separated values writer.
+type ssvWriter struct {
+	w          io.Writer
+	needsSpace bool
+}
+
+func (sw *ssvWriter) Write(b []byte) {
+	if sw.needsSpace {
+		sw.w.Write([]byte{' '})
+	}
+	sw.needsSpace = true
+	sw.w.Write(b)
+}
+
+func numericValueForFunc(ev *Evaluator, v Value, funcName string, nth string) int {
+	a := bytes.TrimSpace(ev.Value(v))
+	n, err := strconv.Atoi(string(a))
+	if err != nil || n < 0 {
+		Error(ev.filename, ev.lineno, `*** non-numeric %s argument to "%s" function: "%s".`, nth, funcName, a)
+	}
+	return n
 }
 
 type fclosure struct {
@@ -134,12 +169,10 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 	pat := ev.Value(f.args[0])
 	repl := ev.Value(f.args[1])
 	texts := splitSpacesBytes(ev.Value(f.args[2]))
-	for i, text := range texts {
+	sw := ssvWriter{w: w}
+	for _, text := range texts {
 		t := substPatternBytes(pat, repl, text)
-		if i > 0 {
-			w.Write([]byte{' '})
-		}
-		w.Write(t)
+		sw.Write(t)
 	}
 }
 
@@ -150,6 +183,151 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("strip", 1, len(f.args))
 	text := ev.Value(f.args[0])
 	w.Write(bytes.TrimSpace(text))
+}
+
+type funcFindstring struct{ fclosure }
+
+func (f *funcFindstring) Arity() int { return 2 }
+func (f *funcFindstring) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("findstring", 2, len(f.args))
+	find := ev.Value(f.args[0])
+	text := ev.Value(f.args[1])
+	if bytes.Index(text, find) >= 0 {
+		w.Write(find)
+	}
+}
+
+type funcFilter struct{ fclosure }
+
+func (f *funcFilter) Arity() int { return 2 }
+func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("filter", 2, len(f.args))
+	patterns := splitSpacesBytes(ev.Value(f.args[0]))
+	texts := splitSpacesBytes(ev.Value(f.args[1]))
+	sw := ssvWriter{w: w}
+	for _, text := range texts {
+		for _, pat := range patterns {
+			if matchPatternBytes(pat, text) {
+				sw.Write(text)
+			}
+		}
+	}
+}
+
+type funcFilterOut struct{ fclosure }
+
+func (f *funcFilterOut) Arity() int { return 2 }
+func (f *funcFilterOut) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("filter-out", 2, len(f.args))
+	patterns := splitSpacesBytes(ev.Value(f.args[0]))
+	texts := splitSpacesBytes(ev.Value(f.args[1]))
+	sw := ssvWriter{w: w}
+Loop:
+	for _, text := range texts {
+		for _, pat := range patterns {
+			if matchPatternBytes(pat, text) {
+				continue Loop
+			}
+		}
+		sw.Write(text)
+	}
+}
+
+type funcSort struct{ fclosure }
+
+func (f *funcSort) Arity() int { return 1 }
+func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
+	// TODO: Maybe better to sort without using string.
+	assertArity("sort", 1, len(f.args))
+	toks := splitSpaces(string(ev.Value(f.args[0])))
+	sort.Strings(toks)
+
+	// Remove duplicate words.
+	var prev string
+	sw := ssvWriter{w: w}
+	for _, tok := range toks {
+		if prev != tok {
+			sw.Write([]byte(tok))
+			prev = tok
+		}
+	}
+}
+
+type funcWord struct{ fclosure }
+
+func (f *funcWord) Arity() int { return 2 }
+func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("word", 2, len(f.args))
+	index := numericValueForFunc(ev, f.args[0], "word", "first")
+	if index == 0 {
+		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
+	}
+	toks := splitSpacesBytes(ev.Value(f.args[1]))
+	if index-1 >= len(toks) {
+		return
+	}
+	w.Write(toks[index-1])
+}
+
+type funcWordlist struct{ fclosure }
+
+func (f *funcWordlist) Arity() int { return 3 }
+func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("wordlist", 3, len(f.args))
+	si := numericValueForFunc(ev, f.args[0], "wordlist", "first")
+	if si == 0 {
+		Error(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: %s`, f.args[0])
+	}
+	ei := numericValueForFunc(ev, f.args[1], "wordlist", "second")
+	if ei == 0 {
+		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: %s`, f.args[1])
+	}
+
+	toks := splitSpacesBytes(ev.Value(f.args[2]))
+	if si-1 >= len(toks) {
+		return
+	}
+	if ei-1 >= len(toks) {
+		ei = len(toks)
+	}
+
+	sw := ssvWriter{w: w}
+	for _, t := range toks[si-1 : ei] {
+		sw.Write(t)
+	}
+}
+
+type funcWords struct{ fclosure }
+
+func (f *funcWords) Arity() int { return 1 }
+func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("words", 1, len(f.args))
+	toks := splitSpacesBytes(ev.Value(f.args[0]))
+	w.Write([]byte(strconv.Itoa(len(toks))))
+}
+
+type funcFirstword struct{ fclosure }
+
+func (f *funcFirstword) Arity() int { return 1 }
+func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("firstword", 1, len(f.args))
+	toks := splitSpacesBytes(ev.Value(f.args[0]))
+	if len(toks) == 0 {
+		return
+	}
+	w.Write(toks[0])
+}
+
+type funcLastword struct{ fclosure }
+
+func (f *funcLastword) Arity() int { return 1 }
+func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("lastword", 1, len(f.args))
+	toks := splitSpacesBytes(ev.Value(f.args[0]))
+	if len(toks) == 0 {
+		return
+	}
+	w.Write(toks[len(toks)-1])
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
@@ -284,133 +462,6 @@ func arity(name string, req int, args []string) []string {
 	assertArity(name, req, len(args))
 	args[req-1] = strings.Join(args[req-1:], ",")
 	return args
-}
-
-func funcFindstring(ev *Evaluator, args []string) string {
-	args = arity("findstring", 2, args)
-	f := ev.evalExpr(args[0])
-	text := ev.evalExpr(args[1])
-	if strings.Index(text, f) >= 0 {
-		return f
-	}
-	return ""
-}
-
-func funcFilter(ev *Evaluator, args []string) string {
-	args = arity("filter", 2, args)
-	patterns := splitSpaces(ev.evalExpr(args[0]))
-	texts := splitSpaces(ev.evalExpr(args[1]))
-	var result []string
-	for _, text := range texts {
-		for _, pat := range patterns {
-			if matchPattern(pat, text) {
-				result = append(result, text)
-			}
-		}
-	}
-	return strings.Join(result, " ")
-}
-
-func funcFilterOut(ev *Evaluator, args []string) string {
-	args = arity("filter-out", 2, args)
-	patterns := splitSpaces(ev.evalExpr(args[0]))
-	texts := splitSpaces(ev.evalExpr(args[1]))
-	var result []string
-Loop:
-	for _, text := range texts {
-		for _, pat := range patterns {
-			if matchPattern(pat, text) {
-				continue Loop
-			}
-		}
-		result = append(result, text)
-	}
-	return strings.Join(result, " ")
-}
-
-func funcSort(ev *Evaluator, args []string) string {
-	args = arity("sort", 1, args)
-	toks := splitSpaces(ev.evalExpr(args[0]))
-	sort.Strings(toks)
-
-	// Remove duplicate words.
-	var prev string
-	var result []string
-	for _, tok := range toks {
-		if prev != tok {
-			result = append(result, tok)
-			prev = tok
-		}
-	}
-	return strings.Join(result, " ")
-}
-
-func numericValueForFunc(ev *Evaluator, a string, funcName string, nth string) int {
-	a = strings.TrimSpace(ev.evalExpr(a))
-	n, err := strconv.Atoi(a)
-	if err != nil || n < 0 {
-		Error(ev.filename, ev.lineno, `*** non-numeric %s argument to "%s" function: "%s".`, nth, funcName, a)
-	}
-	return n
-}
-
-func funcWord(ev *Evaluator, args []string) string {
-	args = arity("word", 2, args)
-	index := numericValueForFunc(ev, args[0], "word", "first")
-	if index == 0 {
-		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
-	}
-	toks := splitSpaces(ev.evalExpr(args[1]))
-	if index-1 >= len(toks) {
-		return ""
-	}
-	return ev.evalExpr(toks[index-1])
-}
-
-func funcWordlist(ev *Evaluator, args []string) string {
-	args = arity("wordlist", 3, args)
-	si := numericValueForFunc(ev, args[0], "wordlist", "first")
-	if si == 0 {
-		Error(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: ""`, args[0])
-	}
-	ei := numericValueForFunc(ev, args[1], "wordlist", "second")
-	if ei == 0 {
-		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: ""`, args[1])
-	}
-
-	toks := splitSpaces(ev.evalExpr(args[2]))
-	if si-1 >= len(toks) {
-		return ""
-	}
-	if ei-1 >= len(toks) {
-		ei = len(toks)
-	}
-
-	return strings.Join(toks[si-1:ei], " ")
-}
-
-func funcWords(ev *Evaluator, args []string) string {
-	args = arity("words", 1, args)
-	toks := splitSpaces(ev.evalExpr(args[0]))
-	return strconv.Itoa(len(toks))
-}
-
-func funcFirstword(ev *Evaluator, args []string) string {
-	args = arity("firstword", 1, args)
-	toks := splitSpaces(ev.evalExpr(args[0]))
-	if len(toks) == 0 {
-		return ""
-	}
-	return toks[0]
-}
-
-func funcLastword(ev *Evaluator, args []string) string {
-	args = arity("lastword", 1, args)
-	toks := splitSpaces(ev.evalExpr(args[0]))
-	if len(toks) == 0 {
-		return ""
-	}
-	return toks[len(toks)-1]
 }
 
 // http://www.gnu.org/software/make/manual/make.html#File-Name-Functions

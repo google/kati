@@ -57,6 +57,14 @@ func matchPattern(pat, str string) bool {
 	return strings.HasPrefix(str, s[0]) && strings.HasSuffix(str, s[1])
 }
 
+func matchPatternBytes(pat, str []byte) bool {
+	s := bytes.SplitN(pat, []byte{'%'}, 2)
+	if len(s) != 2 {
+		return bytes.Equal(pat, str)
+	}
+	return bytes.HasPrefix(str, s[0]) && bytes.HasSuffix(str, s[1])
+}
+
 func substPattern(pat, repl, str string) string {
 	ps := strings.SplitN(pat, "%", 2)
 	if len(ps) != 2 {
