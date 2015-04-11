@@ -465,7 +465,9 @@ func (p *parser) parse() (mk Makefile, err error) {
 			switch ch {
 			case ':':
 				if i+1 < len(line) && line[i+1] == '=' {
-					ast = p.parseAssign(line, i, i+2)
+					if !isRule {
+						ast = p.parseAssign(line, i, i+2)
+					}
 				} else {
 					isRule = true
 				}
