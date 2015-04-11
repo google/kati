@@ -87,9 +87,22 @@ class AndroidTestCase < TestCase
     name = 'android'
     checkout = Proc.new{|tc|
       FileUtils.mkdir_p(@name)
-      Dir.chdir(@name) {
-        check_command("tar -xzf ../android.tgz")
-      }
+      md5 = `md5sum android.tgz`
+      need_update = true
+      if File.exist?("#{@name}/STAMP")
+        stamp = File.read("#{@name}/STAMP")
+        if md5 == stamp
+          need_update = false
+        end
+      end
+
+      if need_update
+        check_command("tar -xzf android.tgz")
+        File.open("#{@name}/STAMP.tmp", 'w') do |ofile|
+          ofile.print(md5)
+        end
+        File.rename("#{@name}/STAMP.tmp", "#{@name}/STAMP")
+      end
     }
 
     super(name, checkout, DO_NOTHING, DO_NOTHING, 'dump-products')
