@@ -50,19 +50,19 @@ func splitSpacesBytes(s []byte) (r [][]byte) {
 }
 
 func matchPattern(pat, str string) bool {
-	s := strings.SplitN(pat, "%", 2)
-	if len(s) != 2 {
+	i := strings.IndexByte(pat, '%')
+	if i < 0 {
 		return pat == str
 	}
-	return strings.HasPrefix(str, s[0]) && strings.HasSuffix(str, s[1])
+	return strings.HasPrefix(str, pat[:i]) && strings.HasSuffix(str, pat[i+1:])
 }
 
 func matchPatternBytes(pat, str []byte) bool {
-	s := bytes.SplitN(pat, []byte{'%'}, 2)
-	if len(s) != 2 {
+	i := bytes.IndexByte(pat, '%')
+	if i < 0 {
 		return bytes.Equal(pat, str)
 	}
-	return bytes.HasPrefix(str, s[0]) && bytes.HasSuffix(str, s[1])
+	return bytes.HasPrefix(str, pat[:i]) && bytes.HasSuffix(str, pat[i+1:])
 }
 
 func substPattern(pat, repl, str string) string {
