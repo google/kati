@@ -77,6 +77,7 @@ func (ast *AssignAST) show() {
 type MaybeRuleAST struct {
 	ASTBase
 	expr           string
+	equalIndex     int
 	semicolonIndex int
 }
 

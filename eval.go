@@ -110,7 +110,13 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.semicolonIndex >= 0 {
 		expr = expr[0:ast.semicolonIndex]
 	}
+	if ast.equalIndex >= 0 {
+		expr = expr[0:ast.equalIndex]
+	}
 	line := ev.evalExpr(expr)
+	if ast.equalIndex >= 0 {
+		line += ast.expr[ast.equalIndex:]
+	}
 	Log("rule? %q=>%q", expr, line)
 
 	// See semicolon.mk.

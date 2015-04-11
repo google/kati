@@ -152,13 +152,23 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	return ast
 }
 
-func (p *parser) parseMaybeRule(line string, semicolonIndex int) AST {
+func (p *parser) parseMaybeRule(line string, equalIndex, semicolonIndex int) AST {
 	if len(strings.TrimSpace(line)) == 0 {
 		return nil
 	}
 
+	// Either '=' or ';' is used.
+	if equalIndex >= 0 && semicolonIndex >= 0 {
+		if equalIndex < semicolonIndex {
+			semicolonIndex = -1
+		} else {
+			equalIndex = -1
+		}
+	}
+
 	ast := &MaybeRuleAST{
 		expr:           line,
+		equalIndex:     equalIndex,
 		semicolonIndex: semicolonIndex,
 	}
 	ast.filename = p.mk.filename
@@ -445,6 +455,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 
 		var ast AST
 		var parenStack []byte
+		equalIndex := -1
 		semicolonIndex := -1
 		isRule := false
 		for i, ch := range line {
@@ -472,10 +483,15 @@ func (p *parser) parse() (mk Makefile, err error) {
 					isRule = true
 				}
 			case ';':
-				semicolonIndex = i
+				if semicolonIndex < 0 {
+					semicolonIndex = i
+				}
 			case '=':
 				if !isRule {
 					ast = p.parseAssign(line, i, i+1)
+				}
+				if equalIndex < 0 {
+					equalIndex = i
 				}
 			case '?', '+':
 				if !isRule && i+1 < len(line) && line[i+1] == '=' {
@@ -488,7 +504,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 			}
 		}
 		if ast == nil {
-			ast = p.parseMaybeRule(string(line), semicolonIndex)
+			ast = p.parseMaybeRule(string(line), equalIndex, semicolonIndex)
 			if ast != nil {
 				p.addStatement(ast)
 			}
