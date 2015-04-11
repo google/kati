@@ -89,40 +89,14 @@ var (
 		"shell":   func() Func { return &funcShell{} },
 		"call":    func() Func { return &funcCall{} },
 		"foreach": func() Func { return &funcForeach{} },
+
+		"origin":  func() Func { return &funcOrigin{} },
+		"flavor":  func() Func { return &funcFlavor{} },
+		"info":    func() Func { return &funcInfo{} },
+		"warning": func() Func { return &funcWarning{} },
+		"error":   func() Func { return &funcError{} },
 	}
 )
-
-func init() {
-	/*
-				fwrap("findstring", 2, funcFindstring)
-				fwrap("filter", 2, funcFilter)
-				fwrap("filter-out", 2, funcFilterOut)
-				fwrap("sort", 1, funcSort)
-				fwrap("word", 2, funcWord)
-				fwrap("wordlist", 3, funcWordlist)
-				fwrap("words", 1, funcWords)
-				fwrap("firstword", 1, funcFirstword)
-				fwrap("lastword", 1, funcLastword)
-			fwrap("join", 2, funcJoin)
-			fwrap("wildcard", 1, funcWildcard)
-			fwrap("dir", 1, funcDir)
-			fwrap("notdir", 1, funcNotdir)
-			fwrap("suffix", 1, funcSuffix)
-			fwrap("basename", 1, funcBasename)
-			fwrap("addsuffix", 2, funcAddsuffix)
-			fwrap("addprefix", 2, funcAddprefix)
-			fwrap("realpath", 1, funcRealpath)
-			fwrap("abspath", 1, funcAbspath)
-		fwrap("if", 3, funcIf)
-		fwrap("and", 0, funcAnd)
-		fwrap("or", 0, funcOr)
-	*/
-	fwrap("origin", 1, funcOrigin)
-	fwrap("flavor", 1, funcFlavor)
-	fwrap("info", 1, funcInfo)
-	fwrap("warning", 1, funcWarning)
-	fwrap("error", 1, funcError)
-}
 
 func assertArity(name string, req, n int) {
 	if n < req {
@@ -659,6 +633,54 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	}
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Origin-Function
+type funcOrigin struct{ fclosure }
+
+func (f *funcOrigin) Arity() int { return 1 }
+func (f *funcOrigin) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("origin", 1, len(f.args))
+	v := ev.LookupVar(f.args[0].String())
+	w.Write([]byte(v.Origin()))
+}
+
+// https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function
+type funcFlavor struct{ fclosure }
+
+func (f *funcFlavor) Arity() int { return 1 }
+func (f *funcFlavor) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("flavor", 1, len(f.args))
+	v := ev.LookupVar(f.args[0].String())
+	w.Write([]byte(v.Flavor()))
+}
+
+// http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
+type funcInfo struct{ fclosure }
+
+func (f *funcInfo) Arity() int { return 1 }
+func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("info", 1, len(f.args))
+	arg := ev.Value(f.args[0])
+	fmt.Printf("%s\n", arg)
+}
+
+type funcWarning struct{ fclosure }
+
+func (f *funcWarning) Arity() int { return 1 }
+func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("warning", 1, len(f.args))
+	arg := ev.Value(f.args[0])
+	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
+}
+
+type funcError struct{ fclosure }
+
+func (f *funcError) Arity() int { return 1 }
+func (f *funcError) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("error", 1, len(f.args))
+	arg := ev.Value(f.args[0])
+	Error(ev.filename, ev.lineno, "*** %s.", arg)
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Foreach-Function
 type funcForeach struct{ fclosure }
 
@@ -684,86 +706,4 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 		space = true
 	}
 	old.restore(ev)
-}
-
-// TODO(ukai): rewrite new style func.
-
-type fwrapclosure struct {
-	fclosure
-	name  string
-	arity int
-	f     func(ev *Evaluator, args []string) string
-}
-
-func (f *fwrapclosure) Arity() int {
-	return f.arity
-}
-
-func (f *fwrapclosure) String() string {
-	var args []string
-	for _, arg := range f.args {
-		args = append(args, arg.String())
-	}
-	return fmt.Sprintf("${%s %s}", f.name, strings.Join(args, ","))
-}
-
-func (f *fwrapclosure) Eval(w io.Writer, ev *Evaluator) {
-	var args []string
-	for _, arg := range f.args {
-		args = append(args, arg.String())
-	}
-	r := f.f(ev, args)
-	fmt.Fprint(w, r)
-}
-
-func fwrap(name string, arity int, f func(ev *Evaluator, args []string) string) {
-	funcMap[name] = func() Func {
-		return &fwrapclosure{
-			name:  name,
-			arity: arity,
-			f:     f,
-		}
-	}
-}
-
-func arity(name string, req int, args []string) []string {
-	assertArity(name, req, len(args))
-	args[req-1] = strings.Join(args[req-1:], ",")
-	return args
-}
-
-// http://www.gnu.org/software/make/manual/make.html#Origin-Function
-func funcOrigin(ev *Evaluator, args []string) string {
-	args = arity("origin", 1, args)
-	v := ev.LookupVar(args[0])
-	return v.Origin()
-}
-
-// https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function
-func funcFlavor(ev *Evaluator, args []string) string {
-	args = arity("flavor", 1, args)
-	vname := args[0]
-	return ev.LookupVar(vname).Flavor()
-}
-
-// http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
-func funcInfo(ev *Evaluator, args []string) string {
-	args = arity("info", 1, args)
-	arg := ev.evalExpr(args[0])
-	fmt.Printf("%s\n", arg)
-	return ""
-}
-
-func funcWarning(ev *Evaluator, args []string) string {
-	args = arity("warning", 1, args)
-	arg := ev.evalExpr(args[0])
-	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
-	return ""
-}
-
-func funcError(ev *Evaluator, args []string) string {
-	args = arity("error", 1, args)
-	arg := ev.evalExpr(args[0])
-	Error(ev.filename, ev.lineno, "*** %s.", arg)
-	return ""
 }
