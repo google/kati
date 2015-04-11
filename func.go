@@ -598,7 +598,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for _, old := range olds {
 		old.restore(ev)
 	}
-	Log("call %q return %q", f.args[0], buf.String())
+	Log("call %q return %q", f.args[0], buf.Bytes())
 	w.Write(buf.Bytes())
 }
 
