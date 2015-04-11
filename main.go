@@ -13,6 +13,7 @@ var (
 	makefileFlag string
 	dryRunFlag   bool
 	cpuprofile   string
+	heapprofile  string
 )
 
 func parseFlags() {
@@ -22,6 +23,7 @@ func parseFlags() {
 
 	flag.BoolVar(&dryRunFlag, "n", false, "Only print the commands that would be executed")
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
+	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.Parse()
 }
 
@@ -66,6 +68,16 @@ SHELL:=/bin/sh
 	return mk
 }
 
+func maybeWriteHeapProfile() {
+	if heapprofile != "" {
+		f, err := os.Create(heapprofile)
+		if err != nil {
+			panic(err)
+		}
+		pprof.WriteHeapProfile(f)
+	}
+}
+
 func main() {
 	parseFlags()
 	if cpuprofile != "" {
@@ -76,6 +88,7 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+	defer maybeWriteHeapProfile()
 
 	clvars, targets := parseCommandLine()
 
