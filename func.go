@@ -54,16 +54,16 @@ type Func interface {
 
 var (
 	funcMap = map[string]func() Func{
-		"subst":   func() Func { return &funcSubst{} },
-		"shell":   func() Func { return &funcShell{} },
-		"call":    func() Func { return &funcCall{} },
-		"foreach": func() Func { return &funcForeach{} },
+		"patsubst": func() Func { return &funcPatsubst{} },
+		"strip":    func() Func { return &funcStrip{} },
+		"subst":    func() Func { return &funcSubst{} },
+		"shell":    func() Func { return &funcShell{} },
+		"call":     func() Func { return &funcCall{} },
+		"foreach":  func() Func { return &funcForeach{} },
 	}
 )
 
 func init() {
-	fwrap("patsubst", 3, funcPatsubst)
-	fwrap("strip", 1, funcStrip)
 	fwrap("findstring", 2, funcFindstring)
 	fwrap("filter", 2, funcFilter)
 	fwrap("filter-out", 2, funcFilterOut)
@@ -124,6 +124,32 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	text := ev.Value(f.args[2])
 	Log("subst from:%q to:%q text:%q", from, to, text)
 	w.Write(bytes.Replace(text, from, to, -1))
+}
+
+type funcPatsubst struct{ fclosure }
+
+func (f *funcPatsubst) Arity() int { return 3 }
+func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("patsubst", 3, len(f.args))
+	pat := ev.Value(f.args[0])
+	repl := ev.Value(f.args[1])
+	texts := splitSpacesBytes(ev.Value(f.args[2]))
+	for i, text := range texts {
+		t := substPatternBytes(pat, repl, text)
+		if i > 0 {
+			w.Write([]byte{' '})
+		}
+		w.Write(t)
+	}
+}
+
+type funcStrip struct{ fclosure }
+
+func (f *funcStrip) Arity() int { return 1 }
+func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("strip", 1, len(f.args))
+	text := ev.Value(f.args[0])
+	w.Write(bytes.TrimSpace(text))
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
@@ -258,23 +284,6 @@ func arity(name string, req int, args []string) []string {
 	assertArity(name, req, len(args))
 	args[req-1] = strings.Join(args[req-1:], ",")
 	return args
-}
-
-func funcPatsubst(ev *Evaluator, args []string) string {
-	args = arity("patsubst", 3, args)
-	pat := ev.evalExpr(args[0])
-	repl := ev.evalExpr(args[1])
-	texts := splitSpaces(ev.evalExpr(args[2]))
-	for i, text := range texts {
-		texts[i] = substPattern(pat, repl, text)
-	}
-	return strings.Join(texts, " ")
-}
-
-func funcStrip(ev *Evaluator, args []string) string {
-	args = arity("strip", 1, args)
-	text := ev.evalExpr(args[0])
-	return strings.TrimSpace(text)
 }
 
 func funcFindstring(ev *Evaluator, args []string) string {

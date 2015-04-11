@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -97,6 +98,12 @@ func TestSubstPattern(t *testing.T) {
 		got := substPattern(tc.pat, tc.repl, tc.in)
 		if got != tc.want {
 			t.Errorf(`substPattern(%q,%q,%q)=%q, want %q`, tc.pat, tc.repl, tc.in, got, tc.want)
+		}
+
+		got = string(substPatternBytes([]byte(tc.pat), []byte(tc.repl), []byte(tc.in)))
+		if got != tc.want {
+			fmt.Printf("substPatternBytes(%q,%q,%q)=%q, want %q\n", tc.pat, tc.repl, tc.in, got, tc.want)
+			t.Errorf(`substPatternBytes(%q,%q,%q)=%q, want %q`, tc.pat, tc.repl, tc.in, got, tc.want)
 		}
 	}
 }
