@@ -292,22 +292,22 @@ func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, err
 
 	localVars := vars
 	// automatic variables.
-	localVars.Assign("@", SimpleVar{value: []byte(output), origin: "automatic"})
+	localVars["@"] = SimpleVar{value: []byte(output), origin: "automatic"}
 	if len(actualInputs) > 0 {
-		localVars.Assign("<", SimpleVar{
+		localVars["<"] = SimpleVar{
 			value:  []byte(actualInputs[0]),
 			origin: "automatic",
-		})
+		}
 	} else {
-		localVars.Assign("<", SimpleVar{
+		localVars["<"] = SimpleVar{
 			value:  []byte{},
 			origin: "automatic",
-		})
+		}
 	}
-	localVars.Assign("^", SimpleVar{
+	localVars["^"] = SimpleVar{
 		value:  []byte(strings.Join(actualInputs, " ")),
 		origin: "automatic",
-	})
+	}
 	ev := newEvaluator(localVars)
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
