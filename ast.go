@@ -36,7 +36,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	}
 	switch ast.op {
 	case ":=":
-		return SimpleVar{value: ev.evalExpr(ast.rhs), origin: origin}
+		return SimpleVar{value: ev.evalExprBytes(ast.rhs), origin: origin}
 	case "=":
 		v, _, err := parseExpr([]byte(ast.rhs), nil)
 		if err != nil {

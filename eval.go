@@ -70,12 +70,16 @@ func (ev *Evaluator) Values(v Value) [][]byte {
 }
 
 // TODO(ukai): deprecated.
-func (ev *Evaluator) evalExpr(ex string) string {
+func (ev *Evaluator) evalExprBytes(ex string) []byte {
 	v, _, err := parseExpr([]byte(ex), nil)
 	if err != nil {
 		panic(err)
 	}
-	return string(ev.Value(v))
+	return ev.Value(v)
+}
+
+func (ev *Evaluator) evalExpr(ex string) string {
+	return string(ev.evalExprBytes(ex))
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {

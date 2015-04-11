@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 )
 
@@ -15,8 +14,8 @@ type Var interface {
 }
 
 type SimpleVar struct {
-	// TODO(ukai): string -> Value (literal or so?)
-	value  string
+	// TODO(ukai): []byte -> Value (literal or so?)
+	value  []byte
 	origin string
 }
 
@@ -24,9 +23,9 @@ func (v SimpleVar) Flavor() string  { return "simple" }
 func (v SimpleVar) Origin() string  { return v.origin }
 func (v SimpleVar) IsDefined() bool { return true }
 
-func (v SimpleVar) String() string { return v.value }
+func (v SimpleVar) String() string { return string(v.value) }
 func (v SimpleVar) Eval(w io.Writer, ev *Evaluator) {
-	fmt.Fprint(w, v.value)
+	w.Write(v.value)
 }
 
 func (v SimpleVar) Append(ev *Evaluator, s string) Var {
@@ -35,10 +34,10 @@ func (v SimpleVar) Append(ev *Evaluator, s string) Var {
 		panic(err)
 	}
 	var buf bytes.Buffer
-	buf.WriteString(v.value)
+	buf.Write(v.value)
 	buf.WriteByte(' ')
 	val.Eval(&buf, ev)
-	v.value = buf.String()
+	v.value = buf.Bytes()
 	return v
 }
 
