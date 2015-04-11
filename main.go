@@ -110,7 +110,7 @@ func main() {
 			origin: "environment",
 		})
 	}
-	vars.Assign("MAKEFILE_LIST", SimpleVar{value: "", origin: "file"})
+	vars.Assign("MAKEFILE_LIST", SimpleVar{value: []byte{}, origin: "file"})
 	for _, v := range clvars {
 		kv := strings.SplitN(v, "=", 2)
 		Log("cmdlinevar %q", kv)

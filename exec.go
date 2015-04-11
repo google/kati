@@ -296,14 +296,14 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 
 	localVars := NewVarTab(vars)
 	// automatic variables.
-	localVars.Assign("@", SimpleVar{value: output, origin: "automatic"})
+	localVars.Assign("@", SimpleVar{value: []byte(output), origin: "automatic"})
 	if len(actualInputs) > 0 {
 		localVars.Assign("<", SimpleVar{
-			value:  actualInputs[0],
+			value:  []byte(actualInputs[0]),
 			origin: "automatic",
 		})
 		localVars.Assign("^", SimpleVar{
-			value:  strings.Join(actualInputs, " "),
+			value:  []byte(strings.Join(actualInputs, " ")),
 			origin: "automatic",
 		})
 	}

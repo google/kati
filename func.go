@@ -576,7 +576,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	v := ev.LookupVar(variable)
 	Log("call variable %q", v)
 	// Evalualte all arguments first before we modify the table.
-	var args []Value
+	var args []tmpval
 	for i, arg := range f.args[1:] {
 		args = append(args, tmpval(ev.Value(arg)))
 		Log("call $%d: %q=>%q", i+1, arg, args[i])
@@ -588,7 +588,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 		olds = append(olds, newOldVar(ev, name))
 		ev.outVars.Assign(name,
 			SimpleVar{
-				value:  arg.String(),
+				value:  arg,
 				origin: "automatic", // ??
 			})
 	}
@@ -695,7 +695,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	for _, word := range list {
 		ev.outVars.Assign(varname,
 			SimpleVar{
-				value:  string(word),
+				value:  word,
 				origin: "automatic",
 			})
 		if space {
