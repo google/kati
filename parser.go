@@ -356,6 +356,15 @@ func (p *parser) parseKeywords(line string, directives map[string]func(*parser, 
 
 func (p *parser) isDirective(line string, directives map[string]func(*parser, string)) bool {
 	stripped := strings.TrimLeft(line, " \t")
+	// Fast paths.
+	// TODO: Consider using a trie.
+	if len(stripped) == 0 {
+		return false
+	}
+	if ch := stripped[0]; ch != 'i' && ch != '-' && ch != 's' && ch != 'e' && ch != 'd' {
+		return false
+	}
+
 	for prefix, _ := range directives {
 		if strings.HasPrefix(stripped, prefix) {
 			return true
