@@ -63,8 +63,8 @@ type runner struct {
 	shell       string
 }
 
-func evalCmd(ev *Evaluator, r runner, s string, shell string) []runner {
-	r = newRunner(r, s, shell)
+func evalCmd(ev *Evaluator, r runner, s string) []runner {
+	r = newRunner(r, s)
 	if strings.IndexByte(r.cmd, '$') < 0 {
 		// fast path
 		return []runner{r}
@@ -72,13 +72,12 @@ func evalCmd(ev *Evaluator, r runner, s string, shell string) []runner {
 	cmds := ev.evalExpr(r.cmd)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
-		runners = append(runners, newRunner(r, cmd, shell))
+		runners = append(runners, newRunner(r, cmd))
 	}
 	return runners
 }
 
-func newRunner(r runner, s string, shell string) runner {
-	r.shell = shell
+func newRunner(r runner, s string) runner {
 	for {
 		s = trimLeftSpace(s)
 		if s == "" {
@@ -321,9 +320,14 @@ func (ex *Executor) build(vars *VarTab, output string, neededBy string) (int64, 
 		output: output,
 		echo:   true,
 		dryRun: dryRunFlag,
+		shell: ex.shell,
 	}
 	for _, cmd := range rule.cmds {
-		runners = append(runners, evalCmd(ev, r, cmd, ex.shell)...)
+		for _, r := range evalCmd(ev, r, cmd) {
+			if len(r.cmd) != 0 {
+				runners = append(runners, r)
+			}
+		}
 	}
 	for _, r := range runners {
 		err := r.run()
