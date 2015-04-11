@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -371,6 +372,16 @@ type funcWildcard struct{ fclosure }
 func (f *funcWildcard) Arity() int { return 1 }
 func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
+	sw := ssvWriter{w: w}
+	for _, pattern := range splitSpaces(string(ev.Value(f.args[0]))) {
+		files, err := filepath.Glob(pattern)
+		if err != nil {
+			panic(err)
+		}
+		for _, file := range files {
+			sw.Write([]byte(file))
+		}
+	}
 }
 
 type funcDir struct{ fclosure }
@@ -378,6 +389,11 @@ type funcDir struct{ fclosure }
 func (f *funcDir) Arity() int { return 1 }
 func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("dir", 1, len(f.args))
+	names := splitSpaces(string(ev.Value(f.args[0])))
+	sw := ssvWriter{w: w}
+	for _, name := range names {
+		sw.Write([]byte(filepath.Dir(name) + string(filepath.Separator)))
+	}
 }
 
 type funcNotdir struct{ fclosure }
@@ -385,6 +401,15 @@ type funcNotdir struct{ fclosure }
 func (f *funcNotdir) Arity() int { return 1 }
 func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("notdir", 1, len(f.args))
+	names := splitSpaces(string(ev.Value(f.args[0])))
+	sw := ssvWriter{w: w}
+	for _, name := range names {
+		if name == string(filepath.Separator) {
+			sw.Write([]byte{})
+			continue
+		}
+		sw.Write([]byte(filepath.Base(name)))
+	}
 }
 
 type funcSuffix struct{ fclosure }
@@ -392,6 +417,14 @@ type funcSuffix struct{ fclosure }
 func (f *funcSuffix) Arity() int { return 1 }
 func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("suffix", 1, len(f.args))
+	toks := splitSpaces(string(ev.Value(f.args[0])))
+	sw := ssvWriter{w: w}
+	for _, tok := range toks {
+		e := filepath.Ext(tok)
+		if len(e) > 0 {
+			sw.Write([]byte(e))
+		}
+	}
 }
 
 type funcBasename struct{ fclosure }
@@ -399,6 +432,12 @@ type funcBasename struct{ fclosure }
 func (f *funcBasename) Arity() int { return 1 }
 func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("basename", 1, len(f.args))
+	toks := splitSpaces(string(ev.Value(f.args[0])))
+	sw := ssvWriter{w: w}
+	for _, tok := range toks {
+		e := stripExt(tok)
+		sw.Write([]byte(e))
+	}
 }
 
 type funcAddsuffix struct{ fclosure }
@@ -406,6 +445,14 @@ type funcAddsuffix struct{ fclosure }
 func (f *funcAddsuffix) Arity() int { return 2 }
 func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("addsuffix", 2, len(f.args))
+	suf := ev.Value(f.args[0])
+	toks := splitSpacesBytes(ev.Value(f.args[1]))
+	sw := ssvWriter{w: w}
+	for _, tok := range toks {
+		sw.Write(tok)
+		// Use |w| not to append extra ' '.
+		w.Write(suf)
+	}
 }
 
 type funcAddprefix struct{ fclosure }
@@ -413,6 +460,14 @@ type funcAddprefix struct{ fclosure }
 func (f *funcAddprefix) Arity() int { return 2 }
 func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("addprefix", 2, len(f.args))
+	pre := ev.Value(f.args[0])
+	toks := splitSpacesBytes(ev.Value(f.args[1]))
+	sw := ssvWriter{w: w}
+	for _, tok := range toks {
+		sw.Write(pre)
+		// Use |w| not to append extra ' '.
+		w.Write(tok)
+	}
 }
 
 type funcRealpath struct{ fclosure }
@@ -420,6 +475,21 @@ type funcRealpath struct{ fclosure }
 func (f *funcRealpath) Arity() int { return 1 }
 func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("realpath", 1, len(f.args))
+	names := splitSpaces(string(ev.Value(f.args[0])))
+	sw := ssvWriter{w: w}
+	for _, name := range names {
+		name, err := filepath.Abs(name)
+		if err != nil {
+			Log("abs: %v", err)
+			continue
+		}
+		name, err = filepath.EvalSymlinks(name)
+		if err != nil {
+			Log("realpath: %v", err)
+			continue
+		}
+		sw.Write([]byte(name))
+	}
 }
 
 type funcAbspath struct{ fclosure }
@@ -427,6 +497,16 @@ type funcAbspath struct{ fclosure }
 func (f *funcAbspath) Arity() int { return 1 }
 func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("abspath", 1, len(f.args))
+	names := splitSpaces(string(ev.Value(f.args[0])))
+	sw := ssvWriter{w: w}
+	for _, name := range names {
+		name, err := filepath.Abs(name)
+		if err != nil {
+			Log("abs: %v", err)
+			continue
+		}
+		sw.Write([]byte(name))
+	}
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
