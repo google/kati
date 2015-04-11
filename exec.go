@@ -80,7 +80,7 @@ func evalCmd(ev *Evaluator, r runner, s string, shell string) []runner {
 func newRunner(r runner, s string, shell string) runner {
 	r.shell = shell
 	for {
-		s = strings.TrimLeft(s, " \t")
+		s = trimLeftSpace(s)
 		if s == "" {
 			return runner{}
 		}

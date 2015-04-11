@@ -144,3 +144,12 @@ func stripExt(s string) string {
 	suf := filepath.Ext(s)
 	return s[:len(s)-len(suf)]
 }
+
+func trimLeftSpace(s string) string {
+	for i, ch := range s {
+		if ch != ' ' && ch != '\t' {
+			return s[i:]
+		}
+	}
+	return ""
+}
