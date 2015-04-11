@@ -520,11 +520,18 @@ func ParseDefaultMakefile() (Makefile, error) {
 	return Makefile{}, errors.New("no targets specified and no makefile found.")
 }
 
-func ParseMakefileString(s string, name string, lineno int) (Makefile, error) {
-	rd := strings.NewReader(s)
+func parseMakefileReader(rd io.Reader, name string, lineno int) (Makefile, error) {
 	parser := newParser(rd, name)
 	parser.lineno = lineno
 	parser.elineno = lineno
 	parser.linenoFixed = true
 	return parser.parse()
+}
+
+func ParseMakefileString(s string, name string, lineno int) (Makefile, error) {
+	return parseMakefileReader(strings.NewReader(s), name, lineno)
+}
+
+func ParseMakefileBytes(s []byte, name string, lineno int) (Makefile, error) {
+	return parseMakefileReader(bytes.NewReader(s), name, lineno)
 }
