@@ -78,6 +78,10 @@ var (
 		"realpath":  func() Func { return &funcRealpath{} },
 		"abspath":   func() Func { return &funcAbspath{} },
 
+		"if":  func() Func { return &funcIf{} },
+		"and": func() Func { return &funcAnd{} },
+		"or":  func() Func { return &funcOr{} },
+
 		"shell":   func() Func { return &funcShell{} },
 		"call":    func() Func { return &funcCall{} },
 		"foreach": func() Func { return &funcForeach{} },
@@ -86,29 +90,29 @@ var (
 
 func init() {
 	/*
-			fwrap("findstring", 2, funcFindstring)
-			fwrap("filter", 2, funcFilter)
-			fwrap("filter-out", 2, funcFilterOut)
-			fwrap("sort", 1, funcSort)
-			fwrap("word", 2, funcWord)
-			fwrap("wordlist", 3, funcWordlist)
-			fwrap("words", 1, funcWords)
-			fwrap("firstword", 1, funcFirstword)
-			fwrap("lastword", 1, funcLastword)
-		fwrap("join", 2, funcJoin)
-		fwrap("wildcard", 1, funcWildcard)
-		fwrap("dir", 1, funcDir)
-		fwrap("notdir", 1, funcNotdir)
-		fwrap("suffix", 1, funcSuffix)
-		fwrap("basename", 1, funcBasename)
-		fwrap("addsuffix", 2, funcAddsuffix)
-		fwrap("addprefix", 2, funcAddprefix)
-		fwrap("realpath", 1, funcRealpath)
-		fwrap("abspath", 1, funcAbspath)
+				fwrap("findstring", 2, funcFindstring)
+				fwrap("filter", 2, funcFilter)
+				fwrap("filter-out", 2, funcFilterOut)
+				fwrap("sort", 1, funcSort)
+				fwrap("word", 2, funcWord)
+				fwrap("wordlist", 3, funcWordlist)
+				fwrap("words", 1, funcWords)
+				fwrap("firstword", 1, funcFirstword)
+				fwrap("lastword", 1, funcLastword)
+			fwrap("join", 2, funcJoin)
+			fwrap("wildcard", 1, funcWildcard)
+			fwrap("dir", 1, funcDir)
+			fwrap("notdir", 1, funcNotdir)
+			fwrap("suffix", 1, funcSuffix)
+			fwrap("basename", 1, funcBasename)
+			fwrap("addsuffix", 2, funcAddsuffix)
+			fwrap("addprefix", 2, funcAddprefix)
+			fwrap("realpath", 1, funcRealpath)
+			fwrap("abspath", 1, funcAbspath)
+		fwrap("if", 3, funcIf)
+		fwrap("and", 0, funcAnd)
+		fwrap("or", 0, funcOr)
 	*/
-	fwrap("if", 3, funcIf)
-	fwrap("and", 0, funcAnd)
-	fwrap("or", 0, funcOr)
 	fwrap("value", 1, funcValue)
 	fwrap("eval", 1, funcEval)
 	fwrap("origin", 1, funcOrigin)
@@ -513,6 +517,55 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	}
 }
 
+// http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
+type funcIf struct{ fclosure }
+
+func (f *funcIf) Arity() int { return 3 }
+func (f *funcIf) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("if", 2, len(f.args))
+	// TODO: Remove evalExpr.
+	cond := ev.evalExpr(strings.TrimSpace(f.args[0].String()))
+	if len(cond) != 0 {
+		w.Write(ev.Value(f.args[1]))
+		return
+	}
+	sw := ssvWriter{w: w}
+	for _, part := range f.args[2:] {
+		sw.Write(ev.Value(part))
+	}
+}
+
+type funcAnd struct{ fclosure }
+
+func (f *funcAnd) Arity() int { return 0 }
+func (f *funcAnd) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("and", 0, len(f.args))
+	var cond string
+	for _, arg := range f.args {
+		// TODO: Remove evalExpr.
+		cond = ev.evalExpr(strings.TrimSpace(arg.String()))
+		if cond == "" {
+			return
+		}
+	}
+	w.Write([]byte(cond))
+}
+
+type funcOr struct{ fclosure }
+
+func (f *funcOr) Arity() int { return 0 }
+func (f *funcOr) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("or", 0, len(f.args))
+	for _, arg := range f.args {
+		// TODO: Remove evalExpr.
+		cond := ev.evalExpr(strings.TrimSpace(arg.String()))
+		if cond != "" {
+			w.Write([]byte(cond))
+			return
+		}
+	}
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 type funcShell struct{ fclosure }
 
@@ -645,43 +698,6 @@ func arity(name string, req int, args []string) []string {
 	assertArity(name, req, len(args))
 	args[req-1] = strings.Join(args[req-1:], ",")
 	return args
-}
-
-// http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
-func funcIf(ev *Evaluator, args []string) string {
-	if len(args) < 2 {
-		panic(fmt.Sprintf("*** insufficient number of arguments (%2) to function `if'.", len(args)))
-	}
-	cond := ev.evalExpr(strings.TrimSpace(args[0]))
-	if cond != "" {
-		return ev.evalExpr(args[1])
-	}
-	var results []string
-	for _, part := range args[2:] {
-		results = append(results, ev.evalExpr(part))
-	}
-	return strings.Join(results, ",")
-}
-
-func funcOr(ev *Evaluator, args []string) string {
-	for _, arg := range args {
-		cond := ev.evalExpr(strings.TrimSpace(arg))
-		if cond != "" {
-			return cond
-		}
-	}
-	return ""
-}
-
-func funcAnd(ev *Evaluator, args []string) string {
-	var cond string
-	for _, arg := range args {
-		cond = ev.evalExpr(strings.TrimSpace(arg))
-		if cond == "" {
-			return ""
-		}
-	}
-	return cond
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Value-Function

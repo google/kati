@@ -1,13 +1,13 @@
 TRUE:=foo
 FALSE:=
 
-$(if ${TRUE}, $(info PASS))
-$(if ${FALSE}, $(info FAIL))
-$(if ${TRUE}, $(info PASS), $(info FAIL))
-$(if ${FALSE}, $(info FAIL), $(info PASS))
-$(info $(if ${TRUE}, PASS, FAIL))
+$(if ${TRUE}, $(info PASS1))
+$(if ${FALSE}, $(info FAIL1))
+$(if ${TRUE}, $(info PASS2), $(info FAIL2))
+$(if ${FALSE}, $(info FAIL3), $(info PASS3))
+$(info $(if ${TRUE}, PASS4, FAIL4))
 # Too many arguments
-$(info $(if ${FALSE}, FAIL, PASS, PASS))
+$(info $(if ${FALSE}, FAIL5, PASS5, PASS6))
 
 test:
 	echo OK
