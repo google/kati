@@ -107,7 +107,7 @@ func removeComment(line []byte) []byte {
 	return line
 }
 
-func (p *parser) processMakefileLine(line []byte) []byte {
+func (p *parser) processDefineLine(line []byte) []byte {
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
 		line = line[:len(line)-1]
@@ -116,7 +116,11 @@ func (p *parser) processMakefileLine(line []byte) []byte {
 		p.lineno = lineno
 		line = append(line, nline...)
 	}
-	return removeComment(line)
+	return line
+}
+
+func (p *parser) processMakefileLine(line []byte) []byte {
+	return removeComment(p.processDefineLine(line))
 }
 
 func (p *parser) processRecipeLine(line []byte) []byte {
@@ -419,7 +423,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 
 		if len(p.inDef) > 0 {
-			line = p.processMakefileLine(line)
+			line = p.processDefineLine(line)
 			if trimLeftSpace(string(line)) == "endef" {
 				Log("multilineAssign %q", p.inDef)
 				ast := &AssignAST{
