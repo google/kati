@@ -402,7 +402,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 			ex.rules[output] = r
 		} else {
 			ex.rules[output] = rule
-			if ex.firstRule == nil && !isSuffixRule {
+			if ex.firstRule == nil && !strings.HasPrefix(output, ".") {
 				ex.firstRule = rule
 			}
 		}
