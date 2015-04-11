@@ -111,9 +111,11 @@ func (p *parser) processDefineLine(line []byte) []byte {
 	// TODO: Handle \\ at the end of the line?
 	for len(line) > 0 && line[len(line)-1] == '\\' {
 		line = line[:len(line)-1]
+		line = bytes.TrimRight(line, "\t ")
 		lineno := p.lineno
-		nline := p.readLine()
+		nline := trimLeftSpaceBytes(p.readLine())
 		p.lineno = lineno
+		line = append(line, ' ')
 		line = append(line, nline...)
 	}
 	return line

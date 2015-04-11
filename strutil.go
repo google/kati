@@ -153,3 +153,12 @@ func trimLeftSpace(s string) string {
 	}
 	return ""
 }
+
+func trimLeftSpaceBytes(s []byte) []byte {
+	for i, ch := range s {
+		if ch != ' ' && ch != '\t' {
+			return s[i:]
+		}
+	}
+	return nil
+}
