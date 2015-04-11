@@ -155,7 +155,7 @@ func (ev *Evaluator) evalCommand(ast *CommandAST) {
 		// This could still be an assignment statement. See
 		// assign_after_tab.mk.
 		if strings.IndexByte(ast.cmd, '=') >= 0 {
-			line := strings.TrimLeft(ast.cmd, " \t")
+			line := trimLeftSpace(ast.cmd)
 			mk, err := ParseMakefileString(line, ast.filename, ast.lineno)
 			if err != nil {
 				panic(err)

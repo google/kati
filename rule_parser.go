@@ -45,7 +45,7 @@ func (r *Rule) parseVar(s string) *AssignAST {
 		return nil
 	}
 	assign := &AssignAST{
-		rhs: strings.TrimLeft(s[eq+1:], " \t"),
+		rhs: trimLeftSpace(s[eq+1:]),
 	}
 	assign.filename = r.filename
 	assign.lineno = r.lineno

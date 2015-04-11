@@ -144,7 +144,7 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	// TODO(ukai): parse expr here.
 	ast := &AssignAST{
 		lhs: string(bytes.TrimSpace(line[:sep])),
-		rhs: string(bytes.TrimLeft(line[esep:], " \t")),
+		rhs: trimLeftSpace(string(line[esep:])),
 		op:  string(line[sep:esep]),
 	}
 	ast.filename = p.mk.filename
@@ -163,20 +163,6 @@ func (p *parser) parseMaybeRule(line string, semicolonIndex int) AST {
 	}
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
-	/*
-		ast.cmdLineno = p.elineno + 1
-		for {
-			line := p.readRecipeLine()
-			if len(line) == 0 {
-				break
-			} else if line[0] == '\t' {
-				ast.cmds = append(ast.cmds, string(bytes.TrimLeft(line, " \t")))
-			} else {
-				p.unreadLine(line)
-				break
-			}
-		}
-	*/
 	return ast
 }
 
@@ -344,7 +330,7 @@ var makeDirectives = map[string]func(*parser, string){
 }
 
 func (p *parser) parseKeywords(line string, directives map[string]func(*parser, string)) bool {
-	stripped := strings.TrimLeft(line, " \t")
+	stripped := trimLeftSpace(line)
 	for prefix, f := range directives {
 		if strings.HasPrefix(stripped, prefix) {
 			f(p, stripped)
@@ -355,7 +341,7 @@ func (p *parser) parseKeywords(line string, directives map[string]func(*parser, 
 }
 
 func (p *parser) isDirective(line string, directives map[string]func(*parser, string)) bool {
-	stripped := strings.TrimLeft(line, " \t")
+	stripped := trimLeftSpace(line)
 	// Fast paths.
 	// TODO: Consider using a trie.
 	if len(stripped) == 0 {
@@ -406,7 +392,7 @@ func endifDirective(p *parser, line string) {
 }
 
 func defineDirective(p *parser, line string) {
-	p.inDef = []string{strings.TrimLeft(line[len("define "):], " \t")}
+	p.inDef = []string{trimLeftSpace(line[len("define "):])}
 }
 
 func (p *parser) parse() (mk Makefile, err error) {
@@ -424,7 +410,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 
 		if len(p.inDef) > 0 {
 			line = p.processMakefileLine(line)
-			if strings.TrimLeft(string(line), " ") == "endef" {
+			if trimLeftSpace(string(line)) == "endef" {
 				Log("multilineAssign %q", p.inDef)
 				ast := &AssignAST{
 					lhs: p.inDef[0],
