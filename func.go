@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -67,6 +66,17 @@ var (
 		"firstword":  func() Func { return &funcFirstword{} },
 		"lastword":   func() Func { return &funcLastword{} },
 
+		"join":      func() Func { return &funcJoin{} },
+		"wildcard":  func() Func { return &funcWildcard{} },
+		"dir":       func() Func { return &funcDir{} },
+		"notdir":    func() Func { return &funcNotdir{} },
+		"suffix":    func() Func { return &funcSuffix{} },
+		"basename":  func() Func { return &funcBasename{} },
+		"addsuffix": func() Func { return &funcAddsuffix{} },
+		"addprefix": func() Func { return &funcAddprefix{} },
+		"realpath":  func() Func { return &funcRealpath{} },
+		"abspath":   func() Func { return &funcAbspath{} },
+
 		"shell":   func() Func { return &funcShell{} },
 		"call":    func() Func { return &funcCall{} },
 		"foreach": func() Func { return &funcForeach{} },
@@ -75,26 +85,26 @@ var (
 
 func init() {
 	/*
-		fwrap("findstring", 2, funcFindstring)
-		fwrap("filter", 2, funcFilter)
-		fwrap("filter-out", 2, funcFilterOut)
-		fwrap("sort", 1, funcSort)
-		fwrap("word", 2, funcWord)
-		fwrap("wordlist", 3, funcWordlist)
-		fwrap("words", 1, funcWords)
-		fwrap("firstword", 1, funcFirstword)
-		fwrap("lastword", 1, funcLastword)
+			fwrap("findstring", 2, funcFindstring)
+			fwrap("filter", 2, funcFilter)
+			fwrap("filter-out", 2, funcFilterOut)
+			fwrap("sort", 1, funcSort)
+			fwrap("word", 2, funcWord)
+			fwrap("wordlist", 3, funcWordlist)
+			fwrap("words", 1, funcWords)
+			fwrap("firstword", 1, funcFirstword)
+			fwrap("lastword", 1, funcLastword)
+		fwrap("join", 2, funcJoin)
+		fwrap("wildcard", 1, funcWildcard)
+		fwrap("dir", 1, funcDir)
+		fwrap("notdir", 1, funcNotdir)
+		fwrap("suffix", 1, funcSuffix)
+		fwrap("basename", 1, funcBasename)
+		fwrap("addsuffix", 2, funcAddsuffix)
+		fwrap("addprefix", 2, funcAddprefix)
+		fwrap("realpath", 1, funcRealpath)
+		fwrap("abspath", 1, funcAbspath)
 	*/
-	fwrap("join", 2, funcJoin)
-	fwrap("wildcard", 1, funcWildcard)
-	fwrap("dir", 1, funcDir)
-	fwrap("notdir", 1, funcNotdir)
-	fwrap("suffix", 1, funcSuffix)
-	fwrap("basename", 1, funcBasename)
-	fwrap("addsuffix", 2, funcAddsuffix)
-	fwrap("addprefix", 2, funcAddprefix)
-	fwrap("realpath", 1, funcRealpath)
-	fwrap("abspath", 1, funcAbspath)
 	fwrap("if", 3, funcIf)
 	fwrap("and", 0, funcAnd)
 	fwrap("or", 0, funcOr)
@@ -330,6 +340,95 @@ func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(toks[len(toks)-1])
 }
 
+// https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
+
+type funcJoin struct{ fclosure }
+
+func (f *funcJoin) Arity() int { return 2 }
+func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("join", 2, len(f.args))
+	list1 := splitSpacesBytes(ev.Value(f.args[0]))
+	list2 := splitSpacesBytes(ev.Value(f.args[1]))
+	sw := ssvWriter{w: w}
+	for i, v := range list1 {
+		if i < len(list2) {
+			sw.Write(v)
+			// Use |w| not to append extra ' '.
+			w.Write(list2[i])
+			continue
+		}
+		sw.Write(v)
+	}
+	if len(list2) > len(list1) {
+		for _, v := range list2[len(list1):] {
+			sw.Write(v)
+		}
+	}
+}
+
+type funcWildcard struct{ fclosure }
+
+func (f *funcWildcard) Arity() int { return 1 }
+func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("wildcard", 1, len(f.args))
+}
+
+type funcDir struct{ fclosure }
+
+func (f *funcDir) Arity() int { return 1 }
+func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("dir", 1, len(f.args))
+}
+
+type funcNotdir struct{ fclosure }
+
+func (f *funcNotdir) Arity() int { return 1 }
+func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("notdir", 1, len(f.args))
+}
+
+type funcSuffix struct{ fclosure }
+
+func (f *funcSuffix) Arity() int { return 1 }
+func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("suffix", 1, len(f.args))
+}
+
+type funcBasename struct{ fclosure }
+
+func (f *funcBasename) Arity() int { return 1 }
+func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("basename", 1, len(f.args))
+}
+
+type funcAddsuffix struct{ fclosure }
+
+func (f *funcAddsuffix) Arity() int { return 2 }
+func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("addsuffix", 2, len(f.args))
+}
+
+type funcAddprefix struct{ fclosure }
+
+func (f *funcAddprefix) Arity() int { return 2 }
+func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("addprefix", 2, len(f.args))
+}
+
+type funcRealpath struct{ fclosure }
+
+func (f *funcRealpath) Arity() int { return 1 }
+func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("realpath", 1, len(f.args))
+}
+
+type funcAbspath struct{ fclosure }
+
+func (f *funcAbspath) Arity() int { return 1 }
+func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
+	assertArity("abspath", 1, len(f.args))
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 type funcShell struct{ fclosure }
 
@@ -462,150 +561,6 @@ func arity(name string, req int, args []string) []string {
 	assertArity(name, req, len(args))
 	args[req-1] = strings.Join(args[req-1:], ",")
 	return args
-}
-
-// http://www.gnu.org/software/make/manual/make.html#File-Name-Functions
-func funcJoin(ev *Evaluator, args []string) string {
-	args = arity("join", 2, args)
-	list1 := splitSpaces(ev.evalExpr(args[0]))
-	list2 := splitSpaces(ev.evalExpr(args[1]))
-	var results []string
-	for i, v := range list1 {
-		if i < len(list2) {
-			results = append(results, v+list2[i])
-			continue
-		}
-		results = append(results, v)
-	}
-	if len(list2) > len(list1) {
-		for _, v := range list2[len(list1):] {
-			results = append(results, v)
-		}
-	}
-	return strings.Join(results, " ")
-}
-
-func funcWildcard(ev *Evaluator, args []string) string {
-	args = arity("wildcard", 1, args)
-	var result []string
-	for _, pattern := range splitSpaces(ev.evalExpr(args[0])) {
-		files, err := filepath.Glob(pattern)
-		if err != nil {
-			panic(err)
-		}
-		result = append(result, files...)
-	}
-	return strings.Join(result, " ")
-}
-
-// https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
-func funcDir(ev *Evaluator, args []string) string {
-	args = arity("dir", 1, args)
-	names := splitSpaces(ev.evalExpr(args[0]))
-	if len(names) == 0 {
-		return ""
-	}
-	var dirs []string
-	for _, name := range names {
-		dirs = append(dirs, filepath.Dir(name)+string(filepath.Separator))
-	}
-	return strings.Join(dirs, " ")
-}
-
-func funcNotdir(ev *Evaluator, args []string) string {
-	args = arity("notdir", 1, args)
-	names := splitSpaces(ev.evalExpr(args[0]))
-	if len(names) == 0 {
-		return ""
-	}
-	var notdirs []string
-	for _, name := range names {
-		if name == string(filepath.Separator) {
-			notdirs = append(notdirs, "")
-			continue
-		}
-		notdirs = append(notdirs, filepath.Base(name))
-	}
-	return strings.Join(notdirs, " ")
-}
-
-func funcSuffix(ev *Evaluator, args []string) string {
-	args = arity("suffix", 1, args)
-	toks := splitSpaces(ev.evalExpr(args[0]))
-	var result []string
-	for _, tok := range toks {
-		e := filepath.Ext(tok)
-		if len(e) > 0 {
-			result = append(result, e)
-		}
-	}
-	return strings.Join(result, " ")
-}
-
-func funcBasename(ev *Evaluator, args []string) string {
-	args = arity("basename", 1, args)
-	toks := splitSpaces(ev.evalExpr(args[0]))
-	var result []string
-	for _, tok := range toks {
-		b := stripExt(tok)
-		result = append(result, b)
-	}
-	return strings.Join(result, " ")
-}
-
-func funcAddsuffix(ev *Evaluator, args []string) string {
-	args = arity("addsuffix", 2, args)
-	suf := ev.evalExpr(args[0])
-	toks := splitSpaces(ev.evalExpr(args[1]))
-	for i, tok := range toks {
-		toks[i] = fmt.Sprintf("%s%s", tok, suf)
-	}
-	return strings.Join(toks, " ")
-}
-
-func funcAddprefix(ev *Evaluator, args []string) string {
-	args = arity("addprefix", 2, args)
-	pre := ev.evalExpr(args[0])
-	toks := splitSpaces(ev.evalExpr(args[1]))
-	for i, tok := range toks {
-		toks[i] = fmt.Sprintf("%s%s", pre, tok)
-	}
-	return strings.Join(toks, " ")
-}
-
-func funcRealpath(ev *Evaluator, args []string) string {
-	args = arity("realpath", 1, args)
-	names := splitSpaces(ev.evalExpr(args[0]))
-	var realpaths []string
-	for _, name := range names {
-		name, err := filepath.Abs(name)
-		if err != nil {
-			Log("abs: %v", err)
-			continue
-		}
-		name, err = filepath.EvalSymlinks(name)
-		if err != nil {
-			Log("realpath: %v", err)
-			continue
-		}
-		realpaths = append(realpaths, name)
-	}
-	return strings.Join(realpaths, " ")
-}
-
-func funcAbspath(ev *Evaluator, args []string) string {
-	args = arity("abspath", 1, args)
-	names := splitSpaces(ev.evalExpr(args[0]))
-	var realpaths []string
-	for _, name := range names {
-		name, err := filepath.Abs(name)
-		if err != nil {
-			Log("abs: %v", err)
-			continue
-		}
-		realpaths = append(realpaths, name)
-	}
-	return strings.Join(realpaths, " ")
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
