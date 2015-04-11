@@ -231,7 +231,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	return rule, rule != nil
 }
 
-func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
+func (ex *Executor) build(vars *VarTab, output string, neededBy string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs, ok := ex.done[output]
 	if ok {
@@ -244,6 +244,11 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 	if !present {
 		if outputTs >= 0 {
 			return outputTs, nil
+		}
+		if neededBy == "" {
+			ErrorNoLocation("*** No rule to make target %q.", output)
+		} else {
+			ErrorNoLocation("*** No rule to make target %q, needed by %q.", output, neededBy)
 		}
 		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
@@ -268,7 +273,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 		}
 		actualInputs = append(actualInputs, input)
 
-		ts, err := ex.build(vars, input)
+		ts, err := ex.build(vars, input, output)
 		if err != nil {
 			return outputTs, err
 		}
@@ -281,7 +286,7 @@ func (ex *Executor) build(vars *VarTab, output string) (int64, error) {
 		if exists(input) {
 			continue
 		}
-		ts, err := ex.build(vars, input)
+		ts, err := ex.build(vars, input, output)
 		if err != nil {
 			return outputTs, err
 		}
@@ -463,7 +468,7 @@ func (ex *Executor) exec(er *EvalResult, targets []string, vars *VarTab) error {
 	}
 
 	for _, target := range targets {
-		_, err := ex.build(vars, target)
+		_, err := ex.build(vars, target, "")
 		if err != nil {
 			return err
 		}
