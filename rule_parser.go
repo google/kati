@@ -12,7 +12,7 @@ type Rule struct {
 	outputPatterns  []string
 	isDoubleColon   bool
 	isSuffixRule    bool
-	vars            *VarTab
+	vars            Vars
 	cmds            []string
 	filename        string
 	lineno          int

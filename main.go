@@ -129,15 +129,9 @@ func main() {
 		panic(err)
 	}
 
-	vartab := NewVarTab(nil)
-	for k, v := range vars {
-		vartab.Assign(k, v)
-	}
-	for k, v := range er.vars {
-		vartab.Assign(k, v)
-	}
+	vars.Merge(er.vars)
 
-	err = Exec(er, targets, vartab)
+	err = Exec(er, targets, vars)
 	if err != nil {
 		panic(err)
 	}
