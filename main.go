@@ -6,14 +6,16 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"time"
 )
 
 var (
-	katiLogFlag  bool
-	makefileFlag string
-	dryRunFlag   bool
-	cpuprofile   string
-	heapprofile  string
+	katiLogFlag   bool
+	makefileFlag  string
+	dryRunFlag    bool
+	cpuprofile    string
+	heapprofile   string
+	katiStatsFlag bool
 )
 
 func parseFlags() {
@@ -24,6 +26,7 @@ func parseFlags() {
 	flag.BoolVar(&dryRunFlag, "n", false, "Only print the commands that would be executed")
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
+	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
 	flag.Parse()
 }
 
@@ -92,6 +95,8 @@ func main() {
 
 	clvars, targets := parseCommandLine()
 
+	startTime := time.Now()
+
 	bmk := getBootstrapMakefile(targets)
 
 	var mk Makefile
@@ -144,8 +149,14 @@ func main() {
 
 	vars.Merge(er.vars)
 
+	LogStats("eval time: %q\n", time.Now().Sub(startTime))
+
+	startTime = time.Now()
+
 	err = Exec(er, targets, vars)
 	if err != nil {
 		panic(err)
 	}
+
+	LogStats("exec time: %q\n", time.Now().Sub(startTime))
 }

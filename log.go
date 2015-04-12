@@ -7,16 +7,26 @@ import (
 	"runtime/pprof"
 )
 
-func Log(f string, a ...interface{}) {
-	if !katiLogFlag {
-		return
-	}
-
+func log(f string, a ... interface{}) {
 	var buf bytes.Buffer
 	buf.WriteString("*kati*: ")
 	buf.WriteString(f)
 	buf.WriteByte('\n')
 	fmt.Printf(buf.String(), a...)
+}
+
+func LogStats(f string, a ...interface{}) {
+	if !katiLogFlag && !katiStatsFlag {
+		return
+	}
+	log(f, a...)
+}
+
+func Log(f string, a ...interface{}) {
+	if !katiLogFlag {
+		return
+	}
+	log(f, a...)
 }
 
 func Warn(filename string, lineno int, f string, a ...interface{}) {

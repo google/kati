@@ -476,6 +476,11 @@ func (ex *Executor) exec(er *EvalResult, targets []string, vars Vars) error {
 		targets = append(targets, ex.firstRule.outputs[0])
 	}
 
+	LogStats("%d variables", len(vars))
+	LogStats("%d explicit rules", len(ex.rules))
+	LogStats("%d implicit rules", len(ex.implicitRules))
+	LogStats("%d suffix rules", len(ex.suffixRules))
+
 	for _, target := range targets {
 		_, err := ex.build(vars, target, "")
 		if err != nil {
