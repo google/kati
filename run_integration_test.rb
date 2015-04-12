@@ -25,7 +25,11 @@ class TestCase
   end
 
   def normalize_log(log, out)
-    log = log.gsub(/[ \t]+/, ' ').split("\n").sort.join("\n").sub(/ Stop\.$/, '')
+    # TODO: Fix.
+    if @name == 'android'
+      log = log.gsub(/[ \t]+/, ' ')
+    end
+    log = log.split("\n").sort.join("\n").sub(/ Stop\.$/, '')
     # This is a completely sane warning from kati for Android.
     log.sub!(%r(build/core/product_config.mk:152: warning: Unmatched parens: .*\n), '')
     # Not sure why the order can be inconsistent, but this would be OK.
