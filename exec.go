@@ -18,7 +18,8 @@ type Executor struct {
 	shell         string
 	vars          Vars
 
-	// target -> timestamp
+	// target -> timestamp, a negative timestamp means the target is
+	// currently being processed.
 	done map[string]int64
 }
 
@@ -230,9 +231,13 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs, ok := ex.done[output]
 	if ok {
+		if outputTs < 0 {
+			fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy, output)
+		}
 		Log("Building: %s already done: %d", output, outputTs)
 		return outputTs, nil
 	}
+	ex.done[output] = -1
 	outputTs = getTimestamp(output)
 
 	rule, present := ex.pickRule(output)
