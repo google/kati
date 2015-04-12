@@ -149,7 +149,7 @@ func main() {
 
 	vars.Merge(er.vars)
 
-	LogStats("eval time: %q\n", time.Now().Sub(startTime))
+	LogStats("eval time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
 
@@ -158,5 +158,5 @@ func main() {
 		panic(err)
 	}
 
-	LogStats("exec time: %q\n", time.Now().Sub(startTime))
+	LogStats("exec time: %q", time.Now().Sub(startTime))
 }
