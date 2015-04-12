@@ -16,16 +16,18 @@ type Executor struct {
 	suffixRules   map[string][]*Rule
 	firstRule     *Rule
 	shell         string
+	vars          Vars
 
 	// target -> timestamp
 	done map[string]int64
 }
 
-func newExecutor() *Executor {
+func newExecutor(vars Vars) *Executor {
 	return &Executor{
 		rules:       make(map[string]*Rule),
 		suffixRules: make(map[string][]*Rule),
 		done:        make(map[string]int64),
+		vars:        vars,
 	}
 }
 
@@ -224,7 +226,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	return rule, rule != nil
 }
 
-func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, error) {
+func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	Log("Building: %s", output)
 	outputTs, ok := ex.done[output]
 	if ok {
@@ -249,12 +251,12 @@ func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, err
 	var olds []oldVar
 	if rule.vars != nil {
 		for k, v := range rule.vars {
-			olds = append(olds, newOldVar(vars, k))
-			vars[k] = v
+			olds = append(olds, newOldVar(ex.vars, k))
+			ex.vars[k] = v
 		}
 		defer func() {
 			for _, old := range olds {
-				old.restore(vars)
+				old.restore(ex.vars)
 			}
 		}()
 	}
@@ -273,7 +275,7 @@ func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, err
 		}
 		actualInputs = append(actualInputs, input)
 
-		ts, err := ex.build(vars, input, output)
+		ts, err := ex.build(input, output)
 		if err != nil {
 			return outputTs, err
 		}
@@ -286,7 +288,7 @@ func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, err
 		if exists(input) {
 			continue
 		}
-		ts, err := ex.build(vars, input, output)
+		ts, err := ex.build(input, output)
 		if err != nil {
 			return outputTs, err
 		}
@@ -299,25 +301,24 @@ func (ex *Executor) build(vars Vars, output string, neededBy string) (int64, err
 		return outputTs, nil
 	}
 
-	localVars := vars
 	// automatic variables.
-	localVars["@"] = SimpleVar{value: []byte(output), origin: "automatic"}
+	ex.vars["@"] = SimpleVar{value: []byte(output), origin: "automatic"}
 	if len(actualInputs) > 0 {
-		localVars["<"] = SimpleVar{
+		ex.vars["<"] = SimpleVar{
 			value:  []byte(actualInputs[0]),
 			origin: "automatic",
 		}
 	} else {
-		localVars["<"] = SimpleVar{
+		ex.vars["<"] = SimpleVar{
 			value:  []byte{},
 			origin: "automatic",
 		}
 	}
-	localVars["^"] = SimpleVar{
+	ex.vars["^"] = SimpleVar{
 		value:  []byte(strings.Join(actualInputs, " ")),
 		origin: "automatic",
 	}
-	ev := newEvaluator(localVars)
+	ev := newEvaluator(ex.vars)
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
 	var runners []runner
@@ -461,10 +462,10 @@ func (ex *Executor) populateRules(er *EvalResult) {
 	}
 }
 
-func (ex *Executor) exec(er *EvalResult, targets []string, vars Vars) error {
+func (ex *Executor) exec(er *EvalResult, targets []string) error {
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
-	shellVar := vars.Lookup("SHELL")
+	shellVar := ex.vars.Lookup("SHELL")
 	ex.shell = shellVar.String()
 
 	ex.populateRules(er)
@@ -476,13 +477,13 @@ func (ex *Executor) exec(er *EvalResult, targets []string, vars Vars) error {
 		targets = append(targets, ex.firstRule.outputs[0])
 	}
 
-	LogStats("%d variables", len(vars))
+	LogStats("%d variables", len(ex.vars))
 	LogStats("%d explicit rules", len(ex.rules))
 	LogStats("%d implicit rules", len(ex.implicitRules))
 	LogStats("%d suffix rules", len(ex.suffixRules))
 
 	for _, target := range targets {
-		_, err := ex.build(vars, target, "")
+		_, err := ex.build(target, "")
 		if err != nil {
 			return err
 		}
@@ -491,6 +492,6 @@ func (ex *Executor) exec(er *EvalResult, targets []string, vars Vars) error {
 }
 
 func Exec(er *EvalResult, targets []string, vars Vars) error {
-	ex := newExecutor()
-	return ex.exec(er, targets, vars)
+	ex := newExecutor(vars)
+	return ex.exec(er, targets)
 }
