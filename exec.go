@@ -17,7 +17,6 @@ type Executor struct {
 	firstRule     *Rule
 	shell         string
 	vars          Vars
-
 	// target -> timestamp, a negative timestamp means the target is
 	// currently being processed.
 	done map[string]int64
@@ -243,6 +242,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	rule, present := ex.pickRule(output)
 	if !present {
 		if outputTs >= 0 {
+			ex.done[output] = outputTs
 			return outputTs, nil
 		}
 		if neededBy == "" {
@@ -303,6 +303,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	}
 
 	if outputTs >= latest {
+		ex.done[output] = outputTs
 		return outputTs, nil
 	}
 
