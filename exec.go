@@ -72,6 +72,13 @@ func (v AutoPlusVar) Eval(w io.Writer, ev *Evaluator) {
 	fmt.Fprint(w, strings.Join(v.ex.currentInputs, " "))
 }
 
+type AutoStarVar struct{ AutoVar }
+
+func (v AutoStarVar) Eval(w io.Writer, ev *Evaluator) {
+	// TODO: Use currentStem. See auto_stem_var.mk
+	fmt.Fprint(w, stripExt(v.ex.currentOutput))
+}
+
 type AutoSuffixDVar struct {
 	AutoVar
 	v Var
@@ -117,6 +124,7 @@ func newExecutor(vars Vars) *Executor {
 		"<": AutoLessVar{AutoVar: AutoVar{ex: ex}},
 		"^": AutoHatVar{AutoVar: AutoVar{ex: ex}},
 		"+": AutoPlusVar{AutoVar: AutoVar{ex: ex}},
+		"*": AutoStarVar{AutoVar: AutoVar{ex: ex}},
 	} {
 		ex.vars[k] = v
 		ex.vars[k+"D"] = AutoSuffixDVar{v: v}
