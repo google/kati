@@ -1,7 +1,8 @@
-test1: foo bar
+test1: foo bar foo
 	echo $<
 	echo $@
 	echo $^
+	echo $+
 
 foo: baz
 	echo $<

@@ -54,6 +54,20 @@ func (v AutoLessVar) Eval(w io.Writer, ev *Evaluator) {
 type AutoHatVar struct{ AutoVar }
 
 func (v AutoHatVar) Eval(w io.Writer, ev *Evaluator) {
+	var uniqueInputs []string
+	seen := make(map[string]bool)
+	for _, input := range v.ex.currentInputs {
+		if !seen[input] {
+			seen[input] = true
+			uniqueInputs = append(uniqueInputs, input)
+		}
+	}
+	fmt.Fprint(w, strings.Join(uniqueInputs, " "))
+}
+
+type AutoPlusVar struct{ AutoVar }
+
+func (v AutoPlusVar) Eval(w io.Writer, ev *Evaluator) {
 	fmt.Fprint(w, strings.Join(v.ex.currentInputs, " "))
 }
 
@@ -68,6 +82,7 @@ func newExecutor(vars Vars) *Executor {
 	ex.vars["@"] = AutoAtVar{AutoVar: AutoVar{ex: ex}}
 	ex.vars["<"] = AutoLessVar{AutoVar: AutoVar{ex: ex}}
 	ex.vars["^"] = AutoHatVar{AutoVar: AutoVar{ex: ex}}
+	ex.vars["+"] = AutoPlusVar{AutoVar: AutoVar{ex: ex}}
 
 	return ex
 }
