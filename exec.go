@@ -74,7 +74,12 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 	cmds := ev.evalExpr(r.cmd)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
-		runners = append(runners, newRunner(r, cmd))
+		if len(runners) > 0 && strings.HasSuffix(runners[0].cmd, "\\") {
+			runners[0].cmd += "\n"
+			runners[0].cmd += cmd
+		} else {
+			runners = append(runners, newRunner(r, cmd))
+		}
 	}
 	return runners
 }
@@ -333,7 +338,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 		output: output,
 		echo:   true,
 		dryRun: dryRunFlag,
-		shell: ex.shell,
+		shell:  ex.shell,
 	}
 	for _, cmd := range rule.cmds {
 		for _, r := range evalCmd(ev, r, cmd) {
