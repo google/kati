@@ -473,14 +473,18 @@ func (ex *Executor) populateRules(er *EvalResult) {
 	}
 }
 
-func (ex *Executor) exec(er *EvalResult, targets []string) error {
+func NewExecutor(er *EvalResult, vars Vars) *Executor {
+	ex := newExecutor(vars)
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
 	shellVar := ex.vars.Lookup("SHELL")
 	ex.shell = shellVar.String()
 
 	ex.populateRules(er)
+	return ex
+}
 
+func (ex *Executor) Exec(targets []string) error {
 	if len(targets) == 0 {
 		if ex.firstRule == nil {
 			ErrorNoLocation("*** No targets.")
@@ -500,9 +504,4 @@ func (ex *Executor) exec(er *EvalResult, targets []string) error {
 		}
 	}
 	return nil
-}
-
-func Exec(er *EvalResult, targets []string, vars Vars) error {
-	ex := newExecutor(vars)
-	return ex.exec(er, targets)
 }
