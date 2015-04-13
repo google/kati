@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,15 +21,55 @@ type Executor struct {
 	// target -> timestamp, a negative timestamp means the target is
 	// currently being processed.
 	done map[string]int64
+
+	currentOutput string
+	currentInputs []string
+	currentStem   string
+}
+
+type AutoVar struct{ ex *Executor }
+
+func (v AutoVar) Flavor() string  { return "undefined" }
+func (v AutoVar) Origin() string  { return "automatic" }
+func (v AutoVar) IsDefined() bool { panic("not implemented") }
+func (v AutoVar) String() string  { panic("not implemented") }
+func (v AutoVar) Append(ev *Evaluator, s string) Var {
+	panic("must not be called")
+}
+
+type AutoAtVar struct{ AutoVar }
+
+func (v AutoAtVar) Eval(w io.Writer, ev *Evaluator) {
+	fmt.Fprint(w, v.ex.currentOutput)
+}
+
+type AutoLessVar struct{ AutoVar }
+
+func (v AutoLessVar) Eval(w io.Writer, ev *Evaluator) {
+	if len(v.ex.currentInputs) > 0 {
+		fmt.Fprint(w, v.ex.currentInputs[0])
+	}
+}
+
+type AutoHatVar struct{ AutoVar }
+
+func (v AutoHatVar) Eval(w io.Writer, ev *Evaluator) {
+	fmt.Fprint(w, strings.Join(v.ex.currentInputs, " "))
 }
 
 func newExecutor(vars Vars) *Executor {
-	return &Executor{
+	ex := &Executor{
 		rules:       make(map[string]*Rule),
 		suffixRules: make(map[string][]*Rule),
 		done:        make(map[string]int64),
 		vars:        vars,
 	}
+
+	ex.vars["@"] = AutoAtVar{AutoVar: AutoVar{ex: ex}}
+	ex.vars["<"] = AutoLessVar{AutoVar: AutoVar{ex: ex}}
+	ex.vars["^"] = AutoHatVar{AutoVar: AutoVar{ex: ex}}
+
+	return ex
 }
 
 // TODO(ukai): use time.Time?
@@ -312,23 +353,10 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 		return outputTs, nil
 	}
 
-	// automatic variables.
-	ex.vars["@"] = SimpleVar{value: []byte(output), origin: "automatic"}
-	if len(actualInputs) > 0 {
-		ex.vars["<"] = SimpleVar{
-			value:  []byte(actualInputs[0]),
-			origin: "automatic",
-		}
-	} else {
-		ex.vars["<"] = SimpleVar{
-			value:  []byte{},
-			origin: "automatic",
-		}
-	}
-	ex.vars["^"] = SimpleVar{
-		value:  []byte(strings.Join(actualInputs, " ")),
-		origin: "automatic",
-	}
+	// For automatic variables.
+	ex.currentOutput = output
+	ex.currentInputs = actualInputs
+
 	ev := newEvaluator(ex.vars)
 	ev.filename = rule.filename
 	ev.lineno = rule.cmdLineno
