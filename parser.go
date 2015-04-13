@@ -420,10 +420,6 @@ func (p *parser) parse() (mk Makefile, err error) {
 	for !p.done {
 		line := p.readLine()
 
-		if len(bytes.TrimSpace(line)) == 0 {
-			continue
-		}
-
 		if len(p.inDef) > 0 {
 			line = p.processDefineLine(line)
 			if trimLeftSpace(string(line)) == "endef" {
@@ -440,6 +436,10 @@ func (p *parser) parse() (mk Makefile, err error) {
 				continue
 			}
 			p.inDef = append(p.inDef, string(line))
+			continue
+		}
+
+		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
 
