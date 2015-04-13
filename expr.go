@@ -112,10 +112,10 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 // it returns parsed value, and parsed length `n`, so in[n-1] is any byte of
 // term, and in[n:] is next input.
 func parseExpr(in, term []byte) (Value, int, error) {
-	return parseExprImpl(in, term, false)
+	return parseExprImpl(in, term, false, false)
 }
 
-func parseExprImpl(in, term []byte, trimSpace bool) (Value, int, error) {
+func parseExprImpl(in, term []byte, trimSpace bool, inFunc bool) (Value, int, error) {
 	var expr Expr
 	var buf bytes.Buffer
 	i := 0
@@ -173,6 +173,23 @@ Loop:
 				i := bytes.IndexByte(term, 0)
 				term[i] = saveParen
 				saveParen = 0
+			}
+		case '\\':
+			// If you find '\' followed by '\n' in a
+			// function call, we need to handle it as if
+			// we are not in a recipe. See also
+			// processMakefileLine.
+			if inFunc && i+1 < len(in) && in[i+1] == '\n' {
+				trimmed := bytes.TrimRight(buf.Bytes(), "\t ")
+				buf.Reset()
+				buf.Write(trimmed)
+				buf.WriteByte(' ')
+				i = i + 2
+				for i < len(in) && (in[i] == ' ' || in[i] == '\t') {
+					Log("fuck")
+					i++
+				}
+				continue
 			}
 		}
 		buf.WriteByte(ch)
@@ -313,7 +330,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			term = term[:1] // drop ','
 		}
 		trimSpace := (narg == 1 && funcName == "if") || funcName == "and" || funcName == "or"
-		v, n, err := parseExprImpl(in[i:], term, trimSpace)
+		v, n, err := parseExprImpl(in[i:], term, trimSpace, true)
 		if err != nil {
 			return nil, 0, err
 		}
