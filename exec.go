@@ -388,6 +388,41 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 	return true
 }
 
+func mergeRules(oldRule, rule *Rule) *Rule {
+	if oldRule.vars != nil || rule.vars != nil {
+		oldRule.isDoubleColon = rule.isDoubleColon
+		switch {
+		case rule.vars == nil && oldRule.vars != nil:
+			rule.vars = oldRule.vars
+		case rule.vars != nil && oldRule.vars == nil:
+		case rule.vars != nil && oldRule.vars != nil:
+			// parent would be the same vars?
+			oldRule.vars.Merge(rule.vars)
+			rule.vars = oldRule.vars
+		}
+	}
+
+	r := &Rule{}
+	*r = *rule
+	if rule.isDoubleColon {
+		r.cmds = append(oldRule.cmds, r.cmds...)
+	} else if len(oldRule.cmds) > 0 && len(rule.cmds) == 0 {
+		r.cmds = oldRule.cmds
+	}
+	// If the latter rule has a command (regardless of the
+	// commands in oldRule), inputs in the latter rule has a
+	// priority.
+	if len(rule.cmds) > 0 {
+		r.inputs = append(r.inputs, oldRule.inputs...)
+		r.orderOnlyInputs = append(r.orderOnlyInputs, oldRule.orderOnlyInputs...)
+	} else {
+		r.inputs = append(oldRule.inputs, r.inputs...)
+		r.orderOnlyInputs = append(oldRule.orderOnlyInputs, r.orderOnlyInputs...)
+	}
+	r.outputPatterns = append(r.outputPatterns, oldRule.outputPatterns...)
+	return r
+}
+
 func (ex *Executor) populateExplicitRule(rule *Rule) {
 	// It seems rules with no outputs are siliently ignored.
 	if len(rule.outputs) == 0 {
@@ -399,18 +434,6 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
-			if oldRule.vars != nil || rule.vars != nil {
-				oldRule.isDoubleColon = rule.isDoubleColon
-				switch {
-				case rule.vars == nil && oldRule.vars != nil:
-					rule.vars = oldRule.vars
-				case rule.vars != nil && oldRule.vars == nil:
-				case rule.vars != nil && oldRule.vars != nil:
-					// parent would be the same vars?
-					oldRule.vars.Merge(rule.vars)
-					rule.vars = oldRule.vars
-				}
-			}
 			if oldRule.isDoubleColon != rule.isDoubleColon {
 				Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
 			}
@@ -418,16 +441,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
 				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
 			}
-			r := &Rule{}
-			*r = *rule
-			if rule.isDoubleColon {
-				r.cmds = append(oldRule.cmds, r.cmds...)
-			} else if len(oldRule.cmds) > 0 && len(rule.cmds) == 0 {
-				r.cmds = oldRule.cmds
-			}
-			r.inputs = append(r.inputs, oldRule.inputs...)
-			r.outputPatterns = append(r.outputPatterns, oldRule.outputPatterns...)
-			r.orderOnlyInputs = append(r.orderOnlyInputs, oldRule.orderOnlyInputs...)
+			r := mergeRules(oldRule, rule)
 			ex.rules[output] = r
 		} else {
 			ex.rules[output] = rule
