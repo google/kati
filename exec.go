@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -71,6 +72,38 @@ func (v AutoPlusVar) Eval(w io.Writer, ev *Evaluator) {
 	fmt.Fprint(w, strings.Join(v.ex.currentInputs, " "))
 }
 
+type AutoSuffixDVar struct {
+	AutoVar
+	v Var
+}
+
+func (v AutoSuffixDVar) Eval(w io.Writer, ev *Evaluator) {
+	var buf bytes.Buffer
+	v.v.Eval(&buf, ev)
+	for i, tok := range splitSpaces(buf.String()) {
+		if i > 0 {
+			w.Write([]byte{' '})
+		}
+		fmt.Fprint(w, filepath.Dir(tok))
+	}
+}
+
+type AutoSuffixFVar struct {
+	AutoVar
+	v Var
+}
+
+func (v AutoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
+	var buf bytes.Buffer
+	v.v.Eval(&buf, ev)
+	for i, tok := range splitSpaces(buf.String()) {
+		if i > 0 {
+			w.Write([]byte{' '})
+		}
+		fmt.Fprint(w, filepath.Base(tok))
+	}
+}
+
 func newExecutor(vars Vars) *Executor {
 	ex := &Executor{
 		rules:       make(map[string]*Rule),
@@ -79,10 +112,16 @@ func newExecutor(vars Vars) *Executor {
 		vars:        vars,
 	}
 
-	ex.vars["@"] = AutoAtVar{AutoVar: AutoVar{ex: ex}}
-	ex.vars["<"] = AutoLessVar{AutoVar: AutoVar{ex: ex}}
-	ex.vars["^"] = AutoHatVar{AutoVar: AutoVar{ex: ex}}
-	ex.vars["+"] = AutoPlusVar{AutoVar: AutoVar{ex: ex}}
+	for k, v := range map[string]Var{
+		"@": AutoAtVar{AutoVar: AutoVar{ex: ex}},
+		"<": AutoLessVar{AutoVar: AutoVar{ex: ex}},
+		"^": AutoHatVar{AutoVar: AutoVar{ex: ex}},
+		"+": AutoPlusVar{AutoVar: AutoVar{ex: ex}},
+	} {
+		ex.vars[k] = v
+		ex.vars[k+"D"] = AutoSuffixDVar{v: v}
+		ex.vars[k+"F"] = AutoSuffixFVar{v: v}
+	}
 
 	return ex
 }
