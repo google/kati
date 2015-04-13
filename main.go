@@ -152,11 +152,13 @@ func main() {
 	LogStats("eval time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
+	ex := NewExecutor(er, vars)
+	LogStats("exec prepare time: %q", time.Now().Sub(startTime))
 
-	err = Exec(er, targets, vars)
+	startTime = time.Now()
+	err = ex.Exec(targets)
 	if err != nil {
 		panic(err)
 	}
-
 	LogStats("exec time: %q", time.Now().Sub(startTime))
 }
