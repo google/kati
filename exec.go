@@ -388,7 +388,7 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 	return true
 }
 
-func mergeRules(oldRule, rule *Rule) *Rule {
+func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 	if oldRule.vars != nil || rule.vars != nil {
 		oldRule.isDoubleColon = rule.isDoubleColon
 		switch {
@@ -400,6 +400,14 @@ func mergeRules(oldRule, rule *Rule) *Rule {
 			oldRule.vars.Merge(rule.vars)
 			rule.vars = oldRule.vars
 		}
+	}
+
+	if oldRule.isDoubleColon != rule.isDoubleColon {
+		Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
+	}
+	if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 && !isSuffixRule && !rule.isDoubleColon {
+		Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
+		Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
 	}
 
 	r := &Rule{}
@@ -434,14 +442,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
-			if oldRule.isDoubleColon != rule.isDoubleColon {
-				Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
-			}
-			if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 && !isSuffixRule && !rule.isDoubleColon {
-				Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
-				Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
-			}
-			r := mergeRules(oldRule, rule)
+			r := mergeRules(oldRule, rule, output, isSuffixRule)
 			ex.rules[output] = r
 		} else {
 			ex.rules[output] = rule
