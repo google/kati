@@ -54,7 +54,8 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
 
     cleanup
     testcases.each do |tc|
-      output += "=== #{tc} ===\n" + `../../kati -kati_log #{tc} 2>&1`
+      res = IO.popen("../../kati -kati_log #{tc} 2>&1", 'r:binary', &:read)
+      output += "=== #{tc} ===\n" + res
       output_files = get_output_filenames
       output += "\n=== FILES ===\n#{output_files * "\n"}\n"
     end
