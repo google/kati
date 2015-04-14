@@ -28,13 +28,13 @@ class TestCase
     # TODO: Fix.
     if @name == 'android'
       log = log.gsub(/[ \t]+/, ' ')
+      log = log.split("\n").sort.join("\n").sub(/ Stop\.$/, '')
+      # This is a completely sane warning from kati for Android.
+      log.sub!(%r(build/core/product_config.mk:152: warning: Unmatched parens: .*\n), '')
+      # Not sure why the order can be inconsistent, but this would be OK.
+      # TODO: Inevestigate.
+      log.gsub!(/(\.mk\.PRODUCT_COPY_FILES := )(.*)/){$1 + $2.split.sort * ' '}
     end
-    log = log.split("\n").sort.join("\n").sub(/ Stop\.$/, '')
-    # This is a completely sane warning from kati for Android.
-    log.sub!(%r(build/core/product_config.mk:152: warning: Unmatched parens: .*\n), '')
-    # Not sure why the order can be inconsistent, but this would be OK.
-    # TODO: Inevestigate.
-    log.gsub!(/(\.mk\.PRODUCT_COPY_FILES := )(.*)/){$1 + $2.split.sort * ' '}
     File.open(out, 'w') do |of|
       of.print log
     end
