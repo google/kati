@@ -26,6 +26,17 @@ type Executor struct {
 	currentOutput string
 	currentInputs []string
 	currentStem   string
+
+	trace                         []string
+	buildCnt                      int
+	alreadyDoneCnt                int
+	noRuleCnt                     int
+	upToDateCnt                   int
+	runCommandCnt                 int
+	pickExplicitRuleCnt           int
+	pickImplicitRuleCnt           int
+	pickSuffixRuleCnt             int
+	pickExplicitRuleWithoutCmdCnt int
 }
 
 type AutoVar struct{ ex *Executor }
@@ -270,18 +281,21 @@ func (ex *Executor) canPickImplicitRule(rule *Rule, output string) bool {
 func (ex *Executor) pickRule(output string) (*Rule, bool) {
 	rule, present := ex.rules[output]
 	if present {
+		ex.pickExplicitRuleCnt++
 		if len(rule.cmds) > 0 {
 			return rule, true
 		}
 		// If none of the explicit rules for a target has commands,
 		// then `make' searches for an applicable implicit rule to
 		// find some commands.
+		ex.pickExplicitRuleWithoutCmdCnt++
 	}
 
 	for _, irule := range ex.implicitRules {
 		if !ex.canPickImplicitRule(irule, output) {
 			continue
 		}
+		ex.pickImplicitRuleCnt++
 		if rule != nil {
 			r := &Rule{}
 			*r = *rule
@@ -316,6 +330,7 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 		if !ex.exists(replaceSuffix(output, irule.inputs[0])) {
 			continue
 		}
+		ex.pickSuffixRuleCnt++
 		if rule != nil {
 			r := &Rule{}
 			*r = *rule
@@ -336,12 +351,18 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 
 func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	Log("Building: %s", output)
+	ex.buildCnt++
+	if ex.buildCnt%100 == 0 {
+		ex.reportStats()
+	}
+
 	outputTs, ok := ex.done[output]
 	if ok {
 		if outputTs < 0 {
 			fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy, output)
 		}
 		Log("Building: %s already done: %d", output, outputTs)
+		ex.alreadyDoneCnt++
 		return outputTs, nil
 	}
 	ex.done[output] = -1
@@ -351,6 +372,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	if !present {
 		if outputTs >= 0 {
 			ex.done[output] = outputTs
+			ex.noRuleCnt++
 			return outputTs, nil
 		}
 		if neededBy == "" {
@@ -388,7 +410,9 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 		}
 		actualInputs = append(actualInputs, input)
 
+		ex.trace = append(ex.trace, input)
 		ts, err := ex.build(input, output)
+		ex.trace = ex.trace[0 : len(ex.trace)-1]
 		if err != nil {
 			return outputTs, err
 		}
@@ -401,7 +425,10 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 		if exists(input) {
 			continue
 		}
+
+		ex.trace = append(ex.trace, input)
 		ts, err := ex.build(input, output)
+		ex.trace = ex.trace[0 : len(ex.trace)-1]
 		if err != nil {
 			return outputTs, err
 		}
@@ -412,6 +439,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 
 	if outputTs >= latest {
 		ex.done[output] = outputTs
+		ex.upToDateCnt++
 		return outputTs, nil
 	}
 
@@ -452,6 +480,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	}
 	ex.done[output] = outputTs
 	Log("Building: %s done %d", output, outputTs)
+	ex.runCommandCnt++
 	return outputTs, nil
 }
 
@@ -578,6 +607,20 @@ func (ex *Executor) populateRules(er *EvalResult) {
 	}
 }
 
+func (ex *Executor) reportStats() {
+	if !katiLogFlag && !katiStatsFlag {
+		return
+	}
+
+	LogStats("build=%d alreadyDone=%d noRule=%d, upToDate=%d runCommand=%d",
+		ex.buildCnt, ex.alreadyDoneCnt, ex.noRuleCnt, ex.upToDateCnt, ex.runCommandCnt)
+	LogStats("explicit=%d implicit=%d suffix=%d explicitWOCmd=%d",
+		ex.pickExplicitRuleCnt, ex.pickImplicitRuleCnt, ex.pickSuffixRuleCnt, ex.pickExplicitRuleWithoutCmdCnt)
+	if len(ex.trace) > 1 {
+		LogStats("trace=%q", ex.trace)
+	}
+}
+
 func NewExecutor(er *EvalResult, vars Vars) *Executor {
 	ex := newExecutor(vars)
 	// TODO: We should move this to somewhere around evalCmd so that
@@ -603,10 +646,12 @@ func (ex *Executor) Exec(targets []string) error {
 	LogStats("%d suffix rules", len(ex.suffixRules))
 
 	for _, target := range targets {
+		ex.trace = []string{target}
 		_, err := ex.build(target, "")
 		if err != nil {
 			return err
 		}
 	}
+	ex.reportStats()
 	return nil
 }

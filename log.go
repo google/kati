@@ -7,7 +7,7 @@ import (
 	"runtime/pprof"
 )
 
-func log(f string, a ... interface{}) {
+func log(f string, a ...interface{}) {
 	var buf bytes.Buffer
 	buf.WriteString("*kati*: ")
 	buf.WriteString(f)
