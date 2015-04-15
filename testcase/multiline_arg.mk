@@ -1,3 +1,5 @@
+SHELL:=/bin/bash
+
 define func
 $(info INFO: $(1))
 echo $(1)

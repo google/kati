@@ -1,17 +1,22 @@
+MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
+ifeq ($(MAKEVER),4)
+AT=@
+endif
+
 # http://www.gnu.org/software/make/manual/make.html#Splitting-Recipe-Lines
-# TODO: Fix.
+# TODO: Fix the folloing case
 test1:
-	echo no\
+	$(AT) echo no\
 space
-	#echo no\
-	#space
-	echo one \
+	$(AT) # echo no\
+	# space
+	$(AT) echo one \
 	space
-	echo one\
+	$(AT) echo one\
 	 space
 
 test2:
-	for d in foo bar; do \
+	$(AT) for d in foo bar; do \
 	  echo $$d ; done
 
 define cmd3
@@ -31,7 +36,7 @@ test4:
 	$(cmd4)
 
 test5:
-	echo foo \
+	$(AT) echo foo \
 	$$empty bar
 
 # TODO: Fix.
