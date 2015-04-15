@@ -528,18 +528,14 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 }
 
 func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
-	if oldRule == rule {
-		panic("Merging a same rule")
-	}
+	var vars []TargetSpecificVar
 	if oldRule.vars != nil || rule.vars != nil {
 		oldRule.isDoubleColon = rule.isDoubleColon
-		switch {
-		case rule.vars == nil && oldRule.vars != nil:
-			rule.vars = oldRule.vars
-		case rule.vars != nil && oldRule.vars == nil:
-		case rule.vars != nil && oldRule.vars != nil:
-			// parent would be the same vars?
-			rule.vars = append(oldRule.vars, rule.vars...)
+		if oldRule.vars != nil {
+			vars = append(vars, oldRule.vars...)
+		}
+		if rule.vars != nil {
+			vars = append(vars, rule.vars...)
 		}
 	}
 
@@ -553,6 +549,7 @@ func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 
 	r := &Rule{}
 	*r = *rule
+	r.vars = vars
 	if rule.isDoubleColon {
 		r.cmds = append(oldRule.cmds, r.cmds...)
 	} else if len(oldRule.cmds) > 0 && len(rule.cmds) == 0 {
@@ -573,7 +570,6 @@ func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 }
 
 func (ex *Executor) populateExplicitRule(rule *Rule) {
-	fmt.Printf("populateExplicitRule\n")
 	// It seems rules with no outputs are siliently ignored.
 	if len(rule.outputs) == 0 {
 		return
@@ -584,9 +580,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
-			fmt.Printf("merge\n")
 			r := mergeRules(oldRule, rule, output, isSuffixRule)
-			fmt.Printf("merge done\n")
 			ex.rules[output] = r
 		} else {
 			ex.rules[output] = rule
@@ -595,7 +589,6 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 			}
 		}
 	}
-	fmt.Printf("populateExplicitRule done\n")
 }
 
 func (ex *Executor) populateImplicitRule(rule *Rule) {
