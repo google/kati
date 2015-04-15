@@ -92,6 +92,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 	defer maybeWriteHeapProfile()
+	defer dumpStats()
 
 	clvars, targets := parseCommandLine()
 
@@ -141,7 +142,6 @@ func main() {
 		})
 	}
 
-	// TODO(ukai): make variables in commandline.
 	er, err := Eval(mk, vars)
 	if err != nil {
 		panic(err)
