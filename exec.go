@@ -386,10 +386,10 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
 
-	var olds []oldVar
+	var restores []func()
 	if rule.vars != nil {
 		for _, v := range rule.vars {
-			olds = append(olds, newOldVar(ex.vars, v.name))
+			restores = append(restores, ex.vars.save(v.name))
 			switch v.op {
 			case ":=", "=":
 				ex.vars[v.name] = v.v
@@ -410,8 +410,8 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 			}
 		}
 		defer func() {
-			for _, old := range olds {
-				old.restore(ex.vars)
+			for _, restore := range restores {
+				restore()
 			}
 		}()
 	}

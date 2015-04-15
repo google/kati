@@ -561,10 +561,10 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 		Log("call $%d: %q=>%q", i+1, arg, args[i])
 	}
 
-	var olds []oldVar
+	var restores []func()
 	for i, arg := range args {
 		name := fmt.Sprintf("%d", i+1)
-		olds = append(olds, newOldVar(ev.outVars, name))
+		restores = append(restores, ev.outVars.save(name))
 		ev.outVars.Assign(name,
 			SimpleVar{
 				value:  arg,
@@ -574,8 +574,8 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 
 	var buf bytes.Buffer
 	v.Eval(&buf, ev)
-	for _, old := range olds {
-		old.restore(ev.outVars)
+	for _, restore := range restores {
+		restore()
 	}
 	Log("call %q return %q", f.args[0], buf.Bytes())
 	w.Write(buf.Bytes())
@@ -669,7 +669,8 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	varname := string(ev.Value(f.args[0]))
 	list := ev.Values(f.args[1])
 	text := f.args[2]
-	old := newOldVar(ev.outVars, varname)
+	restore := ev.outVars.save(varname)
+	defer restore()
 	space := false
 	for _, word := range list {
 		ev.outVars.Assign(varname,
@@ -683,5 +684,4 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ev.Value(text))
 		space = true
 	}
-	old.restore(ev.outVars)
 }
