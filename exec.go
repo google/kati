@@ -45,7 +45,10 @@ func (v AutoVar) Flavor() string  { return "undefined" }
 func (v AutoVar) Origin() string  { return "automatic" }
 func (v AutoVar) IsDefined() bool { panic("not implemented") }
 func (v AutoVar) String() string  { panic("not implemented") }
-func (v AutoVar) Append(ev *Evaluator, s string) Var {
+func (v AutoVar) Append(*Evaluator, string) Var {
+	panic("must not be called")
+}
+func (v AutoVar) AppendVar(*Evaluator, Var) Var {
 	panic("must not be called")
 }
 
@@ -303,8 +306,8 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			// implicit rule's prerequisites will be used for $<
 			r.inputs = append(irule.inputs, r.inputs...)
 			if irule.vars != nil {
-				r.vars = NewVars(rule.vars)
-				r.vars.Merge(irule.vars)
+				r.vars = append(r.vars, rule.vars...)
+				r.vars = append(r.vars, irule.vars...)
 			}
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
@@ -336,8 +339,8 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			*r = *rule
 			// TODO(ukai): input order is correct?
 			r.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
-			r.vars = NewVars(rule.vars)
-			r.vars.Merge(irule.vars)
+			r.vars = append(r.vars, rule.vars...)
+			r.vars = append(r.vars, irule.vars...)
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
 			r.cmdLineno = irule.cmdLineno
@@ -385,9 +388,26 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 
 	var olds []oldVar
 	if rule.vars != nil {
-		for k, v := range rule.vars {
-			olds = append(olds, newOldVar(ex.vars, k))
-			ex.vars[k] = v
+		for _, v := range rule.vars {
+			olds = append(olds, newOldVar(ex.vars, v.name))
+			switch v.op {
+			case ":=", "=":
+				ex.vars[v.name] = v.v
+			case "+=":
+				oldVar := ex.vars[v.name]
+				// Not sure why make does not append a
+				// whitespace... See
+				// target_specific_var_append.
+				if oldVar.String() == "" {
+					ex.vars[v.name] = v.v
+				} else {
+					ex.vars[v.name] = oldVar.AppendVar(newEvaluator(ex.vars), v.v)
+				}
+			case "?=":
+				if _, present := ex.vars[v.name]; !present {
+					ex.vars[v.name] = v.v
+				}
+			}
 		}
 		defer func() {
 			for _, old := range olds {
@@ -508,6 +528,9 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 }
 
 func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
+	if oldRule == rule {
+		panic("Merging a same rule")
+	}
 	if oldRule.vars != nil || rule.vars != nil {
 		oldRule.isDoubleColon = rule.isDoubleColon
 		switch {
@@ -516,8 +539,7 @@ func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 		case rule.vars != nil && oldRule.vars == nil:
 		case rule.vars != nil && oldRule.vars != nil:
 			// parent would be the same vars?
-			oldRule.vars.Merge(rule.vars)
-			rule.vars = oldRule.vars
+			rule.vars = append(oldRule.vars, rule.vars...)
 		}
 	}
 
@@ -551,6 +573,7 @@ func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 }
 
 func (ex *Executor) populateExplicitRule(rule *Rule) {
+	fmt.Printf("populateExplicitRule\n")
 	// It seems rules with no outputs are siliently ignored.
 	if len(rule.outputs) == 0 {
 		return
@@ -561,7 +584,9 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 		isSuffixRule := ex.populateSuffixRule(rule, output)
 
 		if oldRule, present := ex.rules[output]; present {
+			fmt.Printf("merge\n")
 			r := mergeRules(oldRule, rule, output, isSuffixRule)
+			fmt.Printf("merge done\n")
 			ex.rules[output] = r
 		} else {
 			ex.rules[output] = rule
@@ -570,6 +595,7 @@ func (ex *Executor) populateExplicitRule(rule *Rule) {
 			}
 		}
 	}
+	fmt.Printf("populateExplicitRule done\n")
 }
 
 func (ex *Executor) populateImplicitRule(rule *Rule) {

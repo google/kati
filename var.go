@@ -8,6 +8,7 @@ import (
 type Var interface {
 	Value
 	Append(*Evaluator, string) Var
+	AppendVar(*Evaluator, Var) Var
 	Flavor() string
 	Origin() string
 	IsDefined() bool
@@ -33,6 +34,14 @@ func (v SimpleVar) Append(ev *Evaluator, s string) Var {
 	if err != nil {
 		panic(err)
 	}
+	buf := bytes.NewBuffer(v.value)
+	buf.WriteByte(' ')
+	val.Eval(buf, ev)
+	v.value = buf.Bytes()
+	return v
+}
+
+func (v SimpleVar) AppendVar(ev *Evaluator, val Var) Var {
 	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
 	val.Eval(buf, ev)
@@ -67,6 +76,19 @@ func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
 	return v
 }
 
+func (v RecursiveVar) AppendVar(ev *Evaluator, val Var) Var {
+	var buf bytes.Buffer
+	buf.WriteString(v.expr.String())
+	buf.WriteByte(' ')
+	buf.WriteString(val.String())
+	e, _, err := parseExpr(buf.Bytes(), nil)
+	if err != nil {
+		panic(err)
+	}
+	v.expr = e
+	return v
+}
+
 type UndefinedVar struct{}
 
 func (_ UndefinedVar) Flavor() string  { return "undefined" }
@@ -77,6 +99,10 @@ func (_ UndefinedVar) Eval(_ io.Writer, _ *Evaluator) {
 }
 
 func (_ UndefinedVar) Append(*Evaluator, string) Var {
+	return UndefinedVar{}
+}
+
+func (_ UndefinedVar) AppendVar(_ *Evaluator, val Var) Var {
 	return UndefinedVar{}
 }
 
