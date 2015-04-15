@@ -145,7 +145,11 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 			}
 		}
 		op := assign.op
-		if assign.op != ":=" {
+		if assign.op == "+=" {
+			// We should handle += and ?= later.
+			assign.op = ":="
+		}
+		if assign.op == "?=" {
 			// We should handle += and ?= later.
 			assign.op = "="
 		}
