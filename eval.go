@@ -144,10 +144,14 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}
 		}
-		rule.vars = make(Vars)
+		op := assign.op
+		if assign.op != ":=" {
+			// We should handle += and ?= later.
+			assign.op = "="
+		}
 		lhs, rhs := ev.evalAssignAST(assign)
 		Log("rule outputs:%q assign:%q=%q (flavor:%q)", rule.outputs, lhs, rhs, rhs.Flavor())
-		rule.vars.Assign(lhs, rhs)
+		rule.vars = append(rule.vars, TargetSpecificVar{name: lhs, v: rhs, op: op})
 	} else {
 		if ast.semicolonIndex > 0 {
 			rule.cmds = append(rule.cmds, ast.expr[ast.semicolonIndex+1:])

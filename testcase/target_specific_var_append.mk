@@ -1,23 +1,22 @@
-# TODO: Fix
+all: foo bar baz hoge
 
-all: foo bar baz
-
-foo: X:=PASS
-foo: X+=
-
+foo: A:=PASS_A
+foo: A+=A
 foo:
-	echo $(X)
+	echo A=$(A)
 
-Y:=FAIL
-bar: Y+=
-
+# Note: for some reason, make does not insert a whitespace before OK.
+B:=FAIL_B
+bar: B+=OK
 bar:
-	echo $(Y)
-Y:=
+	echo B=$(B)
+B:=
 
-Z:=FAIL
-baz: Z?=PASS
-
+C:=PASS_C
+baz: C?=FAIL_CC
 baz:
-	echo $(Z)
-Z:=
+	echo C=$(C)
+
+hoge: D?=PASS_D
+hoge:
+	echo D=$(D)
