@@ -29,6 +29,9 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 }
 
 func (ev *Evaluator) Value(v Value) []byte {
+	if v, ok := v.(Valuer); ok {
+		return v.Value()
+	}
 	var buf bytes.Buffer
 	v.Eval(&buf, ev)
 	return buf.Bytes()

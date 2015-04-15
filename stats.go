@@ -1,0 +1,54 @@
+package main
+
+import (
+	"fmt"
+	"sort"
+	"time"
+)
+
+type statsData struct {
+	Name    string
+	Count   int
+	Longest time.Duration
+	Total   time.Duration
+}
+
+var stats = map[string]statsData{}
+
+func addStats(name string, v Value, t time.Time) {
+	if !katiStatsFlag {
+		return
+	}
+	d := time.Now().Sub(t)
+	key := fmt.Sprintf("%s:%s", name, v.String())
+	s := stats[key]
+	if d > s.Longest {
+		s.Longest = d
+	}
+	s.Total += d
+	s.Count++
+	stats[key] = s
+}
+
+func dumpStats() {
+	if !katiStatsFlag {
+		return
+	}
+	var sv byTotalTime
+	for k, v := range stats {
+		v.Name = k
+		sv = append(sv, v)
+	}
+	sort.Sort(sv)
+	for _, s := range sv {
+		fmt.Printf("%s,%d,%v,%v\n", s.Name, s.Count, s.Longest, s.Total)
+	}
+}
+
+type byTotalTime []statsData
+
+func (b byTotalTime) Len() int      { return len(b) }
+func (b byTotalTime) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b byTotalTime) Less(i, j int) bool {
+	return b[i].Total > b[j].Total
+}

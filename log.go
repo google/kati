@@ -52,5 +52,6 @@ func ErrorNoLocation(f string, a ...interface{}) {
 		pprof.StopCPUProfile()
 	}
 	maybeWriteHeapProfile()
+	dumpStats()
 	os.Exit(2)
 }

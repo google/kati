@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 )
 
 var (
@@ -15,6 +16,10 @@ var (
 type Value interface {
 	String() string
 	Eval(w io.Writer, ev *Evaluator)
+}
+
+type Valuer interface {
+	Value() []byte
 }
 
 // literal is literal value.
@@ -34,6 +39,7 @@ func (t tmpval) String() string { return string(t) }
 func (t tmpval) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(t)
 }
+func (t tmpval) Value() []byte { return []byte(t) }
 
 // Expr is a list of values.
 type Expr []Value
@@ -74,9 +80,11 @@ func (v varref) String() string {
 }
 
 func (v varref) Eval(w io.Writer, ev *Evaluator) {
+	t := time.Now()
 	vname := ev.Value(v.varname)
 	vv := ev.LookupVar(string(vname))
 	vv.Eval(w, ev)
+	addStats("var", v, t)
 }
 
 // varsubst is variable substitutaion. e.g. ${var:pat=subst}.
@@ -91,6 +99,7 @@ func (v varsubst) String() string {
 }
 
 func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
+	t := time.Now()
 	vname := ev.Value(v.varname)
 	vv := ev.LookupVar(string(vname))
 	vals := ev.Values(vv)
@@ -104,6 +113,7 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 		fmt.Fprint(w, substRef(string(pat), string(subst), string(val)))
 		space = true
 	}
+	addStats("varsubst", v, t)
 }
 
 // parseExpr parses expression in `in` until it finds any byte in term.
@@ -347,5 +357,19 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 		}
 	}
 	f.SetString(string(in[:i]))
+	if katiStatsFlag {
+		f = funcstats{f}
+	}
 	return f, i, nil
+}
+
+type funcstats struct {
+	Func
+}
+
+func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
+	t := time.Now()
+	f.Func.Eval(w, ev)
+	// TODO(ukai): per functype?
+	addStats("func", f, t)
 }
