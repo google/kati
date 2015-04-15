@@ -139,22 +139,17 @@ func (vt Vars) Merge(vt2 Vars) {
 	}
 }
 
-type oldVar struct {
-	name  string
-	value Var
-}
-
-func newOldVar(vars Vars, name string) oldVar {
-	return oldVar{
-		name:  name,
-		value: vars.Lookup(name),
+// save saves value of the variable named name.
+// calling returned value will restore to the old value at the time
+// when save called.
+func (vt Vars) save(name string) func() {
+	v := vt.Lookup(name)
+	if v.IsDefined() {
+		return func() {
+			vt[name] = v
+		}
 	}
-}
-
-func (old oldVar) restore(vars Vars) {
-	if old.value.IsDefined() {
-		vars[old.name] = old.value
-		return
+	return func() {
+		delete(vt, name)
 	}
-	delete(vars, old.name)
 }
