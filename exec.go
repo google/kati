@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -20,15 +24,22 @@ type Executor struct {
 	// currently being processed.
 	done map[string]int64
 
-	trace          []string
-	buildCnt       int
-	alreadyDoneCnt int
-	noRuleCnt      int
-	upToDateCnt    int
-	runCommandCnt  int
+	currentOutput string
+	currentInputs []string
+	currentStem   string
+
+	trace                         []string
+	buildCnt                      int
+	alreadyDoneCnt                int
+	noRuleCnt                     int
+	upToDateCnt                   int
+	runCommandCnt                 int
+	pickExplicitRuleCnt           int
+	pickImplicitRuleCnt           int
+	pickSuffixRuleCnt             int
+	pickExplicitRuleWithoutCmdCnt int
 }
 
-/*
 type AutoVar struct{ ex *Executor }
 
 func (v AutoVar) Flavor() string  { return "undefined" }
@@ -138,7 +149,6 @@ func newExecutor(vars Vars, ruleVars map[string]Vars) *Executor {
 
 	return ex
 }
-*/
 
 // TODO(ukai): use time.Time?
 func getTimestamp(filename string) int64 {
@@ -149,7 +159,22 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-/*
+func (ex *Executor) exists(target string) bool {
+	_, present := ex.rules[target]
+	if present {
+		return true
+	}
+	rule, present := ex.rules[".PHONY"]
+	if present {
+		for _, input := range rule.inputs {
+			if target == input {
+				return true
+			}
+		}
+	}
+	return exists(target)
+}
+
 type runner struct {
 	output      string
 	cmd         string
@@ -201,13 +226,12 @@ func newRunner(r runner, s string) runner {
 	r.cmd = s
 	return r
 }
-*/
 
-func (r Runner) run(output string) error {
-	if r.echo || dryRunFlag {
+func (r runner) run() error {
+	if r.echo {
 		fmt.Printf("%s\n", r.cmd)
 	}
-	if dryRunFlag {
+	if r.dryRun {
 		return nil
 	}
 	args := []string{r.shell, "-c", r.cmd}
@@ -219,7 +243,7 @@ func (r Runner) run(output string) error {
 	fmt.Printf("%s", out)
 	exit := exitStatus(err)
 	if r.ignoreError && exit != 0 {
-		fmt.Printf("[%s] Error %d (ignored)\n", output, exit)
+		fmt.Printf("[%s] Error %d (ignored)\n", r.output, exit)
 		err = nil
 	}
 	return err
@@ -238,7 +262,6 @@ func exitStatus(err error) int {
 	return exit
 }
 
-/*
 func replaceSuffix(s string, newsuf string) string {
 	// TODO: Factor out the logic around suffix rules and use
 	// it from substitution references.
@@ -351,10 +374,8 @@ func (ex *Executor) pickRule(output string) (*Rule, Vars, bool) {
 	}
 	return rule, vars, rule != nil
 }
-*/
 
-func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
-	output := n.Output
+func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	Log("Building: %s", output)
 	ex.buildCnt++
 	if ex.buildCnt%100 == 0 {
@@ -373,7 +394,8 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 	ex.done[output] = -1
 	outputTs = getTimestamp(output)
 
-	if !n.HasRule {
+	rule, vars, present := ex.pickRule(output)
+	if !present {
 		if outputTs >= 0 {
 			ex.done[output] = outputTs
 			ex.noRuleCnt++
@@ -387,15 +409,66 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 		return outputTs, fmt.Errorf("no rule to make target %q", output)
 	}
 
+	var restores []func()
+	if vars != nil {
+		for name, v := range vars {
+			tsv := v.(TargetSpecificVar)
+			restores = append(restores, ex.vars.save(name))
+			switch tsv.op {
+			case ":=", "=":
+				ex.vars[name] = tsv
+			case "+=":
+				oldVar, present := ex.vars[name]
+				if !present || oldVar.String() == "" {
+					ex.vars[name] = tsv
+				} else {
+					ex.vars[name] = oldVar.AppendVar(newEvaluator(ex.vars), tsv)
+				}
+			case "?=":
+				if _, present := ex.vars[name]; !present {
+					ex.vars[name] = tsv
+				}
+			}
+		}
+		defer func() {
+			for _, restore := range restores {
+				restore()
+			}
+		}()
+	}
+
 	latest := int64(-1)
-	Log("Building: %s inputs:%q", output, n.Deps)
-	for _, d := range n.Deps {
-		if d.IsOrderOnly && exists(d.Output) {
+	var actualInputs []string
+	Log("Building: %s inputs:%q", output, rule.inputs)
+	for _, input := range rule.inputs {
+		if len(rule.outputPatterns) > 0 {
+			if len(rule.outputPatterns) > 1 {
+				panic("TODO: multiple output pattern is not supported yet")
+			}
+			input = substPattern(rule.outputPatterns[0], input, output)
+		} else if rule.isSuffixRule {
+			input = replaceSuffix(output, input)
+		}
+		actualInputs = append(actualInputs, input)
+
+		ex.trace = append(ex.trace, input)
+		ts, err := ex.build(input, output)
+		ex.trace = ex.trace[0 : len(ex.trace)-1]
+		if err != nil {
+			return outputTs, err
+		}
+		if latest < ts {
+			latest = ts
+		}
+	}
+
+	for _, input := range rule.orderOnlyInputs {
+		if exists(input) {
 			continue
 		}
 
-		ex.trace = append(ex.trace, d.Output)
-		ts, err := ex.build(d, output)
+		ex.trace = append(ex.trace, input)
+		ts, err := ex.build(input, output)
 		ex.trace = ex.trace[0 : len(ex.trace)-1]
 		if err != nil {
 			return outputTs, err
@@ -411,11 +484,33 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 		return outputTs, nil
 	}
 
-	for _, r := range n.Runners {
-		err := r.run(output)
+	// For automatic variables.
+	ex.currentOutput = output
+	ex.currentInputs = actualInputs
+
+	ev := newEvaluator(ex.vars)
+	ev.filename = rule.filename
+	ev.lineno = rule.cmdLineno
+	var runners []runner
+	Log("Building: %s cmds:%q", output, rule.cmds)
+	r := runner{
+		output: output,
+		echo:   true,
+		dryRun: dryRunFlag,
+		shell:  ex.shell,
+	}
+	for _, cmd := range rule.cmds {
+		for _, r := range evalCmd(ev, r, cmd) {
+			if len(r.cmd) != 0 {
+				runners = append(runners, r)
+			}
+		}
+	}
+	for _, r := range runners {
+		err := r.run()
 		if err != nil {
 			exit := exitStatus(err)
-			fmt.Printf("[%s] Error %d: %v\n", output, exit, err)
+			fmt.Printf("[%s] Error %d: %v\n", r.output, exit, err)
 			return outputTs, err
 		}
 	}
@@ -430,7 +525,6 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 	return outputTs, nil
 }
 
-/*
 func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 	if len(output) == 0 || output[0] != '.' {
 		return false
@@ -540,7 +634,6 @@ func (ex *Executor) populateRules(er *EvalResult) {
 		ex.implicitRules[j] = r
 	}
 }
-*/
 
 func (ex *Executor) reportStats() {
 	if !katiLogFlag && !katiStatsFlag {
@@ -549,21 +642,44 @@ func (ex *Executor) reportStats() {
 
 	LogStats("build=%d alreadyDone=%d noRule=%d, upToDate=%d runCommand=%d",
 		ex.buildCnt, ex.alreadyDoneCnt, ex.noRuleCnt, ex.upToDateCnt, ex.runCommandCnt)
+	LogStats("explicit=%d implicit=%d suffix=%d explicitWOCmd=%d",
+		ex.pickExplicitRuleCnt, ex.pickImplicitRuleCnt, ex.pickSuffixRuleCnt, ex.pickExplicitRuleWithoutCmdCnt)
 	if len(ex.trace) > 1 {
 		LogStats("trace=%q", ex.trace)
 	}
 }
 
-func NewExecutor() *Executor {
-	ex := &Executor{
-		done: make(map[string]int64),
-	}
+func NewExecutor(er *EvalResult, vars Vars) *Executor {
+	ex := newExecutor(vars, er.ruleVars)
+	// TODO: We should move this to somewhere around evalCmd so that
+	// we can handle SHELL in target specific variables.
+	shellVar := ex.vars.Lookup("SHELL")
+	ex.shell = shellVar.String()
+
+	ex.populateRules(er)
 	return ex
 }
 
-func (ex *Executor) Exec(roots []*DepNode) error {
-	for _, root := range roots {
-		ex.build(root, "")
+func (ex *Executor) Exec(targets []string) error {
+	if len(targets) == 0 {
+		if ex.firstRule == nil {
+			ErrorNoLocation("*** No targets.")
+		}
+		targets = append(targets, ex.firstRule.outputs[0])
 	}
+
+	LogStats("%d variables", len(ex.vars))
+	LogStats("%d explicit rules", len(ex.rules))
+	LogStats("%d implicit rules", len(ex.implicitRules))
+	LogStats("%d suffix rules", len(ex.suffixRules))
+
+	for _, target := range targets {
+		ex.trace = []string{target}
+		_, err := ex.build(target, "")
+		if err != nil {
+			return err
+		}
+	}
+	ex.reportStats()
 	return nil
 }
