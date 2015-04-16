@@ -323,14 +323,15 @@ func skipSpaces(in, term []byte) int {
 }
 
 // parseFunc parses function arguments from in[s:] for f.
+// in[0] is '$' and in[s] is space just after func name.
 // in[:n] will be "${func args...}"
 func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, int, error) {
+	f.AddArg(literal(string(in[1 : s-1])))
 	arity := f.Arity()
 	term = append(term, ',')
 	i := skipSpaces(in[s:], term)
 	i = s + i
 	if i == len(in) {
-		f.SetString(string(in[:i]))
 		return f, i, nil
 	}
 	narg := 1
@@ -356,7 +357,6 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			break
 		}
 	}
-	f.SetString(string(in[:i]))
 	if katiStatsFlag {
 		f = funcstats{f}
 	}

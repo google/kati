@@ -53,6 +53,7 @@ func TestParseExpr(t *testing.T) {
 				&funcSubst{
 					fclosure: fclosure{
 						args: []Value{
+							literal("(subst"),
 							varref{
 								varname: literal("space"),
 							},
@@ -63,7 +64,6 @@ func TestParseExpr(t *testing.T) {
 								varname: literal("foo"),
 							},
 						},
-						expr: "$(subst $(space),$(,),$(foo))",
 					},
 				},
 				literal("/bar"),
@@ -74,6 +74,7 @@ func TestParseExpr(t *testing.T) {
 			val: &funcSubst{
 				fclosure: fclosure{
 					args: []Value{
+						literal("(subst"),
 						varref{
 							varname: literal("space"),
 						},
@@ -87,7 +88,6 @@ func TestParseExpr(t *testing.T) {
 							},
 						},
 					},
-					expr: "$(subst $(space),$,,$(foo))",
 				},
 			},
 		},
@@ -96,9 +96,9 @@ func TestParseExpr(t *testing.T) {
 			val: &funcShell{
 				fclosure: fclosure{
 					args: []Value{
+						literal("(shell"),
 						literal("echo '()'"),
 					},
-					expr: `$(shell echo '()')`,
 				},
 			},
 		},
@@ -107,9 +107,9 @@ func TestParseExpr(t *testing.T) {
 			val: &funcShell{
 				fclosure: fclosure{
 					args: []Value{
+						literal("{shell"),
 						literal("echo '()'"),
 					},
-					expr: `${shell echo '()'}`,
 				},
 			},
 		},
@@ -119,9 +119,9 @@ func TestParseExpr(t *testing.T) {
 				&funcShell{
 					fclosure: fclosure{
 						args: []Value{
+							literal("(shell"),
 							literal("echo '"),
 						},
-						expr: `$(shell echo ')`,
 					},
 				},
 				literal("')"),
@@ -132,9 +132,9 @@ func TestParseExpr(t *testing.T) {
 			val: &funcShell{
 				fclosure: fclosure{
 					args: []Value{
+						literal("{shell"),
 						literal("echo ')'"),
 					},
-					expr: `${shell echo ')'}`,
 				},
 			},
 		},
@@ -144,9 +144,9 @@ func TestParseExpr(t *testing.T) {
 				&funcShell{
 					fclosure: fclosure{
 						args: []Value{
+							literal("{shell"),
 							literal("echo '"),
 						},
-						expr: `${shell echo '}`,
 					},
 				},
 				literal("'}"),
@@ -157,9 +157,9 @@ func TestParseExpr(t *testing.T) {
 			val: &funcShell{
 				fclosure: fclosure{
 					args: []Value{
+						literal("(shell"),
 						literal(`make --version | ruby -n0e 'puts $_[/Make (\d)/,1]'`),
 					},
-					expr: `$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')`,
 				},
 			},
 		},
