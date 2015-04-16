@@ -210,6 +210,22 @@ func TestParseExpr(t *testing.T) {
 				expr: `$(eval ## comment)`,
 			},
 		},
+		{
+			in: `$(eval foo = bar)`,
+			val: &funcEvalAssign{
+				lhs: "foo",
+				op:  "=",
+				rhs: literal("bar"),
+			},
+		},
+		{
+			in: `$(eval foo :=)`,
+			val: &funcEvalAssign{
+				lhs: "foo",
+				op:  ":=",
+				rhs: literal(""),
+			},
+		},
 	} {
 		val, _, err := parseExpr([]byte(tc.in), nil)
 		if tc.isErr {
