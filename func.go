@@ -622,7 +622,7 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	}
 }
 
-func (f *funcEval) Compact() Func {
+func (f *funcEval) Compact() Value {
 	if len(f.args)-1 < 1 {
 		return f
 	}
@@ -675,8 +675,6 @@ func stripComment(arg string) string {
 
 type funcNop struct{ expr string }
 
-func (f *funcNop) Arity() int                 { return 0 }
-func (f *funcNop) AddArg(Value)               {}
 func (f *funcNop) String() string             { return f.expr }
 func (f *funcNop) Eval(io.Writer, *Evaluator) {}
 
@@ -686,10 +684,6 @@ type funcEvalAssign struct {
 	rhs Value
 }
 
-// Arity, AddArg is not used
-// TODO(ukai): separate interface from Func and FuncValue?
-func (f *funcEvalAssign) Arity() int   { return 1 }
-func (f *funcEvalAssign) AddArg(Value) {}
 func (f *funcEvalAssign) String() string {
 	return fmt.Sprintf("$(eval %s %s %s)", f.lhs, f.op, f.rhs)
 }

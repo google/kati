@@ -406,26 +406,28 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			break
 		}
 	}
+	var fv Value
+	fv = f
 	if compactor, ok := f.(Compactor); ok {
-		f = compactor.Compact()
+		fv = compactor.Compact()
 	}
 	if katiStatsFlag {
-		f = funcstats{f}
+		fv = funcstats{fv}
 	}
-	return f, i, nil
+	return fv, i, nil
 }
 
 type Compactor interface {
-	Compact() Func
+	Compact() Value
 }
 
 type funcstats struct {
-	Func
+	Value
 }
 
 func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
 	t := time.Now()
-	f.Func.Eval(w, ev)
+	f.Value.Eval(w, ev)
 	// TODO(ukai): per functype?
 	addStats("func", f, t)
 }
