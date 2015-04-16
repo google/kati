@@ -390,7 +390,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			return nil, 0, err
 		}
 		v = concatLine(v)
-		// TODO(ukai): do this in funcIf, funcAnd, or funcOr?
+		// TODO(ukai): do this in funcIf, funcAnd, or funcOr's compactor?
 		if (narg == 1 && funcName == "if") || funcName == "and" || funcName == "or" {
 			v = trimLiteralSpace(v)
 		}
@@ -406,10 +406,17 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			break
 		}
 	}
+	if compactor, ok := f.(Compactor); ok {
+		f = compactor.Compact()
+	}
 	if katiStatsFlag {
 		f = funcstats{f}
 	}
 	return f, i, nil
+}
+
+type Compactor interface {
+	Compact() Func
 }
 
 type funcstats struct {

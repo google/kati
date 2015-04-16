@@ -612,9 +612,6 @@ func (f *funcEval) Arity() int { return 1 }
 func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("eval", 1, len(f.args))
 	s := ev.Value(f.args[1])
-	if len(s) == 0 || (s[0] == '#' && bytes.IndexByte(s, '\n') < 0) {
-		return
-	}
 	mk, err := ParseMakefileBytes(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
@@ -624,6 +621,47 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 		ev.eval(stmt)
 	}
 }
+
+func (f *funcEval) Compact() Func {
+	if len(f.args)-1 < 1 {
+		return f
+	}
+	switch f.args[1].(type) {
+	case literal, tmpval:
+	default:
+		// TODO(ukai): eval -> varassign. e.g. $(eval foo := $(x))
+		return f
+	}
+	arg := f.args[1].String()
+	arg = stripComment(arg)
+	if arg == "" {
+		return &funcNop{expr: f.String()}
+	}
+	// TODO(ukai): preserve comment for String()?
+	f.args[1] = literal(arg)
+	return f
+}
+
+func stripComment(arg string) string {
+	for {
+		i := strings.Index(arg, "#")
+		if i < 0 {
+			return arg
+		}
+		eol := strings.Index(arg[i:], "\n")
+		if eol < 0 {
+			return arg[:i]
+		}
+		arg = arg[:i] + arg[eol+1:]
+	}
+}
+
+type funcNop struct{ expr string }
+
+func (f *funcNop) Arity() int                 { return 0 }
+func (f *funcNop) AddArg(Value)               {}
+func (f *funcNop) String() string             { return f.expr }
+func (f *funcNop) Eval(io.Writer, *Evaluator) {}
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function
 type funcOrigin struct{ fclosure }

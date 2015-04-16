@@ -204,6 +204,12 @@ func TestParseExpr(t *testing.T) {
 				},
 			},
 		},
+		{
+			in: `$(eval ## comment)`,
+			val: &funcNop{
+				expr: `$(eval ## comment)`,
+			},
+		},
 	} {
 		val, _, err := parseExpr([]byte(tc.in), nil)
 		if tc.isErr {
