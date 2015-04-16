@@ -14,6 +14,7 @@ import (
 
 type Executor struct {
 	rules         map[string]*Rule
+	ruleVars      map[string]Vars
 	implicitRules []*Rule
 	suffixRules   map[string][]*Rule
 	firstRule     *Rule
@@ -125,9 +126,10 @@ func (v AutoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
 	}
 }
 
-func newExecutor(vars Vars) *Executor {
+func newExecutor(vars Vars, ruleVars map[string]Vars) *Executor {
 	ex := &Executor{
 		rules:       make(map[string]*Rule),
+		ruleVars:    ruleVars,
 		suffixRules: make(map[string][]*Rule),
 		done:        make(map[string]int64),
 		vars:        vars,
@@ -281,12 +283,33 @@ func (ex *Executor) canPickImplicitRule(rule *Rule, output string) bool {
 	return true
 }
 
-func (ex *Executor) pickRule(output string) (*Rule, bool) {
+func (ex *Executor) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
+	if len(outputs) != 1 {
+		panic(fmt.Sprintf("Implicit rule should have only one output but %q", outputs))
+	}
+	Log("merge? %q", ex.ruleVars)
+	Log("merge? %q", outputs[0])
+	ivars, present := ex.ruleVars[outputs[0]]
+	if !present {
+		return vars
+	}
+	if vars == nil {
+		return ivars
+	}
+	Log("merge!")
+	v := make(Vars)
+	v.Merge(ivars)
+	v.Merge(vars)
+	return v
+}
+
+func (ex *Executor) pickRule(output string) (*Rule, Vars, bool) {
 	rule, present := ex.rules[output]
+	vars := ex.ruleVars[output]
 	if present {
 		ex.pickExplicitRuleCnt++
 		if len(rule.cmds) > 0 {
-			return rule, true
+			return rule, vars, true
 		}
 		// If none of the explicit rules for a target has commands,
 		// then `make' searches for an applicable implicit rule to
@@ -305,26 +328,25 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			r.outputPatterns = irule.outputPatterns
 			// implicit rule's prerequisites will be used for $<
 			r.inputs = append(irule.inputs, r.inputs...)
-			if irule.vars != nil {
-				r.vars = append(r.vars, rule.vars...)
-				r.vars = append(r.vars, irule.vars...)
-			}
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
 			r.cmdLineno = irule.cmdLineno
-			return r, true
+			return r, vars, true
+		}
+		if vars != nil {
+			vars = ex.mergeImplicitRuleVars(irule.outputPatterns, vars)
 		}
 		// TODO(ukai): check len(irule.cmd) ?
-		return irule, true
+		return irule, vars, true
 	}
 
 	outputSuffix := filepath.Ext(output)
 	if !strings.HasPrefix(outputSuffix, ".") {
-		return rule, rule != nil
+		return rule, vars, rule != nil
 	}
 	rules, present := ex.suffixRules[outputSuffix[1:]]
 	if !present {
-		return rule, rule != nil
+		return rule, vars, rule != nil
 	}
 	for _, irule := range rules {
 		if len(irule.inputs) != 1 {
@@ -339,17 +361,18 @@ func (ex *Executor) pickRule(output string) (*Rule, bool) {
 			*r = *rule
 			// TODO(ukai): input order is correct?
 			r.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
-			r.vars = append(r.vars, rule.vars...)
-			r.vars = append(r.vars, irule.vars...)
 			r.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
 			r.cmdLineno = irule.cmdLineno
-			return r, true
+			return r, vars, true
+		}
+		if vars != nil {
+			vars = ex.mergeImplicitRuleVars(irule.outputs, vars)
 		}
 		// TODO(ukai): check len(irule.cmd) ?
-		return irule, true
+		return irule, vars, true
 	}
-	return rule, rule != nil
+	return rule, vars, rule != nil
 }
 
 func (ex *Executor) build(output string, neededBy string) (int64, error) {
@@ -371,7 +394,7 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	ex.done[output] = -1
 	outputTs = getTimestamp(output)
 
-	rule, present := ex.pickRule(output)
+	rule, vars, present := ex.pickRule(output)
 	if !present {
 		if outputTs >= 0 {
 			ex.done[output] = outputTs
@@ -387,25 +410,23 @@ func (ex *Executor) build(output string, neededBy string) (int64, error) {
 	}
 
 	var restores []func()
-	if rule.vars != nil {
-		for _, v := range rule.vars {
-			restores = append(restores, ex.vars.save(v.name))
-			switch v.op {
+	if vars != nil {
+		for name, v := range vars {
+			tsv := v.(TargetSpecificVar)
+			restores = append(restores, ex.vars.save(name))
+			switch tsv.op {
 			case ":=", "=":
-				ex.vars[v.name] = v.v
+				ex.vars[name] = tsv
 			case "+=":
-				oldVar := ex.vars[v.name]
-				// Not sure why make does not append a
-				// whitespace... See
-				// target_specific_var_append.
-				if oldVar.String() == "" {
-					ex.vars[v.name] = v.v
+				oldVar, present := ex.vars[name]
+				if !present || oldVar.String() == "" {
+					ex.vars[name] = tsv
 				} else {
-					ex.vars[v.name] = oldVar.AppendVar(newEvaluator(ex.vars), v.v)
+					ex.vars[name] = oldVar.AppendVar(newEvaluator(ex.vars), tsv)
 				}
 			case "?=":
-				if _, present := ex.vars[v.name]; !present {
-					ex.vars[v.name] = v.v
+				if _, present := ex.vars[name]; !present {
+					ex.vars[name] = tsv
 				}
 			}
 		}
@@ -528,17 +549,6 @@ func (ex *Executor) populateSuffixRule(rule *Rule, output string) bool {
 }
 
 func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
-	var vars []TargetSpecificVar
-	if oldRule.vars != nil || rule.vars != nil {
-		oldRule.isDoubleColon = rule.isDoubleColon
-		if oldRule.vars != nil {
-			vars = append(vars, oldRule.vars...)
-		}
-		if rule.vars != nil {
-			vars = append(vars, rule.vars...)
-		}
-	}
-
 	if oldRule.isDoubleColon != rule.isDoubleColon {
 		Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
 	}
@@ -549,7 +559,6 @@ func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 
 	r := &Rule{}
 	*r = *rule
-	r.vars = vars
 	if rule.isDoubleColon {
 		r.cmds = append(oldRule.cmds, r.cmds...)
 	} else if len(oldRule.cmds) > 0 && len(rule.cmds) == 0 {
@@ -641,7 +650,7 @@ func (ex *Executor) reportStats() {
 }
 
 func NewExecutor(er *EvalResult, vars Vars) *Executor {
-	ex := newExecutor(vars)
+	ex := newExecutor(vars, er.ruleVars)
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
 	shellVar := ex.vars.Lookup("SHELL")

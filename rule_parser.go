@@ -5,12 +5,6 @@ import (
 	"strings"
 )
 
-type TargetSpecificVar struct {
-	name string
-	v    Var
-	op   string
-}
-
 type Rule struct {
 	outputs         []string
 	inputs          []string
@@ -18,7 +12,6 @@ type Rule struct {
 	outputPatterns  []string
 	isDoubleColon   bool
 	isSuffixRule    bool
-	vars            []TargetSpecificVar
 	cmds            []string
 	filename        string
 	lineno          int

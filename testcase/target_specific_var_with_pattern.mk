@@ -1,5 +1,3 @@
-# TODO: Fix
-
 test: foo.x
 
 foo.x: X:=PASS
@@ -8,4 +6,4 @@ foo.x: X:=PASS
 %.x: Y:=PASS
 
 %.x:
-	echo $(X) $(Y)
+	echo X=$(X) Y=$(Y)
