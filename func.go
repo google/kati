@@ -637,8 +637,25 @@ func (f *funcEval) Compact() Func {
 	if arg == "" {
 		return &funcNop{expr: f.String()}
 	}
-	// TODO(ukai): preserve comment for String()?
 	f.args[1] = literal(arg)
+	eq := strings.Index(arg, "=")
+	if eq >= 0 {
+		// TODO(ukai): factor out parse assign?
+		lhs := arg[:eq]
+		op := arg[eq : eq+1]
+		if eq >= 1 && (arg[eq-1] == ':' || arg[eq-1] == '+' || arg[eq-1] == '?') {
+			lhs = arg[:eq-1]
+			op = arg[eq-1 : eq+1]
+		}
+		lhs = strings.TrimSpace(lhs)
+		// no $... in rhs too.
+		rhs := literal(strings.TrimLeft(arg[eq+1:], " \t"))
+		return &funcEvalAssign{
+			lhs: lhs,
+			op:  op,
+			rhs: rhs,
+		}
+	}
 	return f
 }
 
@@ -662,6 +679,45 @@ func (f *funcNop) Arity() int                 { return 0 }
 func (f *funcNop) AddArg(Value)               {}
 func (f *funcNop) String() string             { return f.expr }
 func (f *funcNop) Eval(io.Writer, *Evaluator) {}
+
+type funcEvalAssign struct {
+	lhs string
+	op  string
+	rhs Value
+}
+
+// Arity, AddArg is not used
+// TODO(ukai): separate interface from Func and FuncValue?
+func (f *funcEvalAssign) Arity() int   { return 1 }
+func (f *funcEvalAssign) AddArg(Value) {}
+func (f *funcEvalAssign) String() string {
+	return fmt.Sprintf("$(eval %s %s %s)", f.lhs, f.op, f.rhs)
+}
+
+func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
+	rhs := ev.Value(f.rhs)
+	var rvalue Var
+	switch f.op {
+	case ":=":
+		rvalue = SimpleVar{value: tmpval(rhs), origin: "file"}
+	case "=":
+		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
+	case "+=":
+		prev := ev.LookupVar(f.lhs)
+		if !prev.IsDefined() {
+			rvalue = prev.Append(ev, string(rhs))
+		} else {
+			rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
+		}
+	case "?=":
+		prev := ev.LookupVar(f.lhs)
+		if prev.IsDefined() {
+			return
+		}
+		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
+	}
+	ev.outVars.Assign(f.lhs, rvalue)
+}
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function
 type funcOrigin struct{ fclosure }
