@@ -163,6 +163,47 @@ func TestParseExpr(t *testing.T) {
 				},
 			},
 		},
+		{
+			in: `$(and ${TRUE}, $(X)   )`,
+			val: &funcAnd{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(and"),
+						varref{
+							varname: literal("TRUE"),
+						},
+						varref{
+							varname: literal("X"),
+						},
+					},
+				},
+			},
+		},
+		{
+			in: `$(call func, \
+	foo)`,
+			val: &funcCall{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(call"),
+						literal("func"),
+						literal(" foo"),
+					},
+				},
+			},
+		},
+		{
+			in: `$(call func, \)`,
+			val: &funcCall{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(call"),
+						literal("func"),
+						literal(` \`),
+					},
+				},
+			},
+		},
 	} {
 		val, _, err := parseExpr([]byte(tc.in), nil)
 		if tc.isErr {

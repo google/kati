@@ -122,20 +122,11 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 // it returns parsed value, and parsed length `n`, so in[n-1] is any byte of
 // term, and in[n:] is next input.
 func parseExpr(in, term []byte) (Value, int, error) {
-	return parseExprImpl(in, term, false, false)
-}
-
-func parseExprImpl(in, term []byte, trimSpace bool, inFunc bool) (Value, int, error) {
 	var expr Expr
 	var buf bytes.Buffer
 	i := 0
 	var saveParen byte
 	parenDepth := 0
-	if trimSpace {
-		for i < len(in) && (in[i] == ' ' || in[i] == '\t') {
-			i++
-		}
-	}
 Loop:
 	for i < len(in) {
 		ch := in[i]
@@ -184,32 +175,12 @@ Loop:
 				term[i] = saveParen
 				saveParen = 0
 			}
-		case '\\':
-			// If you find '\' followed by '\n' in a
-			// function call, we need to handle it as if
-			// we are not in a recipe. See also
-			// processMakefileLine.
-			if inFunc && i+1 < len(in) && in[i+1] == '\n' {
-				trimmed := bytes.TrimRight(buf.Bytes(), "\t ")
-				buf.Reset()
-				buf.Write(trimmed)
-				buf.WriteByte(' ')
-				i = i + 2
-				for i < len(in) && (in[i] == ' ' || in[i] == '\t') {
-					Log("fuck")
-					i++
-				}
-				continue
-			}
 		}
 		buf.WriteByte(ch)
 		i++
 	}
 	if buf.Len() > 0 {
 		s := buf.String()
-		if trimSpace {
-			s = strings.TrimSpace(s)
-		}
 		expr = append(expr, literal(s))
 	}
 	if i == len(in) && term != nil {
@@ -322,6 +293,80 @@ func skipSpaces(in, term []byte) int {
 	return len(in)
 }
 
+// trimLiteralSpace trims literal space around v.
+func trimLiteralSpace(v Value) Value {
+	switch v := v.(type) {
+	case literal:
+		return literal(strings.TrimSpace(string(v)))
+	case tmpval:
+		b := bytes.TrimSpace([]byte(v))
+		if len(b) == 0 {
+			return literal("")
+		}
+		return tmpval(b)
+	case Expr:
+		if len(v) == 0 {
+			return v
+		}
+		switch s := v[0].(type) {
+		case literal, tmpval:
+			t := trimLiteralSpace(s)
+			if t == literal("") {
+				v = v[1:]
+			} else {
+				v[0] = t
+			}
+		}
+		switch s := v[len(v)-1].(type) {
+		case literal, tmpval:
+			t := trimLiteralSpace(s)
+			if t == literal("") {
+				v = v[:len(v)-1]
+			} else {
+				v[len(v)-1] = t
+			}
+		}
+		return compactExpr(v)
+	}
+	return v
+}
+
+// concatLine concatinates line with "\\\n" in function expression.
+func concatLine(v Value) Value {
+	switch v := v.(type) {
+	case literal:
+		for {
+			s := string(v)
+			i := strings.Index(s, "\\\n")
+			if i < 0 {
+				return v
+			}
+			v = literal(s[:i] + strings.TrimLeft(s[i+2:], " \t"))
+		}
+	case tmpval:
+		for {
+			b := []byte(v)
+			i := bytes.Index(b, []byte{'\\', '\n'})
+			if i < 0 {
+				return v
+			}
+			var buf bytes.Buffer
+			buf.Write(b[:i])
+			buf.Write(bytes.TrimLeft(b[i+2:], " \t"))
+			return tmpval(buf.Bytes())
+		}
+	case Expr:
+		for i := range v {
+			switch vv := v[i].(type) {
+			case literal, tmpval:
+				v[i] = concatLine(vv)
+			}
+		}
+		return v
+	}
+	return v
+}
+
 // parseFunc parses function arguments from in[s:] for f.
 // in[0] is '$' and in[s] is space just after func name.
 // in[:n] will be "${func args...}"
@@ -340,10 +385,14 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			// final arguments.
 			term = term[:1] // drop ','
 		}
-		trimSpace := (narg == 1 && funcName == "if") || funcName == "and" || funcName == "or"
-		v, n, err := parseExprImpl(in[i:], term, trimSpace, true)
+		v, n, err := parseExpr(in[i:], term)
 		if err != nil {
 			return nil, 0, err
+		}
+		v = concatLine(v)
+		// TODO(ukai): do this in funcIf, funcAnd, or funcOr?
+		if (narg == 1 && funcName == "if") || funcName == "and" || funcName == "or" {
+			v = trimLiteralSpace(v)
 		}
 		f.AddArg(v)
 		i += n
