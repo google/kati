@@ -152,19 +152,11 @@ func main() {
 	LogStats("eval time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
-	ce := NewCommandEvaluator(er, vars)
-	LogStats("eval command prepare time: %q", time.Now().Sub(startTime))
+	ex := NewExecutor(er, vars)
+	LogStats("exec prepare time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
-	nodes, err2 := ce.Eval(targets)
-	if err2 != nil {
-		panic(err2)
-	}
-	LogStats("eval command time: %q", time.Now().Sub(startTime))
-
-	startTime = time.Now()
-	ex := NewExecutor()
-	err = ex.Exec(nodes)
+	err = ex.Exec(targets)
 	if err != nil {
 		panic(err)
 	}
