@@ -7,15 +7,18 @@ import (
 )
 
 type EvalResult struct {
-	vars  Vars
-	rules []*Rule
+	vars     Vars
+	rules    []*Rule
+	ruleVars map[string]Vars
 }
 
 type Evaluator struct {
-	outVars  Vars
-	outRules []*Rule
-	vars     Vars
-	lastRule *Rule
+	outVars      Vars
+	outRules     []*Rule
+	outRuleVars  map[string]Vars
+	vars         Vars
+	lastRule     *Rule
+	currentScope Vars
 
 	filename string
 	lineno   int
@@ -23,8 +26,9 @@ type Evaluator struct {
 
 func newEvaluator(vars map[string]Var) *Evaluator {
 	return &Evaluator{
-		outVars: make(Vars),
-		vars:    vars,
+		outVars:     make(Vars),
+		vars:        vars,
+		outRuleVars: make(map[string]Vars),
 	}
 }
 
@@ -104,6 +108,19 @@ func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 	return lhs, rhs
 }
 
+func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
+	vars, present := ev.outRuleVars[output]
+	if !present {
+		vars = make(Vars)
+		ev.outRuleVars[output] = vars
+	}
+	ev.currentScope = vars
+	lhs, rhs := ev.evalAssignAST(assign)
+	Log("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
+	vars.Assign(lhs, TargetSpecificVar{v: rhs, op: assign.op})
+	ev.currentScope = nil
+}
+
 func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
@@ -120,7 +137,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.equalIndex >= 0 {
 		line += ast.expr[ast.equalIndex:]
 	}
-	Log("rule? %q=>%q", expr, line)
+	Log("rule? %q=>%q", ast.expr, line)
 
 	// See semicolon.mk.
 	if strings.TrimRight(line, " \t\n;") == "" {
@@ -147,24 +164,19 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}
 		}
-		op := assign.op
-		if assign.op == "+=" {
-			// We should handle += and ?= later.
-			assign.op = ":="
+		for _, output := range rule.outputs {
+			ev.setTargetSpecificVar(assign, output)
 		}
-		if assign.op == "?=" {
-			// We should handle += and ?= later.
-			assign.op = "="
+		for _, output := range rule.outputPatterns {
+			ev.setTargetSpecificVar(assign, output)
 		}
-		lhs, rhs := ev.evalAssignAST(assign)
-		Log("rule outputs:%q assign:%q=%q (flavor:%q)", rule.outputs, lhs, rhs, rhs.Flavor())
-		rule.vars = append(rule.vars, TargetSpecificVar{name: lhs, v: rhs, op: op})
-	} else {
-		if ast.semicolonIndex > 0 {
-			rule.cmds = append(rule.cmds, ast.expr[ast.semicolonIndex+1:])
-		}
-		Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
+		return
 	}
+
+	if ast.semicolonIndex > 0 {
+		rule.cmds = append(rule.cmds, ast.expr[ast.semicolonIndex+1:])
+	}
+	Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	ev.lastRule = rule
 	ev.outRules = append(ev.outRules, rule)
 }
@@ -195,6 +207,24 @@ func (ev *Evaluator) evalCommand(ast *CommandAST) {
 }
 
 func (ev *Evaluator) LookupVar(name string) Var {
+	if ev.currentScope != nil {
+		v := ev.currentScope.Lookup(name)
+		if v.IsDefined() {
+			return v
+		}
+	}
+	v := ev.outVars.Lookup(name)
+	if v.IsDefined() {
+		return v
+	}
+	return ev.vars.Lookup(name)
+}
+
+func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
+	if ev.currentScope != nil {
+		v := ev.currentScope.Lookup(name)
+		return v
+	}
 	v := ev.outVars.Lookup(name)
 	if v.IsDefined() {
 		return v
@@ -284,7 +314,8 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 		ev.eval(stmt)
 	}
 	return &EvalResult{
-		vars:  ev.outVars,
-		rules: ev.outRules,
+		vars:     ev.outVars,
+		rules:    ev.outRules,
+		ruleVars: ev.outRuleVars,
 	}, nil
 }

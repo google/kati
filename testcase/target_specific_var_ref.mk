@@ -1,5 +1,3 @@
-# TODO: Fix
-
 test: foo bar
 
 X:=FAIL

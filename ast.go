@@ -44,7 +44,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		}
 		return RecursiveVar{expr: v, origin: origin}
 	case "+=":
-		prev := ev.LookupVar(lhs)
+		prev := ev.LookupVarInCurrentScope(lhs)
 		if !prev.IsDefined() {
 			v, _, err := parseExpr([]byte(ast.rhs), nil)
 			if err != nil {
@@ -54,7 +54,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		}
 		return prev.Append(ev, ast.rhs)
 	case "?=":
-		prev := ev.LookupVar(lhs)
+		prev := ev.LookupVarInCurrentScope(lhs)
 		if prev.IsDefined() {
 			return prev
 		}

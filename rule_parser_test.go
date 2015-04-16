@@ -114,6 +114,17 @@ func TestRuleParser(t *testing.T) {
 				op:  ":=",
 			},
 		},
+		{
+			in: "%.o: CFLAGS := -g",
+			want: Rule{
+				outputPatterns: []string{"%.o"},
+			},
+			assign: &AssignAST{
+				lhs: "CFLAGS",
+				rhs: "-g",
+				op:  ":=",
+			},
+		},
 		/* TODO
 		{
 			in:  "foo.o: %.c: %.c",

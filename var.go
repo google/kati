@@ -14,6 +14,42 @@ type Var interface {
 	IsDefined() bool
 }
 
+type TargetSpecificVar struct {
+	v  Var
+	op string
+}
+
+func (v TargetSpecificVar) Append(ev *Evaluator, s string) Var {
+	return TargetSpecificVar{
+		v:  v.v.Append(ev, s),
+		op: v.op,
+	}
+}
+func (v TargetSpecificVar) AppendVar(ev *Evaluator, v2 Var) Var {
+	return TargetSpecificVar{
+		v:  v.v.AppendVar(ev, v2),
+		op: v.op,
+	}
+}
+func (v TargetSpecificVar) Flavor() string {
+	return v.v.Flavor()
+}
+func (v TargetSpecificVar) Origin() string {
+	return v.v.Origin()
+}
+func (v TargetSpecificVar) IsDefined() bool {
+	return v.v.IsDefined()
+}
+func (v TargetSpecificVar) String() string {
+	// TODO: If we add the info of |op| a test starts
+	// failing. Shouldn't we use this only for debugging?
+	return v.v.String()
+	// return v.v.String() + " (op=" + v.op + ")"
+}
+func (v TargetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
+	v.v.Eval(w, ev)
+}
+
 type SimpleVar struct {
 	// TODO(ukai): []byte -> Value (literal or so?)
 	value  []byte
