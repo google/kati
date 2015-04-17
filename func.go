@@ -739,7 +739,11 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 	var rvalue Var
 	switch f.op {
 	case ":=":
-		rvalue = SimpleVar{value: tmpval(rhs), origin: "file"}
+		expr, _, err := parseExpr(rhs, nil)
+		if err != nil {
+			panic(fmt.Sprintf("eval assign error: %q: %v", f.String(), err))
+		}
+		rvalue = SimpleVar{value: tmpval(ev.Value(expr)), origin: "file"}
 	case "=":
 		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
