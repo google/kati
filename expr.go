@@ -124,6 +124,7 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 func parseExpr(in, term []byte) (Value, int, error) {
 	var expr Expr
 	var buf bytes.Buffer
+	b := 0
 	i := 0
 	var saveParen byte
 	parenDepth := 0
@@ -139,15 +140,23 @@ Loop:
 				break Loop
 			}
 			if in[i+1] == '$' {
-				buf.WriteByte('$')
+				buf.Write(in[b : i+1])
 				i += 2
+				b = i
 				continue
 			}
 			if bytes.IndexByte(term, in[i+1]) >= 0 {
+				buf.Write(in[b:i])
+				if buf.Len() > 0 {
+					expr = append(expr, literal(buf.String()))
+					buf.Reset()
+				}
 				expr = append(expr, varref{varname: literal("")})
 				i++
+				b = i
 				break Loop
 			}
+			buf.Write(in[b:i])
 			if buf.Len() > 0 {
 				expr = append(expr, literal(buf.String()))
 				buf.Reset()
@@ -157,6 +166,7 @@ Loop:
 				return nil, 0, err
 			}
 			i += n
+			b = i
 			expr = append(expr, v)
 			continue
 		case '(', '{':
@@ -176,9 +186,9 @@ Loop:
 				saveParen = 0
 			}
 		}
-		buf.WriteByte(ch)
 		i++
 	}
+	buf.Write(in[b:i])
 	if buf.Len() > 0 {
 		s := buf.String()
 		expr = append(expr, literal(s))

@@ -190,7 +190,12 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 		// fast path
 		return []runner{r}
 	}
-	cmds := ev.evalExpr(r.cmd)
+	// TODO(ukai): parse once more earlier?
+	expr, _, err := parseExpr([]byte(r.cmd), nil)
+	if err != nil {
+		panic(fmt.Errorf("parse cmd %q: %v", r.cmd, err))
+	}
+	cmds := string(ev.Value(expr))
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
 		if len(runners) > 0 && strings.HasSuffix(runners[0].cmd, "\\") {

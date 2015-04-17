@@ -36,7 +36,11 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	}
 	switch ast.op {
 	case ":=":
-		return SimpleVar{value: ev.evalExprBytes(ast.rhs), origin: origin}
+		rexpr, _, err := parseExpr([]byte(ast.rhs), nil)
+		if err != nil {
+			panic(fmt.Errorf("parse assign rhs %s:%d %v", ast.filename, ast.lineno, err))
+		}
+		return SimpleVar{value: ev.Value(rexpr), origin: origin}
 	case "=":
 		v, _, err := parseExpr([]byte(ast.rhs), nil)
 		if err != nil {
