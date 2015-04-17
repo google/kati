@@ -650,6 +650,16 @@ func (f *funcEval) Compact() Value {
 		lhs = strings.TrimSpace(lhs)
 		// no $... in rhs too.
 		rhs := literal(strings.TrimLeft(arg[eq+1:], " \t"))
+		if strings.IndexAny(lhs, ":$") >= 0 {
+			// target specific var define? or need eval.
+			return f
+		}
+		if strings.Index(string(rhs), "$") >= 0 {
+			// need eval. e.g. rhs was "$$(foo)", it is literal
+			// "$(foo)", so need eval at runtime.
+			// TODO(ukai): make it funcEvalAssign.
+			return f
+		}
 		return &funcEvalAssign{
 			lhs: lhs,
 			op:  op,
