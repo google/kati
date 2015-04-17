@@ -237,6 +237,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
+	Log("%s:%d include %q", ev.filename, ev.lineno, ast.expr)
 	// TODO: Handle glob
 	v, _, err := parseExpr([]byte(ast.expr), nil)
 	if err != nil {
@@ -245,7 +246,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	files := ev.Values(v)
 	for _, f := range files {
 		file := string(f)
-		Log("Reading makefile `%s'", file)
+		Log("Reading makefile %q", file)
 		mk, err := ParseMakefile(file)
 		if err != nil {
 			if ast.op == "include" {
@@ -302,7 +303,7 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 	ev := newEvaluator(vars)
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v", r)
+			err = fmt.Errorf("panic in eval %s: %v", mk.filename, r)
 		}
 	}()
 

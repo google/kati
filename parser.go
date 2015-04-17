@@ -80,7 +80,7 @@ func (p *parser) readLine() []byte {
 	if err == io.EOF {
 		p.done = true
 	} else if err != nil {
-		panic(err)
+		panic(fmt.Errorf("readline %s:%d: %v", p.mk.filename, p.lineno, err))
 	}
 
 	line = bytes.TrimRight(line, "\r\n")
@@ -414,7 +414,7 @@ func defineDirective(p *parser, line string) {
 func (p *parser) parse() (mk Makefile, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v", r)
+			err = fmt.Errorf("panic in parse %s: %v", mk.filename, r)
 		}
 	}()
 	for !p.done {
@@ -520,6 +520,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 }
 
 func ParseMakefile(filename string) (Makefile, error) {
+	Log("ParseMakefile %q", filename)
 	f, err := os.Open(filename)
 	if err != nil {
 		return Makefile{}, err
