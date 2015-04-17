@@ -76,19 +76,6 @@ func (ev *Evaluator) Values(v Value) [][]byte {
 	return values
 }
 
-// TODO(ukai): deprecated.
-func (ev *Evaluator) evalExprBytes(ex string) []byte {
-	v, _, err := parseExpr([]byte(ex), nil)
-	if err != nil {
-		panic(err)
-	}
-	return ev.Value(v)
-}
-
-func (ev *Evaluator) evalExpr(ex string) string {
-	return string(ev.evalExprBytes(ex))
-}
-
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.lastRule = nil
 	lhs, rhs := ev.evalAssignAST(ast)
@@ -103,7 +90,19 @@ func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	lhs := strings.TrimSpace(ev.evalExpr(ast.lhs))
+	v, _, err := parseExpr([]byte(ast.lhs), nil)
+	if err != nil {
+		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
+	}
+	var lhs string
+	switch v := v.(type) {
+	case literal:
+		lhs = string(v)
+	case tmpval:
+		lhs = string(v)
+	default:
+		lhs = string(bytes.TrimSpace(ev.Value(v)))
+	}
 	rhs := ast.evalRHS(ev, lhs)
 	return lhs, rhs
 }
@@ -133,14 +132,18 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.equalIndex >= 0 {
 		expr = expr[0:ast.equalIndex]
 	}
-	line := ev.evalExpr(expr)
+	lexpr, _, err := parseExpr([]byte(expr), nil)
+	if err != nil {
+		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
+	}
+	line := ev.Value(lexpr)
 	if ast.equalIndex >= 0 {
-		line += ast.expr[ast.equalIndex:]
+		line = append(line, []byte(ast.expr[ast.equalIndex:])...)
 	}
 	Log("rule? %q=>%q", ast.expr, line)
 
 	// See semicolon.mk.
-	if strings.TrimRight(line, " \t\n;") == "" {
+	if len(bytes.TrimRight(line, " \t\n;")) == 0 {
 		return
 	}
 
@@ -148,7 +151,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		filename: ast.filename,
 		lineno:   ast.lineno,
 	}
-	assign, err := rule.parse(line)
+	assign, err := rule.parse(string(line)) // use []byte?
 	if err != nil {
 		Error(ast.filename, ast.lineno, "%v", err.Error())
 	}
@@ -159,7 +162,12 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 
 	if assign != nil {
 		if ast.semicolonIndex >= 0 {
-			assign, err = rule.parse(ev.evalExpr(ast.expr))
+			// TODO(ukai): reuse lexpr above?
+			lexpr, _, err := parseExpr([]byte(ast.expr), nil)
+			if err != nil {
+				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
+			}
+			assign, err = rule.parse(string(ev.Value(lexpr)))
 			if err != nil {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}
@@ -270,14 +278,26 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 	var isTrue bool
 	switch ast.op {
 	case "ifdef", "ifndef":
-		vname := ev.evalExpr(ast.lhs)
+		expr, _, err := parseExpr([]byte(ast.lhs), nil)
+		if err != nil {
+			panic(fmt.Errorf("ifdef parse %s:%d %v", ast.filename, ast.lineno, err))
+		}
+		vname := ev.Value(expr)
 		v := ev.LookupVar(string(vname))
 		value := ev.Value(v)
 		isTrue = (len(value) > 0) == (ast.op == "ifdef")
 		Log("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
 	case "ifeq", "ifneq":
-		lhs := ev.evalExpr(ast.lhs)
-		rhs := ev.evalExpr(ast.rhs)
+		lexpr, _, err := parseExpr([]byte(ast.lhs), nil)
+		if err != nil {
+			panic(fmt.Errorf("ifeq lhs parse %s:%d %v", ast.filename, ast.lineno, err))
+		}
+		rexpr, _, err := parseExpr([]byte(ast.rhs), nil)
+		if err != nil {
+			panic(fmt.Errorf("ifeq rhs parse %s:%d %v", ast.filename, ast.lineno, err))
+		}
+		lhs := string(ev.Value(lexpr))
+		rhs := string(ev.Value(rexpr))
 		isTrue = (lhs == rhs) == (ast.op == "ifeq")
 		Log("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
 	default:
