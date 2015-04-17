@@ -494,12 +494,11 @@ func (f *funcIf) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("if", 2, len(f.args))
 	cond := ev.Value(f.args[1])
 	if len(cond) != 0 {
-		w.Write(ev.Value(f.args[2]))
+		f.args[2].Eval(w, ev)
 		return
 	}
-	sw := ssvWriter{w: w}
-	for _, part := range f.args[3:] {
-		sw.Write(ev.Value(part))
+	if len(f.args) > 3 {
+		f.args[3].Eval(w, ev)
 	}
 }
 
@@ -587,12 +586,14 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	}
 
 	var buf bytes.Buffer
-	v.Eval(&buf, ev)
+	if katiLogFlag {
+		w = io.MultiWriter(w, &buf)
+	}
+	v.Eval(w, ev)
 	for _, restore := range restores {
 		restore()
 	}
 	Log("call %q return %q", f.args[1], buf.Bytes())
-	w.Write(buf.Bytes())
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Value-Function
@@ -834,7 +835,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 		if space {
 			w.Write([]byte{' '})
 		}
-		w.Write(ev.Value(text))
+		text.Eval(w, ev)
 		space = true
 	}
 }
