@@ -236,6 +236,28 @@ func TestParseExpr(t *testing.T) {
 				},
 			},
 		},
+		{
+			in: `$(strip $1)`,
+			val: &funcStrip{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(strip"),
+						paramref(1),
+					},
+				},
+			},
+		},
+		{
+			in: `$(strip $(1))`,
+			val: &funcStrip{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(strip"),
+						paramref(1),
+					},
+				},
+			},
+		},
 	} {
 		val, _, err := parseExpr([]byte(tc.in), nil)
 		if tc.isErr {

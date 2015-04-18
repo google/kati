@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -85,6 +86,25 @@ func (v varref) Eval(w io.Writer, ev *Evaluator) {
 	vv := ev.LookupVar(string(vname))
 	vv.Eval(w, ev)
 	addStats("var", v, t)
+}
+
+// paramref is parameter reference e.g. $1.
+type paramref int
+
+func (p paramref) String() string {
+	return fmt.Sprintf("$%d", int(p))
+}
+
+func (p paramref) Eval(w io.Writer, ev *Evaluator) {
+	t := time.Now()
+	n := int(p)
+	if n < len(ev.paramVars) {
+		ev.paramVars[n].Eval(w, ev)
+	} else {
+		// out of range?
+		// panic(fmt.Sprintf("out of range %d: %d", n, len(ev.paramVars)))
+	}
+	addStats("param", p, t)
 }
 
 // varsubst is variable substitutaion. e.g. ${var:pat=subst}.
@@ -228,6 +248,9 @@ func parseDollar(in []byte) (Value, int, error) {
 	paren := closeParen(in[1])
 	if paren == 0 {
 		// $x case.
+		if in[1] >= '0' && in[1] <= '9' {
+			return paramref(in[1] - '0'), 2, nil
+		}
 		return varref{varname: literal(string(in[1]))}, 2, nil
 	}
 	term := []byte{paren, ':', ' '}
@@ -244,7 +267,15 @@ Again:
 		switch in[i] {
 		case paren:
 			// ${expr}
-			return varref{varname: compactExpr(varname)}, i + 1, nil
+			vname := compactExpr(varname)
+			if vname, ok := vname.(literal); ok {
+				n, err := strconv.ParseInt(string(vname), 10, 64)
+				if err == nil {
+					// ${n}
+					return paramref(n), i + 1, nil
+				}
+			}
+			return varref{varname: vname}, i + 1, nil
 		case ' ':
 			// ${e ...}
 			if token, ok := e.(literal); ok {
