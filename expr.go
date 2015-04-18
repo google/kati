@@ -28,7 +28,7 @@ type literal string
 
 func (s literal) String() string { return string(s) }
 func (s literal) Eval(w io.Writer, ev *Evaluator) {
-	fmt.Fprint(w, string(s))
+	io.WriteString(w, string(s))
 }
 
 // tmpval is temporary value.
@@ -108,9 +108,9 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 	space := false
 	for _, val := range vals {
 		if space {
-			fmt.Fprint(w, " ")
+			io.WriteString(w, " ")
 		}
-		fmt.Fprint(w, substRef(string(pat), string(subst), string(val)))
+		io.WriteString(w, substRef(string(pat), string(subst), string(val)))
 		space = true
 	}
 	addStats("varsubst", v, t)

@@ -552,10 +552,9 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 		Log("$(shell %q) failed: %q", arg, err)
 	}
 
-	r := string(out)
-	r = strings.TrimRight(r, "\n")
-	r = strings.Replace(r, "\n", " ", -1)
-	fmt.Fprint(w, r)
+	out = bytes.TrimRight(out, "\n")
+	out = bytes.Replace(out, []byte{'\n'}, []byte{' '}, -1)
+	w.Write(out)
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
