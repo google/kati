@@ -131,7 +131,7 @@ func parseExpr(in, term []byte) (Value, int, error) {
 Loop:
 	for i < len(in) {
 		ch := in[i]
-		if bytes.IndexByte(term, ch) >= 0 {
+		if term != nil && bytes.IndexByte(term, ch) >= 0 {
 			break Loop
 		}
 		switch ch {
