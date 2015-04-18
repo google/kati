@@ -13,6 +13,7 @@ type EvalResult struct {
 }
 
 type Evaluator struct {
+	paramVars    []tmpval // $1 => paramVars[1]
 	outVars      Vars
 	outRules     []*Rule
 	outRuleVars  map[string]Vars

@@ -563,25 +563,33 @@ type funcCall struct{ fclosure }
 func (f *funcCall) Arity() int { return 0 }
 
 func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
-	variable := string(ev.Value(f.args[1]))
-	v := ev.LookupVar(variable)
-	Log("call variable %q", v)
+	variable := ev.Value(f.args[1])
+	Log("call %q variable %q", f.args[1], variable)
+	v := ev.LookupVar(string(variable))
 	// Evalualte all arguments first before we modify the table.
 	var args []tmpval
+	// $0 is variable.
+	args = append(args, tmpval(variable))
+	// TODO(ukai): If variable is the name of a built-in function,
+	// the built-in function is always invoked (even if a make variable
+	// by that name also exists).
+
 	for i, arg := range f.args[2:] {
+		// f.args[2] will be $1.
 		args = append(args, tmpval(ev.Value(arg)))
-		Log("call $%d: %q=>%q", i+1, arg, args[i])
+		Log("call $%d: %q=>%q", i+1, arg, args[i+1])
 	}
+	oldParams := ev.paramVars
+	ev.paramVars = args
 
 	var restores []func()
 	for i, arg := range args {
-		name := fmt.Sprintf("%d", i+1)
+		name := fmt.Sprintf("%d", i)
 		restores = append(restores, ev.outVars.save(name))
-		ev.outVars.Assign(name,
-			SimpleVar{
-				value:  arg,
-				origin: "automatic", // ??
-			})
+		ev.outVars.Assign(name, SimpleVar{
+			value:  arg,
+			origin: "automatic", // ??
+		})
 	}
 
 	var buf bytes.Buffer
@@ -592,7 +600,8 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for _, restore := range restores {
 		restore()
 	}
-	Log("call %q return %q", f.args[1], buf.Bytes())
+	ev.paramVars = oldParams
+	Log("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Value-Function
