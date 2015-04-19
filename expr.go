@@ -143,7 +143,7 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 // term, and in[n:] is next input.
 func parseExpr(in, term []byte) (Value, int, error) {
 	var expr Expr
-	var buf bytes.Buffer
+	buf := make([]byte, 0, len(in))
 	b := 0
 	i := 0
 	var saveParen byte
@@ -160,26 +160,26 @@ Loop:
 				break Loop
 			}
 			if in[i+1] == '$' {
-				buf.Write(in[b : i+1])
+				buf = append(buf, in[b:i+1]...)
 				i += 2
 				b = i
 				continue
 			}
 			if bytes.IndexByte(term, in[i+1]) >= 0 {
-				buf.Write(in[b:i])
-				if buf.Len() > 0 {
-					expr = append(expr, literal(buf.String()))
-					buf.Reset()
+				buf = append(buf, in[b:i]...)
+				if len(buf) > 0 {
+					expr = append(expr, literal(string(buf)))
+					buf = buf[:0]
 				}
 				expr = append(expr, varref{varname: literal("")})
 				i++
 				b = i
 				break Loop
 			}
-			buf.Write(in[b:i])
-			if buf.Len() > 0 {
-				expr = append(expr, literal(buf.String()))
-				buf.Reset()
+			buf = append(buf, in[b:i]...)
+			if len(buf) > 0 {
+				expr = append(expr, literal(string(buf)))
+				buf = buf[:0]
 			}
 			v, n, err := parseDollar(in[i:])
 			if err != nil {
@@ -208,10 +208,9 @@ Loop:
 		}
 		i++
 	}
-	buf.Write(in[b:i])
-	if buf.Len() > 0 {
-		s := buf.String()
-		expr = append(expr, literal(s))
+	buf = append(buf, in[b:i]...)
+	if len(buf) > 0 {
+		expr = append(expr, literal(string(buf)))
 	}
 	if i == len(in) && term != nil {
 		return expr, i, errEndOfInput
@@ -394,7 +393,7 @@ func concatLine(v Value) Value {
 			var buf bytes.Buffer
 			buf.Write(b[:i])
 			buf.Write(bytes.TrimLeft(b[i+2:], " \t"))
-			return tmpval(buf.Bytes())
+			v = tmpval(buf.Bytes())
 		}
 	case Expr:
 		for i := range v {
