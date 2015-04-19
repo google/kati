@@ -100,15 +100,22 @@ func (v RecursiveVar) Eval(w io.Writer, ev *Evaluator) {
 }
 
 func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
-	var buf bytes.Buffer
-	buf.WriteString(v.expr.String())
-	buf.WriteByte(' ')
-	buf.WriteString(s)
-	e, _, err := parseExpr(buf.Bytes(), nil)
+	var expr Expr
+	if e, ok := v.expr.(Expr); ok {
+		expr = append(e, literal(" "))
+	} else {
+		expr = Expr{v.expr, literal(" ")}
+	}
+	sv, _, err := parseExpr([]byte(s), nil)
 	if err != nil {
 		panic(err)
 	}
-	v.expr = e
+	if aexpr, ok := sv.(Expr); ok {
+		expr = append(expr, aexpr...)
+	} else {
+		expr = append(expr, sv)
+	}
+	v.expr = expr
 	return v
 }
 
