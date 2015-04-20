@@ -152,11 +152,19 @@ func main() {
 	LogStats("eval time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
-	ex := NewExecutor(er, vars)
-	LogStats("exec prepare time: %q", time.Now().Sub(startTime))
+	db := NewDepBuilder(er, vars)
+	LogStats("eval command prepare time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
-	err = ex.Exec(targets)
+	nodes, err2 := db.Eval(targets)
+	if err2 != nil {
+		panic(err2)
+	}
+	LogStats("eval command time: %q", time.Now().Sub(startTime))
+
+	startTime = time.Now()
+	ex := NewExecutor(vars)
+	err = ex.Exec(nodes)
 	if err != nil {
 		panic(err)
 	}
