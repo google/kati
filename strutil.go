@@ -162,3 +162,13 @@ func trimLeftSpaceBytes(s []byte) []byte {
 	}
 	return nil
 }
+
+// Strip leading sequences of './' from file names, so that ./file
+// and file are considered to be the same file.
+// From http://www.gnu.org/software/make/manual/make.html#Features
+func trimLeadingCurdir(s string) string {
+	for strings.HasPrefix(s, "./") {
+		s = s[2:]
+	}
+	return s
+}

@@ -224,7 +224,7 @@ func exitStatus(err error) int {
 
 func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 	output := n.Output
-	Log("Building: %s", output)
+	Log("Building: %s for %s", output, neededBy)
 	ex.buildCnt++
 	if ex.buildCnt%100 == 0 {
 		ex.reportStats()

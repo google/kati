@@ -333,7 +333,7 @@ func (db *DepBuilder) populateExplicitRule(rule *Rule) {
 		return
 	}
 	for _, output := range rule.outputs {
-		output = filepath.Clean(output)
+		output = trimLeadingCurdir(output)
 
 		isSuffixRule := db.populateSuffixRule(rule, output)
 
@@ -361,10 +361,10 @@ func (db *DepBuilder) populateImplicitRule(rule *Rule) {
 func (db *DepBuilder) populateRules(er *EvalResult) {
 	for _, rule := range er.rules {
 		for i, input := range rule.inputs {
-			rule.inputs[i] = filepath.Clean(input)
+			rule.inputs[i] = trimLeadingCurdir(input)
 		}
 		for i, orderOnlyInput := range rule.orderOnlyInputs {
-			rule.orderOnlyInputs[i] = filepath.Clean(orderOnlyInput)
+			rule.orderOnlyInputs[i] = trimLeadingCurdir(orderOnlyInput)
 		}
 		db.populateExplicitRule(rule)
 
