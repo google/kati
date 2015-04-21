@@ -369,7 +369,11 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	names := splitSpaces(string(ev.Value(f.args[1])))
 	sw := ssvWriter{w: w}
 	for _, name := range names {
-		sw.WriteString(filepath.Dir(name) + string(filepath.Separator))
+		if name == "/" {
+			sw.Write([]byte{'/'})
+		} else {
+			sw.WriteString(filepath.Dir(name) + string(filepath.Separator))
+		}
 	}
 }
 
