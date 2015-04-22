@@ -107,9 +107,18 @@ func removeComment(line []byte) []byte {
 	return line
 }
 
+func hasTrailingBackslash(line []byte) bool {
+	if len(line) == 0 {
+		return false
+	}
+	if line[len(line)-1] != '\\' {
+		return false
+	}
+	return len(line) <= 1 || line[len(line)-2] != '\\'
+}
+
 func (p *parser) processDefineLine(line []byte) []byte {
-	// TODO: Handle \\ at the end of the line?
-	for len(line) > 0 && line[len(line)-1] == '\\' {
+	for hasTrailingBackslash(line) {
 		line = line[:len(line)-1]
 		line = bytes.TrimRight(line, "\t ")
 		lineno := p.lineno
@@ -126,8 +135,7 @@ func (p *parser) processMakefileLine(line []byte) []byte {
 }
 
 func (p *parser) processRecipeLine(line []byte) []byte {
-	// TODO: Handle \\ at the end of the line?
-	for len(line) > 0 && line[len(line)-1] == '\\' {
+	for hasTrailingBackslash(line) {
 		line = append(line, '\n')
 		lineno := p.lineno
 		nline := p.readLine()
