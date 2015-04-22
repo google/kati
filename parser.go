@@ -90,7 +90,9 @@ func (p *parser) readLine() []byte {
 
 func removeComment(line []byte) []byte {
 	var parenStack []byte
-	for i, ch := range line {
+	// Do not use range as we may modify |line| and |i|.
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
 		switch ch {
 		case '(', '{':
 			parenStack = append(parenStack, ch)
@@ -100,7 +102,12 @@ func removeComment(line []byte) []byte {
 			}
 		case '#':
 			if len(parenStack) == 0 {
-				return line[:i]
+				if i == 0 || line[i-1] != '\\' {
+					return line[:i]
+				}
+				// Drop the backslash before '#'.
+				line = append(line[:i-1], line[i:]...)
+				i--
 			}
 		}
 	}
