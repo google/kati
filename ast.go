@@ -23,6 +23,7 @@ type AssignAST struct {
 	lhs string
 	rhs string
 	op  string
+	opt string // "override", "export"
 }
 
 func (ast *AssignAST) eval(ev *Evaluator) {
@@ -34,6 +35,10 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	if ast.filename == BootstrapMakefile {
 		origin = "default"
 	}
+	if ast.opt == "override" {
+		origin = "override"
+	}
+	// TODO(ukai): handle ast.opt == "export"
 	switch ast.op {
 	case ":=":
 		rexpr, _, err := parseExpr([]byte(ast.rhs), nil)
@@ -73,7 +78,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 }
 
 func (ast *AssignAST) show() {
-	Log("%s=%q", ast.lhs, ast.rhs)
+	Log("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
 }
 
 // Note we cannot be sure what this is, until all variables in |expr|
