@@ -12,6 +12,7 @@ type DepNode struct {
 	Deps               []*DepNode
 	HasRule            bool
 	IsOrderOnly        bool
+	IsPhony            bool
 	ActualInputs       []string
 	TargetSpecificVars Vars
 	Filename           string
@@ -19,8 +20,8 @@ type DepNode struct {
 }
 
 func (n *DepNode) String() string {
-	return fmt.Sprintf("Dep{output=%s cmds=%d deps=%d hasRule=%t orderOnly=%t, filename=%s lineno=%d}",
-		n.Output, len(n.Cmds), len(n.Deps), n.HasRule, n.IsOrderOnly, n.Filename, n.Lineno)
+	return fmt.Sprintf("Dep{output=%s cmds=%d deps=%d hasRule=%t orderOnly=%t, phony=%t filename=%s lineno=%d}",
+		n.Output, len(n.Cmds), len(n.Deps), n.HasRule, n.IsOrderOnly, n.IsPhony, n.Filename, n.Lineno)
 }
 
 type DepBuilder struct {
@@ -31,6 +32,7 @@ type DepBuilder struct {
 	firstRule     *Rule
 	vars          Vars
 	done          map[string]*DepNode
+	phony         map[string]bool
 
 	trace                         []string
 	nodeCnt                       int
@@ -52,13 +54,8 @@ func (db *DepBuilder) exists(target string) bool {
 	if present {
 		return true
 	}
-	rule, present := db.rules[".PHONY"]
-	if present {
-		for _, input := range rule.inputs {
-			if target == input {
-				return true
-			}
-		}
+	if db.phony[target] {
+		return true
 	}
 	return exists(target)
 }
@@ -179,9 +176,11 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	if n, present := db.done[output]; present {
 		return n, nil
 	}
-	n := &DepNode{Output: output}
+
+	n := &DepNode{Output: output, IsPhony: db.phony[output]}
 	db.done[output] = n
 
+	// create depnode for phony targets?
 	rule, vars, present := db.pickRule(output)
 	if !present {
 		return n, nil
@@ -403,9 +402,16 @@ func NewDepBuilder(er *EvalResult, vars Vars) *DepBuilder {
 		suffixRules: make(map[string][]*Rule),
 		vars:        vars,
 		done:        make(map[string]*DepNode),
+		phony:       make(map[string]bool),
 	}
 
 	db.populateRules(er)
+	rule, present := db.rules[".PHONY"]
+	if present {
+		for _, input := range rule.inputs {
+			db.phony[input] = true
+		}
+	}
 	return db
 }
 
