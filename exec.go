@@ -232,7 +232,7 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 
 	outputTs, ok := ex.done[output]
 	if ok {
-		if outputTs < 0 {
+		if outputTs < 0 && !n.IsPhony {
 			fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy, output)
 		}
 		Log("Building: %s already done: %d", output, outputTs)
@@ -240,10 +240,14 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 		return outputTs, nil
 	}
 	ex.done[output] = -1
-	outputTs = getTimestamp(output)
+	if n.IsPhony {
+		outputTs = -2 // trigger cmd even if all inputs don't exist.
+	} else {
+		outputTs = getTimestamp(output)
+	}
 
 	if !n.HasRule {
-		if outputTs >= 0 {
+		if outputTs >= 0 || n.IsPhony {
 			ex.done[output] = outputTs
 			ex.noRuleCnt++
 			return outputTs, nil
@@ -257,7 +261,7 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 	}
 
 	latest := int64(-1)
-	Log("Building: %s inputs:%q", output, n.Deps)
+	Log("Building: %s inputs:%q ts=%d", output, n.Deps, outputTs)
 	for _, d := range n.Deps {
 		if d.IsOrderOnly && exists(d.Output) {
 			continue
@@ -323,7 +327,11 @@ func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
 		}
 	}
 
-	outputTs = getTimestamp(output)
+	if n.IsPhony {
+		outputTs = time.Now().Unix()
+	} else {
+		outputTs = getTimestamp(output)
+	}
 	if outputTs < 0 {
 		outputTs = time.Now().Unix()
 	}
