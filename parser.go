@@ -38,6 +38,7 @@ type parser struct {
 	outStmts    *[]AST
 	ifStack     []ifState
 	inDef       []string
+	defOpt      string
 	numIfNest   int
 }
 
@@ -167,6 +168,7 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 		lhs: string(bytes.TrimSpace(line[:sep])),
 		rhs: trimLeftSpace(string(line[esep:])),
 		op:  string(line[sep:esep]),
+		opt: p.defOpt,
 	}
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
@@ -301,7 +303,7 @@ func (p *parser) checkIfStack(curKeyword string) {
 	}
 }
 
-func (p *parser) parseElse(line string) {
+func (p *parser) parseElse(line []byte) {
 	p.checkIfStack("else")
 	state := &p.ifStack[len(p.ifStack)-1]
 	if state.inElse {
@@ -310,18 +312,19 @@ func (p *parser) parseElse(line string) {
 	state.inElse = true
 	p.outStmts = &state.ast.falseStmts
 
-	nextIf := strings.TrimSpace(line[len("else"):])
+	nextIf := trimLeftSpaceBytes(line[len("else"):])
 	if len(nextIf) == 0 {
 		return
 	}
-	var ifDirectives = map[string]func(*parser, string){
+	var ifDirectives = map[string]directiveFunc{
 		"ifdef ":  ifdefDirective,
 		"ifndef ": ifndefDirective,
 		"ifeq ":   ifeqDirective,
 		"ifneq ":  ifneqDirective,
 	}
 	p.numIfNest = state.numNest + 1
-	if p.parseKeywords(nextIf, ifDirectives) {
+	if f, ok := p.isDirective(nextIf, ifDirectives); ok {
+		f(p, nextIf)
 		p.numIfNest = 0
 		return
 	}
@@ -347,7 +350,9 @@ func (p *parser) parseEndif(line string) {
 	}
 }
 
-var makeDirectives = map[string]func(*parser, string){
+type directiveFunc func(*parser, []byte) []byte
+
+var makeDirectives = map[string]directiveFunc{
 	"include ":  includeDirective,
 	"-include ": sincludeDirective,
 	"sinclude":  sincludeDirective,
@@ -358,72 +363,107 @@ var makeDirectives = map[string]func(*parser, string){
 	"else":      elseDirective,
 	"endif":     endifDirective,
 	"define ":   defineDirective,
+	"override ": overrideDirective,
+	"export ":   exportDirective,
 }
 
-func (p *parser) parseKeywords(line string, directives map[string]func(*parser, string)) bool {
-	stripped := trimLeftSpace(line)
-	for prefix, f := range directives {
-		if strings.HasPrefix(stripped, prefix) {
-			f(p, stripped)
-			return true
-		}
-	}
-	return false
-}
-
-func (p *parser) isDirective(line string, directives map[string]func(*parser, string)) bool {
-	stripped := trimLeftSpace(line)
+// TODO(ukai): use []byte
+func (p *parser) isDirective(line []byte, directives map[string]directiveFunc) (directiveFunc, bool) {
+	stripped := trimLeftSpaceBytes(line)
 	// Fast paths.
 	// TODO: Consider using a trie.
 	if len(stripped) == 0 {
-		return false
+		return nil, false
 	}
-	if ch := stripped[0]; ch != 'i' && ch != '-' && ch != 's' && ch != 'e' && ch != 'd' {
-		return false
+	if ch := stripped[0]; ch != 'i' && ch != '-' && ch != 's' && ch != 'e' && ch != 'd' && ch != 'o' {
+		return nil, false
 	}
 
-	for prefix, _ := range directives {
-		if strings.HasPrefix(stripped, prefix) {
-			return true
+	for prefix, f := range directives {
+		if bytes.HasPrefix(stripped, []byte(prefix)) {
+			return f, true
+		}
+		if prefix[len(prefix)-1] == ' ' && bytes.HasPrefix(stripped, []byte(prefix[:len(prefix)-1])) && stripped[len(prefix)-1] == '\t' {
+			return f, true
 		}
 	}
-	return false
+	return nil, false
 }
 
-func includeDirective(p *parser, line string) {
-	p.addStatement(p.parseInclude(line, len("include")))
+func includeDirective(p *parser, line []byte) []byte {
+	p.addStatement(p.parseInclude(string(line), len("include")))
+	return nil
 }
 
-func sincludeDirective(p *parser, line string) {
-	p.addStatement(p.parseInclude(line, len("-include")))
+func sincludeDirective(p *parser, line []byte) []byte {
+	p.addStatement(p.parseInclude(string(line), len("-include")))
+	return nil
 }
 
-func ifdefDirective(p *parser, line string) {
-	p.parseIfdef(line, len("ifdef"))
+func ifdefDirective(p *parser, line []byte) []byte {
+	p.parseIfdef(string(line), len("ifdef"))
+	return nil
 }
 
-func ifndefDirective(p *parser, line string) {
-	p.parseIfdef(line, len("ifndef"))
+func ifndefDirective(p *parser, line []byte) []byte {
+	p.parseIfdef(string(line), len("ifndef"))
+	return nil
 }
 
-func ifeqDirective(p *parser, line string) {
-	p.parseIfeq(line, len("ifeq"))
+func ifeqDirective(p *parser, line []byte) []byte {
+	p.parseIfeq(string(line), len("ifeq"))
+	return nil
 }
 
-func ifneqDirective(p *parser, line string) {
-	p.parseIfeq(line, len("ifneq"))
+func ifneqDirective(p *parser, line []byte) []byte {
+	p.parseIfeq(string(line), len("ifneq"))
+	return nil
 }
 
-func elseDirective(p *parser, line string) {
+func elseDirective(p *parser, line []byte) []byte {
 	p.parseElse(line)
+	return nil
 }
 
-func endifDirective(p *parser, line string) {
-	p.parseEndif(line)
+func endifDirective(p *parser, line []byte) []byte {
+	p.parseEndif(string(line))
+	return nil
 }
 
-func defineDirective(p *parser, line string) {
-	p.inDef = []string{trimLeftSpace(line[len("define "):])}
+func defineDirective(p *parser, line []byte) []byte {
+	lhs := trimLeftSpaceBytes(line[len("define "):])
+	p.inDef = []string{string(lhs)}
+	return nil
+}
+
+func overrideDirective(p *parser, line []byte) []byte {
+	p.defOpt = "override"
+	line = trimLeftSpaceBytes(line[len("override "):])
+	defineDirective := map[string]directiveFunc{
+		"define": defineDirective,
+	}
+	if f, ok := p.isDirective(line, defineDirective); ok {
+		f(p, line)
+		return nil
+	}
+	// e.g. overrider foo := bar
+	// line will be "foo := bar".
+	return line
+}
+
+func exportDirective(p *parser, line []byte) []byte {
+	p.defOpt = "export"
+	line = trimLeftSpaceBytes(line[len("export "):])
+	defineDirective := map[string]directiveFunc{
+		"define": defineDirective,
+	}
+	if f, ok := p.isDirective(line, defineDirective); ok {
+		f(p, line)
+		return nil
+	}
+	// e.g. export foo := bar
+	// line will be "foo := bar".
+	return line
 }
 
 func (p *parser) parse() (mk Makefile, err error) {
@@ -443,27 +483,31 @@ func (p *parser) parse() (mk Makefile, err error) {
 					lhs: p.inDef[0],
 					rhs: strings.Join(p.inDef[1:], "\n"),
 					op:  "=",
+					opt: p.defOpt,
 				}
 				ast.filename = p.mk.filename
 				ast.lineno = p.lineno - len(p.inDef)
 				p.addStatement(ast)
 				p.inDef = nil
+				p.defOpt = ""
 				continue
 			}
 			p.inDef = append(p.inDef, string(line))
 			continue
 		}
+		p.defOpt = ""
 
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
 
-		if p.isDirective(string(line), makeDirectives) {
-			line = p.processMakefileLine(line)
-			p.parseKeywords(string(line), makeDirectives)
-			continue
+		if f, ok := p.isDirective(line, makeDirectives); ok {
+			line = p.processMakefileLine(trimLeftSpaceBytes(line))
+			line = f(p, line)
+			if len(line) == 0 {
+				continue
+			}
 		}
-
 		if line[0] == '\t' {
 			ast := &CommandAST{cmd: string(p.processRecipeLine(line[1:]))}
 			ast.filename = p.mk.filename
