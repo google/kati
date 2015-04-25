@@ -1,6 +1,6 @@
 # TODO: Fix
 
-test: foo bar baz
+test: foo bar baz bazz
 A:=foo: ; echo PASS
 $(A)
 
@@ -9,4 +9,8 @@ $(B)\
 SS
 
 baz: ; echo PA\
+SS
+
+SEMI=;
+bazz: $(SEMI) echo PA\
 SS
