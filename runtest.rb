@@ -66,8 +66,8 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
 
     cleanup
     testcases.each do |tc|
-      json = "#{tc.empty? ? 'test' : tc}.json"
-      cmd = "../../kati -save_json=#{json} -kati_log #{tc} 2>&1"
+      json = "#{tc.empty? ? 'test' : tc}"
+      cmd = "../../kati -save_json=#{json}.json -kati_log #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
       res = move_circular_dep(res)
       output += "=== #{tc} ===\n" + res
@@ -120,6 +120,23 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
       else
         puts "#{name}: PASS"
         passes << name
+      end
+    end
+
+    if name !~ /^err_/
+      testcases.each do |tc|
+        json = "#{tc.empty? ? 'test' : tc}"
+        cmd = "../../kati -save_json=#{json}_2.json -load_json=#{json}.json -kati_log #{tc} 2>&1"
+        res = IO.popen(cmd, 'r:binary', &:read)
+        if !File.exist?("#{json}.json") || !File.exist?("#{json}_2.json")
+          puts "#{name}##{json}: Serialize failure (not exist)"
+        else
+          json1 = File.read("#{json}.json")
+          json2 = File.read("#{json}_2.json")
+          if json1 != json2
+            puts "#{name}##{json}: Serialize failure"
+          end
+        end
       end
     end
   end
