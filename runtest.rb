@@ -14,6 +14,15 @@ def cleanup
   end
 end
 
+def move_circular_dep(l)
+  # We don't care when circular dependency detection happens.
+  circ = ''
+  while l.sub!(/Circular .* dropped\.\n/, '') do
+    circ += $&
+  end
+  circ + l
+end
+
 expected_failures = []
 unexpected_passes = []
 failures = []
@@ -47,7 +56,9 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
 
     cleanup
     testcases.each do |tc|
-      expected += "=== #{tc} ===\n" + `make #{tc} 2>&1`
+      res = `make #{tc} 2>&1`
+      res = move_circular_dep(res)
+      expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
       expected += "\n=== FILES ===\n#{expected_files * "\n"}\n"
     end
@@ -55,6 +66,7 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
     cleanup
     testcases.each do |tc|
       res = IO.popen("../../kati -kati_log #{tc} 2>&1", 'r:binary', &:read)
+      res = move_circular_dep(res)
       output += "=== #{tc} ===\n" + res
       output_files = get_output_filenames
       output += "\n=== FILES ===\n#{output_files * "\n"}\n"

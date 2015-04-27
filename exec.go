@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
-	"time"
 )
 
 type Executor struct {
@@ -19,9 +16,10 @@ type Executor struct {
 	firstRule     *Rule
 	shell         string
 	vars          Vars
-	// target -> timestamp, a negative timestamp means the target is
-	// currently being processed.
-	done map[string]int64
+	// target -> Job, nil means the target is currently being processed.
+	done map[string]*Job
+
+	wm *WorkerManager
 
 	currentOutput string
 	currentInputs []string
@@ -130,215 +128,65 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-type runner struct {
-	output      string
-	cmd         string
-	echo        bool
-	dryRun      bool
-	ignoreError bool
-	shell       string
-}
-
-func evalCmd(ev *Evaluator, r runner, s string) []runner {
-	r = newRunner(r, s)
-	if strings.IndexByte(r.cmd, '$') < 0 {
-		// fast path
-		return []runner{r}
-	}
-	// TODO(ukai): parse once more earlier?
-	expr, _, err := parseExpr([]byte(r.cmd), nil)
-	if err != nil {
-		panic(fmt.Errorf("parse cmd %q: %v", r.cmd, err))
-	}
-	cmds := string(ev.Value(expr))
-	var runners []runner
-	for _, cmd := range strings.Split(cmds, "\n") {
-		if len(runners) > 0 && strings.HasSuffix(runners[0].cmd, "\\") {
-			runners[0].cmd += "\n"
-			runners[0].cmd += cmd
-		} else {
-			runners = append(runners, newRunner(r, cmd))
-		}
-	}
-	return runners
-}
-
-func newRunner(r runner, s string) runner {
-	for {
-		s = trimLeftSpace(s)
-		if s == "" {
-			return runner{}
-		}
-		switch s[0] {
-		case '@':
-			if !r.dryRun {
-				r.echo = false
-			}
-			s = s[1:]
-			continue
-		case '-':
-			r.ignoreError = true
-			s = s[1:]
-			continue
-		}
-		break
-	}
-	r.cmd = s
-	return r
-}
-
-func (r runner) run(output string) error {
-	if r.echo || dryRunFlag {
-		fmt.Printf("%s\n", r.cmd)
-	}
-	if dryRunFlag {
-		return nil
-	}
-	args := []string{r.shell, "-c", r.cmd}
-	cmd := exec.Cmd{
-		Path: args[0],
-		Args: args,
-	}
-	out, err := cmd.CombinedOutput()
-	fmt.Printf("%s", out)
-	exit := exitStatus(err)
-	if r.ignoreError && exit != 0 {
-		fmt.Printf("[%s] Error %d (ignored)\n", output, exit)
-		err = nil
-	}
-	return err
-}
-
-func exitStatus(err error) int {
-	if err == nil {
-		return 0
-	}
-	exit := 1
-	if err, ok := err.(*exec.ExitError); ok {
-		if w, ok := err.ProcessState.Sys().(syscall.WaitStatus); ok {
-			return w.ExitStatus()
-		}
-	}
-	return exit
-}
-
-func (ex *Executor) build(n *DepNode, neededBy string) (int64, error) {
+func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 	output := n.Output
-	Log("Building: %s for %s", output, neededBy)
+	if neededBy != nil {
+		Log("MakeJob: %s for %s", output, neededBy.n.Output)
+	}
 	ex.buildCnt++
 	if ex.buildCnt%100 == 0 {
 		ex.reportStats()
 	}
 
-	outputTs, ok := ex.done[output]
-	if ok {
-		if outputTs < 0 && !n.IsPhony {
-			fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy, output)
-		}
-		Log("Building: %s already done: %d", output, outputTs)
-		ex.alreadyDoneCnt++
-		return outputTs, nil
-	}
-	ex.done[output] = -1
-	if n.IsPhony {
-		outputTs = -2 // trigger cmd even if all inputs don't exist.
-	} else {
-		outputTs = getTimestamp(output)
-	}
+	j, present := ex.done[output]
 
-	if !n.HasRule {
-		if outputTs >= 0 || n.IsPhony {
-			ex.done[output] = outputTs
-			ex.noRuleCnt++
-			return outputTs, nil
-		}
-		if neededBy == "" {
-			ErrorNoLocation("*** No rule to make target %q.", output)
+	if present {
+		if j == nil {
+			if !n.IsPhony {
+				fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy.n.Output, output)
+			}
 		} else {
-			ErrorNoLocation("*** No rule to make target %q, needed by %q.", output, neededBy)
+			Log("Building: %s already done: %d", output, j.outputTs)
+			ex.alreadyDoneCnt++
+			if neededBy != nil {
+				j.parents = append(j.parents, neededBy)
+			}
 		}
-		return outputTs, fmt.Errorf("no rule to make target %q", output)
+		if neededBy != nil {
+			neededBy.numDeps--
+		}
+		return nil
 	}
 
-	latest := int64(-1)
-	Log("Building: %s inputs:%q ts=%d", output, n.Deps, outputTs)
+	j = &Job{
+		n:       n,
+		ex:      ex,
+		numDeps: len(n.Deps),
+		depsTs:  int64(-1),
+	}
+	if neededBy != nil {
+		j.parents = append(j.parents, neededBy)
+	}
+
+	ex.done[output] = nil
 	for _, d := range n.Deps {
 		if d.IsOrderOnly && exists(d.Output) {
+			j.numDeps--
 			continue
 		}
 
 		ex.trace = append(ex.trace, d.Output)
-		ts, err := ex.build(d, output)
+		err := ex.makeJobs(d, j)
 		ex.trace = ex.trace[0 : len(ex.trace)-1]
 		if err != nil {
-			return outputTs, err
-		}
-		if latest < ts {
-			latest = ts
+			return err
 		}
 	}
 
-	if outputTs >= latest {
-		ex.done[output] = outputTs
-		ex.upToDateCnt++
-		return outputTs, nil
-	}
+	ex.done[output] = j
+	ex.wm.PostJob(j)
 
-	// For automatic variables.
-	ex.currentOutput = output
-	ex.currentInputs = n.ActualInputs
-
-	var restores []func()
-	for k, v := range n.TargetSpecificVars {
-		restores = append(restores, ex.vars.save(k))
-		ex.vars[k] = v
-	}
-	defer func() {
-		for _, restore := range restores {
-			restore()
-		}
-	}()
-
-	ev := newEvaluator(ex.vars)
-	ev.filename = n.Filename
-	ev.lineno = n.Lineno
-	var runners []runner
-	Log("Building: %s cmds:%q", output, n.Cmds)
-	r := runner{
-		output: output,
-		echo:   true,
-		dryRun: dryRunFlag,
-		shell:  ex.shell,
-	}
-	for _, cmd := range n.Cmds {
-		for _, r := range evalCmd(ev, r, cmd) {
-			if len(r.cmd) != 0 {
-				runners = append(runners, r)
-			}
-		}
-	}
-
-	for _, r := range runners {
-		err := r.run(output)
-		if err != nil {
-			exit := exitStatus(err)
-			fmt.Printf("[%s] Error %d: %v\n", output, exit, err)
-			return outputTs, err
-		}
-	}
-
-	if n.IsPhony {
-		outputTs = time.Now().Unix()
-	} else {
-		outputTs = getTimestamp(output)
-	}
-	if outputTs < 0 {
-		outputTs = time.Now().Unix()
-	}
-	ex.done[output] = outputTs
-	Log("Building: %s done %d", output, outputTs)
-	ex.runCommandCnt++
-	return outputTs, nil
+	return nil
 }
 
 func (ex *Executor) reportStats() {
@@ -357,8 +205,9 @@ func NewExecutor(vars Vars) *Executor {
 	ex := &Executor{
 		rules:       make(map[string]*Rule),
 		suffixRules: make(map[string][]*Rule),
-		done:        make(map[string]int64),
+		done:        make(map[string]*Job),
 		vars:        vars,
+		wm:          NewWorkerManager(),
 	}
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
@@ -380,7 +229,8 @@ func NewExecutor(vars Vars) *Executor {
 
 func (ex *Executor) Exec(roots []*DepNode) error {
 	for _, root := range roots {
-		ex.build(root, "")
+		ex.makeJobs(root, nil)
 	}
+	ex.wm.Wait()
 	return nil
 }
