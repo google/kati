@@ -142,6 +142,13 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 			expr: DeserializeSingleChild(sv),
 			origin: sv.Origin,
 		}
+
+	case ":=", "=", "+=", "?=":
+		return TargetSpecificVar{
+			v: DeserializeSingleChild(sv).(Var),
+			op: sv.Type,
+		}
+
 	default:
 		panic(fmt.Sprintf("unknown serialized variable type: %q", sv))
 	}
@@ -172,10 +179,7 @@ func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
 		}
 
 		for k, v := range n.TargetSpecificVars {
-			d.TargetSpecificVars[k] = TargetSpecificVar{
-				v: DeserializeVar(v.Children[0]).(Var),
-				op: v.Type,
-			}
+			d.TargetSpecificVars[k] = DeserializeVar(v).(Var)
 		}
 
 		nodeMap[n.Output] = d
