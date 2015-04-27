@@ -13,6 +13,7 @@ var (
 	katiLogFlag   bool
 	makefileFlag  string
 	dryRunFlag    bool
+	jobsFlag      int
 	cpuprofile    string
 	heapprofile   string
 	katiStatsFlag bool
@@ -24,6 +25,9 @@ func parseFlags() {
 	flag.StringVar(&makefileFlag, "f", "", "Use it as a makefile")
 
 	flag.BoolVar(&dryRunFlag, "n", false, "Only print the commands that would be executed")
+
+	flag.IntVar(&jobsFlag, "j", 1, "Allow N jobs at once.")
+
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
