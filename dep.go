@@ -268,7 +268,10 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	}
 	n.Filename = rule.filename
 	if len(rule.cmds) > 0 {
-		n.Lineno = rule.cmdLineno
+		if rule.cmdLineno > 0 {
+			n.Lineno = rule.cmdLineno
+		}
+		n.Lineno = rule.lineno
 	}
 	return n, nil
 }
