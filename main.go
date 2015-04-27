@@ -17,6 +17,7 @@ var (
 	cpuprofile    string
 	heapprofile   string
 	katiStatsFlag bool
+	loadJson      string
 	saveJson      string
 )
 
@@ -29,6 +30,7 @@ func parseFlags() {
 
 	flag.IntVar(&jobsFlag, "j", 1, "Allow N jobs at once.")
 
+	flag.StringVar(&loadJson, "load_json", "", "")
 	flag.StringVar(&saveJson, "save_json", "", "")
 
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
@@ -90,6 +92,12 @@ func maybeWriteHeapProfile() {
 
 func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	startTime := time.Now()
+
+	if loadJson != "" {
+		n, v := LoadDepGraphFromJson(loadJson)
+		LogStats("deserialize time: %q", time.Now().Sub(startTime))
+		return n, v
+	}
 
 	bmk := getBootstrapMakefile(targets)
 

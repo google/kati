@@ -51,7 +51,10 @@ func (v TargetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
 }
 
 func (v TargetSpecificVar) Serialize() SerializableVar {
-	return v.Serialize()
+	return SerializableVar{
+		Type: v.op,
+		Children: []SerializableVar{v.v.Serialize()},
+	}
 }
 
 type SimpleVar struct {

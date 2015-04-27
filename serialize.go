@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -20,7 +21,7 @@ type SerializableDepNode struct {
 	IsOrderOnly        bool
 	IsPhony            bool
 	ActualInputs       []string
-	TargetSpecificVars Vars
+	TargetSpecificVars map[string]SerializableVar
 	Filename           string
 	Lineno             int
 }
@@ -41,6 +42,12 @@ func MakeSerializableDepNodes(nodes []*DepNode, done map[string]bool) (r []*Seri
 		for _, d := range n.Deps {
 			deps = append(deps, d.Output)
 		}
+
+		vars := make(map[string]SerializableVar)
+		for k, v := range n.TargetSpecificVars {
+			vars[k] = v.Serialize()
+		}
+
 		r = append(r, &SerializableDepNode{
 			Output:             n.Output,
 			Cmds:               n.Cmds,
@@ -49,7 +56,7 @@ func MakeSerializableDepNodes(nodes []*DepNode, done map[string]bool) (r []*Seri
 			IsOrderOnly:        n.IsOrderOnly,
 			IsPhony:            n.IsPhony,
 			ActualInputs:       n.ActualInputs,
-			TargetSpecificVars: n.TargetSpecificVars,
+			TargetSpecificVars: vars,
 			Filename:           n.Filename,
 			Lineno:             n.Lineno,
 		})
@@ -79,4 +86,88 @@ func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
 		panic(err2)
 	}
 	f.Write(o)
+}
+
+func DeserializeVar(sv SerializableVar) (r Value) {
+	switch sv.Type {
+	case "literal":
+		return literal(sv.V)
+
+	case "simple":
+		return SimpleVar{
+			value: []byte(sv.V),
+			origin: sv.Origin,
+		}
+	case "recursive":
+		return RecursiveVar{
+			expr: DeserializeVar(sv.Children[0]),
+			origin: sv.Origin,
+		}
+	default:
+		panic(fmt.Sprintf("unknown serialized variable type: %q", sv))
+	}
+	return UndefinedVar{}
+}
+
+func DeserializeVars(vars map[string]SerializableVar) (r Vars) {
+	return nil
+}
+
+func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
+	nodeMap := make(map[string]*DepNode)
+	for _, n := range nodes {
+		d := &DepNode{
+			Output: n.Output,
+			Cmds: n.Cmds,
+			HasRule: n.HasRule,
+			IsOrderOnly: n.IsOrderOnly,
+			IsPhony: n.IsPhony,
+			ActualInputs: n.ActualInputs,
+			Filename: n.Filename,
+			Lineno: n.Lineno,
+			TargetSpecificVars: make(Vars),
+		}
+
+		for k, v := range n.TargetSpecificVars {
+			d.TargetSpecificVars[k] = TargetSpecificVar{
+				v: DeserializeVar(v.Children[0]).(Var),
+				op: v.Type,
+			}
+		}
+
+		nodeMap[n.Output] = d
+		r = append(r, d)
+	}
+
+	for _, n := range nodes {
+		d := nodeMap[n.Output]
+		for _, o := range n.Deps {
+			c, present := nodeMap[o]
+			if !present {
+				panic(fmt.Sprintf("unknown target: %s", o))
+			}
+			d.Deps = append(d.Deps, c)
+		}
+	}
+
+	return r
+}
+
+func LoadDepGraphFromJson(filename string) ([]*DepNode, Vars) {
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+
+	d := json.NewDecoder(f)
+	g := SerializableGraph{ Vars: make(map[string]SerializableVar) }
+	err = d.Decode(&g)
+	if err != nil {
+		panic(err)
+	}
+
+	nodes := DeserializeNodes(g.Nodes)
+	vars := DeserializeVars(g.Vars)
+
+	return nodes, vars
 }
