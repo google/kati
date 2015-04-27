@@ -226,46 +226,40 @@ func TestParseExpr(t *testing.T) {
 				rhs: literal(""),
 			},
 		},
-		{
-			in: `$(eval foo := $(bar))`,
-			val: &funcEvalAssign{
-				lhs: "foo",
-				op:  ":=",
-				rhs: varref{
-					literal("bar"),
-				},
-			},
-		},
-		{
-			in: `$(eval foo := $$(bar))`,
-			val: &funcEvalAssign{
-				lhs: "foo",
-				op:  ":=",
-				rhs: literal("$(bar)"),
-			},
-		},
-		{
-			in: `$(strip $1)`,
-			val: &funcStrip{
-				fclosure: fclosure{
-					args: []Value{
-						literal("(strip"),
-						paramref(1),
+		/*
+			{
+				in: `$(eval foo := $(bar))`,
+				val: &funcEvalAssign{
+					lhs: "foo",
+					op:  ":=",
+					rhs: varref{
+						literal("bar"),
 					},
 				},
 			},
-		},
-		{
-			in: `$(strip $(1))`,
-			val: &funcStrip{
-				fclosure: fclosure{
-					args: []Value{
-						literal("(strip"),
-						paramref(1),
+			{
+				in: `$(strip $1)`,
+				val: &funcStrip{
+					fclosure: fclosure{
+						args: []Value{
+							literal("(strip"),
+							paramref(1),
+						},
 					},
 				},
 			},
-		},
+			{
+				in: `$(strip $(1))`,
+				val: &funcStrip{
+					fclosure: fclosure{
+						args: []Value{
+							literal("(strip"),
+							paramref(1),
+						},
+					},
+				},
+			},
+		*/
 	} {
 		val, _, err := parseExpr([]byte(tc.in), nil)
 		if tc.isErr {
