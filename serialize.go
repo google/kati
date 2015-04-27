@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -87,6 +88,18 @@ func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
 		panic(err2)
 	}
 	f.Write(o)
+}
+
+func DumpDepGraph(nodes []*DepNode, vars Vars, filename string) {
+	n := MakeSerializableDepNodes(nodes, make(map[string]bool))
+	v := MakeSerializableVars(vars)
+
+	f, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	e := gob.NewEncoder(f)
+	e.Encode(SerializableGraph{Nodes: n, Vars: v})
 }
 
 func DeserializeSingleChild(sv SerializableVar) Value {
@@ -215,6 +228,23 @@ func LoadDepGraphFromJson(filename string) ([]*DepNode, Vars) {
 
 	nodes := DeserializeNodes(g.Nodes)
 	vars := DeserializeVars(g.Vars)
+	return nodes, vars
+}
 
+func LoadDepGraph(filename string) ([]*DepNode, Vars) {
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+
+	d := gob.NewDecoder(f)
+	g := SerializableGraph{ Vars: make(map[string]SerializableVar) }
+	err = d.Decode(&g)
+	if err != nil {
+		panic(err)
+	}
+
+	nodes := DeserializeNodes(g.Nodes)
+	vars := DeserializeVars(g.Vars)
 	return nodes, vars
 }
