@@ -137,6 +137,14 @@ func (c *fclosure) String() string {
 	return fmt.Sprintf("$%s %s%c", arg0, strings.Join(args, ","), cp)
 }
 
+func (c *fclosure) Serialize() SerializableVar{
+	r := SerializableVar{Type: "func"}
+	for _, a := range c.args {
+		r.Children = append(r.Children, a.Serialize())
+	}
+	return r
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Text-Functions
 type funcSubst struct{ fclosure }
 
@@ -703,6 +711,12 @@ type funcNop struct{ expr string }
 
 func (f *funcNop) String() string             { return f.expr }
 func (f *funcNop) Eval(io.Writer, *Evaluator) {}
+func (f *funcNop) Serialize() SerializableVar {
+	return SerializableVar{
+		Type: "funcNop",
+		V: f.expr,
+	}
+}
 
 func parseAssignLiteral(s string) (lhs, op string, rhs Value, ok bool) {
 	eq := strings.Index(s, "=")
@@ -766,6 +780,17 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 	}
 	Log("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	ev.outVars.Assign(f.lhs, rvalue)
+}
+
+func (f *funcEvalAssign) Serialize() SerializableVar {
+	return SerializableVar{
+		Type: "funcEvalAssign",
+		Children: []SerializableVar{
+			SerializableVar{V: f.lhs},
+			SerializableVar{V: f.op},
+			f.rhs.Serialize(),
+		},
+	}
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function

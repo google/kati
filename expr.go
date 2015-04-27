@@ -17,6 +17,7 @@ var (
 type Value interface {
 	String() string
 	Eval(w io.Writer, ev *Evaluator)
+	Serialize() SerializableVar
 }
 
 type Valuer interface {
@@ -31,6 +32,9 @@ func (s literal) String() string { return string(s) }
 func (s literal) Eval(w io.Writer, ev *Evaluator) {
 	io.WriteString(w, string(s))
 }
+func (s literal) Serialize() SerializableVar {
+	return SerializableVar{Type: "literal", V: string(s)}
+}
 
 // tmpval is temporary value.
 // TODO(ukai): Values() returns []Value? (word list?)
@@ -41,6 +45,9 @@ func (t tmpval) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(t)
 }
 func (t tmpval) Value() []byte { return []byte(t) }
+func (t tmpval) Serialize() SerializableVar {
+	return SerializableVar{Type: "tmpval", V: string(t)}
+}
 
 // Expr is a list of values.
 type Expr []Value
@@ -57,6 +64,14 @@ func (e Expr) Eval(w io.Writer, ev *Evaluator) {
 	for _, v := range e {
 		v.Eval(w, ev)
 	}
+}
+
+func (e Expr) Serialize() SerializableVar {
+	r := SerializableVar{Type: "expr"}
+	for _, v := range e {
+		r.Children = append(r.Children, v.Serialize())
+	}
+	return r
 }
 
 func compactExpr(e Expr) Value {
@@ -88,6 +103,13 @@ func (v varref) Eval(w io.Writer, ev *Evaluator) {
 	addStats("var", v, t)
 }
 
+func (v varref) Serialize() SerializableVar {
+	return SerializableVar{
+		Type: "varref",
+		Children: []SerializableVar{v.varname.Serialize()},
+	}
+}
+
 // paramref is parameter reference e.g. $1.
 type paramref int
 
@@ -105,6 +127,10 @@ func (p paramref) Eval(w io.Writer, ev *Evaluator) {
 		// panic(fmt.Sprintf("out of range %d: %d", n, len(ev.paramVars)))
 	}
 	addStats("param", p, t)
+}
+
+func (p paramref) Serialize() SerializableVar {
+	return SerializableVar{Type: "paramref", V: strconv.Itoa(int(p))}
 }
 
 // varsubst is variable substitutaion. e.g. ${var:pat=subst}.
@@ -134,6 +160,17 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 		space = true
 	}
 	addStats("varsubst", v, t)
+}
+
+func (p varsubst) Serialize() SerializableVar {
+	return SerializableVar{
+		Type: "varsubst",
+		Children: []SerializableVar{
+			p.varname.Serialize(),
+			p.pat.Serialize(),
+			p.subst.Serialize(),
+		},
+	}
 }
 
 // parseExpr parses expression in `in` until it finds any byte in term.

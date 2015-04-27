@@ -50,6 +50,10 @@ func (v TargetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
 	v.v.Eval(w, ev)
 }
 
+func (v TargetSpecificVar) Serialize() SerializableVar {
+	return v.Serialize()
+}
+
 type SimpleVar struct {
 	// TODO(ukai): []byte -> Value (literal or so?)
 	value  []byte
@@ -63,6 +67,13 @@ func (v SimpleVar) IsDefined() bool { return true }
 func (v SimpleVar) String() string { return string(v.value) }
 func (v SimpleVar) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(v.value)
+}
+func (v SimpleVar) Serialize() SerializableVar {
+	return SerializableVar{
+		Type: "simple",
+		V: string(v.value),
+		Origin: v.origin,
+	}
 }
 
 func (v SimpleVar) Append(ev *Evaluator, s string) Var {
@@ -97,6 +108,13 @@ func (v RecursiveVar) IsDefined() bool { return true }
 func (v RecursiveVar) String() string { return v.expr.String() }
 func (v RecursiveVar) Eval(w io.Writer, ev *Evaluator) {
 	v.expr.Eval(w, ev)
+}
+func (v RecursiveVar) Serialize() SerializableVar {
+	return SerializableVar{
+		Type: "recursive",
+		Children: []SerializableVar{v.expr.Serialize()},
+		Origin: v.origin,
+	}
 }
 
 func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
@@ -139,6 +157,9 @@ func (_ UndefinedVar) Origin() string  { return "undefined" }
 func (_ UndefinedVar) IsDefined() bool { return false }
 func (_ UndefinedVar) String() string  { return "" }
 func (_ UndefinedVar) Eval(_ io.Writer, _ *Evaluator) {
+}
+func (_ UndefinedVar) Serialize() SerializableVar {
+	return SerializableVar{Type: "undefined"}
 }
 
 func (_ UndefinedVar) Append(*Evaluator, string) Var {
