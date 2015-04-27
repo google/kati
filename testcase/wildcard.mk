@@ -1,4 +1,4 @@
-files = $(wildcard *)
+files = $(wildcard M*)
 
 test:
 	echo $(files)
