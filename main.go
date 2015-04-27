@@ -19,6 +19,8 @@ var (
 	katiStatsFlag bool
 	loadJson      string
 	saveJson      string
+	loadGob       string
+	saveGob       string
 )
 
 func parseFlags() {
@@ -30,6 +32,8 @@ func parseFlags() {
 
 	flag.IntVar(&jobsFlag, "j", 1, "Allow N jobs at once.")
 
+	flag.StringVar(&loadGob, "load", "", "")
+	flag.StringVar(&saveGob, "save", "", "")
 	flag.StringVar(&loadJson, "load_json", "", "")
 	flag.StringVar(&saveJson, "save_json", "", "")
 
@@ -93,6 +97,11 @@ func maybeWriteHeapProfile() {
 func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	startTime := time.Now()
 
+	if loadGob != "" {
+		n, v := LoadDepGraph(loadGob)
+		LogStats("deserialize time: %q", time.Now().Sub(startTime))
+		return n, v
+	}
 	if loadJson != "" {
 		n, v := LoadDepGraphFromJson(loadJson)
 		LogStats("deserialize time: %q", time.Now().Sub(startTime))
@@ -182,6 +191,11 @@ func main() {
 
 	nodes, vars := getDepGraph(clvars, targets)
 
+	if saveGob != "" {
+		startTime := time.Now()
+		DumpDepGraph(nodes, vars, saveGob)
+		LogStats("serialize time: %q", time.Now().Sub(startTime))
+	}
 	if saveJson != "" {
 		startTime := time.Now()
 		DumpDepGraphAsJson(nodes, vars, saveJson)
