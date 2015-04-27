@@ -270,8 +270,9 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	if len(rule.cmds) > 0 {
 		if rule.cmdLineno > 0 {
 			n.Lineno = rule.cmdLineno
+		} else {
+			n.Lineno = rule.lineno
 		}
-		n.Lineno = rule.lineno
 	}
 	return n, nil
 }
