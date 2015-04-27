@@ -88,21 +88,7 @@ func maybeWriteHeapProfile() {
 	}
 }
 
-func main() {
-	parseFlags()
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
-		if err != nil {
-			panic(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-	defer maybeWriteHeapProfile()
-	defer dumpStats()
-
-	clvars, targets := parseCommandLine()
-
+func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	startTime := time.Now()
 
 	bmk := getBootstrapMakefile(targets)
@@ -168,14 +154,33 @@ func main() {
 		panic(err2)
 	}
 	LogStats("eval command time: %q", time.Now().Sub(startTime))
+	return nodes, vars
+}
+
+func main() {
+	parseFlags()
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			panic(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+	defer maybeWriteHeapProfile()
+	defer dumpStats()
+
+	clvars, targets := parseCommandLine()
+
+	nodes, vars := getDepGraph(clvars, targets)
 
 	if saveJson != "" {
 		DumpDepNodesAsJson(nodes, saveJson)
 	}
 
-	startTime = time.Now()
+	startTime := time.Now()
 	ex := NewExecutor(vars)
-	err = ex.Exec(nodes)
+	err := ex.Exec(nodes)
 	if err != nil {
 		panic(err)
 	}
