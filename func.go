@@ -625,6 +625,7 @@ func (f *funcEval) Arity() int { return 1 }
 func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("eval", 1, len(f.args))
 	s := ev.Value(f.args[1])
+	Log("eval %q at %s:%d", string(s), ev.filename, ev.lineno)
 	mk, err := ParseMakefileBytes(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
@@ -639,40 +640,42 @@ func (f *funcEval) Compact() Value {
 	if len(f.args)-1 < 1 {
 		return f
 	}
-	switch f.args[1].(type) {
+	switch arg := f.args[1].(type) {
 	case literal, tmpval:
+	case Expr:
+		if len(arg) == 1 {
+			return f
+		}
+		switch prefix := arg[0].(type) {
+		case literal, tmpval:
+			lhs, op, rhsprefix, ok := parseAssignLiteral(prefix.String())
+			if ok {
+				// $(eval foo = $(bar))
+				var rhs Expr
+				if rhsprefix != literal("") {
+					rhs = append(rhs, rhsprefix)
+				}
+				rhs = append(rhs, arg[1:]...)
+				Log("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
+				return &funcEvalAssign{
+					lhs: lhs,
+					op:  op,
+					rhs: compactExpr(rhs),
+				}
+			}
+		}
+		// TODO(ukai): eval -> varassign. e.g $(eval $(foo) := $(x)).
 	default:
-		// TODO(ukai): eval -> varassign. e.g. $(eval foo := $(x))
 		return f
 	}
 	arg := f.args[1].String()
 	arg = stripComment(arg)
-	if arg == "" {
+	if arg == "" || strings.TrimSpace(arg) == "" {
 		return &funcNop{expr: f.String()}
 	}
 	f.args[1] = literal(arg)
-	eq := strings.Index(arg, "=")
-	if eq >= 0 {
-		// TODO(ukai): factor out parse assign?
-		lhs := arg[:eq]
-		op := arg[eq : eq+1]
-		if eq >= 1 && (arg[eq-1] == ':' || arg[eq-1] == '+' || arg[eq-1] == '?') {
-			lhs = arg[:eq-1]
-			op = arg[eq-1 : eq+1]
-		}
-		lhs = strings.TrimSpace(lhs)
-		// no $... in rhs too.
-		rhs := literal(strings.TrimLeft(arg[eq+1:], " \t"))
-		if strings.IndexAny(lhs, ":$") >= 0 {
-			// target specific var define? or need eval.
-			return f
-		}
-		if strings.Index(string(rhs), "$") >= 0 {
-			// need eval. e.g. rhs was "$$(foo)", it is literal
-			// "$(foo)", so need eval at runtime.
-			// TODO(ukai): make it funcEvalAssign.
-			return f
-		}
+	lhs, op, rhs, ok := parseAssignLiteral(f.args[1].String())
+	if ok {
 		return &funcEvalAssign{
 			lhs: lhs,
 			op:  op,
@@ -701,6 +704,28 @@ type funcNop struct{ expr string }
 func (f *funcNop) String() string             { return f.expr }
 func (f *funcNop) Eval(io.Writer, *Evaluator) {}
 
+func parseAssignLiteral(s string) (lhs, op string, rhs Value, ok bool) {
+	eq := strings.Index(s, "=")
+	if eq < 0 {
+		return "", "", nil, false
+	}
+	// TODO(ukai): factor out parse assign?
+	lhs = s[:eq]
+	op = s[eq : eq+1]
+	if eq >= 1 && (s[eq-1] == ':' || s[eq-1] == '+' || s[eq-1] == '?') {
+		lhs = s[:eq-1]
+		op = s[eq-1 : eq+1]
+	}
+	lhs = strings.TrimSpace(lhs)
+	if strings.IndexAny(lhs, ":$") >= 0 {
+		// target specific var, or need eval.
+		return "", "", nil, false
+	}
+	r := strings.TrimLeft(s[eq+1:], " \t")
+	rhs = literal(r)
+	return lhs, op, rhs, true
+}
+
 type funcEvalAssign struct {
 	lhs string
 	op  string
@@ -712,10 +737,12 @@ func (f *funcEvalAssign) String() string {
 }
 
 func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
-	rhs := ev.Value(f.rhs)
+	rhs := trimLeftSpaceBytes(ev.Value(f.rhs))
 	var rvalue Var
 	switch f.op {
 	case ":=":
+		// TODO(ukai): compute parsed expr in Compact when f.rhs is
+		// literal? e.g. literal("$(foo)") => varref{literal("foo")}.
 		expr, _, err := parseExpr(rhs, nil)
 		if err != nil {
 			panic(fmt.Sprintf("eval assign error: %q: %v", f.String(), err))
@@ -725,7 +752,7 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
 		prev := ev.LookupVar(f.lhs)
-		if !prev.IsDefined() {
+		if prev.IsDefined() {
 			rvalue = prev.Append(ev, string(rhs))
 		} else {
 			rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
@@ -737,6 +764,7 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		}
 		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
+	Log("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	ev.outVars.Assign(f.lhs, rvalue)
 }
 
