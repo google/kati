@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type SerializableVar struct {
@@ -88,10 +89,48 @@ func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
 	f.Write(o)
 }
 
+func DeserializeSingleChild(sv SerializableVar) Value {
+	if len(sv.Children) != 1 {
+		panic(fmt.Sprintf("unexpected number of children: %q", sv))
+	}
+	return DeserializeVar(sv.Children[0])
+}
+
 func DeserializeVar(sv SerializableVar) (r Value) {
 	switch sv.Type {
 	case "literal":
 		return literal(sv.V)
+	case "expr":
+		var e Expr
+		for _, v := range sv.Children {
+			e = append(e, DeserializeVar(v))
+		}
+		return e
+	case "varref":
+		return varref{varname: DeserializeSingleChild(sv) }
+	case "paramref":
+		v, err := strconv.Atoi(sv.V)
+		if err != nil {
+			panic(err)
+		}
+		return paramref(v)
+
+	case "func":
+		name := DeserializeVar(sv.Children[0]).(literal)
+		f := funcMap[string(name[1:])]()
+		f.AddArg(name)
+		for _, a := range sv.Children[1:] {
+			f.AddArg(DeserializeVar(a))
+		}
+		return f
+	case "funcEvalAssign":
+		return &funcEvalAssign{
+			lhs: sv.Children[0].V,
+			op: sv.Children[1].V,
+			rhs: DeserializeVar(sv.Children[2]),
+		}
+	case "funcNop":
+		return &funcNop{ expr: sv.V }
 
 	case "simple":
 		return SimpleVar{
@@ -100,7 +139,7 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		}
 	case "recursive":
 		return RecursiveVar{
-			expr: DeserializeVar(sv.Children[0]),
+			expr: DeserializeSingleChild(sv),
 			origin: sv.Origin,
 		}
 	default:

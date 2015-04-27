@@ -62,6 +62,8 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
     cleanup
     testcases.each do |tc|
       res = `make #{tc} 2>&1`
+      res.gsub!(/^make(?:\[\d+\])?: (Entering|Leaving) directory.*\n/, '')
+      res.gsub!(/^make(?:\[\d+\])?: /, '')
       res = move_circular_dep(res)
       expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
@@ -79,8 +81,6 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
       output += "\n=== FILES ===\n#{output_files * "\n"}\n"
     end
 
-    expected.gsub!(/^make\[\d+\]: (Entering|Leaving) directory.*\n/, '')
-    expected.gsub!(/^make\[\d+\]: /, '')
     # Normalizations for old/new GNU make.
     expected.gsub!(/[`'"]/, '"')
     expected.gsub!(/ (?:commands|recipe) for target /,
@@ -127,7 +127,7 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
       end
     end
 
-    if name !~ /^err_/ && test_serialization
+    if name !~ /^err_/ && test_serialization && !expected_failure
       testcases.each do |tc|
         json = "#{tc.empty? ? 'test' : tc}"
         cmd = "../../kati -save_json=#{json}_2.json -load_json=#{json}.json -n -kati_log #{tc} 2>&1"
