@@ -2,6 +2,10 @@
 
 require 'fileutils'
 
+if ARGV[0] == '-s'
+  test_serialization = true
+end
+
 def get_output_filenames
   files = Dir.glob('*')
   files.delete('Makefile')
@@ -123,18 +127,20 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
       end
     end
 
-    if name !~ /^err_/
+    if name !~ /^err_/ && test_serialization
       testcases.each do |tc|
         json = "#{tc.empty? ? 'test' : tc}"
-        cmd = "../../kati -save_json=#{json}_2.json -load_json=#{json}.json -kati_log #{tc} 2>&1"
+        cmd = "../../kati -save_json=#{json}_2.json -load_json=#{json}.json -n -kati_log #{tc} 2>&1"
         res = IO.popen(cmd, 'r:binary', &:read)
         if !File.exist?("#{json}.json") || !File.exist?("#{json}_2.json")
           puts "#{name}##{json}: Serialize failure (not exist)"
+          puts res
         else
           json1 = File.read("#{json}.json")
           json2 = File.read("#{json}_2.json")
           if json1 != json2
             puts "#{name}##{json}: Serialize failure"
+            puts res
           end
         end
       end
