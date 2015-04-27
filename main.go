@@ -17,6 +17,7 @@ var (
 	cpuprofile    string
 	heapprofile   string
 	katiStatsFlag bool
+	saveJson      string
 )
 
 func parseFlags() {
@@ -27,6 +28,8 @@ func parseFlags() {
 	flag.BoolVar(&dryRunFlag, "n", false, "Only print the commands that would be executed")
 
 	flag.IntVar(&jobsFlag, "j", 1, "Allow N jobs at once.")
+
+	flag.StringVar(&saveJson, "save_json", "", "")
 
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
@@ -165,6 +168,10 @@ func main() {
 		panic(err2)
 	}
 	LogStats("eval command time: %q", time.Now().Sub(startTime))
+
+	if saveJson != "" {
+		DumpDepNodesAsJson(nodes, saveJson)
+	}
 
 	startTime = time.Now()
 	ex := NewExecutor(vars)
