@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type Executor struct {
@@ -16,6 +17,7 @@ type Executor struct {
 	firstRule     *Rule
 	shell         string
 	vars          Vars
+	varsLock      sync.Mutex
 	// target -> Job, nil means the target is currently being processed.
 	done map[string]*Job
 
@@ -143,17 +145,16 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 	if present {
 		if j == nil {
 			if !n.IsPhony {
-				fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy.n.Output, output)
+				fmt.Printf("Circular %s <- %s dependency dropped.\n", neededBy.n.Output, n.Output)
+			}
+			if neededBy != nil {
+				neededBy.numDeps--
 			}
 		} else {
-			Log("Building: %s already done: %d", output, j.outputTs)
-			ex.alreadyDoneCnt++
+			Log("%s already done: %d", j.n.Output, j.outputTs)
 			if neededBy != nil {
-				j.parents = append(j.parents, neededBy)
+				ex.wm.ReportAlreadyFinished(j, neededBy)
 			}
-		}
-		if neededBy != nil {
-			neededBy.numDeps--
 		}
 		return nil
 	}
@@ -169,12 +170,19 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 	}
 
 	ex.done[output] = nil
+	// We iterate n.Deps twice. In the first run, we may modify
+	// numDeps. There will be a race if we do so after the first
+	// ex.makeJobs(d, j).
+	var deps []*DepNode
 	for _, d := range n.Deps {
 		if d.IsOrderOnly && exists(d.Output) {
 			j.numDeps--
 			continue
 		}
+		deps = append(deps, d)
+	}
 
+	for _, d := range deps {
 		ex.trace = append(ex.trace, d.Output)
 		err := ex.makeJobs(d, j)
 		ex.trace = ex.trace[0 : len(ex.trace)-1]
