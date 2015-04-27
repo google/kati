@@ -109,8 +109,12 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	return UndefinedVar{}
 }
 
-func DeserializeVars(vars map[string]SerializableVar) (r Vars) {
-	return nil
+func DeserializeVars(vars map[string]SerializableVar) (Vars) {
+	r := make(Vars)
+	for k, v := range vars {
+		r[k] = DeserializeVar(v).(Var)
+	}
+	return r
 }
 
 func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
