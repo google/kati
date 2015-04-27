@@ -47,6 +47,9 @@ func (v AutoVar) Append(*Evaluator, string) Var {
 func (v AutoVar) AppendVar(*Evaluator, Var) Var {
 	panic("must not be called")
 }
+func (v AutoVar) Serialize() SerializableVar {
+	panic(fmt.Sprintf("cannot serialize auto var: %q", v))
+}
 
 type AutoAtVar struct{ AutoVar }
 

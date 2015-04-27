@@ -175,7 +175,9 @@ func main() {
 	nodes, vars := getDepGraph(clvars, targets)
 
 	if saveJson != "" {
-		DumpDepNodesAsJson(nodes, saveJson)
+		startTime := time.Now()
+		DumpDepGraphAsJson(nodes, vars, saveJson)
+		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 
 	startTime := time.Now()
