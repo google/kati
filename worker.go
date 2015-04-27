@@ -31,7 +31,7 @@ type JobResult struct {
 	w *Worker
 }
 
-type AlreadyFinished struct {
+type NewDep struct {
 	j        *Job
 	neededBy *Job
 }
@@ -263,24 +263,24 @@ func (wm *WorkerManager) updateParents(j *Job) {
 }
 
 type WorkerManager struct {
-	jobs                []*Job
-	jobChan             chan *Job
-	resultChan          chan JobResult
-	alreadyFinishedChan chan AlreadyFinished
-	waitChan            chan bool
-	doneChan            chan bool
-	freeWorkers         []*Worker
-	busyWorkers         map[*Worker]bool
+	jobs        []*Job
+	jobChan     chan *Job
+	resultChan  chan JobResult
+	newDepChan  chan NewDep
+	waitChan    chan bool
+	doneChan    chan bool
+	freeWorkers []*Worker
+	busyWorkers map[*Worker]bool
 }
 
 func NewWorkerManager() *WorkerManager {
 	wm := &WorkerManager{
-		jobChan:             make(chan *Job),
-		resultChan:          make(chan JobResult),
-		alreadyFinishedChan: make(chan AlreadyFinished),
-		waitChan:            make(chan bool),
-		doneChan:            make(chan bool),
-		busyWorkers:         make(map[*Worker]bool),
+		jobChan:     make(chan *Job),
+		resultChan:  make(chan JobResult),
+		newDepChan:  make(chan NewDep),
+		waitChan:    make(chan bool),
+		doneChan:    make(chan bool),
+		busyWorkers: make(map[*Worker]bool),
 	}
 	for i := 0; i < jobsFlag; i++ {
 		w := NewWorker(wm)
@@ -314,7 +314,7 @@ func (wm *WorkerManager) hasTodo() bool {
 	return false
 }
 
-func (wm *WorkerManager) handleAlreadyFinished(j *Job, neededBy *Job) {
+func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
 	if j.numDeps < 0 {
 		neededBy.numDeps--
 	} else {
@@ -333,8 +333,8 @@ func (wm *WorkerManager) Run() {
 			delete(wm.busyWorkers, jr.w)
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
-		case af := <-wm.alreadyFinishedChan:
-			wm.handleAlreadyFinished(af.j, af.neededBy)
+		case af := <-wm.newDepChan:
+			wm.handleNewDep(af.j, af.neededBy)
 		case done = <-wm.waitChan:
 		}
 		wm.handleJobs()
@@ -357,8 +357,8 @@ func (wm *WorkerManager) ReportResult(w *Worker, j *Job) {
 	wm.resultChan <- JobResult{w: w, j: j}
 }
 
-func (wm *WorkerManager) ReportAlreadyFinished(j *Job, neededBy *Job) {
-	wm.alreadyFinishedChan <- AlreadyFinished{j: j, neededBy: neededBy}
+func (wm *WorkerManager) ReportNewDep(j *Job, neededBy *Job) {
+	wm.newDepChan <- NewDep{j: j, neededBy: neededBy}
 }
 
 func (wm *WorkerManager) Wait() {

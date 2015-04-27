@@ -153,7 +153,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 		} else {
 			Log("%s already done: %d", j.n.Output, j.outputTs)
 			if neededBy != nil {
-				ex.wm.ReportAlreadyFinished(j, neededBy)
+				ex.wm.ReportNewDep(j, neededBy)
 			}
 		}
 		return nil
