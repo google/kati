@@ -5,6 +5,7 @@ require 'fileutils'
 def get_output_filenames
   files = Dir.glob('*')
   files.delete('Makefile')
+  files.reject!{|f|f =~ /\.json$/}
   files
 end
 
@@ -65,7 +66,9 @@ Dir.glob('testcase/*.mk').sort.each do |mk|
 
     cleanup
     testcases.each do |tc|
-      res = IO.popen("../../kati -kati_log #{tc} 2>&1", 'r:binary', &:read)
+      json = "#{tc.empty? ? 'test' : tc}.json"
+      cmd = "../../kati -save_json=#{json} -kati_log #{tc} 2>&1"
+      res = IO.popen(cmd, 'r:binary', &:read)
       res = move_circular_dep(res)
       output += "=== #{tc} ===\n" + res
       output_files = get_output_filenames
