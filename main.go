@@ -165,14 +165,14 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 
 	startTime = time.Now()
 	db := NewDepBuilder(er, vars)
-	LogStats("eval command prepare time: %q", time.Now().Sub(startTime))
+	LogStats("dep build prepare time: %q", time.Now().Sub(startTime))
 
 	startTime = time.Now()
 	nodes, err2 := db.Eval(targets)
 	if err2 != nil {
 		panic(err2)
 	}
-	LogStats("eval command time: %q", time.Now().Sub(startTime))
+	LogStats("dep build time: %q", time.Now().Sub(startTime))
 	return nodes, vars
 }
 
