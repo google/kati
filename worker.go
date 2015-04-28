@@ -173,41 +173,7 @@ func (r runner) run(output string) error {
 }
 
 func (j Job) createRunners() []runner {
-	var restores []func()
-	defer func() {
-		for _, restore := range restores {
-			restore()
-		}
-	}()
-
-	ex := j.ex
-	ex.varsLock.Lock()
-	restores = append(restores, func() { ex.varsLock.Unlock() })
-	// For automatic variables.
-	ex.currentOutput = j.n.Output
-	ex.currentInputs = j.n.ActualInputs
-	for k, v := range j.n.TargetSpecificVars {
-		restores = append(restores, ex.vars.save(k))
-		ex.vars[k] = v
-	}
-
-	ev := newEvaluator(ex.vars)
-	ev.filename = j.n.Filename
-	ev.lineno = j.n.Lineno
-	var runners []runner
-	Log("Building: %s cmds:%q", j.n.Output, j.n.Cmds)
-	r := runner{
-		output: j.n.Output,
-		echo:   true,
-		shell:  ex.shell,
-	}
-	for _, cmd := range j.n.Cmds {
-		for _, r := range evalCmd(ev, r, cmd) {
-			if len(r.cmd) != 0 {
-				runners = append(runners, r)
-			}
-		}
-	}
+	runners, _ := j.ex.createRunners(j.n, false)
 	return runners
 }
 
