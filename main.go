@@ -22,6 +22,7 @@ var (
 	loadGob             string
 	saveGob             string
 	syntaxCheckOnlyFlag bool
+	queryFlag           string
 )
 
 func parseFlags() {
@@ -42,6 +43,7 @@ func parseFlags() {
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
+	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	flag.Parse()
 }
 
@@ -205,6 +207,11 @@ func main() {
 	}
 
 	if syntaxCheckOnlyFlag {
+		return
+	}
+
+	if queryFlag != "" {
+		HandleQuery(queryFlag, nodes, vars)
 		return
 	}
 
