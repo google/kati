@@ -161,6 +161,8 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	switch sv.Type {
 	case "literal":
 		return literal(sv.V)
+	case "tmpval":
+		return tmpval([]byte(sv.V))
 	case "expr":
 		var e Expr
 		for _, v := range sv.Children {
@@ -175,6 +177,12 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 			panic(err)
 		}
 		return paramref(v)
+	case "varsubst":
+		return varsubst{
+			varname: DeserializeVar(sv.Children[0]),
+			pat:     DeserializeVar(sv.Children[1]),
+			subst:   DeserializeVar(sv.Children[2]),
+		}
 
 	case "func":
 		name := DeserializeVar(sv.Children[0]).(literal)
