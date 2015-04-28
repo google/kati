@@ -10,17 +10,18 @@ import (
 )
 
 var (
-	katiLogFlag   bool
-	makefileFlag  string
-	dryRunFlag    bool
-	jobsFlag      int
-	cpuprofile    string
-	heapprofile   string
-	katiStatsFlag bool
-	loadJson      string
-	saveJson      string
-	loadGob       string
-	saveGob       string
+	katiLogFlag         bool
+	makefileFlag        string
+	dryRunFlag          bool
+	jobsFlag            int
+	cpuprofile          string
+	heapprofile         string
+	katiStatsFlag       bool
+	loadJson            string
+	saveJson            string
+	loadGob             string
+	saveGob             string
+	syntaxCheckOnlyFlag bool
 )
 
 func parseFlags() {
@@ -40,6 +41,7 @@ func parseFlags() {
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
+	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
 	flag.Parse()
 }
 
@@ -200,6 +202,10 @@ func main() {
 		startTime := time.Now()
 		DumpDepGraphAsJson(nodes, vars, saveJson)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
+	}
+
+	if syntaxCheckOnlyFlag {
+		return
 	}
 
 	startTime := time.Now()
