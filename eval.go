@@ -177,7 +177,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 			ev.setTargetSpecificVar(assign, output)
 		}
 		for _, output := range rule.outputPatterns {
-			ev.setTargetSpecificVar(assign, output)
+			ev.setTargetSpecificVar(assign, output.String())
 		}
 		return
 	}

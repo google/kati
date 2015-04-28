@@ -62,11 +62,11 @@ func (db *DepBuilder) exists(target string) bool {
 
 func (db *DepBuilder) canPickImplicitRule(rule *Rule, output string) bool {
 	outputPattern := rule.outputPatterns[0]
-	if !matchPattern(outputPattern, output) {
+	if !outputPattern.match(output) {
 		return false
 	}
 	for _, input := range rule.inputs {
-		input = substPattern(outputPattern, input, output)
+		input = outputPattern.subst(input, output)
 		if !db.exists(input) {
 			return false
 		}
@@ -125,7 +125,11 @@ func (db *DepBuilder) pickRule(output string) (*Rule, Vars, bool) {
 			return r, vars, true
 		}
 		if vars != nil {
-			vars = db.mergeImplicitRuleVars(irule.outputPatterns, vars)
+			var outputs []string
+			for _, op := range irule.outputPatterns {
+				outputs = append(outputs, op.String())
+			}
+			vars = db.mergeImplicitRuleVars(outputs, vars)
 		}
 		// TODO(ukai): check len(irule.cmd) ?
 		return irule, vars, true
@@ -228,7 +232,7 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 			if len(rule.outputPatterns) > 1 {
 				panic("TODO: multiple output pattern is not supported yet")
 			}
-			input = substPattern(rule.outputPatterns[0], input, output)
+			input = rule.outputPatterns[0].subst(input, output)
 		} else if rule.isSuffixRule {
 			input = replaceSuffix(output, input)
 		}
@@ -356,7 +360,7 @@ func (db *DepBuilder) populateImplicitRule(rule *Rule) {
 	for _, outputPattern := range rule.outputPatterns {
 		r := &Rule{}
 		*r = *rule
-		r.outputPatterns = []string{outputPattern}
+		r.outputPatterns = []pattern{outputPattern}
 		db.implicitRules = append(db.implicitRules, r)
 	}
 }
