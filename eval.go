@@ -20,6 +20,8 @@ type Evaluator struct {
 	vars         Vars
 	lastRule     *Rule
 	currentScope Vars
+	avoidIO      bool
+	hasIO        bool
 
 	filename string
 	lineno   int

@@ -357,6 +357,10 @@ type funcWildcard struct{ fclosure }
 func (f *funcWildcard) Arity() int { return 1 }
 func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	sw := ssvWriter{w: w}
 	for _, pattern := range splitSpaces(string(ev.Value(f.args[1]))) {
 		files, err := filepath.Glob(pattern)
@@ -374,6 +378,10 @@ type funcDir struct{ fclosure }
 func (f *funcDir) Arity() int { return 1 }
 func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("dir", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	names := splitSpaces(string(ev.Value(f.args[1])))
 	sw := ssvWriter{w: w}
 	for _, name := range names {
@@ -390,6 +398,10 @@ type funcNotdir struct{ fclosure }
 func (f *funcNotdir) Arity() int { return 1 }
 func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("notdir", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	names := splitSpaces(string(ev.Value(f.args[1])))
 	sw := ssvWriter{w: w}
 	for _, name := range names {
@@ -464,6 +476,10 @@ type funcRealpath struct{ fclosure }
 func (f *funcRealpath) Arity() int { return 1 }
 func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("realpath", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	names := splitSpaces(string(ev.Value(f.args[1])))
 	sw := ssvWriter{w: w}
 	for _, name := range names {
@@ -486,6 +502,10 @@ type funcAbspath struct{ fclosure }
 func (f *funcAbspath) Arity() int { return 1 }
 func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("abspath", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	names := splitSpaces(string(ev.Value(f.args[1])))
 	sw := ssvWriter{w: w}
 	for _, name := range names {
@@ -550,6 +570,10 @@ func (f *funcShell) Arity() int { return 1 }
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("shell", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	arg := ev.Value(f.args[1])
 	shellVar := ev.LookupVar("SHELL")
 	// TODO: Should be Eval, not String.
@@ -819,6 +843,10 @@ type funcInfo struct{ fclosure }
 func (f *funcInfo) Arity() int { return 1 }
 func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("info", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	arg := ev.Value(f.args[1])
 	fmt.Printf("%s\n", arg)
 }
@@ -828,6 +856,10 @@ type funcWarning struct{ fclosure }
 func (f *funcWarning) Arity() int { return 1 }
 func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("warning", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	arg := ev.Value(f.args[1])
 	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
 }
@@ -837,6 +869,10 @@ type funcError struct{ fclosure }
 func (f *funcError) Arity() int { return 1 }
 func (f *funcError) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("error", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
 	arg := ev.Value(f.args[1])
 	Error(ev.filename, ev.lineno, "*** %s.", arg)
 }

@@ -23,6 +23,7 @@ var (
 	saveGob             string
 	syntaxCheckOnlyFlag bool
 	queryFlag           string
+	eagerCmdEvalFlag    bool
 )
 
 func parseFlags() {
@@ -42,6 +43,7 @@ func parseFlags() {
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
+	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	flag.Parse()
@@ -194,6 +196,12 @@ func main() {
 	clvars, targets := parseCommandLine()
 
 	nodes, vars := getDepGraph(clvars, targets)
+
+	if eagerCmdEvalFlag {
+		startTime := time.Now()
+		EvalCommands(nodes, vars)
+		LogStats("eager eval command time: %q", time.Now().Sub(startTime))
+	}
 
 	if saveGob != "" {
 		startTime := time.Now()
