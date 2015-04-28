@@ -276,7 +276,101 @@ func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpe
 	return r
 }
 
+func human(n int) string {
+	if n >= 10 * 1000 * 1000 * 1000 {
+		return fmt.Sprintf("%.2fGB", float32(n) / 1000 / 1000 / 1000)
+	} else if n >= 10 * 1000 * 1000 {
+		return fmt.Sprintf("%.2fMB", float32(n) / 1000 / 1000)
+	} else if n >= 10 * 1000 {
+		return fmt.Sprintf("%.2fkB", float32(n) / 1000)
+	} else {
+		return fmt.Sprintf("%dB", n)
+	}
+}
+
+func showSerializedNodesStats(nodes []*SerializableDepNode) {
+	outputSize := 0
+	cmdSize := 0
+	depsSize := 0
+	actualInputSize := 0
+	tsvSize := 0
+	filenameSize := 0
+	linenoSize := 0
+	for _, n := range nodes {
+		outputSize += len(n.Output)
+		for _, c := range n.Cmds {
+			cmdSize += len(c)
+		}
+		for _, d := range n.Deps {
+			depsSize += len(d)
+		}
+		for _, i := range n.ActualInputs {
+			actualInputSize += len(i)
+		}
+		for _ = range n.TargetSpecificVars {
+			tsvSize += 4
+		}
+		filenameSize += len(n.Filename)
+		linenoSize += 4
+	}
+	size := outputSize + cmdSize + depsSize + actualInputSize + tsvSize + filenameSize + linenoSize
+	LogStats("%d nodes %s", len(nodes), human(size))
+	LogStats(" output %s", human(outputSize))
+	LogStats(" command %s", human(cmdSize))
+	LogStats(" deps %s", human(depsSize))
+	LogStats(" inputs %s", human(actualInputSize))
+	LogStats(" tsv %s", human(tsvSize))
+	LogStats(" filename %s", human(filenameSize))
+	LogStats(" lineno %s", human(linenoSize))
+}
+
+func (v SerializableVar) size() int {
+	size := 0
+	size += len(v.Type)
+	size += len(v.V)
+	size += len(v.Origin)
+	for _, c := range v.Children {
+		size += c.size()
+	}
+	return size
+}
+
+func showSerializedVarsStats(vars map[string]SerializableVar) {
+	nameSize := 0
+	valueSize := 0
+	for k, v := range vars {
+		nameSize += len(k)
+		valueSize += v.size()
+	}
+	size := nameSize + valueSize
+	LogStats("%d vars %s", len(vars), human(size))
+	LogStats(" name %s", human(nameSize))
+	LogStats(" value %s", human(valueSize))
+}
+
+func showSerializedTsvsStats(vars []SerializableTargetSpecificVar) {
+	nameSize := 0
+	valueSize := 0
+	for _, v := range vars {
+		nameSize += len(v.Name)
+		valueSize += v.Value.size()
+	}
+	size := nameSize + valueSize
+	LogStats("%d tsvs %s", len(vars), human(size))
+	LogStats(" name %s", human(nameSize))
+	LogStats(" value %s", human(valueSize))
+}
+
+func showSerializedGraphStats(g SerializableGraph) {
+	showSerializedNodesStats(g.Nodes)
+	showSerializedVarsStats(g.Vars)
+	showSerializedTsvsStats(g.Tsvs)
+}
+
 func DeserializeGraph(g SerializableGraph) ([]*DepNode, Vars) {
+	if katiLogFlag || katiStatsFlag {
+		showSerializedGraphStats(g)
+	}
 	nodes := DeserializeNodes(g.Nodes, g.Tsvs)
 	vars := DeserializeVars(g.Vars)
 	return nodes, vars
