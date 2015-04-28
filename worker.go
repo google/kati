@@ -116,9 +116,9 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 	cmds := string(ev.Value(expr))
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
-		if len(runners) > 0 && strings.HasSuffix(runners[0].cmd, "\\") {
-			runners[0].cmd += "\n"
-			runners[0].cmd += cmd
+		if len(runners) > 0 && strings.HasSuffix(runners[len(runners)-1].cmd, "\\") {
+			runners[len(runners)-1].cmd += "\n"
+			runners[len(runners)-1].cmd += cmd
 		} else {
 			runners = append(runners, newRunner(r, cmd))
 		}
