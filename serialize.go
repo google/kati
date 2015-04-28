@@ -233,6 +233,12 @@ func DeserializeVars(vars map[string]SerializableVar) Vars {
 }
 
 func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpecificVar) (r []*DepNode) {
+	// Deserialize all TSVs first so that multiple rules can share memory.
+	var tsvValues []Var
+	for _, sv := range tsvs {
+		tsvValues = append(tsvValues, DeserializeVar(sv.Value).(Var))
+	}
+
 	nodeMap := make(map[string]*DepNode)
 	for _, n := range nodes {
 		d := &DepNode{
@@ -249,7 +255,7 @@ func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpe
 
 		for _, id := range n.TargetSpecificVars {
 			sv := tsvs[id]
-			d.TargetSpecificVars[sv.Name] = DeserializeVar(sv.Value).(Var)
+			d.TargetSpecificVars[sv.Name] = tsvValues[id]
 		}
 
 		nodeMap[n.Output] = d
