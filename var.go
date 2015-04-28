@@ -52,7 +52,7 @@ func (v TargetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
 
 func (v TargetSpecificVar) Serialize() SerializableVar {
 	return SerializableVar{
-		Type: v.op,
+		Type:     v.op,
 		Children: []SerializableVar{v.v.Serialize()},
 	}
 }
@@ -73,8 +73,8 @@ func (v SimpleVar) Eval(w io.Writer, ev *Evaluator) {
 }
 func (v SimpleVar) Serialize() SerializableVar {
 	return SerializableVar{
-		Type: "simple",
-		V: string(v.value),
+		Type:   "simple",
+		V:      string(v.value),
 		Origin: v.origin,
 	}
 }
@@ -114,9 +114,9 @@ func (v RecursiveVar) Eval(w io.Writer, ev *Evaluator) {
 }
 func (v RecursiveVar) Serialize() SerializableVar {
 	return SerializableVar{
-		Type: "recursive",
+		Type:     "recursive",
 		Children: []SerializableVar{v.expr.Serialize()},
-		Origin: v.origin,
+		Origin:   v.origin,
 	}
 }
 
