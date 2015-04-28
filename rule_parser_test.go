@@ -41,7 +41,7 @@ func TestRuleParser(t *testing.T) {
 		{
 			in: "%.o: %.c",
 			want: Rule{
-				outputPatterns: []string{"%.o"},
+				outputPatterns: []pattern{pattern{suffix: ".o"}},
 				inputs:         []string{"%.c"},
 			},
 		},
@@ -53,7 +53,7 @@ func TestRuleParser(t *testing.T) {
 			in: "foo.o: %.o: %.c %.h",
 			want: Rule{
 				outputs:        []string{"foo.o"},
-				outputPatterns: []string{"%.o"},
+				outputPatterns: []pattern{pattern{suffix: ".o"}},
 				inputs:         []string{"%.c", "%.h"},
 			},
 		},
@@ -117,7 +117,7 @@ func TestRuleParser(t *testing.T) {
 		{
 			in: "%.o: CFLAGS := -g",
 			want: Rule{
-				outputPatterns: []string{"%.o"},
+				outputPatterns: []pattern{pattern{suffix: ".o"}},
 			},
 			assign: &AssignAST{
 				lhs: "CFLAGS",
