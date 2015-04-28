@@ -120,7 +120,7 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		}
 		return e
 	case "varref":
-		return varref{varname: DeserializeSingleChild(sv) }
+		return varref{varname: DeserializeSingleChild(sv)}
 	case "paramref":
 		v, err := strconv.Atoi(sv.V)
 		if err != nil {
@@ -139,26 +139,26 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	case "funcEvalAssign":
 		return &funcEvalAssign{
 			lhs: sv.Children[0].V,
-			op: sv.Children[1].V,
+			op:  sv.Children[1].V,
 			rhs: DeserializeVar(sv.Children[2]),
 		}
 	case "funcNop":
-		return &funcNop{ expr: sv.V }
+		return &funcNop{expr: sv.V}
 
 	case "simple":
 		return SimpleVar{
-			value: []byte(sv.V),
+			value:  []byte(sv.V),
 			origin: sv.Origin,
 		}
 	case "recursive":
 		return RecursiveVar{
-			expr: DeserializeSingleChild(sv),
+			expr:   DeserializeSingleChild(sv),
 			origin: sv.Origin,
 		}
 
 	case ":=", "=", "+=", "?=":
 		return TargetSpecificVar{
-			v: DeserializeSingleChild(sv).(Var),
+			v:  DeserializeSingleChild(sv).(Var),
 			op: sv.Type,
 		}
 
@@ -168,7 +168,7 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	return UndefinedVar{}
 }
 
-func DeserializeVars(vars map[string]SerializableVar) (Vars) {
+func DeserializeVars(vars map[string]SerializableVar) Vars {
 	r := make(Vars)
 	for k, v := range vars {
 		r[k] = DeserializeVar(v).(Var)
@@ -180,14 +180,14 @@ func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
 	nodeMap := make(map[string]*DepNode)
 	for _, n := range nodes {
 		d := &DepNode{
-			Output: n.Output,
-			Cmds: n.Cmds,
-			HasRule: n.HasRule,
-			IsOrderOnly: n.IsOrderOnly,
-			IsPhony: n.IsPhony,
-			ActualInputs: n.ActualInputs,
-			Filename: n.Filename,
-			Lineno: n.Lineno,
+			Output:             n.Output,
+			Cmds:               n.Cmds,
+			HasRule:            n.HasRule,
+			IsOrderOnly:        n.IsOrderOnly,
+			IsPhony:            n.IsPhony,
+			ActualInputs:       n.ActualInputs,
+			Filename:           n.Filename,
+			Lineno:             n.Lineno,
 			TargetSpecificVars: make(Vars),
 		}
 
@@ -220,7 +220,7 @@ func LoadDepGraphFromJson(filename string) ([]*DepNode, Vars) {
 	}
 
 	d := json.NewDecoder(f)
-	g := SerializableGraph{ Vars: make(map[string]SerializableVar) }
+	g := SerializableGraph{Vars: make(map[string]SerializableVar)}
 	err = d.Decode(&g)
 	if err != nil {
 		panic(err)
@@ -238,7 +238,7 @@ func LoadDepGraph(filename string) ([]*DepNode, Vars) {
 	}
 
 	d := gob.NewDecoder(f)
-	g := SerializableGraph{ Vars: make(map[string]SerializableVar) }
+	g := SerializableGraph{Vars: make(map[string]SerializableVar)}
 	err = d.Decode(&g)
 	if err != nil {
 		panic(err)

@@ -105,7 +105,7 @@ func (v varref) Eval(w io.Writer, ev *Evaluator) {
 
 func (v varref) Serialize() SerializableVar {
 	return SerializableVar{
-		Type: "varref",
+		Type:     "varref",
 		Children: []SerializableVar{v.varname.Serialize()},
 	}
 }
