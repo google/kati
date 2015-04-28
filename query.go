@@ -54,6 +54,13 @@ func HandleNodeQuery(q string, nodes []*DepNode) {
 }
 
 func HandleQuery(q string, nodes []*DepNode, vars Vars) {
+	if q == "$*" {
+		for k, v := range vars {
+			fmt.Printf("%s=%s\n", k, v.String())
+		}
+		return
+	}
+
 	if q == "*" {
 		for _, n := range nodes {
 			fmt.Printf("%s\n", n.Output)
