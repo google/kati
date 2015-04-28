@@ -220,9 +220,6 @@ func (j Job) build() {
 
 	if !j.n.HasRule {
 		if j.outputTs >= 0 || j.n.IsPhony {
-			//ex.done[output] = outputTs
-			//ex.noRuleCnt++
-			//return outputTs, nil
 			return
 		}
 		if len(j.parents) == 0 {
@@ -343,7 +340,10 @@ func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
 func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
 	if j.numDeps < 0 {
 		neededBy.numDeps--
-		wm.maybePushToReadyQueue(neededBy)
+		if neededBy.id > 0 {
+			panic("already in WM... can this happen?")
+			wm.maybePushToReadyQueue(neededBy)
+		}
 	} else {
 		j.parents = append(j.parents, neededBy)
 	}
@@ -354,7 +354,7 @@ func (wm *WorkerManager) Run() {
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || !done {
 		select {
 		case j := <-wm.jobChan:
-			j.id = len(wm.jobs)
+			j.id = len(wm.jobs) + 1
 			wm.jobs = append(wm.jobs, j)
 			wm.maybePushToReadyQueue(j)
 		case jr := <-wm.resultChan:
@@ -367,6 +367,7 @@ func (wm *WorkerManager) Run() {
 		case done = <-wm.waitChan:
 		}
 		wm.handleJobs()
+		Log("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
 	}
 
 	for _, w := range wm.freeWorkers {
