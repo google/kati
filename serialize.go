@@ -18,13 +18,13 @@ type SerializableVar struct {
 }
 
 type SerializableDepNode struct {
-	Output             string
+	Output             int
 	Cmds               []string
-	Deps               []string
+	Deps               []int
 	HasRule            bool
 	IsOrderOnly        bool
 	IsPhony            bool
-	ActualInputs       []string
+	ActualInputs       []int
 	TargetSpecificVars []int
 	Filename           string
 	Lineno             int
@@ -36,9 +36,10 @@ type SerializableTargetSpecificVar struct {
 }
 
 type SerializableGraph struct {
-	Nodes []*SerializableDepNode
-	Vars  map[string]SerializableVar
-	Tsvs  []SerializableTargetSpecificVar
+	Nodes   []*SerializableDepNode
+	Vars    map[string]SerializableVar
+	Tsvs    []SerializableTargetSpecificVar
+	Targets []string
 }
 
 func encGob(v interface{}) string {
@@ -52,17 +53,31 @@ func encGob(v interface{}) string {
 }
 
 type DepNodesSerializer struct {
-	nodes  []*SerializableDepNode
-	tsvs   []SerializableTargetSpecificVar
-	tsvMap map[string]int
-	done   map[string]bool
+	nodes     []*SerializableDepNode
+	tsvs      []SerializableTargetSpecificVar
+	tsvMap    map[string]int
+	targets   []string
+	targetMap map[string]int
+	done      map[string]bool
 }
 
 func NewDepNodesSerializer() *DepNodesSerializer {
 	return &DepNodesSerializer{
-		tsvMap: make(map[string]int),
-		done:   make(map[string]bool),
+		tsvMap:    make(map[string]int),
+		targetMap: make(map[string]int),
+		done:      make(map[string]bool),
 	}
+}
+
+func (ns *DepNodesSerializer) SerializeTarget(t string) int {
+	id, present := ns.targetMap[t]
+	if present {
+		return id
+	}
+	id = len(ns.targets)
+	ns.targetMap[t] = id
+	ns.targets = append(ns.targets, t)
+	return id
 }
 
 func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
@@ -72,9 +87,13 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 		}
 		ns.done[n.Output] = true
 
-		var deps []string
+		var deps []int
 		for _, d := range n.Deps {
-			deps = append(deps, d.Output)
+			deps = append(deps, ns.SerializeTarget(d.Output))
+		}
+		var actualInputs []int
+		for _, i := range n.ActualInputs {
+			actualInputs = append(actualInputs, ns.SerializeTarget(i))
 		}
 
 		// Sort keys for consistent serialization.
@@ -99,13 +118,13 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 		}
 
 		ns.nodes = append(ns.nodes, &SerializableDepNode{
-			Output:             n.Output,
+			Output:             ns.SerializeTarget(n.Output),
 			Cmds:               n.Cmds,
 			Deps:               deps,
 			HasRule:            n.HasRule,
 			IsOrderOnly:        n.IsOrderOnly,
 			IsPhony:            n.IsPhony,
-			ActualInputs:       n.ActualInputs,
+			ActualInputs:       actualInputs,
 			TargetSpecificVars: vars,
 			Filename:           n.Filename,
 			Lineno:             n.Lineno,
@@ -126,7 +145,12 @@ func MakeSerializableGraph(nodes []*DepNode, vars Vars) SerializableGraph {
 	ns := NewDepNodesSerializer()
 	ns.SerializeDepNodes(nodes)
 	v := MakeSerializableVars(vars)
-	return SerializableGraph{Nodes: ns.nodes, Vars: v, Tsvs: ns.tsvs}
+	return SerializableGraph{
+		Nodes: ns.nodes,
+		Vars: v,
+		Tsvs: ns.tsvs,
+		Targets: ns.targets,
+	}
 }
 
 func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
@@ -232,7 +256,10 @@ func DeserializeVars(vars map[string]SerializableVar) Vars {
 	return r
 }
 
-func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpecificVar) (r []*DepNode) {
+func DeserializeNodes(g SerializableGraph) (r []*DepNode) {
+	nodes := g.Nodes
+	tsvs := g.Tsvs
+	targets := g.Targets
 	// Deserialize all TSVs first so that multiple rules can share memory.
 	var tsvValues []Var
 	for _, sv := range tsvs {
@@ -241,13 +268,18 @@ func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpe
 
 	nodeMap := make(map[string]*DepNode)
 	for _, n := range nodes {
+		var actualInputs []string
+		for _, i := range n.ActualInputs {
+			actualInputs = append(actualInputs, targets[i])
+		}
+
 		d := &DepNode{
-			Output:             n.Output,
+			Output:             targets[n.Output],
 			Cmds:               n.Cmds,
 			HasRule:            n.HasRule,
 			IsOrderOnly:        n.IsOrderOnly,
 			IsPhony:            n.IsPhony,
-			ActualInputs:       n.ActualInputs,
+			ActualInputs:       actualInputs,
 			Filename:           n.Filename,
 			Lineno:             n.Lineno,
 			TargetSpecificVars: make(Vars),
@@ -258,14 +290,14 @@ func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpe
 			d.TargetSpecificVars[sv.Name] = tsvValues[id]
 		}
 
-		nodeMap[n.Output] = d
+		nodeMap[targets[n.Output]] = d
 		r = append(r, d)
 	}
 
 	for _, n := range nodes {
-		d := nodeMap[n.Output]
+		d := nodeMap[targets[n.Output]]
 		for _, o := range n.Deps {
-			c, present := nodeMap[o]
+			c, present := nodeMap[targets[o]]
 			if !present {
 				panic(fmt.Sprintf("unknown target: %s", o))
 			}
@@ -297,15 +329,15 @@ func showSerializedNodesStats(nodes []*SerializableDepNode) {
 	filenameSize := 0
 	linenoSize := 0
 	for _, n := range nodes {
-		outputSize += len(n.Output)
+		outputSize += 4
 		for _, c := range n.Cmds {
 			cmdSize += len(c)
 		}
-		for _, d := range n.Deps {
-			depsSize += len(d)
+		for _ = range n.Deps {
+			depsSize += 4
 		}
-		for _, i := range n.ActualInputs {
-			actualInputSize += len(i)
+		for _ = range n.ActualInputs {
+			actualInputSize += 4
 		}
 		for _ = range n.TargetSpecificVars {
 			tsvSize += 4
@@ -361,17 +393,26 @@ func showSerializedTsvsStats(vars []SerializableTargetSpecificVar) {
 	LogStats(" value %s", human(valueSize))
 }
 
+func showSerializedTargetsStats(targets []string) {
+	size := 0
+	for _, t := range targets {
+		size += len(t)
+	}
+	LogStats("%d targets %s", len(targets), human(size))
+}
+
 func showSerializedGraphStats(g SerializableGraph) {
 	showSerializedNodesStats(g.Nodes)
 	showSerializedVarsStats(g.Vars)
 	showSerializedTsvsStats(g.Tsvs)
+	showSerializedTargetsStats(g.Targets)
 }
 
 func DeserializeGraph(g SerializableGraph) ([]*DepNode, Vars) {
 	if katiLogFlag || katiStatsFlag {
 		showSerializedGraphStats(g)
 	}
-	nodes := DeserializeNodes(g.Nodes, g.Tsvs)
+	nodes := DeserializeNodes(g)
 	vars := DeserializeVars(g.Vars)
 	return nodes, vars
 }
