@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -23,34 +25,80 @@ type SerializableDepNode struct {
 	IsOrderOnly        bool
 	IsPhony            bool
 	ActualInputs       []string
-	TargetSpecificVars map[string]SerializableVar
+	TargetSpecificVars []int
 	Filename           string
 	Lineno             int
+}
+
+type SerializableTargetSpecificVar struct {
+	Name  string
+	Value SerializableVar
 }
 
 type SerializableGraph struct {
 	Nodes []*SerializableDepNode
 	Vars  map[string]SerializableVar
+	Tsvs  []SerializableTargetSpecificVar
 }
 
-func MakeSerializableDepNodes(nodes []*DepNode, done map[string]bool) (r []*SerializableDepNode) {
+func encGob(v interface{}) string {
+	var buf bytes.Buffer
+	e := gob.NewEncoder(&buf)
+	err := e.Encode(v)
+	if err != nil {
+		panic(err)
+	}
+	return buf.String()
+}
+
+type DepNodesSerializer struct {
+	nodes  []*SerializableDepNode
+	tsvs   []SerializableTargetSpecificVar
+	tsvMap map[string]int
+	done   map[string]bool
+}
+
+func NewDepNodesSerializer() *DepNodesSerializer {
+	return &DepNodesSerializer{
+		tsvMap: make(map[string]int),
+		done:   make(map[string]bool),
+	}
+}
+
+func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 	for _, n := range nodes {
-		if done[n.Output] {
+		if ns.done[n.Output] {
 			continue
 		}
-		done[n.Output] = true
+		ns.done[n.Output] = true
 
 		var deps []string
 		for _, d := range n.Deps {
 			deps = append(deps, d.Output)
 		}
 
-		vars := make(map[string]SerializableVar)
-		for k, v := range n.TargetSpecificVars {
-			vars[k] = v.Serialize()
+		// Sort keys for consistent serialization.
+		var tsvKeys []string
+		for k := range n.TargetSpecificVars {
+			tsvKeys = append(tsvKeys, k)
+		}
+		sort.Strings(tsvKeys)
+
+		var vars []int
+		for _, k := range tsvKeys {
+			v := n.TargetSpecificVars[k]
+			sv := SerializableTargetSpecificVar{Name: k, Value: v.Serialize()}
+			gob := encGob(sv)
+			id, present := ns.tsvMap[gob]
+			if !present {
+				id = len(ns.tsvs)
+				ns.tsvMap[gob] = id
+				ns.tsvs = append(ns.tsvs, sv)
+			}
+			vars = append(vars, id)
 		}
 
-		r = append(r, &SerializableDepNode{
+		ns.nodes = append(ns.nodes, &SerializableDepNode{
 			Output:             n.Output,
 			Cmds:               n.Cmds,
 			Deps:               deps,
@@ -62,9 +110,8 @@ func MakeSerializableDepNodes(nodes []*DepNode, done map[string]bool) (r []*Seri
 			Filename:           n.Filename,
 			Lineno:             n.Lineno,
 		})
-		r = append(r, MakeSerializableDepNodes(n.Deps, done)...)
+		ns.SerializeDepNodes(n.Deps)
 	}
-	return r
 }
 
 func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
@@ -75,11 +122,15 @@ func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
 	return r
 }
 
-func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
-	n := MakeSerializableDepNodes(nodes, make(map[string]bool))
+func MakeSerializableGraph(nodes []*DepNode, vars Vars) SerializableGraph {
+	ns := NewDepNodesSerializer()
+	ns.SerializeDepNodes(nodes)
 	v := MakeSerializableVars(vars)
+	return SerializableGraph{Nodes: ns.nodes, Vars: v, Tsvs: ns.tsvs}
+}
 
-	o, err := json.MarshalIndent(SerializableGraph{Nodes: n, Vars: v}, " ", " ")
+func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
+	o, err := json.MarshalIndent(MakeSerializableGraph(nodes, vars), " ", " ")
 	if err != nil {
 		panic(err)
 	}
@@ -91,15 +142,12 @@ func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
 }
 
 func DumpDepGraph(nodes []*DepNode, vars Vars, filename string) {
-	n := MakeSerializableDepNodes(nodes, make(map[string]bool))
-	v := MakeSerializableVars(vars)
-
 	f, err := os.Create(filename)
 	if err != nil {
 		panic(err)
 	}
 	e := gob.NewEncoder(f)
-	e.Encode(SerializableGraph{Nodes: n, Vars: v})
+	e.Encode(MakeSerializableGraph(nodes, vars))
 }
 
 func DeserializeSingleChild(sv SerializableVar) Value {
@@ -176,7 +224,7 @@ func DeserializeVars(vars map[string]SerializableVar) Vars {
 	return r
 }
 
-func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
+func DeserializeNodes(nodes []*SerializableDepNode, tsvs []SerializableTargetSpecificVar) (r []*DepNode) {
 	nodeMap := make(map[string]*DepNode)
 	for _, n := range nodes {
 		d := &DepNode{
@@ -191,8 +239,9 @@ func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
 			TargetSpecificVars: make(Vars),
 		}
 
-		for k, v := range n.TargetSpecificVars {
-			d.TargetSpecificVars[k] = DeserializeVar(v).(Var)
+		for _, id := range n.TargetSpecificVars {
+			sv := tsvs[id]
+			d.TargetSpecificVars[sv.Name] = DeserializeVar(sv.Value).(Var)
 		}
 
 		nodeMap[n.Output] = d
@@ -213,6 +262,12 @@ func DeserializeNodes(nodes []*SerializableDepNode) (r []*DepNode) {
 	return r
 }
 
+func DeserializeGraph(g SerializableGraph) ([]*DepNode, Vars) {
+	nodes := DeserializeNodes(g.Nodes, g.Tsvs)
+	vars := DeserializeVars(g.Vars)
+	return nodes, vars
+}
+
 func LoadDepGraphFromJson(filename string) ([]*DepNode, Vars) {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -225,10 +280,7 @@ func LoadDepGraphFromJson(filename string) ([]*DepNode, Vars) {
 	if err != nil {
 		panic(err)
 	}
-
-	nodes := DeserializeNodes(g.Nodes)
-	vars := DeserializeVars(g.Vars)
-	return nodes, vars
+	return DeserializeGraph(g)
 }
 
 func LoadDepGraph(filename string) ([]*DepNode, Vars) {
@@ -243,8 +295,5 @@ func LoadDepGraph(filename string) ([]*DepNode, Vars) {
 	if err != nil {
 		panic(err)
 	}
-
-	nodes := DeserializeNodes(g.Nodes)
-	vars := DeserializeVars(g.Vars)
-	return nodes, vars
+	return DeserializeGraph(g)
 }
