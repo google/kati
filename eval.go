@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type EvalResult struct {
@@ -243,6 +244,26 @@ func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
+func (ev *Evaluator) evalIncludeFile(fname string) error {
+	t := time.Now()
+	defer func() {
+		addStats("include", literal(fname), t)
+	}()
+	Log("Reading makefile %q", fname)
+	mk, err := ParseMakefile(fname)
+	if err != nil {
+		return err
+	}
+	makefileList := ev.outVars.Lookup("MAKEFILE_LIST")
+	makefileList = makefileList.Append(ev, mk.filename)
+	ev.outVars.Assign("MAKEFILE_LIST", makefileList)
+
+	for _, stmt := range mk.stmts {
+		ev.eval(stmt)
+	}
+	return nil
+}
+
 func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
@@ -256,23 +277,13 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	}
 	files := ev.Values(v)
 	for _, f := range files {
-		file := string(f)
-		Log("Reading makefile %q", file)
-		mk, err := ParseMakefile(file)
+		err := ev.evalIncludeFile(string(f))
 		if err != nil {
 			if ast.op == "include" {
 				panic(err)
 			} else {
 				continue
 			}
-		}
-
-		makefileList := ev.outVars.Lookup("MAKEFILE_LIST")
-		makefileList = makefileList.Append(ev, mk.filename)
-		ev.outVars.Assign("MAKEFILE_LIST", makefileList)
-
-		for _, stmt := range mk.stmts {
-			ev.eval(stmt)
 		}
 	}
 }
