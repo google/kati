@@ -40,8 +40,9 @@ func dumpStats() {
 		sv = append(sv, v)
 	}
 	sort.Sort(sv)
+	fmt.Println("count,longest(ns),total(ns),longest,total,name")
 	for _, s := range sv {
-		fmt.Printf("%s,%d,%v,%v\n", s.Name, s.Count, s.Longest, s.Total)
+		fmt.Printf("%d,%d,%d,%v,%v,%s\n", s.Count, s.Longest, s.Total, s.Longest, s.Total, s.Name)
 	}
 }
 
