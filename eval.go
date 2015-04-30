@@ -154,7 +154,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		filename: ast.filename,
 		lineno:   ast.lineno,
 	}
-	assign, err := rule.parse(string(line)) // use []byte?
+	assign, err := rule.parse(line)
 	if err != nil {
 		Error(ast.filename, ast.lineno, "%v", err.Error())
 	}
@@ -170,7 +170,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 			if err != nil {
 				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 			}
-			assign, err = rule.parse(string(ev.Value(lexpr)))
+			assign, err = rule.parse(ev.Value(lexpr))
 			if err != nil {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}

@@ -163,6 +163,21 @@ func trimLeftSpaceBytes(s []byte) []byte {
 	return nil
 }
 
+func trimRightSpaceBytes(s []byte) []byte {
+	for i := len(s) - 1; i >= 0; i-- {
+		ch := s[i]
+		if ch != ' ' && ch != '\t' {
+			return s[:i+1]
+		}
+	}
+	return nil
+}
+
+func trimSpaceBytes(s []byte) []byte {
+	s = trimLeftSpaceBytes(s)
+	return trimRightSpaceBytes(s)
+}
+
 // Strip leading sequences of './' from file names, so that ./file
 // and file are considered to be the same file.
 // From http://www.gnu.org/software/make/manual/make.html#Features

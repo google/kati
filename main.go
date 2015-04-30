@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -16,6 +19,7 @@ var (
 	jobsFlag            int
 	cpuprofile          string
 	heapprofile         string
+	memstats            string
 	katiStatsFlag       bool
 	loadJson            string
 	saveJson            string
@@ -42,6 +46,7 @@ func parseFlags() {
 
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
+	flag.StringVar(&memstats, "kati_memstats", "", "Show memstats with given templates")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
 	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
@@ -192,6 +197,24 @@ func main() {
 	}
 	defer maybeWriteHeapProfile()
 	defer dumpStats()
+	if memstats != "" {
+		t := template.Must(template.New("memstats").Parse(memstats))
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		var buf bytes.Buffer
+		err := t.Execute(&buf, ms)
+		fmt.Println(buf.String())
+		if err != nil {
+			panic(err)
+		}
+		defer func() {
+			var ms runtime.MemStats
+			runtime.ReadMemStats(&ms)
+			var buf bytes.Buffer
+			t.Execute(&buf, ms)
+			fmt.Println(buf.String())
+		}()
+	}
 
 	clvars, targets := parseCommandLine()
 
