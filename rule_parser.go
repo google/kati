@@ -55,6 +55,7 @@ type Rule struct {
 }
 
 func isPatternRule(s []byte) (pattern, bool) {
+	s = trimSpaceBytes(s)
 	i := bytes.IndexByte(s, '%')
 	if i < 0 {
 		return pattern{}, false
