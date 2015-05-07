@@ -113,7 +113,10 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 	if err != nil {
 		panic(fmt.Errorf("parse cmd %q: %v", r.cmd, err))
 	}
-	cmds := string(ev.Value(expr))
+	buf := newBuf()
+	expr.Eval(buf, ev)
+	cmds := buf.String()
+	freeBuf(buf)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
 		if len(runners) > 0 && strings.HasSuffix(runners[len(runners)-1].cmd, "\\") {

@@ -36,46 +36,18 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 	}
 }
 
-func (ev *Evaluator) Value(v Value) []byte {
-	if v, ok := v.(Valuer); ok {
-		return v.Value()
+func (ev *Evaluator) args(buf *bytes.Buffer, args ...Value) [][]byte {
+	var pos []int
+	for _, arg := range args {
+		arg.Eval(buf, ev)
+		pos = append(pos, buf.Len())
 	}
-	var buf bytes.Buffer
-	v.Eval(&buf, ev)
-	return buf.Bytes()
-}
-
-// TODO(ukai): use unicode.IsSpace?
-func isWhitespace(b byte) bool {
-	switch b {
-	case ' ', '\t', '\n', '\r':
-		return true
-	}
-	return false
-}
-
-func (ev *Evaluator) Values(v Value) [][]byte {
-	var buf bytes.Buffer
-	v.Eval(&buf, ev)
-	val := buf.Bytes()
+	v := buf.Bytes()
 	var values [][]byte
-	b := -1
-	for i := 0; i < len(val); i++ {
-		if b < 0 {
-			if isWhitespace(val[i]) {
-				continue
-			}
-			b = i
-		} else {
-			if isWhitespace(val[i]) {
-				values = append(values, val[b:i])
-				b = -1
-				continue
-			}
-		}
-	}
-	if b >= 0 {
-		values = append(values, val[b:])
+	s := 0
+	for _, p := range pos {
+		values = append(values, v[s:p])
+		s = p
 	}
 	return values
 }
@@ -105,7 +77,10 @@ func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 	case tmpval:
 		lhs = string(v)
 	default:
-		lhs = string(bytes.TrimSpace(ev.Value(v)))
+		buf := newBuf()
+		v.Eval(buf, ev)
+		lhs = string(trimSpaceBytes(buf.Bytes()))
+		freeBuf(buf)
 	}
 	rhs := ast.evalRHS(ev, lhs)
 	return lhs, rhs
@@ -140,7 +115,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if err != nil {
 		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 	}
-	line := ev.Value(lexpr)
+	buf := newBuf()
+	lexpr.Eval(buf, ev)
+	line := buf.Bytes()
 	if ast.equalIndex >= 0 {
 		line = append(line, []byte(ast.expr[ast.equalIndex:])...)
 	}
@@ -148,6 +125,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 
 	// See semicolon.mk.
 	if len(bytes.TrimRight(line, " \t\n;")) == 0 {
+		freeBuf(buf)
 		return
 	}
 
@@ -159,6 +137,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if err != nil {
 		Error(ast.filename, ast.lineno, "%v", err.Error())
 	}
+	freeBuf(buf)
 	Log("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
 
 	// TODO: Pretty print.
@@ -171,10 +150,13 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 			if err != nil {
 				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 			}
-			assign, err = rule.parse(ev.Value(lexpr))
+			buf = newBuf()
+			lexpr.Eval(buf, ev)
+			assign, err = rule.parse(buf.Bytes())
 			if err != nil {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}
+			freeBuf(buf)
 		}
 		for _, output := range rule.outputs {
 			ev.setTargetSpecificVar(assign, output)
@@ -275,9 +257,12 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	if err != nil {
 		panic(err)
 	}
-	files := ev.Values(v)
+	var buf bytes.Buffer
+	v.Eval(&buf, ev)
+	files := splitSpaces(buf.String())
+	buf.Reset()
 	for _, f := range files {
-		err := ev.evalIncludeFile(string(f))
+		err := ev.evalIncludeFile(f)
 		if err != nil {
 			if ast.op == "include" {
 				panic(err)
@@ -296,10 +281,15 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		if err != nil {
 			panic(fmt.Errorf("ifdef parse %s:%d %v", ast.filename, ast.lineno, err))
 		}
-		vname := ev.Value(expr)
-		v := ev.LookupVar(string(vname))
-		value := ev.Value(v)
-		isTrue = (len(value) > 0) == (ast.op == "ifdef")
+		buf := newBuf()
+		expr.Eval(buf, ev)
+		v := ev.LookupVar(buf.String())
+		buf.Reset()
+		v.Eval(buf, ev)
+		value := buf.String()
+		val := buf.Len()
+		freeBuf(buf)
+		isTrue = (val > 0) == (ast.op == "ifdef")
 		Log("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
 	case "ifeq", "ifneq":
 		lexpr, _, err := parseExpr([]byte(ast.lhs), nil)
@@ -310,8 +300,11 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		if err != nil {
 			panic(fmt.Errorf("ifeq rhs parse %s:%d %v", ast.filename, ast.lineno, err))
 		}
-		lhs := string(ev.Value(lexpr))
-		rhs := string(ev.Value(rexpr))
+		buf := newBuf()
+		params := ev.args(buf, lexpr, rexpr)
+		lhs := string(params[0])
+		rhs := string(params[1])
+		freeBuf(buf)
 		isTrue = (lhs == rhs) == (ast.op == "ifeq")
 		Log("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
 	default:

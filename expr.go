@@ -7,12 +7,27 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 var (
 	errEndOfInput = errors.New("parse: unexpected end of input")
+
+	bufFree = sync.Pool{
+		New: func() interface{} { return new(bytes.Buffer) },
+	}
 )
+
+func newBuf() *bytes.Buffer {
+	buf := bufFree.Get().(*bytes.Buffer)
+	return buf
+}
+
+func freeBuf(buf *bytes.Buffer) {
+	buf.Reset()
+	bufFree.Put(buf)
+}
 
 type Value interface {
 	String() string
@@ -97,8 +112,10 @@ func (v varref) String() string {
 
 func (v varref) Eval(w io.Writer, ev *Evaluator) {
 	t := time.Now()
-	vname := ev.Value(v.varname)
-	vv := ev.LookupVar(string(vname))
+	buf := newBuf()
+	v.varname.Eval(buf, ev)
+	vv := ev.LookupVar(buf.String())
+	freeBuf(buf)
 	vv.Eval(w, ev)
 	addStats("var", v, t)
 }
@@ -146,17 +163,22 @@ func (v varsubst) String() string {
 
 func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 	t := time.Now()
-	vname := ev.Value(v.varname)
-	vv := ev.LookupVar(string(vname))
-	vals := ev.Values(vv)
-	pat := ev.Value(v.pat)
-	subst := ev.Value(v.subst)
+	buf := newBuf()
+	params := ev.args(buf, v.varname, v.pat, v.subst)
+	vname := string(params[0])
+	pat := string(params[1])
+	subst := string(params[2])
+	buf.Reset()
+	vv := ev.LookupVar(vname)
+	vv.Eval(buf, ev)
+	vals := splitSpaces(buf.String())
+	freeBuf(buf)
 	space := false
 	for _, val := range vals {
 		if space {
 			io.WriteString(w, " ")
 		}
-		io.WriteString(w, substRef(string(pat), string(subst), string(val)))
+		io.WriteString(w, substRef(pat, subst, val))
 		space = true
 	}
 	addStats("varsubst", v, t)

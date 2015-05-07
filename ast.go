@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 )
@@ -45,7 +46,9 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		if err != nil {
 			panic(fmt.Errorf("parse assign rhs %s:%d %v", ast.filename, ast.lineno, err))
 		}
-		return SimpleVar{value: ev.Value(rexpr), origin: origin}
+		var buf bytes.Buffer
+		rexpr.Eval(&buf, ev)
+		return SimpleVar{value: buf.Bytes(), origin: origin}
 	case "=":
 		v, _, err := parseExpr([]byte(ast.rhs), nil)
 		if err != nil {
