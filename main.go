@@ -21,6 +21,7 @@ var (
 	heapprofile         string
 	memstats            string
 	katiStatsFlag       bool
+	katiEvalStatsFlag   bool
 	loadJson            string
 	saveJson            string
 	loadGob             string
@@ -48,6 +49,7 @@ func parseFlags() {
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.StringVar(&memstats, "kati_memstats", "", "Show memstats with given templates")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
+	flag.BoolVar(&katiEvalStatsFlag, "kati_eval_stats", false, "Show eval statistics")
 	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
@@ -171,6 +173,7 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	vars.Merge(er.vars)
 
 	LogStats("eval time: %q", time.Now().Sub(startTime))
+	LogStats("shell func time: %q", shellFuncTime)
 
 	startTime = time.Now()
 	db := NewDepBuilder(er, vars)

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Func is a make function.
@@ -660,6 +661,8 @@ func (f *funcOr) Eval(w io.Writer, ev *Evaluator) {
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 type funcShell struct{ fclosure }
 
+var shellFuncTime time.Duration
+
 func (f *funcShell) Arity() int { return 1 }
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
@@ -680,7 +683,9 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 		Args:   cmdline,
 		Stderr: os.Stderr,
 	}
+	t := time.Now()
 	out, err := cmd.Output()
+	shellFuncTime += time.Now().Sub(t)
 	if err != nil {
 		Log("$(shell %q) failed: %q", arg, err)
 	}

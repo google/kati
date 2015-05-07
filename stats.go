@@ -16,7 +16,7 @@ type statsData struct {
 var stats = map[string]statsData{}
 
 func addStats(name string, v Value, t time.Time) {
-	if !katiStatsFlag {
+	if !katiEvalStatsFlag {
 		return
 	}
 	d := time.Now().Sub(t)
@@ -31,7 +31,7 @@ func addStats(name string, v Value, t time.Time) {
 }
 
 func dumpStats() {
-	if !katiStatsFlag {
+	if !katiEvalStatsFlag {
 		return
 	}
 	var sv byTotalTime
