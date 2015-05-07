@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -26,17 +25,16 @@ func (n *DepNode) String() string {
 }
 
 type DepBuilder struct {
-	rules       map[string]*Rule
-	ruleVars    map[string]Vars
-	irules      map[string][]*Rule // output -> implicitRules
-	suffixRules map[string][]*Rule
-	firstRule   *Rule
-	vars        Vars
-	done        map[string]*DepNode
-	phony       map[string]bool
+	rules         map[string]*Rule
+	ruleVars      map[string]Vars
+	implicitRules []*Rule
+	suffixRules   map[string][]*Rule
+	firstRule     *Rule
+	vars          Vars
+	done          map[string]*DepNode
+	phony         map[string]bool
 
 	trace                         []string
-	nImplicitRules                int
 	nodeCnt                       int
 	pickExplicitRuleCnt           int
 	pickImplicitRuleCnt           int
@@ -110,7 +108,7 @@ func (db *DepBuilder) pickRule(output string) (*Rule, Vars, bool) {
 		db.pickExplicitRuleWithoutCmdCnt++
 	}
 
-	for _, irule := range db.irules[output] {
+	for _, irule := range db.implicitRules {
 		if !db.canPickImplicitRule(irule, output) {
 			continue
 		}
@@ -358,18 +356,16 @@ func (db *DepBuilder) populateExplicitRule(rule *Rule) {
 	}
 }
 
-func (db *DepBuilder) populateImplicitRule(irules []*Rule, rule *Rule) []*Rule {
+func (db *DepBuilder) populateImplicitRule(rule *Rule) {
 	for _, outputPattern := range rule.outputPatterns {
 		r := &Rule{}
 		*r = *rule
 		r.outputPatterns = []pattern{outputPattern}
-		irules = append(irules, r)
+		db.implicitRules = append(db.implicitRules, r)
 	}
-	return irules
 }
 
 func (db *DepBuilder) populateRules(er *EvalResult) {
-	var implicitRules []*Rule
 	for _, rule := range er.rules {
 		for i, input := range rule.inputs {
 			rule.inputs[i] = trimLeadingCurdir(input)
@@ -380,51 +376,18 @@ func (db *DepBuilder) populateRules(er *EvalResult) {
 		db.populateExplicitRule(rule)
 
 		if len(rule.outputs) == 0 {
-			implicitRules = db.populateImplicitRule(implicitRules, rule)
+			db.populateImplicitRule(rule)
 		}
 	}
 
 	// Reverse the implicit rule for easier lookup.
-	for i, r := range implicitRules {
-		if i >= len(implicitRules)/2 {
+	for i, r := range db.implicitRules {
+		if i >= len(db.implicitRules)/2 {
 			break
 		}
-		j := len(implicitRules) - i - 1
-		implicitRules[i] = implicitRules[j]
-		implicitRules[j] = r
-	}
-	db.nImplicitRules = len(implicitRules)
-
-	var outputs []string
-	for output := range db.rules {
-		outputs = append(outputs, output)
-	}
-	sort.Strings(outputs)
-	for _, irule := range implicitRules {
-		pat := irule.outputPatterns[0]
-		if pat.prefix == "" && pat.suffix == "" {
-			// TODO(ukai): in android, it is used for turning off
-			// RCS / SCCS implicit rules of GNU make, so we could
-			// ignore such implicit rules(?)
-			for _, output := range outputs {
-				db.irules[output] = append(db.irules[output], irule)
-			}
-			continue
-		}
-		if pat.prefix != "" {
-			i := sort.SearchStrings(outputs, pat.prefix)
-			for i < len(outputs) && strings.HasPrefix(outputs[i], pat.prefix) {
-				if strings.HasSuffix(outputs[i], pat.suffix) {
-					db.irules[outputs[i]] = append(db.irules[outputs[i]], irule)
-				}
-				i++
-			}
-			continue
-		}
-		if pat.suffix != "" {
-			// TODO(ukai): handle this. no such rule in android build?
-			panic(fmt.Sprintf("suffix rule found: %s at %s:%d", pat, irule.filename, irule.lineno))
-		}
+		j := len(db.implicitRules) - i - 1
+		db.implicitRules[i] = db.implicitRules[j]
+		db.implicitRules[j] = r
 	}
 }
 
@@ -444,7 +407,6 @@ func NewDepBuilder(er *EvalResult, vars Vars) *DepBuilder {
 	db := &DepBuilder{
 		rules:       make(map[string]*Rule),
 		ruleVars:    er.ruleVars,
-		irules:      make(map[string][]*Rule),
 		suffixRules: make(map[string][]*Rule),
 		vars:        vars,
 		done:        make(map[string]*DepNode),
@@ -471,7 +433,7 @@ func (db *DepBuilder) Eval(targets []string) ([]*DepNode, error) {
 
 	LogStats("%d variables", len(db.vars))
 	LogStats("%d explicit rules", len(db.rules))
-	LogStats("%d implicit rules", db.nImplicitRules)
+	LogStats("%d implicit rules", len(db.implicitRules))
 	LogStats("%d suffix rules", len(db.suffixRules))
 
 	var nodes []*DepNode
