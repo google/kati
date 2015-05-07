@@ -25,6 +25,9 @@ func newBuf() *bytes.Buffer {
 }
 
 func freeBuf(buf *bytes.Buffer) {
+	if cap(buf.Bytes()) > 1024 {
+		return
+	}
 	buf.Reset()
 	bufFree.Put(buf)
 }
