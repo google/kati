@@ -6,11 +6,20 @@ import (
 	"strings"
 )
 
+// TODO(ukai): use unicode.IsSpace?
+func isWhitespace(ch rune) bool {
+	switch ch {
+	case ' ', '\t', '\n', '\r':
+		return true
+	}
+	return false
+}
+
 func splitSpaces(s string) []string {
 	var r []string
 	tokStart := -1
 	for i, ch := range s {
-		if ch == ' ' || ch == '\t' {
+		if isWhitespace(ch) {
 			if tokStart >= 0 {
 				r = append(r, s[tokStart:i])
 				tokStart = -1
@@ -31,7 +40,7 @@ func splitSpaces(s string) []string {
 func splitSpacesBytes(s []byte) (r [][]byte) {
 	tokStart := -1
 	for i, ch := range s {
-		if ch == ' ' || ch == '\t' {
+		if isWhitespace(rune(ch)) {
 			if tokStart >= 0 {
 				r = append(r, s[tokStart:i])
 				tokStart = -1
@@ -147,7 +156,7 @@ func stripExt(s string) string {
 
 func trimLeftSpace(s string) string {
 	for i, ch := range s {
-		if ch != ' ' && ch != '\t' {
+		if !isWhitespace(ch) {
 			return s[i:]
 		}
 	}
@@ -156,7 +165,7 @@ func trimLeftSpace(s string) string {
 
 func trimLeftSpaceBytes(s []byte) []byte {
 	for i, ch := range s {
-		if ch != ' ' && ch != '\t' {
+		if !isWhitespace(rune(ch)) {
 			return s[i:]
 		}
 	}
@@ -166,7 +175,7 @@ func trimLeftSpaceBytes(s []byte) []byte {
 func trimRightSpaceBytes(s []byte) []byte {
 	for i := len(s) - 1; i >= 0; i-- {
 		ch := s[i]
-		if ch != ' ' && ch != '\t' {
+		if !isWhitespace(rune(ch)) {
 			return s[:i+1]
 		}
 	}
