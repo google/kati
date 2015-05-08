@@ -170,10 +170,10 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 	fargs := ev.args(abuf, f.args[1:]...)
 	pat := fargs[0]
 	repl := fargs[1]
-	texts := splitSpacesBytes(fargs[2])
+	ws := newWordScanner(fargs[2])
 	sw := ssvWriter{w: w}
-	for _, text := range texts {
-		t := substPatternBytes(pat, repl, text)
+	for ws.Scan() {
+		t := substPatternBytes(pat, repl, ws.Bytes())
 		sw.Write(t)
 	}
 	freeBuf(abuf)
@@ -212,10 +212,15 @@ func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("filter", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
-	patterns := splitSpacesBytes(fargs[0])
-	texts := splitSpacesBytes(fargs[1])
+	var patterns [][]byte
+	ws := newWordScanner(fargs[0])
+	for ws.Scan() {
+		patterns = append(patterns, ws.Bytes())
+	}
+	ws = newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for _, text := range texts {
+	for ws.Scan() {
+		text := ws.Bytes()
 		for _, pat := range patterns {
 			if matchPatternBytes(pat, text) {
 				sw.Write(text)
@@ -232,11 +237,16 @@ func (f *funcFilterOut) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("filter-out", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
-	patterns := splitSpacesBytes(fargs[0])
-	texts := splitSpacesBytes(fargs[1])
+	var patterns [][]byte
+	ws := newWordScanner(fargs[0])
+	for ws.Scan() {
+		patterns = append(patterns, ws.Bytes())
+	}
+	ws = newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
 Loop:
-	for _, text := range texts {
+	for ws.Scan() {
+		text := ws.Bytes()
 		for _, pat := range patterns {
 			if matchPatternBytes(pat, text) {
 				continue Loop
@@ -284,12 +294,14 @@ func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
 	if index == 0 {
 		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
 	}
-	toks := splitSpacesBytes(fargs[1])
-	if index-1 >= len(toks) {
-		freeBuf(abuf)
-		return
+	ws := newWordScanner(fargs[1])
+	for ws.Scan() {
+		index--
+		if index == 0 {
+			w.Write(ws.Bytes())
+			break
+		}
 	}
-	w.Write(toks[index-1])
 	freeBuf(abuf)
 }
 
@@ -317,18 +329,14 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: %s`, f.args[2])
 	}
 
-	toks := splitSpacesBytes(fargs[2])
-	if si-1 >= len(toks) {
-		freeBuf(abuf)
-		return
-	}
-	if ei-1 >= len(toks) {
-		ei = len(toks)
-	}
-
+	ws := newWordScanner(fargs[2])
+	i := 0
 	sw := ssvWriter{w: w}
-	for _, t := range toks[si-1 : ei] {
-		sw.Write(t)
+	for ws.Scan() {
+		i++
+		if si <= i && i <= ei {
+			sw.Write(ws.Bytes())
+		}
 	}
 	freeBuf(abuf)
 }
@@ -340,8 +348,12 @@ func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("words", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	toks := splitSpacesBytes(abuf.Bytes())
-	w.Write([]byte(strconv.Itoa(len(toks))))
+	ws := newWordScanner(abuf.Bytes())
+	n := 0
+	for ws.Scan() {
+		n++
+	}
+	w.Write([]byte(strconv.Itoa(n)))
 	freeBuf(abuf)
 }
 
@@ -352,12 +364,10 @@ func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("firstword", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	toks := splitSpacesBytes(abuf.Bytes())
-	if len(toks) == 0 {
-		freeBuf(abuf)
-		return
+	ws := newWordScanner(abuf.Bytes())
+	if ws.Scan() {
+		w.Write(ws.Bytes())
 	}
-	w.Write(toks[0])
 	freeBuf(abuf)
 }
 
@@ -368,12 +378,14 @@ func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("lastword", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	toks := splitSpacesBytes(abuf.Bytes())
-	if len(toks) == 0 {
-		freeBuf(abuf)
-		return
+	ws := newWordScanner(abuf.Bytes())
+	var lw []byte
+	for ws.Scan() {
+		lw = ws.Bytes()
 	}
-	w.Write(toks[len(toks)-1])
+	if lw != nil {
+		w.Write(lw)
+	}
 	freeBuf(abuf)
 }
 
@@ -386,22 +398,16 @@ func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("join", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
-	list1 := splitSpacesBytes(fargs[0])
-	list2 := splitSpacesBytes(fargs[1])
+	ws1 := newWordScanner(fargs[0])
+	ws2 := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for i, v := range list1 {
-		if i < len(list2) {
-			sw.Write(v)
-			// Use |w| not to append extra ' '.
-			w.Write(list2[i])
-			continue
+	for {
+		if w1, w2 := ws1.Scan(), ws2.Scan(); !w1 && !w2 {
+			break
 		}
-		sw.Write(v)
-	}
-	if len(list2) > len(list1) {
-		for _, v := range list2[len(list1):] {
-			sw.Write(v)
-		}
+		sw.Write(ws1.Bytes())
+		// Use |w| not to append extra ' '.
+		w.Write(ws2.Bytes())
 	}
 	freeBuf(abuf)
 }
@@ -417,11 +423,10 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	patterns := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, pattern := range patterns {
-		files, err := filepath.Glob(pattern)
+	for ws.Scan() {
+		files, err := filepath.Glob(string(ws.Bytes()))
 		if err != nil {
 			panic(err)
 		}
@@ -429,6 +434,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 			sw.WriteString(file)
 		}
 	}
+	freeBuf(abuf)
 }
 
 type funcDir struct{ fclosure }
@@ -442,16 +448,17 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	names := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		if name == "/" {
-			sw.Write([]byte{'/'})
-		} else {
-			sw.WriteString(filepath.Dir(name) + string(filepath.Separator))
+			sw.WriteString(name)
+			continue
 		}
+		sw.WriteString(filepath.Dir(string(name)) + string(filepath.Separator))
 	}
+	freeBuf(abuf)
 }
 
 type funcNotdir struct{ fclosure }
@@ -465,16 +472,17 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	names := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		if name == string(filepath.Separator) {
 			sw.Write([]byte{})
 			continue
 		}
 		sw.WriteString(filepath.Base(name))
 	}
+	freeBuf(abuf)
 }
 
 type funcSuffix struct{ fclosure }
@@ -484,15 +492,16 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("suffix", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	toks := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
+	for ws.Scan() {
+		tok := string(ws.Bytes())
 		e := filepath.Ext(tok)
 		if len(e) > 0 {
 			sw.WriteString(e)
 		}
 	}
+	freeBuf(abuf)
 }
 
 type funcBasename struct{ fclosure }
@@ -502,13 +511,14 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("basename", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	toks := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
+	for ws.Scan() {
+		tok := string(ws.Bytes())
 		e := stripExt(tok)
 		sw.WriteString(e)
 	}
+	freeBuf(abuf)
 }
 
 type funcAddsuffix struct{ fclosure }
@@ -519,10 +529,10 @@ func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
 	suf := fargs[0]
-	toks := splitSpacesBytes(fargs[1])
+	ws := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
-		sw.Write(tok)
+	for ws.Scan() {
+		sw.Write(ws.Bytes())
 		// Use |w| not to append extra ' '.
 		w.Write(suf)
 	}
@@ -537,12 +547,12 @@ func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
 	pre := fargs[0]
-	toks := splitSpacesBytes(fargs[1])
+	ws := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
+	for ws.Scan() {
 		sw.Write(pre)
 		// Use |w| not to append extra ' '.
-		w.Write(tok)
+		w.Write(ws.Bytes())
 	}
 	freeBuf(abuf)
 }
@@ -558,10 +568,10 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	names := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
 			Log("abs: %v", err)
@@ -574,6 +584,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 		}
 		sw.WriteString(name)
 	}
+	freeBuf(abuf)
 }
 
 type funcAbspath struct{ fclosure }
@@ -587,10 +598,10 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	names := splitSpaces(abuf.String())
-	freeBuf(abuf)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
 			Log("abs: %v", err)
@@ -598,6 +609,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 		}
 		sw.WriteString(name)
 	}
+	freeBuf(abuf)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
@@ -1005,12 +1017,13 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1], f.args[2])
 	varname := string(fargs[0])
-	list := splitSpacesBytes(fargs[1])
+	ws := newWordScanner(fargs[1])
 	text := f.args[3]
 	restore := ev.outVars.save(varname)
 	defer restore()
 	space := false
-	for _, word := range list {
+	for ws.Scan() {
+		word := ws.Bytes()
 		ev.outVars.Assign(varname,
 			SimpleVar{
 				value:  tmpval(word),

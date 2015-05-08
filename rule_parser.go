@@ -63,9 +63,10 @@ func isPatternRule(s []byte) (pattern, bool) {
 }
 
 func (r *Rule) parseInputs(s []byte) {
-	inputs := splitSpacesBytes(s)
+	ws := newWordScanner(s)
 	isOrderOnly := false
-	for _, input := range inputs {
+	for ws.Scan() {
+		input := ws.Bytes()
 		if len(input) == 1 && input[0] == '|' {
 			isOrderOnly = true
 			continue
@@ -113,19 +114,21 @@ func (r *Rule) parse(line []byte) (*AssignAST, error) {
 	}
 
 	first := line[:index]
-	outputs := splitSpacesBytes(first)
+	ws := newWordScanner(first)
 	pat, isFirstPattern := isPatternRule(first)
 	if isFirstPattern {
-		if len(outputs) > 1 {
-			return nil, errors.New("*** mixed implicit and normal rules: deprecated syntax")
+		n := 0
+		for ws.Scan() {
+			n++
+			if n > 1 {
+				return nil, errors.New("*** mixed implicit and normal rules: deprecated syntax")
+			}
 		}
 		r.outputPatterns = []pattern{pat}
 	} else {
-		o := make([]string, len(outputs))
-		for i, output := range outputs {
-			o[i] = internBytes(output)
+		for ws.Scan() {
+			r.outputs = append(r.outputs, internBytes(ws.Bytes()))
 		}
-		r.outputs = o
 	}
 
 	index++
@@ -153,18 +156,18 @@ func (r *Rule) parse(line []byte) (*AssignAST, error) {
 	third := rest[index+1:]
 
 	// r.outputs is already set.
-	outputPatterns := splitSpacesBytes(second)
-	if len(outputPatterns) == 0 {
+	ws = newWordScanner(second)
+	if !ws.Scan() {
 		return nil, errors.New("*** missing target pattern.")
 	}
-	if len(outputPatterns) > 1 {
-		return nil, errors.New("*** multiple target patterns.")
-	}
-	outpat, ok := isPatternRule(outputPatterns[0])
+	outpat, ok := isPatternRule(ws.Bytes())
 	if !ok {
 		return nil, errors.New("*** target pattern contains no '%'.")
 	}
 	r.outputPatterns = []pattern{outpat}
+	if ws.Scan() {
+		return nil, errors.New("*** multiple target patterns.")
+	}
 	r.parseInputs(third)
 
 	return nil, nil
