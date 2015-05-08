@@ -36,20 +36,20 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 	}
 }
 
-func (ev *Evaluator) args(buf *bytes.Buffer, args ...Value) [][]byte {
+func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
 	var pos []int
 	for _, arg := range args {
 		arg.Eval(buf, ev)
 		pos = append(pos, buf.Len())
 	}
 	v := buf.Bytes()
-	var values [][]byte
+	buf.args = buf.args[:0]
 	s := 0
 	for _, p := range pos {
-		values = append(values, v[s:p])
+		buf.args = append(buf.args, v[s:p])
 		s = p
 	}
-	return values
+	return buf.args
 }
 
 func (ev *Evaluator) evalAssign(ast *AssignAST) {

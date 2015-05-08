@@ -15,20 +15,26 @@ var (
 	errEndOfInput = errors.New("parse: unexpected end of input")
 
 	bufFree = sync.Pool{
-		New: func() interface{} { return new(bytes.Buffer) },
+		New: func() interface{} { return new(buffer) },
 	}
 )
 
-func newBuf() *bytes.Buffer {
-	buf := bufFree.Get().(*bytes.Buffer)
+type buffer struct {
+	bytes.Buffer
+	args [][]byte
+}
+
+func newBuf() *buffer {
+	buf := bufFree.Get().(*buffer)
 	return buf
 }
 
-func freeBuf(buf *bytes.Buffer) {
+func freeBuf(buf *buffer) {
 	if cap(buf.Bytes()) > 1024 {
 		return
 	}
 	buf.Reset()
+	buf.args = buf.args[:0]
 	bufFree.Put(buf)
 }
 
