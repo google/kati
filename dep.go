@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -25,14 +26,18 @@ func (n *DepNode) String() string {
 }
 
 type DepBuilder struct {
-	rules         map[string]*Rule
-	ruleVars      map[string]Vars
-	implicitRules []*Rule
-	suffixRules   map[string][]*Rule
-	firstRule     *Rule
-	vars          Vars
-	done          map[string]*DepNode
-	phony         map[string]bool
+	rules    map[string]*Rule
+	ruleVars map[string]Vars
+
+	implicitRules []*Rule // pattern=%. no prefix,suffix.
+	iprefixRules  []*Rule // pattern=prefix%..  may have suffix
+	isuffixRules  []*Rule // pattern=%suffix  no prefix
+
+	suffixRules map[string][]*Rule
+	firstRule   *Rule
+	vars        Vars
+	done        map[string]*DepNode
+	phony       map[string]bool
 
 	trace                         []string
 	nodeCnt                       int
@@ -58,6 +63,55 @@ func (db *DepBuilder) exists(target string) bool {
 		return true
 	}
 	return exists(target)
+}
+
+func (db *DepBuilder) PickImplicitRules(output string) []*Rule {
+	var rules []*Rule
+	i := sort.Search(len(db.iprefixRules), func(i int) bool {
+		prefix := db.iprefixRules[i].outputPatterns[0].prefix
+		if strings.HasPrefix(output, prefix) {
+			return true
+		}
+		return prefix >= output
+	})
+	if i < len(db.iprefixRules) {
+		for ; i < len(db.iprefixRules); i++ {
+			rule := db.iprefixRules[i]
+			if !strings.HasPrefix(output, rule.outputPatterns[0].prefix) {
+				break
+			}
+			if db.canPickImplicitRule(rule, output) {
+				rules = append(rules, rule)
+			}
+		}
+	}
+
+	i = sort.Search(len(db.isuffixRules), func(i int) bool {
+		suffix := db.isuffixRules[i].outputPatterns[0].suffix
+		if strings.HasSuffix(output, suffix) {
+			return true
+		}
+		return reverse(suffix) >= reverse(output)
+	})
+	if i < len(db.isuffixRules) {
+		for ; i < len(db.isuffixRules); i++ {
+			rule := db.isuffixRules[i]
+			if !strings.HasSuffix(output, rule.outputPatterns[0].suffix) {
+				break
+			}
+			if db.canPickImplicitRule(rule, output) {
+				rules = append(rules, rule)
+			}
+		}
+	}
+	for _, rule := range db.implicitRules {
+		if db.canPickImplicitRule(rule, output) {
+			rules = append(rules, rule)
+		}
+	}
+	// TODO(ukai): which implicit rules is selected?
+	// longest match? last defined?
+	return rules
 }
 
 func (db *DepBuilder) canPickImplicitRule(rule *Rule, output string) bool {
@@ -108,10 +162,7 @@ func (db *DepBuilder) pickRule(output string) (*Rule, Vars, bool) {
 		db.pickExplicitRuleWithoutCmdCnt++
 	}
 
-	for _, irule := range db.implicitRules {
-		if !db.canPickImplicitRule(irule, output) {
-			continue
-		}
+	for _, irule := range db.PickImplicitRules(output) {
 		db.pickImplicitRuleCnt++
 		if rule != nil {
 			r := &Rule{}
@@ -361,7 +412,13 @@ func (db *DepBuilder) populateImplicitRule(rule *Rule) {
 		r := &Rule{}
 		*r = *rule
 		r.outputPatterns = []pattern{outputPattern}
-		db.implicitRules = append(db.implicitRules, r)
+		if outputPattern.prefix != "" {
+			db.iprefixRules = append(db.iprefixRules, r)
+		} else if outputPattern.suffix != "" {
+			db.isuffixRules = append(db.isuffixRules, r)
+		} else {
+			db.implicitRules = append(db.implicitRules, r)
+		}
 	}
 }
 
@@ -380,15 +437,37 @@ func (db *DepBuilder) populateRules(er *EvalResult) {
 		}
 	}
 
-	// Reverse the implicit rule for easier lookup.
-	for i, r := range db.implicitRules {
-		if i >= len(db.implicitRules)/2 {
-			break
-		}
-		j := len(db.implicitRules) - i - 1
-		db.implicitRules[i] = db.implicitRules[j]
-		db.implicitRules[j] = r
+	// reverse to the last implicit rules should be selected.
+	// testcase/implicit_pattern_rule.mk
+	reverseImplicitRules(db.implicitRules)
+	reverseImplicitRules(db.iprefixRules)
+	reverseImplicitRules(db.isuffixRules)
+
+	sort.Stable(byPrefix(db.iprefixRules))
+	sort.Stable(bySuffix(db.isuffixRules))
+}
+
+func reverseImplicitRules(rules []*Rule) {
+	for i := 0; i < len(rules)/2; i++ {
+		j := len(rules) - i - 1
+		rules[i], rules[j] = rules[j], rules[i]
 	}
+}
+
+type byPrefix []*Rule
+
+func (p byPrefix) Len() int      { return len(p) }
+func (p byPrefix) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p byPrefix) Less(i, j int) bool {
+	return p[i].outputPatterns[0].prefix < p[j].outputPatterns[0].prefix
+}
+
+type bySuffix []*Rule
+
+func (s bySuffix) Len() int      { return len(s) }
+func (s bySuffix) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s bySuffix) Less(i, j int) bool {
+	return reverse(s[i].outputPatterns[0].suffix) < reverse(s[j].outputPatterns[0].suffix)
 }
 
 func (db *DepBuilder) reportStats() {
