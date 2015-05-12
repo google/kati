@@ -189,6 +189,7 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	parseFlags()
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
