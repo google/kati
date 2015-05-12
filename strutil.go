@@ -6,11 +6,20 @@ import (
 	"strings"
 )
 
+// TODO(ukai): use unicode.IsSpace?
+func isWhitespace(ch rune) bool {
+	switch ch {
+	case ' ', '\t', '\n', '\r':
+		return true
+	}
+	return false
+}
+
 func splitSpaces(s string) []string {
 	var r []string
 	tokStart := -1
 	for i, ch := range s {
-		if ch == ' ' || ch == '\t' {
+		if isWhitespace(ch) {
 			if tokStart >= 0 {
 				r = append(r, s[tokStart:i])
 				tokStart = -1
@@ -31,7 +40,7 @@ func splitSpaces(s string) []string {
 func splitSpacesBytes(s []byte) (r [][]byte) {
 	tokStart := -1
 	for i, ch := range s {
-		if ch == ' ' || ch == '\t' {
+		if isWhitespace(rune(ch)) {
 			if tokStart >= 0 {
 				r = append(r, s[tokStart:i])
 				tokStart = -1
@@ -47,6 +56,42 @@ func splitSpacesBytes(s []byte) (r [][]byte) {
 	}
 	Log("splitSpace(%q)=%q", s, r)
 	return r
+}
+
+// TODO(ukai): use bufio.Scanner?
+type wordScanner struct {
+	in []byte
+	s  int // word starts
+	i  int // current pos
+}
+
+func newWordScanner(in []byte) *wordScanner {
+	return &wordScanner{
+		in: in,
+	}
+}
+
+func (ws *wordScanner) Scan() bool {
+	for ws.s = ws.i; ws.s < len(ws.in); ws.s++ {
+		ch := rune(ws.in[ws.s])
+		if !isWhitespace(ch) {
+			break
+		}
+	}
+	if ws.s == len(ws.in) {
+		return false
+	}
+	for ws.i = ws.s; ws.i < len(ws.in); ws.i++ {
+		ch := rune(ws.in[ws.i])
+		if isWhitespace(ch) {
+			break
+		}
+	}
+	return true
+}
+
+func (ws *wordScanner) Bytes() []byte {
+	return ws.in[ws.s:ws.i]
 }
 
 func matchPattern(pat, str string) bool {
@@ -147,7 +192,7 @@ func stripExt(s string) string {
 
 func trimLeftSpace(s string) string {
 	for i, ch := range s {
-		if ch != ' ' && ch != '\t' {
+		if !isWhitespace(ch) {
 			return s[i:]
 		}
 	}
@@ -156,11 +201,26 @@ func trimLeftSpace(s string) string {
 
 func trimLeftSpaceBytes(s []byte) []byte {
 	for i, ch := range s {
-		if ch != ' ' && ch != '\t' {
+		if !isWhitespace(rune(ch)) {
 			return s[i:]
 		}
 	}
 	return nil
+}
+
+func trimRightSpaceBytes(s []byte) []byte {
+	for i := len(s) - 1; i >= 0; i-- {
+		ch := s[i]
+		if !isWhitespace(rune(ch)) {
+			return s[:i+1]
+		}
+	}
+	return nil
+}
+
+func trimSpaceBytes(s []byte) []byte {
+	s = trimLeftSpaceBytes(s)
+	return trimRightSpaceBytes(s)
 }
 
 // Strip leading sequences of './' from file names, so that ./file
@@ -171,4 +231,13 @@ func trimLeadingCurdir(s string) string {
 		s = s[2:]
 	}
 	return s
+}
+
+func reverse(s string) string {
+	// TODO(ukai): support UTF-8?
+	r := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		r[i] = s[len(s)-1-i]
+	}
+	return string(r)
 }

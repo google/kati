@@ -44,3 +44,12 @@ test5:
 #	echo foo\
 #	$${empty}bar
 
+define cmd7
+@echo first
+@echo second
+endef
+
+test7:
+	$(cmd7) \
+	 third
+

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 )
@@ -53,74 +54,81 @@ type Rule struct {
 	cmdLineno       int
 }
 
-func isPatternRule(s string) (pattern, bool) {
-	i := strings.IndexByte(s, '%')
+func isPatternRule(s []byte) (pattern, bool) {
+	i := bytes.IndexByte(s, '%')
 	if i < 0 {
 		return pattern{}, false
 	}
-	return pattern{prefix: s[:i], suffix: s[i+1:]}, true
+	return pattern{prefix: string(s[:i]), suffix: string(s[i+1:])}, true
 }
 
-func (r *Rule) parseInputs(s string) {
-	inputs := splitSpaces(s)
+func (r *Rule) parseInputs(s []byte) {
+	ws := newWordScanner(s)
 	isOrderOnly := false
-	for _, input := range inputs {
-		if input == "|" {
+	for ws.Scan() {
+		input := ws.Bytes()
+		if len(input) == 1 && input[0] == '|' {
 			isOrderOnly = true
 			continue
 		}
 		if isOrderOnly {
-			r.orderOnlyInputs = append(r.orderOnlyInputs, input)
+			r.orderOnlyInputs = append(r.orderOnlyInputs, internBytes(input))
 		} else {
-			r.inputs = append(r.inputs, input)
+			r.inputs = append(r.inputs, internBytes(input))
 		}
 	}
 }
 
-func (r *Rule) parseVar(s string) *AssignAST {
-	eq := strings.IndexByte(s, '=')
+func (r *Rule) parseVar(s []byte) *AssignAST {
+	eq := bytes.IndexByte(s, '=')
 	if eq <= 0 {
 		return nil
 	}
 	assign := &AssignAST{
-		rhs: trimLeftSpace(s[eq+1:]),
+		rhs: string(trimLeftSpaceBytes(s[eq+1:])),
 	}
 	assign.filename = r.filename
 	assign.lineno = r.lineno
 	// TODO(ukai): support override, export.
-	switch s[eq-1 : eq+1] {
-	case ":=":
-		assign.lhs = strings.TrimSpace(s[:eq-1])
+	switch s[eq-1] { // s[eq] is '='
+	case ':':
+		assign.lhs = string(trimSpaceBytes(s[:eq-1]))
 		assign.op = ":="
-	case "+=":
-		assign.lhs = strings.TrimSpace(s[:eq-1])
+	case '+':
+		assign.lhs = string(trimSpaceBytes(s[:eq-1]))
 		assign.op = "+="
-	case "?=":
-		assign.lhs = strings.TrimSpace(s[:eq-1])
+	case '?':
+		assign.lhs = string(trimSpaceBytes(s[:eq-1]))
 		assign.op = "?="
 	default:
-		assign.lhs = strings.TrimSpace(s[:eq])
+		assign.lhs = string(trimSpaceBytes(s[:eq]))
 		assign.op = "="
 	}
 	return assign
 }
 
-func (r *Rule) parse(line string) (*AssignAST, error) {
-	index := strings.IndexByte(line, ':')
+func (r *Rule) parse(line []byte) (*AssignAST, error) {
+	index := bytes.IndexByte(line, ':')
 	if index < 0 {
 		return nil, errors.New("*** missing separator.")
 	}
 
 	first := line[:index]
-	outputs := splitSpaces(first)
+	ws := newWordScanner(first)
 	pat, isFirstPattern := isPatternRule(first)
 	if isFirstPattern {
-		if len(outputs) > 1 {
-			return nil, errors.New("*** mixed implicit and normal rules: deprecated syntax")
+		n := 0
+		for ws.Scan() {
+			n++
+			if n > 1 {
+				return nil, errors.New("*** mixed implicit and normal rules: deprecated syntax")
+			}
 		}
 		r.outputPatterns = []pattern{pat}
 	} else {
-		r.outputs = outputs
+		for ws.Scan() {
+			r.outputs = append(r.outputs, internBytes(ws.Bytes()))
+		}
 	}
 
 	index++
@@ -133,7 +141,7 @@ func (r *Rule) parse(line string) (*AssignAST, error) {
 	if assign := r.parseVar(rest); assign != nil {
 		return assign, nil
 	}
-	index = strings.IndexByte(rest, ':')
+	index = bytes.IndexByte(rest, ':')
 	if index < 0 {
 		r.parseInputs(rest)
 		return nil, nil
@@ -147,19 +155,19 @@ func (r *Rule) parse(line string) (*AssignAST, error) {
 	second := rest[:index]
 	third := rest[index+1:]
 
-	r.outputs = outputs
-	outputPatterns := splitSpaces(second)
-	if len(outputPatterns) == 0 {
+	// r.outputs is already set.
+	ws = newWordScanner(second)
+	if !ws.Scan() {
 		return nil, errors.New("*** missing target pattern.")
 	}
-	if len(outputPatterns) > 1 {
-		return nil, errors.New("*** multiple target patterns.")
-	}
-	outpat, ok := isPatternRule(outputPatterns[0])
+	outpat, ok := isPatternRule(ws.Bytes())
 	if !ok {
 		return nil, errors.New("*** target pattern contains no '%'.")
 	}
 	r.outputPatterns = []pattern{outpat}
+	if ws.Scan() {
+		return nil, errors.New("*** multiple target patterns.")
+	}
 	r.parseInputs(third)
 
 	return nil, nil
