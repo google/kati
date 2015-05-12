@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -16,12 +19,16 @@ var (
 	jobsFlag            int
 	cpuprofile          string
 	heapprofile         string
+	memstats            string
 	katiStatsFlag       bool
+	katiEvalStatsFlag   bool
 	loadJson            string
 	saveJson            string
 	loadGob             string
 	saveGob             string
 	syntaxCheckOnlyFlag bool
+	queryFlag           string
+	eagerCmdEvalFlag    bool
 )
 
 func parseFlags() {
@@ -40,8 +47,12 @@ func parseFlags() {
 
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
+	flag.StringVar(&memstats, "kati_memstats", "", "Show memstats with given templates")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
+	flag.BoolVar(&katiEvalStatsFlag, "kati_eval_stats", false, "Show eval statistics")
+	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
+	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	flag.Parse()
 }
 
@@ -162,6 +173,7 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	vars.Merge(er.vars)
 
 	LogStats("eval time: %q", time.Now().Sub(startTime))
+	LogStats("shell func time: %q", shellFuncTime)
 
 	startTime = time.Now()
 	db := NewDepBuilder(er, vars)
@@ -188,10 +200,34 @@ func main() {
 	}
 	defer maybeWriteHeapProfile()
 	defer dumpStats()
+	if memstats != "" {
+		t := template.Must(template.New("memstats").Parse(memstats))
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		var buf bytes.Buffer
+		err := t.Execute(&buf, ms)
+		fmt.Println(buf.String())
+		if err != nil {
+			panic(err)
+		}
+		defer func() {
+			var ms runtime.MemStats
+			runtime.ReadMemStats(&ms)
+			var buf bytes.Buffer
+			t.Execute(&buf, ms)
+			fmt.Println(buf.String())
+		}()
+	}
 
 	clvars, targets := parseCommandLine()
 
 	nodes, vars := getDepGraph(clvars, targets)
+
+	if eagerCmdEvalFlag {
+		startTime := time.Now()
+		EvalCommands(nodes, vars)
+		LogStats("eager eval command time: %q", time.Now().Sub(startTime))
+	}
 
 	if saveGob != "" {
 		startTime := time.Now()
@@ -205,6 +241,11 @@ func main() {
 	}
 
 	if syntaxCheckOnlyFlag {
+		return
+	}
+
+	if queryFlag != "" {
+		HandleQuery(queryFlag, nodes, vars)
 		return
 	}
 

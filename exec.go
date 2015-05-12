@@ -245,3 +245,73 @@ func (ex *Executor) Exec(roots []*DepNode) error {
 	ex.wm.Wait()
 	return nil
 }
+
+func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
+	var restores []func()
+	defer func() {
+		for _, restore := range restores {
+			restore()
+		}
+	}()
+
+	ex.varsLock.Lock()
+	restores = append(restores, func() { ex.varsLock.Unlock() })
+	// For automatic variables.
+	ex.currentOutput = n.Output
+	ex.currentInputs = n.ActualInputs
+	for k, v := range n.TargetSpecificVars {
+		restores = append(restores, ex.vars.save(k))
+		ex.vars[k] = v
+	}
+
+	ev := newEvaluator(ex.vars)
+	ev.avoidIO = avoidIO
+	ev.filename = n.Filename
+	ev.lineno = n.Lineno
+	var runners []runner
+	Log("Building: %s cmds:%q", n.Output, n.Cmds)
+	r := runner{
+		output: n.Output,
+		echo:   true,
+		shell:  ex.shell,
+	}
+	for _, cmd := range n.Cmds {
+		for _, r := range evalCmd(ev, r, cmd) {
+			if len(r.cmd) != 0 {
+				runners = append(runners, r)
+			}
+		}
+	}
+	return runners, ev.hasIO
+}
+
+func EvalCommands(nodes []*DepNode, vars Vars) {
+	ioCnt := 0
+	ex := NewExecutor(vars)
+	for i, n := range nodes {
+		runners, hasIO := ex.createRunners(n, true)
+		if hasIO {
+			ioCnt++
+			if ioCnt % 100 == 0 {
+				LogStats("%d/%d rules have IO", ioCnt, i+1)
+			}
+			continue
+		}
+
+		n.Cmds = []string{}
+		n.TargetSpecificVars = make(Vars)
+		for _, r := range runners {
+			cmd := r.cmd
+			// TODO: Do not preserve the effect of dryRunFlag.
+			if r.echo {
+				cmd = "@" + cmd
+			}
+			if r.ignoreError {
+				cmd = "-" + cmd
+			}
+			n.Cmds = append(n.Cmds, cmd)
+		}
+	}
+
+	LogStats("%d/%d rules have IO", ioCnt, len(nodes))
+}

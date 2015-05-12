@@ -39,6 +39,43 @@ func TestSplitSpaces(t *testing.T) {
 	}
 }
 
+func TestWordScanner(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{
+			in:   "foo",
+			want: []string{"foo"},
+		},
+		{
+			in: "  	 ",
+			want: nil,
+		},
+		{
+			in: "  foo 	  bar 	",
+			want: []string{"foo", "bar"},
+		},
+		{
+			in:   "  foo bar",
+			want: []string{"foo", "bar"},
+		},
+		{
+			in:   "foo bar  ",
+			want: []string{"foo", "bar"},
+		},
+	} {
+		ws := newWordScanner([]byte(tc.in))
+		var got []string
+		for ws.Scan() {
+			got = append(got, string(ws.Bytes()))
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf(`wordScanner(%q)=%q, want %q`, tc.in, got, tc.want)
+		}
+	}
+}
+
 func TestSubstPattern(t *testing.T) {
 	for _, tc := range []struct {
 		pat  string

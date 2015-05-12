@@ -133,7 +133,7 @@ func TestRuleParser(t *testing.T) {
 		*/
 	} {
 		got := &Rule{}
-		assign, err := got.parse(tc.in)
+		assign, err := got.parse([]byte(tc.in))
 		if tc.err != "" {
 			if err == nil {
 				t.Errorf(`r.parse(%q)=_, <nil>, want _, %q`, tc.in, tc.err)

@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Func is a make function.
@@ -100,13 +101,12 @@ func (sw *ssvWriter) WriteString(s string) {
 	sw.Write([]byte(s))
 }
 
-func numericValueForFunc(ev *Evaluator, v Value, funcName string, nth string) int {
-	a := bytes.TrimSpace(ev.Value(v))
-	n, err := strconv.Atoi(string(a))
+func numericValueForFunc(v string) (int, bool) {
+	n, err := strconv.Atoi(v)
 	if err != nil || n < 0 {
-		Error(ev.filename, ev.lineno, `*** non-numeric %s argument to "%s" function: "%s".`, nth, funcName, a)
+		return n, false
 	}
-	return n
+	return n, true
 }
 
 type fclosure struct {
@@ -137,7 +137,7 @@ func (c *fclosure) String() string {
 	return fmt.Sprintf("$%s %s%c", arg0, strings.Join(args, ","), cp)
 }
 
-func (c *fclosure) Serialize() SerializableVar{
+func (c *fclosure) Serialize() SerializableVar {
 	r := SerializableVar{Type: "func"}
 	for _, a := range c.args {
 		r.Children = append(r.Children, a.Serialize())
@@ -151,11 +151,14 @@ type funcSubst struct{ fclosure }
 func (f *funcSubst) Arity() int { return 3 }
 func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("subst", 3, len(f.args))
-	from := ev.Value(f.args[1])
-	to := ev.Value(f.args[2])
-	text := ev.Value(f.args[3])
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	from := fargs[0]
+	to := fargs[1]
+	text := fargs[2]
 	Log("subst from:%q to:%q text:%q", from, to, text)
 	w.Write(bytes.Replace(text, from, to, -1))
+	freeBuf(abuf)
 }
 
 type funcPatsubst struct{ fclosure }
@@ -163,14 +166,17 @@ type funcPatsubst struct{ fclosure }
 func (f *funcPatsubst) Arity() int { return 3 }
 func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("patsubst", 3, len(f.args))
-	pat := ev.Value(f.args[1])
-	repl := ev.Value(f.args[2])
-	texts := splitSpacesBytes(ev.Value(f.args[3]))
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	pat := fargs[0]
+	repl := fargs[1]
+	ws := newWordScanner(fargs[2])
 	sw := ssvWriter{w: w}
-	for _, text := range texts {
-		t := substPatternBytes(pat, repl, text)
+	for ws.Scan() {
+		t := substPatternBytes(pat, repl, ws.Bytes())
 		sw.Write(t)
 	}
+	freeBuf(abuf)
 }
 
 type funcStrip struct{ fclosure }
@@ -178,8 +184,10 @@ type funcStrip struct{ fclosure }
 func (f *funcStrip) Arity() int { return 1 }
 func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("strip", 1, len(f.args))
-	text := ev.Value(f.args[1])
-	w.Write(bytes.TrimSpace(text))
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	w.Write(trimSpaceBytes(abuf.Bytes()))
+	freeBuf(abuf)
 }
 
 type funcFindstring struct{ fclosure }
@@ -187,11 +195,14 @@ type funcFindstring struct{ fclosure }
 func (f *funcFindstring) Arity() int { return 2 }
 func (f *funcFindstring) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("findstring", 2, len(f.args))
-	find := ev.Value(f.args[1])
-	text := ev.Value(f.args[2])
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	find := fargs[0]
+	text := fargs[1]
 	if bytes.Index(text, find) >= 0 {
 		w.Write(find)
 	}
+	freeBuf(abuf)
 }
 
 type funcFilter struct{ fclosure }
@@ -199,16 +210,24 @@ type funcFilter struct{ fclosure }
 func (f *funcFilter) Arity() int { return 2 }
 func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("filter", 2, len(f.args))
-	patterns := splitSpacesBytes(ev.Value(f.args[1]))
-	texts := splitSpacesBytes(ev.Value(f.args[2]))
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	var patterns [][]byte
+	ws := newWordScanner(fargs[0])
+	for ws.Scan() {
+		patterns = append(patterns, ws.Bytes())
+	}
+	ws = newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for _, text := range texts {
+	for ws.Scan() {
+		text := ws.Bytes()
 		for _, pat := range patterns {
 			if matchPatternBytes(pat, text) {
 				sw.Write(text)
 			}
 		}
 	}
+	freeBuf(abuf)
 }
 
 type funcFilterOut struct{ fclosure }
@@ -216,11 +235,18 @@ type funcFilterOut struct{ fclosure }
 func (f *funcFilterOut) Arity() int { return 2 }
 func (f *funcFilterOut) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("filter-out", 2, len(f.args))
-	patterns := splitSpacesBytes(ev.Value(f.args[1]))
-	texts := splitSpacesBytes(ev.Value(f.args[2]))
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	var patterns [][]byte
+	ws := newWordScanner(fargs[0])
+	for ws.Scan() {
+		patterns = append(patterns, ws.Bytes())
+	}
+	ws = newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
 Loop:
-	for _, text := range texts {
+	for ws.Scan() {
+		text := ws.Bytes()
 		for _, pat := range patterns {
 			if matchPatternBytes(pat, text) {
 				continue Loop
@@ -228,6 +254,7 @@ Loop:
 		}
 		sw.Write(text)
 	}
+	freeBuf(abuf)
 }
 
 type funcSort struct{ fclosure }
@@ -235,7 +262,10 @@ type funcSort struct{ fclosure }
 func (f *funcSort) Arity() int { return 1 }
 func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("sort", 1, len(f.args))
-	toks := splitSpaces(string(ev.Value(f.args[1])))
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	toks := splitSpaces(abuf.String())
+	freeBuf(abuf)
 	sort.Strings(toks)
 
 	// Remove duplicate words.
@@ -254,15 +284,25 @@ type funcWord struct{ fclosure }
 func (f *funcWord) Arity() int { return 2 }
 func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("word", 2, len(f.args))
-	index := numericValueForFunc(ev, f.args[1], "word", "first")
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	v := string(trimSpaceBytes(fargs[0]))
+	index, ok := numericValueForFunc(v)
+	if !ok {
+		Error(ev.filename, ev.lineno, `*** non-numeric first argument to "word" function: %q.`, v)
+	}
 	if index == 0 {
 		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
 	}
-	toks := splitSpacesBytes(ev.Value(f.args[2]))
-	if index-1 >= len(toks) {
-		return
+	ws := newWordScanner(fargs[1])
+	for ws.Scan() {
+		index--
+		if index == 0 {
+			w.Write(ws.Bytes())
+			break
+		}
 	}
-	w.Write(toks[index-1])
+	freeBuf(abuf)
 }
 
 type funcWordlist struct{ fclosure }
@@ -270,27 +310,35 @@ type funcWordlist struct{ fclosure }
 func (f *funcWordlist) Arity() int { return 3 }
 func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wordlist", 3, len(f.args))
-	si := numericValueForFunc(ev, f.args[1], "wordlist", "first")
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	v := string(trimSpaceBytes(fargs[0]))
+	si, ok := numericValueForFunc(v)
+	if !ok {
+		Error(ev.filename, ev.lineno, `*** non-numeric first argument to "wordlist" function: %q.`, v)
+	}
 	if si == 0 {
 		Error(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: %s`, f.args[1])
 	}
-	ei := numericValueForFunc(ev, f.args[2], "wordlist", "second")
+	v = string(trimSpaceBytes(fargs[1]))
+	ei, ok := numericValueForFunc(v)
+	if !ok {
+		Error(ev.filename, ev.lineno, `*** non-numeric second argument to "wordlist" function: %q.`, v)
+	}
 	if ei == 0 {
 		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: %s`, f.args[2])
 	}
 
-	toks := splitSpacesBytes(ev.Value(f.args[3]))
-	if si-1 >= len(toks) {
-		return
-	}
-	if ei-1 >= len(toks) {
-		ei = len(toks)
-	}
-
+	ws := newWordScanner(fargs[2])
+	i := 0
 	sw := ssvWriter{w: w}
-	for _, t := range toks[si-1 : ei] {
-		sw.Write(t)
+	for ws.Scan() {
+		i++
+		if si <= i && i <= ei {
+			sw.Write(ws.Bytes())
+		}
 	}
+	freeBuf(abuf)
 }
 
 type funcWords struct{ fclosure }
@@ -298,8 +346,15 @@ type funcWords struct{ fclosure }
 func (f *funcWords) Arity() int { return 1 }
 func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("words", 1, len(f.args))
-	toks := splitSpacesBytes(ev.Value(f.args[1]))
-	w.Write([]byte(strconv.Itoa(len(toks))))
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
+	n := 0
+	for ws.Scan() {
+		n++
+	}
+	w.Write([]byte(strconv.Itoa(n)))
+	freeBuf(abuf)
 }
 
 type funcFirstword struct{ fclosure }
@@ -307,11 +362,13 @@ type funcFirstword struct{ fclosure }
 func (f *funcFirstword) Arity() int { return 1 }
 func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("firstword", 1, len(f.args))
-	toks := splitSpacesBytes(ev.Value(f.args[1]))
-	if len(toks) == 0 {
-		return
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
+	if ws.Scan() {
+		w.Write(ws.Bytes())
 	}
-	w.Write(toks[0])
+	freeBuf(abuf)
 }
 
 type funcLastword struct{ fclosure }
@@ -319,11 +376,17 @@ type funcLastword struct{ fclosure }
 func (f *funcLastword) Arity() int { return 1 }
 func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("lastword", 1, len(f.args))
-	toks := splitSpacesBytes(ev.Value(f.args[1]))
-	if len(toks) == 0 {
-		return
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
+	var lw []byte
+	for ws.Scan() {
+		lw = ws.Bytes()
 	}
-	w.Write(toks[len(toks)-1])
+	if lw != nil {
+		w.Write(lw)
+	}
+	freeBuf(abuf)
 }
 
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
@@ -333,23 +396,20 @@ type funcJoin struct{ fclosure }
 func (f *funcJoin) Arity() int { return 2 }
 func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("join", 2, len(f.args))
-	list1 := splitSpacesBytes(ev.Value(f.args[1]))
-	list2 := splitSpacesBytes(ev.Value(f.args[2]))
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	ws1 := newWordScanner(fargs[0])
+	ws2 := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for i, v := range list1 {
-		if i < len(list2) {
-			sw.Write(v)
-			// Use |w| not to append extra ' '.
-			w.Write(list2[i])
-			continue
+	for {
+		if w1, w2 := ws1.Scan(), ws2.Scan(); !w1 && !w2 {
+			break
 		}
-		sw.Write(v)
+		sw.Write(ws1.Bytes())
+		// Use |w| not to append extra ' '.
+		w.Write(ws2.Bytes())
 	}
-	if len(list2) > len(list1) {
-		for _, v := range list2[len(list1):] {
-			sw.Write(v)
-		}
-	}
+	freeBuf(abuf)
 }
 
 type funcWildcard struct{ fclosure }
@@ -357,9 +417,16 @@ type funcWildcard struct{ fclosure }
 func (f *funcWildcard) Arity() int { return 1 }
 func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, pattern := range splitSpaces(string(ev.Value(f.args[1]))) {
-		files, err := filepath.Glob(pattern)
+	for ws.Scan() {
+		files, err := filepath.Glob(string(ws.Bytes()))
 		if err != nil {
 			panic(err)
 		}
@@ -367,6 +434,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 			sw.WriteString(file)
 		}
 	}
+	freeBuf(abuf)
 }
 
 type funcDir struct{ fclosure }
@@ -374,15 +442,23 @@ type funcDir struct{ fclosure }
 func (f *funcDir) Arity() int { return 1 }
 func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("dir", 1, len(f.args))
-	names := splitSpaces(string(ev.Value(f.args[1])))
-	sw := ssvWriter{w: w}
-	for _, name := range names {
-		if name == "/" {
-			sw.Write([]byte{'/'})
-		} else {
-			sw.WriteString(filepath.Dir(name) + string(filepath.Separator))
-		}
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
 	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
+	sw := ssvWriter{w: w}
+	for ws.Scan() {
+		name := string(ws.Bytes())
+		if name == "/" {
+			sw.WriteString(name)
+			continue
+		}
+		sw.WriteString(filepath.Dir(string(name)) + string(filepath.Separator))
+	}
+	freeBuf(abuf)
 }
 
 type funcNotdir struct{ fclosure }
@@ -390,15 +466,23 @@ type funcNotdir struct{ fclosure }
 func (f *funcNotdir) Arity() int { return 1 }
 func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("notdir", 1, len(f.args))
-	names := splitSpaces(string(ev.Value(f.args[1])))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		if name == string(filepath.Separator) {
 			sw.Write([]byte{})
 			continue
 		}
 		sw.WriteString(filepath.Base(name))
 	}
+	freeBuf(abuf)
 }
 
 type funcSuffix struct{ fclosure }
@@ -406,14 +490,18 @@ type funcSuffix struct{ fclosure }
 func (f *funcSuffix) Arity() int { return 1 }
 func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("suffix", 1, len(f.args))
-	toks := splitSpaces(string(ev.Value(f.args[1])))
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
+	for ws.Scan() {
+		tok := string(ws.Bytes())
 		e := filepath.Ext(tok)
 		if len(e) > 0 {
 			sw.WriteString(e)
 		}
 	}
+	freeBuf(abuf)
 }
 
 type funcBasename struct{ fclosure }
@@ -421,12 +509,16 @@ type funcBasename struct{ fclosure }
 func (f *funcBasename) Arity() int { return 1 }
 func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("basename", 1, len(f.args))
-	toks := splitSpaces(string(ev.Value(f.args[1])))
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
+	for ws.Scan() {
+		tok := string(ws.Bytes())
 		e := stripExt(tok)
 		sw.WriteString(e)
 	}
+	freeBuf(abuf)
 }
 
 type funcAddsuffix struct{ fclosure }
@@ -434,14 +526,17 @@ type funcAddsuffix struct{ fclosure }
 func (f *funcAddsuffix) Arity() int { return 2 }
 func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("addsuffix", 2, len(f.args))
-	suf := ev.Value(f.args[1])
-	toks := splitSpacesBytes(ev.Value(f.args[2]))
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	suf := fargs[0]
+	ws := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
-		sw.Write(tok)
+	for ws.Scan() {
+		sw.Write(ws.Bytes())
 		// Use |w| not to append extra ' '.
 		w.Write(suf)
 	}
+	freeBuf(abuf)
 }
 
 type funcAddprefix struct{ fclosure }
@@ -449,14 +544,17 @@ type funcAddprefix struct{ fclosure }
 func (f *funcAddprefix) Arity() int { return 2 }
 func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("addprefix", 2, len(f.args))
-	pre := ev.Value(f.args[1])
-	toks := splitSpacesBytes(ev.Value(f.args[2]))
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	pre := fargs[0]
+	ws := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
-	for _, tok := range toks {
+	for ws.Scan() {
 		sw.Write(pre)
 		// Use |w| not to append extra ' '.
-		w.Write(tok)
+		w.Write(ws.Bytes())
 	}
+	freeBuf(abuf)
 }
 
 type funcRealpath struct{ fclosure }
@@ -464,9 +562,16 @@ type funcRealpath struct{ fclosure }
 func (f *funcRealpath) Arity() int { return 1 }
 func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("realpath", 1, len(f.args))
-	names := splitSpaces(string(ev.Value(f.args[1])))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
 			Log("abs: %v", err)
@@ -479,6 +584,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 		}
 		sw.WriteString(name)
 	}
+	freeBuf(abuf)
 }
 
 type funcAbspath struct{ fclosure }
@@ -486,9 +592,16 @@ type funcAbspath struct{ fclosure }
 func (f *funcAbspath) Arity() int { return 1 }
 func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("abspath", 1, len(f.args))
-	names := splitSpaces(string(ev.Value(f.args[1])))
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
-	for _, name := range names {
+	for ws.Scan() {
+		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
 			Log("abs: %v", err)
@@ -496,6 +609,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 		}
 		sw.WriteString(name)
 	}
+	freeBuf(abuf)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
@@ -504,11 +618,14 @@ type funcIf struct{ fclosure }
 func (f *funcIf) Arity() int { return 3 }
 func (f *funcIf) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("if", 2, len(f.args))
-	cond := ev.Value(f.args[1])
-	if len(cond) != 0 {
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	if len(abuf.Bytes()) != 0 {
+		freeBuf(abuf)
 		f.args[2].Eval(w, ev)
 		return
 	}
+	freeBuf(abuf)
 	if len(f.args) > 3 {
 		f.args[3].Eval(w, ev)
 	}
@@ -519,14 +636,19 @@ type funcAnd struct{ fclosure }
 func (f *funcAnd) Arity() int { return 0 }
 func (f *funcAnd) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("and", 0, len(f.args))
+	abuf := newBuf()
 	var cond []byte
 	for _, arg := range f.args[1:] {
-		cond = ev.Value(arg)
+		abuf.Reset()
+		arg.Eval(abuf, ev)
+		cond = abuf.Bytes()
 		if len(cond) == 0 {
+			freeBuf(abuf)
 			return
 		}
 	}
 	w.Write(cond)
+	freeBuf(abuf)
 }
 
 type funcOr struct{ fclosure }
@@ -534,32 +656,48 @@ type funcOr struct{ fclosure }
 func (f *funcOr) Arity() int { return 0 }
 func (f *funcOr) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("or", 0, len(f.args))
+	abuf := newBuf()
 	for _, arg := range f.args[1:] {
-		cond := ev.Value(arg)
+		abuf.Reset()
+		arg.Eval(abuf, ev)
+		cond := abuf.Bytes()
 		if len(cond) != 0 {
 			w.Write(cond)
+			freeBuf(abuf)
 			return
 		}
 	}
+	freeBuf(abuf)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 type funcShell struct{ fclosure }
 
+var shellFuncTime time.Duration
+
 func (f *funcShell) Arity() int { return 1 }
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("shell", 1, len(f.args))
-	arg := ev.Value(f.args[1])
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	arg := abuf.String()
+	freeBuf(abuf)
 	shellVar := ev.LookupVar("SHELL")
 	// TODO: Should be Eval, not String.
-	cmdline := []string{shellVar.String(), "-c", string(arg)}
+	cmdline := []string{shellVar.String(), "-c", arg}
 	cmd := exec.Cmd{
 		Path:   cmdline[0],
 		Args:   cmdline,
 		Stderr: os.Stderr,
 	}
+	t := time.Now()
 	out, err := cmd.Output()
+	shellFuncTime += time.Now().Sub(t)
 	if err != nil {
 		Log("$(shell %q) failed: %q", arg, err)
 	}
@@ -575,7 +713,9 @@ type funcCall struct{ fclosure }
 func (f *funcCall) Arity() int { return 0 }
 
 func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
-	variable := ev.Value(f.args[1])
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1:]...)
+	variable := fargs[0]
 	Log("call %q variable %q", f.args[1], variable)
 	v := ev.LookupVar(string(variable))
 	// Evalualte all arguments first before we modify the table.
@@ -586,10 +726,10 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	// the built-in function is always invoked (even if a make variable
 	// by that name also exists).
 
-	for i, arg := range f.args[2:] {
-		// f.args[2] will be $1.
-		args = append(args, tmpval(ev.Value(arg)))
-		Log("call $%d: %q=>%q", i+1, arg, args[i+1])
+	for i, arg := range fargs[1:] {
+		// f.args[2]=>args[1] will be $1.
+		args = append(args, tmpval(arg))
+		Log("call $%d: %q=>%q", i+1, arg, fargs[i+1])
 	}
 	oldParams := ev.paramVars
 	ev.paramVars = args
@@ -614,6 +754,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	}
 	ev.paramVars = oldParams
 	Log("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
+	freeBuf(abuf)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Value-Function
@@ -632,8 +773,10 @@ type funcEval struct{ fclosure }
 func (f *funcEval) Arity() int { return 1 }
 func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("eval", 1, len(f.args))
-	s := ev.Value(f.args[1])
-	Log("eval %q at %s:%d", string(s), ev.filename, ev.lineno)
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	s := abuf.Bytes()
+	Log("eval %q at %s:%d", s, ev.filename, ev.lineno)
 	mk, err := ParseMakefileBytes(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
@@ -642,6 +785,7 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	for _, stmt := range mk.stmts {
 		ev.eval(stmt)
 	}
+	freeBuf(abuf)
 }
 
 func (f *funcEval) Compact() Value {
@@ -714,7 +858,7 @@ func (f *funcNop) Eval(io.Writer, *Evaluator) {}
 func (f *funcNop) Serialize() SerializableVar {
 	return SerializableVar{
 		Type: "funcNop",
-		V: f.expr,
+		V:    f.expr,
 	}
 }
 
@@ -751,7 +895,9 @@ func (f *funcEvalAssign) String() string {
 }
 
 func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
-	rhs := trimLeftSpaceBytes(ev.Value(f.rhs))
+	var abuf bytes.Buffer
+	f.rhs.Eval(&abuf, ev)
+	rhs := trimLeftSpaceBytes(abuf.Bytes())
 	var rvalue Var
 	switch f.op {
 	case ":=":
@@ -761,7 +907,9 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		if err != nil {
 			panic(fmt.Sprintf("eval assign error: %q: %v", f.String(), err))
 		}
-		rvalue = SimpleVar{value: tmpval(ev.Value(expr)), origin: "file"}
+		abuf.Reset()
+		expr.Eval(&abuf, ev)
+		rvalue = SimpleVar{value: tmpval(abuf.Bytes()), origin: "file"}
 	case "=":
 		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
@@ -819,8 +967,14 @@ type funcInfo struct{ fclosure }
 func (f *funcInfo) Arity() int { return 1 }
 func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("info", 1, len(f.args))
-	arg := ev.Value(f.args[1])
-	fmt.Printf("%s\n", arg)
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	fmt.Printf("%s\n", abuf.String())
+	freeBuf(abuf)
 }
 
 type funcWarning struct{ fclosure }
@@ -828,8 +982,14 @@ type funcWarning struct{ fclosure }
 func (f *funcWarning) Arity() int { return 1 }
 func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("warning", 1, len(f.args))
-	arg := ev.Value(f.args[1])
-	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, arg)
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	fmt.Printf("%s:%d: %s\n", ev.filename, ev.lineno, abuf.String())
+	freeBuf(abuf)
 }
 
 type funcError struct{ fclosure }
@@ -837,8 +997,14 @@ type funcError struct{ fclosure }
 func (f *funcError) Arity() int { return 1 }
 func (f *funcError) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("error", 1, len(f.args))
-	arg := ev.Value(f.args[1])
-	Error(ev.filename, ev.lineno, "*** %s.", arg)
+	if ev.avoidIO {
+		ev.hasIO = true
+		return
+	}
+	abuf := newBuf()
+	f.args[1].Eval(abuf, ev)
+	Error(ev.filename, ev.lineno, "*** %s.", abuf.String())
+	freeBuf(abuf)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Foreach-Function
@@ -848,16 +1014,19 @@ func (f *funcForeach) Arity() int { return 3 }
 
 func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("foreach", 3, len(f.args))
-	varname := string(ev.Value(f.args[1]))
-	list := ev.Values(f.args[2])
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.args[1], f.args[2])
+	varname := string(fargs[0])
+	ws := newWordScanner(fargs[1])
 	text := f.args[3]
 	restore := ev.outVars.save(varname)
 	defer restore()
 	space := false
-	for _, word := range list {
+	for ws.Scan() {
+		word := ws.Bytes()
 		ev.outVars.Assign(varname,
 			SimpleVar{
-				value:  word,
+				value:  tmpval(word),
 				origin: "automatic",
 			})
 		if space {
@@ -866,4 +1035,5 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 		text.Eval(w, ev)
 		space = true
 	}
+	freeBuf(abuf)
 }
