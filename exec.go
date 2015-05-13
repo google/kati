@@ -292,7 +292,7 @@ func EvalCommands(nodes []*DepNode, vars Vars) {
 		runners, hasIO := ex.createRunners(n, true)
 		if hasIO {
 			ioCnt++
-			if ioCnt % 100 == 0 {
+			if ioCnt%100 == 0 {
 				LogStats("%d/%d rules have IO", ioCnt, i+1)
 			}
 			continue

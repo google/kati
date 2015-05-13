@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -29,6 +30,9 @@ var (
 	syntaxCheckOnlyFlag bool
 	queryFlag           string
 	eagerCmdEvalFlag    bool
+	useParaFlag         bool
+
+	katiDir string
 )
 
 func parseFlags() {
@@ -51,6 +55,7 @@ func parseFlags() {
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
 	flag.BoolVar(&katiEvalStatsFlag, "kati_eval_stats", false, "Show eval statistics")
 	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
+	flag.BoolVar(&useParaFlag, "use_para", false, "Use para.")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	flag.Parse()
@@ -188,8 +193,22 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	return nodes, vars
 }
 
+func findKatiDir() {
+	switch runtime.GOOS {
+	case "linux":
+		kati, err := os.Readlink("/proc/self/exe")
+		if err != nil {
+			panic(err)
+		}
+		katiDir = filepath.Dir(kati)
+	default:
+		panic(fmt.Sprintf("unknown OS: %s", runtime.GOOS))
+	}
+}
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	findKatiDir()
 	parseFlags()
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
