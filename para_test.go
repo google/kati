@@ -12,6 +12,7 @@ func TestPara(t *testing.T) {
 		panic(err)
 	}
 	katiDir = cwd
+	jobsFlag = 4
 
 	paraChan := make(chan *ParaResult)
 	para := NewParaWorker(paraChan)
@@ -29,11 +30,17 @@ func TestPara(t *testing.T) {
 		para.RunCommand(runners)
 	}
 
+	var started []*ParaResult
 	var results []*ParaResult
-	for len(results) != num_tasks {
+	for len(started) != num_tasks || len(results) != num_tasks {
 		select {
 		case r := <-paraChan:
-			results = append(results, r)
+			fmt.Printf("started=%d finished=%d\n", len(started), len(results))
+			if r.status < 0 && r.signal < 0 {
+				started = append(started, r)
+			} else {
+				results = append(results, r)
+			}
 		}
 	}
 

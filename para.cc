@@ -30,7 +30,7 @@ using namespace std;
 class Para;
 
 struct Task {
-  Task() : echo(false), ignore_error(false) {}
+  Task() : echo(false), ignore_error(false), status(-1), signal(-1) {}
   ~Task() {
     if (stdout_pipe[0] >= 0)
       PCHECK(close(stdout_pipe[0]));
@@ -50,6 +50,7 @@ struct Task {
   string stdout_buf;
   string stderr_buf;
   int status;
+  int signal;
 };
 
 class TaskProvider {
@@ -57,6 +58,7 @@ class TaskProvider {
   virtual ~TaskProvider() {}
   virtual int GetFD() = 0;
   virtual void PollFD(Para* para, int fd) = 0;
+  virtual void OnStarted(Task* t) = 0;
   virtual void OnFinished(Task* t) = 0;
 };
 
@@ -91,6 +93,7 @@ class StdinTaskProvider : public TaskProvider {
   virtual ~StdinTaskProvider() {}
   virtual int GetFD() { return STDIN_FILENO; }
   virtual void PollFD(Para* para, int fd);
+  virtual void OnStarted(Task* t);
   virtual void OnFinished(Task* t);
 
  private:
@@ -102,6 +105,7 @@ class KatiTaskProvider : public TaskProvider {
   virtual ~KatiTaskProvider() {}
   virtual int GetFD() { return STDIN_FILENO; }
   virtual void PollFD(Para* para, int fd);
+  virtual void OnStarted(Task* t);
   virtual void OnFinished(Task* t);
 
  private:
@@ -211,7 +215,15 @@ void Para::WaitChildren() {
 
   vector<Task*> finished;
   for (Task* task : running_) {
-    pid_t pid = waitpid(task->pid, &task->status, WNOHANG);
+    int status;
+    pid_t pid = waitpid(task->pid, &status, WNOHANG);
+    if (WIFSIGNALED(status)) {
+      task->signal = WTERMSIG(status);
+    } else if (WIFEXITED(status)) {
+      task->status = WEXITSTATUS(status);
+    } else {
+      PCHECK(false);
+    }
     PCHECK(pid);
     if (pid == 0) {
       continue;
@@ -238,6 +250,7 @@ void Para::RunCommands() {
   while (!tasks_.empty() && (running_.size() < num_jobs_ || num_jobs_ == 0)) {
     Task* task = tasks_.front();
     tasks_.pop();
+    provider_->OnStarted(task);
 
     PCHECK(pipe(task->stdout_pipe));
     PCHECK(pipe(task->stderr_pipe));
@@ -290,6 +303,9 @@ void StdinTaskProvider::PollFD(Para* para, int fd) {
     para->AddTask(task);
     buf_ = buf_.substr(index + 1);
   }
+}
+
+void StdinTaskProvider::OnStarted(Task*) {
 }
 
 void StdinTaskProvider::OnFinished(Task* t) {
@@ -380,6 +396,11 @@ static void sendResult(int fd, Task* t) {
   sendString(fd, t->stdout_buf);
   sendString(fd, t->stderr_buf);
   sendInt(fd, t->status);
+  sendInt(fd, t->signal);
+}
+
+void KatiTaskProvider::OnStarted(Task* t) {
+  sendResult(STDOUT_FILENO, t);
 }
 
 void KatiTaskProvider::OnFinished(Task* t) {
