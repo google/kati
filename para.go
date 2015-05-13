@@ -56,6 +56,7 @@ type ParaResult struct {
 	stdout string
 	stderr string
 	status int
+	signal int
 }
 
 func recvInt(r *bufio.Reader) (int, error) {
@@ -98,11 +99,16 @@ func recvResult(r *bufio.Reader) (*ParaResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	signal, err := recvInt(r)
+	if err != nil {
+		return nil, err
+	}
 	return &ParaResult{
 		output: output,
 		stdout: stdout,
 		stderr: stderr,
 		status: status,
+		signal: signal,
 	}, nil
 }
 
@@ -155,7 +161,6 @@ func (para *ParaWorker) Run() {
 }
 
 func (para *ParaWorker) Wait() {
-	fmt.Printf("wait\n")
 	para.stdin.Close()
 	<-para.doneChan
 }

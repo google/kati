@@ -18,6 +18,8 @@ type Job struct {
 	numDeps  int
 	depsTs   int64
 	id       int
+
+	runners []runner
 }
 
 type runner struct {
@@ -234,8 +236,14 @@ func (wm *WorkerManager) handleJobs() {
 		j := heap.Pop(&wm.readyQueue).(*Job)
 
 		if useParaFlag {
-			wm.runnings[j.n.Output] = j
-			wm.para.RunCommand(j.createRunners())
+			j.runners = j.createRunners()
+			if len(j.runners) == 0 {
+				wm.updateParents(j)
+				wm.finishCnt++
+			} else {
+				wm.runnings[j.n.Output] = j
+				wm.para.RunCommand(j.runners)
+			}
 		} else {
 			j.numDeps = -1 // Do not let other workers pick this.
 			w := wm.freeWorkers[0]
@@ -323,6 +331,7 @@ func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
 	if j.numDeps != 0 {
 		return
 	}
+	j.numDeps = -1
 	heap.Push(&wm.readyQueue, j)
 }
 
@@ -354,12 +363,21 @@ func (wm *WorkerManager) Run() {
 		case af := <-wm.newDepChan:
 			wm.handleNewDep(af.j, af.neededBy)
 		case pr := <-wm.paraChan:
-			os.Stdout.Write([]byte(pr.stdout))
-			os.Stderr.Write([]byte(pr.stderr))
-			j := wm.runnings[pr.output]
-			wm.updateParents(j)
-			delete(wm.runnings, pr.output)
-			wm.finishCnt++
+			if pr.status < 0 && pr.signal < 0 {
+				j := wm.runnings[pr.output]
+				for _, r := range j.runners {
+					if r.echo || dryRunFlag {
+						fmt.Printf("%s\n", r.cmd)
+					}
+				}
+			} else {
+				os.Stdout.Write([]byte(pr.stdout))
+				os.Stderr.Write([]byte(pr.stderr))
+				j := wm.runnings[pr.output]
+				wm.updateParents(j)
+				delete(wm.runnings, pr.output)
+				wm.finishCnt++
+			}
 		case done = <-wm.waitChan:
 		}
 		wm.handleJobs()
