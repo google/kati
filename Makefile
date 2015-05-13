@@ -5,11 +5,11 @@ all: kati go_test para
 kati: $(GOSRC)
 	env $(shell go env) go build -o $@ *.go
 
-go_test: $(GOSRC)
+go_test: $(GOSRC) para
 	env $(shell go env) go test *.go
 
 para: para.cc
-	$(CXX) -std=c++11 -g -O -MMD -o $@ $<
+	$(CXX) -std=c++11 -g -O -W -Wall -MMD -o $@ $<
 
 test: all
 	ruby runtest.rb
