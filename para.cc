@@ -30,7 +30,12 @@ using namespace std;
 class Para;
 
 struct Task {
-  Task() : echo(false), ignore_error(false), status(-1), signal(-1) {}
+  Task() : echo(false), ignore_error(false), status(-1), signal(-1) {
+    stdout_pipe[0] = -1;
+    stdout_pipe[1] = -1;
+    stderr_pipe[0] = -1;
+    stderr_pipe[1] = -1;
+  }
   ~Task() {
     if (stdout_pipe[0] >= 0)
       PCHECK(close(stdout_pipe[0]));
@@ -363,9 +368,20 @@ static void recvTasks(int fd, vector<Task*>* tasks) {
 void KatiTaskProvider::PollFD(Para* para, int fd) {
   vector<Task*> tasks;
   recvTasks(fd, &tasks);
+#if 0
   for (Task* t : tasks) {
     para->AddTask(t);
   }
+#else
+  Task* task = tasks[0];
+  for (Task* t : tasks) {
+    if (task == t)
+      continue;
+    task->cmd += " ; ";
+    task->cmd += t->cmd;
+  }
+  para->AddTask(task);
+#endif
 }
 
 static void sendData(int fd, const void* d, size_t sz) {
