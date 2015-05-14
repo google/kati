@@ -258,6 +258,7 @@ func (wm *WorkerManager) handleJobs() {
 func (wm *WorkerManager) updateParents(j *Job) {
 	for _, p := range j.parents {
 		p.numDeps--
+		Log("child: %s (%d)", p.n.Output, p.numDeps)
 		if p.depsTs < j.outputTs {
 			p.depsTs = j.outputTs
 		}
@@ -332,7 +333,6 @@ func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
 	if j.numDeps != 0 {
 		return
 	}
-	j.numDeps = -1
 	heap.Push(&wm.readyQueue, j)
 	Log("ready: %s", j.n.Output)
 }
@@ -354,6 +354,7 @@ func (wm *WorkerManager) Run() {
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || len(wm.runnings) > 0 || !done {
 		select {
 		case j := <-wm.jobChan:
+			Log("wait: %s (%d)", j.n.Output, j.numDeps)
 			j.id = len(wm.jobs) + 1
 			wm.jobs = append(wm.jobs, j)
 			wm.maybePushToReadyQueue(j)
@@ -364,8 +365,8 @@ func (wm *WorkerManager) Run() {
 			wm.updateParents(jr.j)
 			wm.finishCnt++
 		case af := <-wm.newDepChan:
-			Log("dep: %s %s", af.neededBy.n.Output, af.j.n.Output)
 			wm.handleNewDep(af.j, af.neededBy)
+			Log("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
 		case pr := <-wm.paraChan:
 			if pr.status < 0 && pr.signal < 0 {
 				j := wm.runnings[pr.output]
