@@ -13,7 +13,7 @@ func showDeps(n *DepNode, indent int, seen map[string]int) {
 		return
 	}
 	for _, d := range n.Deps {
-		showDeps(d, indent + 1, seen)
+		showDeps(d, indent+1, seen)
 	}
 }
 
@@ -69,4 +69,3 @@ func HandleQuery(q string, nodes []*DepNode, vars Vars) {
 	}
 	HandleNodeQuery(q, nodes)
 }
-

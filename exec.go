@@ -184,6 +184,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 		}
 		deps = append(deps, d)
 	}
+	Log("new: %s (%d)", j.n.Output, j.numDeps)
 
 	for _, d := range deps {
 		ex.trace = append(ex.trace, d.Output)
