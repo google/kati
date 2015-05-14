@@ -249,8 +249,8 @@ func (ex *Executor) Exec(roots []*DepNode) error {
 func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
 	var restores []func()
 	defer func() {
-		for _, restore := range restores {
-			restore()
+		for i := len(restores) - 1; i >= 0; i-- {
+			restores[i]()
 		}
 	}()
 
