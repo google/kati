@@ -234,6 +234,7 @@ func (wm *WorkerManager) handleJobs() {
 			return
 		}
 		j := heap.Pop(&wm.readyQueue).(*Job)
+		Log("run: %s", j.n.Output)
 
 		if useParaFlag {
 			j.runners = j.createRunners()
@@ -333,6 +334,7 @@ func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
 	}
 	j.numDeps = -1
 	heap.Push(&wm.readyQueue, j)
+	Log("ready: %s", j.n.Output)
 }
 
 func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
@@ -356,11 +358,13 @@ func (wm *WorkerManager) Run() {
 			wm.jobs = append(wm.jobs, j)
 			wm.maybePushToReadyQueue(j)
 		case jr := <-wm.resultChan:
+			Log("done: %s", jr.j.n.Output)
 			delete(wm.busyWorkers, jr.w)
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
 			wm.finishCnt++
 		case af := <-wm.newDepChan:
+			Log("dep: %s %s", af.neededBy.n.Output, af.j.n.Output)
 			wm.handleNewDep(af.j, af.neededBy)
 		case pr := <-wm.paraChan:
 			if pr.status < 0 && pr.signal < 0 {
