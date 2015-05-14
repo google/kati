@@ -33,7 +33,15 @@ unexpected_passes = []
 failures = []
 passes = []
 
-Dir.glob('testcase/*.mk').sort.each do |mk|
+if !ARGV.empty?
+  mks = ARGV.map do |mk|
+    "testcase/#{File.basename(mk, '.mk')}.mk"
+  end
+else
+  mks = Dir.glob('testcase/*.mk').sort
+end
+
+mks.each do |mk|
   c = File.read(mk)
 
   expected_failure = c =~ /\A# TODO/
