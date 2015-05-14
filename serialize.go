@@ -21,6 +21,7 @@ type SerializableDepNode struct {
 	Output             int
 	Cmds               []string
 	Deps               []int
+	Parents            []int
 	HasRule            bool
 	IsOrderOnly        bool
 	IsPhony            bool
@@ -91,6 +92,10 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 		for _, d := range n.Deps {
 			deps = append(deps, ns.SerializeTarget(d.Output))
 		}
+		var parents []int
+		for _, d := range n.Parents {
+			parents = append(parents, ns.SerializeTarget(d.Output))
+		}
 		var actualInputs []int
 		for _, i := range n.ActualInputs {
 			actualInputs = append(actualInputs, ns.SerializeTarget(i))
@@ -121,6 +126,7 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 			Output:             ns.SerializeTarget(n.Output),
 			Cmds:               n.Cmds,
 			Deps:               deps,
+			Parents:            parents,
 			HasRule:            n.HasRule,
 			IsOrderOnly:        n.IsOrderOnly,
 			IsPhony:            n.IsPhony,
@@ -146,9 +152,9 @@ func MakeSerializableGraph(nodes []*DepNode, vars Vars) SerializableGraph {
 	ns.SerializeDepNodes(nodes)
 	v := MakeSerializableVars(vars)
 	return SerializableGraph{
-		Nodes: ns.nodes,
-		Vars: v,
-		Tsvs: ns.tsvs,
+		Nodes:   ns.nodes,
+		Vars:    v,
+		Tsvs:    ns.tsvs,
 		Targets: ns.targets,
 	}
 }
@@ -303,18 +309,25 @@ func DeserializeNodes(g SerializableGraph) (r []*DepNode) {
 			}
 			d.Deps = append(d.Deps, c)
 		}
+		for _, o := range n.Parents {
+			c, present := nodeMap[targets[o]]
+			if !present {
+				panic(fmt.Sprintf("unknown target: %s", o))
+			}
+			d.Parents = append(d.Parents, c)
+		}
 	}
 
 	return r
 }
 
 func human(n int) string {
-	if n >= 10 * 1000 * 1000 * 1000 {
-		return fmt.Sprintf("%.2fGB", float32(n) / 1000 / 1000 / 1000)
-	} else if n >= 10 * 1000 * 1000 {
-		return fmt.Sprintf("%.2fMB", float32(n) / 1000 / 1000)
-	} else if n >= 10 * 1000 {
-		return fmt.Sprintf("%.2fkB", float32(n) / 1000)
+	if n >= 10*1000*1000*1000 {
+		return fmt.Sprintf("%.2fGB", float32(n)/1000/1000/1000)
+	} else if n >= 10*1000*1000 {
+		return fmt.Sprintf("%.2fMB", float32(n)/1000/1000)
+	} else if n >= 10*1000 {
+		return fmt.Sprintf("%.2fkB", float32(n)/1000)
 	} else {
 		return fmt.Sprintf("%dB", n)
 	}
