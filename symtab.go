@@ -11,10 +11,5 @@ func intern(s string) string {
 }
 
 func internBytes(s []byte) string {
-	if v, ok := symtab[string(s)]; ok {
-		return v
-	}
-	v := string(s)
-	symtab[v] = v
-	return v
+	return intern(string(s))
 }
