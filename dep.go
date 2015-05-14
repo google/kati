@@ -11,6 +11,7 @@ type DepNode struct {
 	Output             string
 	Cmds               []string
 	Deps               []*DepNode
+	Parents            []*DepNode
 	HasRule            bool
 	IsOrderOnly        bool
 	IsPhony            bool
@@ -314,6 +315,9 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	}
 
 	n.Deps = children
+	for _, c := range n.Deps {
+		c.Parents = append(c.Parents, n)
+	}
 	n.HasRule = true
 	n.Cmds = rule.cmds
 	n.ActualInputs = actualInputs
