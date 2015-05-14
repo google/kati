@@ -283,9 +283,9 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 			if len(rule.outputPatterns) > 1 {
 				panic("TODO: multiple output pattern is not supported yet")
 			}
-			input = rule.outputPatterns[0].subst(input, output)
+			input = intern(rule.outputPatterns[0].subst(input, output))
 		} else if rule.isSuffixRule {
-			input = replaceSuffix(output, input)
+			input = intern(replaceSuffix(output, input))
 		}
 		actualInputs = append(actualInputs, input)
 
