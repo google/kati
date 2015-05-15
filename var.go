@@ -57,6 +57,12 @@ func (v TargetSpecificVar) Serialize() SerializableVar {
 	}
 }
 
+func (v TargetSpecificVar) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_TSV)
+	dumpString(w, v.op)
+	v.v.Dump(w)
+}
+
 type SimpleVar struct {
 	// TODO(ukai): []byte -> Value (literal or so?)
 	value  []byte
@@ -77,6 +83,11 @@ func (v SimpleVar) Serialize() SerializableVar {
 		V:      string(v.value),
 		Origin: v.origin,
 	}
+}
+func (v SimpleVar) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_SIMPLE)
+	dumpBytes(w, v.value)
+	dumpString(w, v.origin)
 }
 
 func (v SimpleVar) Append(ev *Evaluator, s string) Var {
@@ -118,6 +129,11 @@ func (v RecursiveVar) Serialize() SerializableVar {
 		Children: []SerializableVar{v.expr.Serialize()},
 		Origin:   v.origin,
 	}
+}
+func (v RecursiveVar) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_RECURSIVE)
+	v.expr.Dump(w)
+	dumpString(w, v.origin)
 }
 
 func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
@@ -163,6 +179,9 @@ func (_ UndefinedVar) Eval(_ io.Writer, _ *Evaluator) {
 }
 func (_ UndefinedVar) Serialize() SerializableVar {
 	return SerializableVar{Type: "undefined"}
+}
+func (_ UndefinedVar) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_UNDEFINED)
 }
 
 func (_ UndefinedVar) Append(*Evaluator, string) Var {

@@ -145,6 +145,13 @@ func (c *fclosure) Serialize() SerializableVar {
 	return r
 }
 
+func (c *fclosure) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_FUNC)
+	for _, a := range c.args {
+		a.Dump(w)
+	}
+}
+
 // http://www.gnu.org/software/make/manual/make.html#Text-Functions
 type funcSubst struct{ fclosure }
 
@@ -861,6 +868,9 @@ func (f *funcNop) Serialize() SerializableVar {
 		V:    f.expr,
 	}
 }
+func (f *funcNop) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_NOP)
+}
 
 func parseAssignLiteral(s string) (lhs, op string, rhs Value, ok bool) {
 	eq := strings.Index(s, "=")
@@ -939,6 +949,13 @@ func (f *funcEvalAssign) Serialize() SerializableVar {
 			f.rhs.Serialize(),
 		},
 	}
+}
+
+func (f *funcEvalAssign) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_ASSIGN)
+	dumpString(w, f.lhs)
+	dumpString(w, f.op)
+	f.rhs.Dump(w)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function
