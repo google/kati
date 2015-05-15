@@ -50,6 +50,9 @@ func (v AutoVar) AppendVar(*Evaluator, Var) Var {
 func (v AutoVar) Serialize() SerializableVar {
 	panic(fmt.Sprintf("cannot serialize auto var: %q", v))
 }
+func (v AutoVar) Dump(w io.Writer) {
+	panic(fmt.Sprintf("cannot dump auto var: %q", v))
+}
 
 type AutoAtVar struct{ AutoVar }
 

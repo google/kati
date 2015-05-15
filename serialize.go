@@ -2,13 +2,65 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"runtime/pprof"
 	"sort"
 	"strconv"
+	"time"
 )
+
+const (
+	VALUE_TYPE_RECURSIVE = 'R'
+	VALUE_TYPE_SIMPLE    = 'S'
+	VALUE_TYPE_TSV       = 'T'
+	VALUE_TYPE_UNDEFINED = 'U'
+	VALUE_TYPE_ASSIGN    = 'a'
+	VALUE_TYPE_EXPR      = 'e'
+	VALUE_TYPE_FUNC      = 'f'
+	VALUE_TYPE_LITERAL   = 'l'
+	VALUE_TYPE_NOP       = 'n'
+	VALUE_TYPE_PARAMREF  = 'p'
+	VALUE_TYPE_VARREF    = 'r'
+	VALUE_TYPE_VARSUBST  = 's'
+	VALUE_TYPE_TMPVAL    = 't'
+)
+
+func dumpData(w io.Writer, data []byte) {
+	for len(data) != 0 {
+		written, err := w.Write(data)
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			panic(err)
+		}
+		data = data[written:]
+	}
+}
+
+func dumpInt(w io.Writer, i int) {
+	v := int32(i)
+	binary.Write(w, binary.LittleEndian, &v)
+}
+
+func dumpString(w io.Writer, s string) {
+	dumpInt(w, len(s))
+	dumpData(w, []byte(s))
+}
+
+func dumpBytes(w io.Writer, b []byte) {
+	dumpInt(w, len(b))
+	dumpData(w, b)
+}
+
+func dumpByte(w io.Writer, b byte) {
+	w.Write([]byte{b})
+}
 
 type SerializableVar struct {
 	Type     string
@@ -50,6 +102,13 @@ func encGob(v interface{}) string {
 	if err != nil {
 		panic(err)
 	}
+	return buf.String()
+}
+
+func encVar(k string, v Var) string {
+	var buf bytes.Buffer
+	dumpString(&buf, k)
+	v.Dump(&buf)
 	return buf.String()
 }
 
@@ -112,7 +171,8 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 		for _, k := range tsvKeys {
 			v := n.TargetSpecificVars[k]
 			sv := SerializableTargetSpecificVar{Name: k, Value: v.Serialize()}
-			gob := encGob(sv)
+			//gob := encGob(sv)
+			gob := encVar(k, v)
 			id, present := ns.tsvMap[gob]
 			if !present {
 				id = len(ns.tsvs)
@@ -148,6 +208,15 @@ func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
 }
 
 func MakeSerializableGraph(nodes []*DepNode, vars Vars) SerializableGraph {
+	cpuprofile := "serialize.prof"
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			panic(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 	ns := NewDepNodesSerializer()
 	ns.SerializeDepNodes(nodes)
 	v := MakeSerializableVars(vars)
@@ -177,7 +246,12 @@ func DumpDepGraph(nodes []*DepNode, vars Vars, filename string) {
 		panic(err)
 	}
 	e := gob.NewEncoder(f)
-	e.Encode(MakeSerializableGraph(nodes, vars))
+	startTime := time.Now()
+	g := MakeSerializableGraph(nodes, vars)
+	LogStats("serialize prepare time: %q", time.Now().Sub(startTime))
+	startTime = time.Now()
+	e.Encode(g)
+	LogStats("serialize output time: %q", time.Now().Sub(startTime))
 }
 
 func DeserializeSingleChild(sv SerializableVar) Value {

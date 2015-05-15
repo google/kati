@@ -42,6 +42,7 @@ type Value interface {
 	String() string
 	Eval(w io.Writer, ev *Evaluator)
 	Serialize() SerializableVar
+	Dump(w io.Writer)
 }
 
 type Valuer interface {
@@ -59,6 +60,10 @@ func (s literal) Eval(w io.Writer, ev *Evaluator) {
 func (s literal) Serialize() SerializableVar {
 	return SerializableVar{Type: "literal", V: string(s)}
 }
+func (s literal) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_LITERAL)
+	dumpBytes(w, []byte(s))
+}
 
 // tmpval is temporary value.
 // TODO(ukai): Values() returns []Value? (word list?)
@@ -71,6 +76,10 @@ func (t tmpval) Eval(w io.Writer, ev *Evaluator) {
 func (t tmpval) Value() []byte { return []byte(t) }
 func (t tmpval) Serialize() SerializableVar {
 	return SerializableVar{Type: "tmpval", V: string(t)}
+}
+func (t tmpval) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_TMPVAL)
+	dumpBytes(w, t)
 }
 
 // Expr is a list of values.
@@ -96,6 +105,13 @@ func (e Expr) Serialize() SerializableVar {
 		r.Children = append(r.Children, v.Serialize())
 	}
 	return r
+}
+func (e Expr) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_EXPR)
+	dumpInt(w, len(e))
+	for _, v := range e {
+		v.Dump(w)
+	}
 }
 
 func compactExpr(e Expr) Value {
@@ -135,6 +151,10 @@ func (v varref) Serialize() SerializableVar {
 		Children: []SerializableVar{v.varname.Serialize()},
 	}
 }
+func (v varref) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_VARREF)
+	v.varname.Dump(w)
+}
 
 // paramref is parameter reference e.g. $1.
 type paramref int
@@ -157,6 +177,11 @@ func (p paramref) Eval(w io.Writer, ev *Evaluator) {
 
 func (p paramref) Serialize() SerializableVar {
 	return SerializableVar{Type: "paramref", V: strconv.Itoa(int(p))}
+}
+
+func (p paramref) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_PARAMREF)
+	dumpInt(w, int(p))
 }
 
 // varsubst is variable substitutaion. e.g. ${var:pat=subst}.
@@ -193,15 +218,22 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 	addStats("varsubst", v, t)
 }
 
-func (p varsubst) Serialize() SerializableVar {
+func (v varsubst) Serialize() SerializableVar {
 	return SerializableVar{
 		Type: "varsubst",
 		Children: []SerializableVar{
-			p.varname.Serialize(),
-			p.pat.Serialize(),
-			p.subst.Serialize(),
+			v.varname.Serialize(),
+			v.pat.Serialize(),
+			v.subst.Serialize(),
 		},
 	}
+}
+
+func (v varsubst) Dump(w io.Writer) {
+	dumpByte(w, VALUE_TYPE_VARSUBST)
+	v.varname.Dump(w)
+	v.pat.Dump(w)
+	v.subst.Dump(w)
 }
 
 // parseExpr parses expression in `in` until it finds any byte in term.
