@@ -107,6 +107,8 @@ mks.each do |mk|
     # kati specific log messages.
     output.gsub!(/^\*kati\*.*\n/, '')
     output.gsub!(/[`'"]/, '"')
+    output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
+                 "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
 
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}

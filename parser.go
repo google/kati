@@ -578,6 +578,11 @@ func (p *parser) parse() (mk Makefile, err error) {
 	return p.mk, nil
 }
 
+func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
+	parser := newParser(f, filename)
+	return parser.parse()
+}
+
 func ParseMakefile(filename string) (Makefile, error) {
 	Log("ParseMakefile %q", filename)
 	f, err := os.Open(filename)
@@ -585,8 +590,7 @@ func ParseMakefile(filename string) (Makefile, error) {
 		return Makefile{}, err
 	}
 	defer f.Close()
-	parser := newParser(f, filename)
-	return parser.parse()
+	return ParseMakefileFd(filename, f)
 }
 
 func ParseDefaultMakefile() (Makefile, error) {

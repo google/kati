@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -226,13 +227,13 @@ func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
-func (ev *Evaluator) evalIncludeFile(fname string) error {
+func (ev *Evaluator) evalIncludeFile(fname string, f *os.File) error {
 	t := time.Now()
 	defer func() {
 		addStats("include", literal(fname), t)
 	}()
-	Log("Reading makefile %q", fname)
-	mk, err := ParseMakefile(fname)
+	Log("Reading makefile %q", f)
+	mk, err := ParseMakefileFd(fname, f)
 	if err != nil {
 		return err
 	}
@@ -261,14 +262,19 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	v.Eval(&buf, ev)
 	files := splitSpaces(buf.String())
 	buf.Reset()
-	for _, f := range files {
-		err := ev.evalIncludeFile(f)
+	for _, fn := range files {
+		f, err := os.Open(fn)
 		if err != nil {
 			if ast.op == "include" {
-				panic(err)
+				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
 				continue
 			}
+		}
+		defer f.Close()
+		err = ev.evalIncludeFile(fn, f)
+		if err != nil {
+			panic(err)
 		}
 	}
 }
