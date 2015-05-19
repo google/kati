@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime/pprof"
 	"sort"
 	"strconv"
 	"time"
@@ -209,15 +208,6 @@ func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
 }
 
 func MakeSerializableGraph(nodes []*DepNode, vars Vars, roots []string) SerializableGraph {
-	cpuprofile := "serialize.prof"
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
-		if err != nil {
-			panic(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
 	ns := NewDepNodesSerializer()
 	ns.SerializeDepNodes(nodes)
 	v := MakeSerializableVars(vars)
