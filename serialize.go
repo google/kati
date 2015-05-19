@@ -93,6 +93,7 @@ type SerializableGraph struct {
 	Vars    map[string]SerializableVar
 	Tsvs    []SerializableTargetSpecificVar
 	Targets []string
+	Roots   []string
 }
 
 func encGob(v interface{}) string {
@@ -207,7 +208,7 @@ func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
 	return r
 }
 
-func MakeSerializableGraph(nodes []*DepNode, vars Vars) SerializableGraph {
+func MakeSerializableGraph(nodes []*DepNode, vars Vars, roots []string) SerializableGraph {
 	cpuprofile := "serialize.prof"
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
@@ -225,11 +226,13 @@ func MakeSerializableGraph(nodes []*DepNode, vars Vars) SerializableGraph {
 		Vars:    v,
 		Tsvs:    ns.tsvs,
 		Targets: ns.targets,
+		Roots:   roots,
 	}
 }
 
-func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
-	o, err := json.MarshalIndent(MakeSerializableGraph(nodes, vars), " ", " ")
+func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string, roots []string) {
+	g := MakeSerializableGraph(nodes, vars, roots)
+	o, err := json.MarshalIndent(g, " ", " ")
 	if err != nil {
 		panic(err)
 	}
@@ -240,14 +243,14 @@ func DumpDepGraphAsJson(nodes []*DepNode, vars Vars, filename string) {
 	f.Write(o)
 }
 
-func DumpDepGraph(nodes []*DepNode, vars Vars, filename string) {
+func DumpDepGraph(nodes []*DepNode, vars Vars, filename string, roots []string) {
 	f, err := os.Create(filename)
 	if err != nil {
 		panic(err)
 	}
 	e := gob.NewEncoder(f)
 	startTime := time.Now()
-	g := MakeSerializableGraph(nodes, vars)
+	g := MakeSerializableGraph(nodes, vars, roots)
 	LogStats("serialize prepare time: %q", time.Now().Sub(startTime))
 	startTime = time.Now()
 	e.Encode(g)

@@ -251,12 +251,12 @@ func main() {
 
 	if saveGob != "" {
 		startTime := time.Now()
-		DumpDepGraph(nodes, vars, saveGob)
+		DumpDepGraph(nodes, vars, saveGob, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 	if saveJson != "" {
 		startTime := time.Now()
-		DumpDepGraphAsJson(nodes, vars, saveJson)
+		DumpDepGraphAsJson(nodes, vars, saveJson, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 
