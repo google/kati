@@ -36,7 +36,7 @@ EOF
 "$@" | tee /tmp/log 2>&1
 
 if [ -e .kati_cache.Makefile ]; then
-  if ! grep '\*kati\*: Cache not found' /tmp/log; then
-    echo 'Cache unexpectedly found'
+  if ! grep '\*kati\*: Cache expired' /tmp/log; then
+    echo 'Cache unexpectedly not expired'
   fi
 fi

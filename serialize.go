@@ -561,19 +561,24 @@ func LoadDepGraph(filename string) *DepGraph {
 
 func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 	filename := GetCacheFilename(makefile, roots)
-	if exists(filename) {
-		g := LoadDepGraph(filename)
-		for _, mk := range g.readMks {
-			ts := getTimestamp(mk.Filename)
-			if mk.Timestamp >= 0 && ts < 0 {
-				return nil
-			}
-			if mk.Timestamp <= ts {
-				return nil
-			}
-		}
-		g.isCached = true
-		return g
+	if !exists(filename) {
+		LogAlways("Cache not found")
+		return nil
 	}
-	return nil
+
+	g := LoadDepGraph(filename)
+	for _, mk := range g.readMks {
+		ts := getTimestamp(mk.Filename)
+		if mk.Timestamp >= 0 && ts < 0 {
+			LogAlways("Cache expired: %s", mk.Filename)
+			return nil
+		}
+		if mk.Timestamp <= ts {
+			LogAlways("Cache expired: %s", mk.Filename)
+			return nil
+		}
+	}
+	g.isCached = true
+	LogAlways("Cache found!")
+	return g
 }

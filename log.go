@@ -7,7 +7,7 @@ import (
 	"runtime/pprof"
 )
 
-func log(f string, a ...interface{}) {
+func LogAlways(f string, a ...interface{}) {
 	var buf bytes.Buffer
 	buf.WriteString("*kati*: ")
 	buf.WriteString(f)
@@ -19,14 +19,14 @@ func LogStats(f string, a ...interface{}) {
 	if !katiLogFlag && !katiStatsFlag {
 		return
 	}
-	log(f, a...)
+	LogAlways(f, a...)
 }
 
 func Log(f string, a ...interface{}) {
 	if !katiLogFlag {
 		return
 	}
-	log(f, a...)
+	LogAlways(f, a...)
 }
 
 func Warn(filename string, lineno int, f string, a ...interface{}) {

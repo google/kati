@@ -265,10 +265,16 @@ func (ev *Evaluator) evalIncludeFile(fname string, f *os.File) error {
 func (ev *Evaluator) updateMakefileTimestamp(fn string, ts int64) {
 	ts2, present := ev.readMks[fn]
 	if present {
-		if ts != ts2 {
-			// Inconsistent.
+		if ts2 == -1 && ts != -1 {
+			Warn(ev.filename, ev.lineno, "%s was created after the previous read", fn)
+			ev.readMks[fn] = -2
+		} else if ts != -1 && ts == -1 {
+			Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
 			ev.readMks[fn] = -2
 		}
+		// Just keep old value otherwise. If the content has
+		// been changed, we can detect the change by the
+		// timestamp check.
 	} else {
 		ev.readMks[fn] = ts
 	}

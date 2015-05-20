@@ -192,6 +192,7 @@ run_shell_test = proc do |sh|
 
     if expected != output
       puts "#{name}: FAIL"
+      puts `diff -u out.make out.kati`
       failures << name
     else
       puts "#{name}: PASS"
