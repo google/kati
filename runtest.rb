@@ -14,7 +14,8 @@ def get_output_filenames
 end
 
 def cleanup
-  get_output_filenames.each do |fname|
+  (get_output_filenames + Dir.glob('.*')).each do |fname|
+    next if fname == '.' || fname == '..'
     FileUtils.rm_rf fname
   end
 end
@@ -34,19 +35,17 @@ failures = []
 passes = []
 
 if !ARGV.empty?
-  mks = ARGV.map do |mk|
-    "testcase/#{File.basename(mk, '.mk')}.mk"
+  test_files = ARGV.map do |test|
+    "testcase/#{File.basename(test)}"
   end
 else
-  mks = Dir.glob('testcase/*.mk').sort
+  test_files = Dir.glob('testcase/*.mk').sort
+  test_files += Dir.glob('testcase/*.sh').sort
 end
 
-mks.each do |mk|
-  c = File.read(mk)
-
-  expected_failure = c =~ /\A# TODO/
-
-  name = mk[/([^\/]+)\.mk$/, 1]
+def run_in_testdir(test_filename)
+  c = File.read(test_filename)
+  name = File.basename(test_filename)
   dir = "out/#{name}"
 
   FileUtils.mkdir_p(dir)
@@ -55,6 +54,48 @@ mks.each do |mk|
   end
 
   Dir.chdir(dir) do
+    yield name
+  end
+end
+
+def normalize_make_log(expected)
+  expected.gsub!(/^make(?:\[\d+\])?: (Entering|Leaving) directory.*\n/, '')
+  expected.gsub!(/^make(?:\[\d+\])?: /, '')
+  expected = move_circular_dep(expected)
+
+  # Normalizations for old/new GNU make.
+  expected.gsub!(/[`'"]/, '"')
+  expected.gsub!(/ (?:commands|recipe) for target /,
+                 ' commands for target ')
+  expected.gsub!(/ (?:commands|recipe) commences /,
+                 ' commands commence ')
+  expected.gsub!(' (did you mean TAB instead of 8 spaces?)', '')
+  expected.gsub!('Extraneous text after', 'extraneous text after')
+  # Not sure if this is useful.
+  expected.gsub!(/\s+Stop\.$/, '')
+  # GNU make 4.0 has this output.
+  expected.gsub!(/Makefile:\d+: commands for target ".*?" failed\n/, '')
+  # We treat some warnings as errors.
+  expected.gsub!(/Nothing to be done for "test"\.\n/, '')
+
+  expected
+end
+
+def normalize_kati_log(output)
+  output = move_circular_dep(output)
+  # kati specific log messages.
+  output.gsub!(/^\*kati\*.*\n/, '')
+  output.gsub!(/[`'"]/, '"')
+  output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
+               "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
+  output
+end
+
+run_make_test = proc do |mk|
+  c = File.read(mk)
+  expected_failure = c =~ /\A# TODO/
+
+  run_in_testdir(mk) do |name|
     File.open("Makefile", 'w') do |ofile|
       ofile.print(c)
     end
@@ -70,9 +111,7 @@ mks.each do |mk|
     cleanup
     testcases.each do |tc|
       res = `make #{tc} 2>&1`
-      res.gsub!(/^make(?:\[\d+\])?: (Entering|Leaving) directory.*\n/, '')
-      res.gsub!(/^make(?:\[\d+\])?: /, '')
-      res = move_circular_dep(res)
+      res = normalize_make_log(res)
       expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
       expected += "\n=== FILES ===\n#{expected_files * "\n"}\n"
@@ -83,32 +122,11 @@ mks.each do |mk|
       json = "#{tc.empty? ? 'test' : tc}"
       cmd = "../../kati -save_json=#{json}.json -kati_log #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
-      res = move_circular_dep(res)
+      res = normalize_kati_log(res)
       output += "=== #{tc} ===\n" + res
       output_files = get_output_filenames
       output += "\n=== FILES ===\n#{output_files * "\n"}\n"
     end
-
-    # Normalizations for old/new GNU make.
-    expected.gsub!(/[`'"]/, '"')
-    expected.gsub!(/ (?:commands|recipe) for target /,
-                   ' commands for target ')
-    expected.gsub!(/ (?:commands|recipe) commences /,
-                   ' commands commence ')
-    expected.gsub!(' (did you mean TAB instead of 8 spaces?)', '')
-    expected.gsub!('Extraneous text after', 'extraneous text after')
-    # Not sure if this is useful.
-    expected.gsub!(/\s+Stop\.$/, '')
-    # GNU make 4.0 has this output.
-    expected.gsub!(/Makefile:\d+: commands for target ".*?" failed\n/, '')
-    # We treat some warnings as errors.
-    expected.gsub!(/Nothing to be done for "test"\.\n/, '')
-
-    # kati specific log messages.
-    output.gsub!(/^\*kati\*.*\n/, '')
-    output.gsub!(/[`'"]/, '"')
-    output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
-                 "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
 
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
@@ -155,6 +173,40 @@ mks.each do |mk|
         end
       end
     end
+  end
+end
+
+run_shell_test = proc do |sh|
+  run_in_testdir(sh) do |name|
+    cleanup
+    cmd = "sh ../../#{sh} make"
+    expected = IO.popen(cmd, 'r:binary', &:read)
+    cleanup
+    cmd = "sh ../../#{sh} ../../kati --use_cache --kati_log"
+    output = IO.popen(cmd, 'r:binary', &:read)
+
+    expected = normalize_make_log(expected)
+    output = normalize_kati_log(output)
+    File.open('out.make', 'w'){|ofile|ofile.print(expected)}
+    File.open('out.kati', 'w'){|ofile|ofile.print(output)}
+
+    if expected != output
+      puts "#{name}: FAIL"
+      failures << name
+    else
+      puts "#{name}: PASS"
+      passes << name
+    end
+  end
+end
+
+test_files.each do |test|
+  if /\.mk$/ =~ test
+    run_make_test.call(test)
+  elsif /\.sh$/ =~ test
+    run_shell_test.call(test)
+  else
+    raise "Unknown test type: #{test}"
   end
 end
 

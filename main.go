@@ -144,8 +144,10 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	if useCache {
 		g := LoadDepGraphCache(makefile, targets)
 		if g != nil {
-			Log("Use cache!")
+			Log("Cache found!")
 			return g
+		} else {
+			Log("Cache not found")
 		}
 	}
 
