@@ -568,6 +568,14 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 
 	g := LoadDepGraph(filename)
 	for _, mk := range g.readMks {
+		// TODO: A hack for Android build. Maybe we should
+		// keep their contents instead of the timestamp.
+		if mk.Filename == "out/target/product/generic/clean_steps.mk" ||
+			mk.Filename == "out/target/common/obj/previous_aidl_config.mk" ||
+			mk.Filename == "out/target/product/generic/previous_build_config.mk" {
+			continue
+		}
+
 		ts := getTimestamp(mk.Filename)
 		if mk.Timestamp >= 0 && ts < 0 {
 			LogAlways("Cache expired: %s", mk.Filename)
