@@ -8,12 +8,23 @@ import (
 	"time"
 )
 
+type ReadMakefile struct {
+	Filename string
+	// We store the current time instead of the last modified time
+	// of the file. If we use the last modified time, we cannot
+	// notice the change of this file if the modification happens
+	// at the same second we read the file.
+	//
+	// -1 means the file did not exist and -2 means the timestamp
+	// was inconsistent.
+	Timestamp int64
+}
+
 type EvalResult struct {
-	vars       Vars
-	rules      []*Rule
-	ruleVars   map[string]Vars
-	readMks    []string
-	missingMks []string
+	vars     Vars
+	rules    []*Rule
+	ruleVars map[string]Vars
+	readMks  []ReadMakefile
 }
 
 type Evaluator struct {
@@ -26,8 +37,7 @@ type Evaluator struct {
 	currentScope Vars
 	avoidIO      bool
 	hasIO        bool
-	readMks      map[string]bool
-	missingMks   map[string]bool
+	readMks      map[string]int64
 
 	filename string
 	lineno   int
@@ -38,8 +48,7 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 		outVars:     make(Vars),
 		vars:        vars,
 		outRuleVars: make(map[string]Vars),
-		readMks:     make(map[string]bool),
-		missingMks:  make(map[string]bool),
+		readMks:     make(map[string]int64),
 	}
 }
 
@@ -253,6 +262,18 @@ func (ev *Evaluator) evalIncludeFile(fname string, f *os.File) error {
 	return nil
 }
 
+func (ev *Evaluator) updateMakefileTimestamp(fn string, ts int64) {
+	ts2, present := ev.readMks[fn]
+	if present {
+		if ts != ts2 {
+			// Inconsistent.
+			ev.readMks[fn] = -2
+		}
+	} else {
+		ev.readMks[fn] = ts
+	}
+}
+
 func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
@@ -269,16 +290,17 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	files := splitSpaces(buf.String())
 	buf.Reset()
 	for _, fn := range files {
+		now := time.Now().Unix()
 		f, err := os.Open(fn)
 		if err != nil {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
-				ev.missingMks[fn] = true
+				ev.updateMakefileTimestamp(fn, -1)
 				continue
 			}
 		}
-		ev.readMks[fn] = true
+		ev.updateMakefileTimestamp(fn, now)
 		defer f.Close()
 		err = ev.evalIncludeFile(fn, f)
 		if err != nil {
@@ -340,10 +362,13 @@ func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
-func createArrayFromBoolMap(mp map[string]bool) []string {
-	var r []string
-	for m, _ := range mp {
-		r = append(r, m)
+func createTimestampArray(mp map[string]int64) []ReadMakefile {
+	var r []ReadMakefile
+	for k, v := range mp {
+		r = append(r, ReadMakefile{
+			Filename:  k,
+			Timestamp: v,
+		})
 	}
 	return r
 }
@@ -365,10 +390,9 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 	}
 
 	return &EvalResult{
-		vars:       ev.outVars,
-		rules:      ev.outRules,
-		ruleVars:   ev.outRuleVars,
-		readMks:    createArrayFromBoolMap(ev.readMks),
-		missingMks: createArrayFromBoolMap(ev.missingMks),
+		vars:     ev.outVars,
+		rules:    ev.outRules,
+		ruleVars: ev.outRuleVars,
+		readMks:  createTimestampArray(ev.readMks),
 	}, nil
 }

@@ -37,10 +37,10 @@ var (
 )
 
 type DepGraph struct {
-	nodes      []*DepNode
-	vars       Vars
-	readMks    []string
-	missingMks []string
+	nodes    []*DepNode
+	vars     Vars
+	readMks  []ReadMakefile
+	isCached bool
 }
 
 func parseFlags() {
@@ -142,14 +142,16 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	}
 
 	if useCache {
-		g := MaybeLoadDepGraph(makefile, targets)
+		g := LoadDepGraphCache(makefile, targets)
 		if g != nil {
+			Log("Use cache!")
 			return g
 		}
 	}
 
 	bmk := getBootstrapMakefile(targets)
 
+	now := time.Now().Unix()
 	mk, err := ParseMakefile(makefile)
 	if err != nil {
 		panic(err)
@@ -206,15 +208,17 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 		panic(err2)
 	}
 	LogStats("dep build time: %q", time.Now().Sub(startTime))
-	var readMks []string
+	var readMks []ReadMakefile
 	// Always put the root Makefile as the first element.
-	readMks = append(readMks, makefile)
+	readMks = append(readMks, ReadMakefile{
+		Filename:  makefile,
+		Timestamp: now,
+	})
 	readMks = append(readMks, er.readMks...)
 	return &DepGraph{
-		nodes:      nodes,
-		vars:       vars,
-		readMks:    readMks,
-		missingMks: er.missingMks,
+		nodes:   nodes,
+		vars:    vars,
+		readMks: readMks,
 	}
 }
 
@@ -287,7 +291,7 @@ func main() {
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 
-	if useCache {
+	if useCache && !g.isCached {
 		startTime := time.Now()
 		DumpDepGraphCache(g, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
