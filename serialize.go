@@ -89,13 +89,12 @@ type SerializableTargetSpecificVar struct {
 }
 
 type SerializableGraph struct {
-	Nodes      []*SerializableDepNode
-	Vars       map[string]SerializableVar
-	Tsvs       []SerializableTargetSpecificVar
-	Targets    []string
-	Roots      []string
-	ReadMks    []string
-	MissingMks []string
+	Nodes   []*SerializableDepNode
+	Vars    map[string]SerializableVar
+	Tsvs    []SerializableTargetSpecificVar
+	Targets []string
+	Roots   []string
+	ReadMks []ReadMakefile
 }
 
 func encGob(v interface{}) string {
@@ -215,13 +214,12 @@ func MakeSerializableGraph(g *DepGraph, roots []string) SerializableGraph {
 	ns.SerializeDepNodes(g.nodes)
 	v := MakeSerializableVars(g.vars)
 	return SerializableGraph{
-		Nodes:      ns.nodes,
-		Vars:       v,
-		Tsvs:       ns.tsvs,
-		Targets:    ns.targets,
-		Roots:      roots,
-		ReadMks:    g.readMks,
-		MissingMks: g.missingMks,
+		Nodes:   ns.nodes,
+		Vars:    v,
+		Tsvs:    ns.tsvs,
+		Targets: ns.targets,
+		Roots:   roots,
+		ReadMks: g.readMks,
 	}
 }
 
@@ -264,7 +262,17 @@ func DumpDepGraphCache(g *DepGraph, roots []string) {
 	if len(g.readMks) == 0 {
 		panic("No Makefile is read")
 	}
-	DumpDepGraph(g, GetCacheFilename(g.readMks[0], roots), roots)
+	cacheFile := GetCacheFilename(g.readMks[0].Filename, roots)
+	for _, mk := range g.readMks {
+		// Inconsistent, do not dump this result.
+		if mk.Timestamp == -2 {
+			if exists(cacheFile) {
+				os.Remove(cacheFile)
+			}
+			return
+		}
+	}
+	DumpDepGraph(g, cacheFile, roots)
 }
 
 func DeserializeSingleChild(sv SerializableVar) Value {
@@ -515,10 +523,9 @@ func DeserializeGraph(g SerializableGraph) *DepGraph {
 	nodes := DeserializeNodes(g)
 	vars := DeserializeVars(g.Vars)
 	return &DepGraph{
-		nodes:      nodes,
-		vars:       vars,
-		readMks:    g.ReadMks,
-		missingMks: g.MissingMks,
+		nodes:   nodes,
+		vars:    vars,
+		readMks: g.ReadMks,
 	}
 }
 
@@ -552,10 +559,21 @@ func LoadDepGraph(filename string) *DepGraph {
 	return DeserializeGraph(g)
 }
 
-func MaybeLoadDepGraph(makefile string, roots []string) *DepGraph {
+func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 	filename := GetCacheFilename(makefile, roots)
 	if exists(filename) {
-		return LoadDepGraph(filename)
+		g := LoadDepGraph(filename)
+		for _, mk := range g.readMks {
+			ts := getTimestamp(mk.Filename)
+			if mk.Timestamp >= 0 && ts < 0 {
+				return nil
+			}
+			if mk.Timestamp <= ts {
+				return nil
+			}
+		}
+		g.isCached = true
+		return g
 	}
 	return nil
 }
