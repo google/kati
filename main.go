@@ -31,6 +31,7 @@ var (
 	queryFlag           string
 	eagerCmdEvalFlag    bool
 	useParaFlag         bool
+	useCache            bool
 
 	katiDir string
 )
@@ -65,6 +66,8 @@ func parseFlags() {
 	flag.BoolVar(&useParaFlag, "use_para", false, "Use para.")
 	flag.BoolVar(&syntaxCheckOnlyFlag, "c", false, "Syntax check only.")
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
+	// TODO: Make this default.
+	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
 	flag.Parse()
 }
 
@@ -119,7 +122,7 @@ func maybeWriteHeapProfile() {
 	}
 }
 
-func getDepGraph(clvars []string, targets []string) DepGraph {
+func getDepGraph(clvars []string, targets []string) *DepGraph {
 	startTime := time.Now()
 
 	if loadGob != "" {
@@ -133,15 +136,21 @@ func getDepGraph(clvars []string, targets []string) DepGraph {
 		return g
 	}
 
+	makefile := makefileFlag
+	if makefile == "" {
+		makefile = GetDefaultMakefile()
+	}
+
+	if useCache {
+		g := MaybeLoadDepGraph(makefile, targets)
+		if g != nil {
+			return g
+		}
+	}
+
 	bmk := getBootstrapMakefile(targets)
 
-	var mk Makefile
-	var err error
-	if len(makefileFlag) > 0 {
-		mk, err = ParseMakefile(makefileFlag)
-	} else {
-		mk, makefileFlag, err = ParseDefaultMakefile()
-	}
+	mk, err := ParseMakefile(makefile)
 	if err != nil {
 		panic(err)
 	}
@@ -197,10 +206,14 @@ func getDepGraph(clvars []string, targets []string) DepGraph {
 		panic(err2)
 	}
 	LogStats("dep build time: %q", time.Now().Sub(startTime))
-	return DepGraph{
+	var readMks []string
+	// Always put the root Makefile as the first element.
+	readMks = append(readMks, makefile)
+	readMks = append(readMks, er.readMks...)
+	return &DepGraph{
 		nodes:      nodes,
 		vars:       vars,
-		readMks:    append(er.readMks, makefileFlag),
+		readMks:    readMks,
 		missingMks: er.missingMks,
 	}
 }
@@ -271,6 +284,12 @@ func main() {
 	if saveJson != "" {
 		startTime := time.Now()
 		DumpDepGraphAsJson(g, saveJson, targets)
+		LogStats("serialize time: %q", time.Now().Sub(startTime))
+	}
+
+	if useCache {
+		startTime := time.Now()
+		DumpDepGraphCache(g, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 
