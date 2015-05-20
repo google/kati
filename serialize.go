@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -209,7 +210,7 @@ func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
 	return r
 }
 
-func MakeSerializableGraph(g DepGraph, roots []string) SerializableGraph {
+func MakeSerializableGraph(g *DepGraph, roots []string) SerializableGraph {
 	ns := NewDepNodesSerializer()
 	ns.SerializeDepNodes(g.nodes)
 	v := MakeSerializableVars(g.vars)
@@ -224,7 +225,7 @@ func MakeSerializableGraph(g DepGraph, roots []string) SerializableGraph {
 	}
 }
 
-func DumpDepGraphAsJson(g DepGraph, filename string, roots []string) {
+func DumpDepGraphAsJson(g *DepGraph, filename string, roots []string) {
 	sg := MakeSerializableGraph(g, roots)
 	o, err := json.MarshalIndent(sg, " ", " ")
 	if err != nil {
@@ -237,7 +238,7 @@ func DumpDepGraphAsJson(g DepGraph, filename string, roots []string) {
 	f.Write(o)
 }
 
-func DumpDepGraph(g DepGraph, filename string, roots []string) {
+func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	f, err := os.Create(filename)
 	if err != nil {
 		panic(err)
@@ -249,6 +250,21 @@ func DumpDepGraph(g DepGraph, filename string, roots []string) {
 	startTime = time.Now()
 	e.Encode(sg)
 	LogStats("serialize output time: %q", time.Now().Sub(startTime))
+}
+
+func GetCacheFilename(mk string, roots []string) string {
+	filename := ".kati_cache." + mk
+	for _, r := range roots {
+		filename += "." + r
+	}
+	return url.QueryEscape(filename)
+}
+
+func DumpDepGraphCache(g *DepGraph, roots []string) {
+	if len(g.readMks) == 0 {
+		panic("No Makefile is read")
+	}
+	DumpDepGraph(g, GetCacheFilename(g.readMks[0], roots), roots)
 }
 
 func DeserializeSingleChild(sv SerializableVar) Value {
@@ -492,13 +508,13 @@ func showSerializedGraphStats(g SerializableGraph) {
 	showSerializedTargetsStats(g.Targets)
 }
 
-func DeserializeGraph(g SerializableGraph) DepGraph {
+func DeserializeGraph(g SerializableGraph) *DepGraph {
 	if katiLogFlag || katiStatsFlag {
 		showSerializedGraphStats(g)
 	}
 	nodes := DeserializeNodes(g)
 	vars := DeserializeVars(g.Vars)
-	return DepGraph{
+	return &DepGraph{
 		nodes:      nodes,
 		vars:       vars,
 		readMks:    g.ReadMks,
@@ -506,7 +522,7 @@ func DeserializeGraph(g SerializableGraph) DepGraph {
 	}
 }
 
-func LoadDepGraphFromJson(filename string) DepGraph {
+func LoadDepGraphFromJson(filename string) *DepGraph {
 	f, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -521,7 +537,7 @@ func LoadDepGraphFromJson(filename string) DepGraph {
 	return DeserializeGraph(g)
 }
 
-func LoadDepGraph(filename string) DepGraph {
+func LoadDepGraph(filename string) *DepGraph {
 	f, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -534,4 +550,12 @@ func LoadDepGraph(filename string) DepGraph {
 		panic(err)
 	}
 	return DeserializeGraph(g)
+}
+
+func MaybeLoadDepGraph(makefile string, roots []string) *DepGraph {
+	filename := GetCacheFilename(makefile, roots)
+	if exists(filename) {
+		return LoadDepGraph(filename)
+	}
+	return nil
 }

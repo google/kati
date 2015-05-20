@@ -604,6 +604,17 @@ func ParseDefaultMakefile() (Makefile, string, error) {
 	return Makefile{}, "", errors.New("no targets specified and no makefile found.")
 }
 
+func GetDefaultMakefile() string {
+	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
+	for _, filename := range candidates {
+		if exists(filename) {
+			return filename
+		}
+	}
+	ErrorNoLocation("no targets specified and no makefile found.")
+	panic("") // Cannot be reached.
+}
+
 func parseMakefileReader(rd io.Reader, name string, lineno int) (Makefile, error) {
 	parser := newParser(rd, name)
 	parser.lineno = lineno
