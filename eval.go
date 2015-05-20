@@ -9,9 +9,11 @@ import (
 )
 
 type EvalResult struct {
-	vars     Vars
-	rules    []*Rule
-	ruleVars map[string]Vars
+	vars       Vars
+	rules      []*Rule
+	ruleVars   map[string]Vars
+	readMks    []string
+	missingMks []string
 }
 
 type Evaluator struct {
@@ -24,6 +26,8 @@ type Evaluator struct {
 	currentScope Vars
 	avoidIO      bool
 	hasIO        bool
+	readMks      map[string]bool
+	missingMks   map[string]bool
 
 	filename string
 	lineno   int
@@ -34,6 +38,8 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 		outVars:     make(Vars),
 		vars:        vars,
 		outRuleVars: make(map[string]Vars),
+		readMks:     make(map[string]bool),
+		missingMks:  make(map[string]bool),
 	}
 }
 
@@ -268,9 +274,11 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
+				ev.missingMks[fn] = true
 				continue
 			}
 		}
+		ev.readMks[fn] = true
 		defer f.Close()
 		err = ev.evalIncludeFile(fn, f)
 		if err != nil {
@@ -332,6 +340,14 @@ func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
+func createArrayFromBoolMap(mp map[string]bool) []string {
+	var r []string
+	for m, _ := range mp {
+		r = append(r, m)
+	}
+	return r
+}
+
 func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 	ev := newEvaluator(vars)
 	defer func() {
@@ -347,9 +363,12 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 	for _, stmt := range mk.stmts {
 		ev.eval(stmt)
 	}
+
 	return &EvalResult{
-		vars:     ev.outVars,
-		rules:    ev.outRules,
-		ruleVars: ev.outRuleVars,
+		vars:       ev.outVars,
+		rules:      ev.outRules,
+		ruleVars:   ev.outRuleVars,
+		readMks:    createArrayFromBoolMap(ev.readMks),
+		missingMks: createArrayFromBoolMap(ev.missingMks),
 	}, nil
 }
