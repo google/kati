@@ -593,14 +593,15 @@ func ParseMakefile(filename string) (Makefile, error) {
 	return ParseMakefileFd(filename, f)
 }
 
-func ParseDefaultMakefile() (Makefile, error) {
+func ParseDefaultMakefile() (Makefile, string, error) {
 	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
 	for _, filename := range candidates {
 		if exists(filename) {
-			return ParseMakefile(filename)
+			mk, err := ParseMakefile(filename)
+			return mk, filename, err
 		}
 	}
-	return Makefile{}, errors.New("no targets specified and no makefile found.")
+	return Makefile{}, "", errors.New("no targets specified and no makefile found.")
 }
 
 func parseMakefileReader(rd io.Reader, name string, lineno int) (Makefile, error) {

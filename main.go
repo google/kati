@@ -35,6 +35,13 @@ var (
 	katiDir string
 )
 
+type DepGraph struct {
+	nodes      []*DepNode
+	vars       Vars
+	readMks    []string
+	missingMks []string
+}
+
 func parseFlags() {
 	// TODO: Make this default and replace this by -d flag.
 	flag.BoolVar(&katiLogFlag, "kati_log", false, "Verbose kati specific log")
@@ -112,18 +119,18 @@ func maybeWriteHeapProfile() {
 	}
 }
 
-func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
+func getDepGraph(clvars []string, targets []string) DepGraph {
 	startTime := time.Now()
 
 	if loadGob != "" {
-		n, v := LoadDepGraph(loadGob)
+		g := LoadDepGraph(loadGob)
 		LogStats("deserialize time: %q", time.Now().Sub(startTime))
-		return n, v
+		return g
 	}
 	if loadJson != "" {
-		n, v := LoadDepGraphFromJson(loadJson)
+		g := LoadDepGraphFromJson(loadJson)
 		LogStats("deserialize time: %q", time.Now().Sub(startTime))
-		return n, v
+		return g
 	}
 
 	bmk := getBootstrapMakefile(targets)
@@ -133,7 +140,7 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 	if len(makefileFlag) > 0 {
 		mk, err = ParseMakefile(makefileFlag)
 	} else {
-		mk, err = ParseDefaultMakefile()
+		mk, makefileFlag, err = ParseDefaultMakefile()
 	}
 	if err != nil {
 		panic(err)
@@ -190,7 +197,12 @@ func getDepGraph(clvars []string, targets []string) ([]*DepNode, Vars) {
 		panic(err2)
 	}
 	LogStats("dep build time: %q", time.Now().Sub(startTime))
-	return nodes, vars
+	return DepGraph{
+		nodes:      nodes,
+		vars:       vars,
+		readMks:    append(er.readMks, makefileFlag),
+		missingMks: er.missingMks,
+	}
 }
 
 func findKatiDir() {
@@ -241,7 +253,9 @@ func main() {
 
 	clvars, targets := parseCommandLine()
 
-	nodes, vars := getDepGraph(clvars, targets)
+	g := getDepGraph(clvars, targets)
+	nodes := g.nodes
+	vars := g.vars
 
 	if eagerCmdEvalFlag {
 		startTime := time.Now()
@@ -251,12 +265,12 @@ func main() {
 
 	if saveGob != "" {
 		startTime := time.Now()
-		DumpDepGraph(nodes, vars, saveGob, targets)
+		DumpDepGraph(g, saveGob, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 	if saveJson != "" {
 		startTime := time.Now()
-		DumpDepGraphAsJson(nodes, vars, saveJson, targets)
+		DumpDepGraphAsJson(g, saveJson, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 
