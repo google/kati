@@ -183,6 +183,15 @@ func (j Job) createRunners() []runner {
 	return runners
 }
 
+// TODO(ukai): use time.Time?
+func getTimestamp(filename string) int64 {
+	st, err := os.Stat(filename)
+	if err != nil {
+		return -2
+	}
+	return st.ModTime().Unix()
+}
+
 func (j Job) build() {
 	if j.n.IsPhony {
 		j.outputTs = -2 // trigger cmd even if all inputs don't exist.

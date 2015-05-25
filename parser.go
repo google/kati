@@ -42,15 +42,6 @@ type parser struct {
 	numIfNest   int
 }
 
-func exists(filename string) bool {
-	f, err := os.Open(filename)
-	if err != nil {
-		return false
-	}
-	f.Close()
-	return true
-}
-
 func newParser(rd io.Reader, filename string) *parser {
 	p := &parser{
 		rd: bufio.NewReader(rd),
