@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -125,15 +124,6 @@ func (v AutoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
 		}
 		fmt.Fprint(w, filepath.Base(tok))
 	}
-}
-
-// TODO(ukai): use time.Time?
-func getTimestamp(filename string) int64 {
-	st, err := os.Stat(filename)
-	if err != nil {
-		return -2
-	}
-	return st.ModTime().Unix()
 }
 
 func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
