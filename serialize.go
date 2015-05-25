@@ -509,11 +509,20 @@ func showSerializedTargetsStats(targets []string) {
 	LogStats("%d targets %s", len(targets), human(size))
 }
 
+func showSerializedReadMksStats(readMks []*ReadMakefile) {
+	size := 0
+	for _, rm := range readMks {
+		size += len(rm.Filename) + len(rm.Content) + 4
+	}
+	LogStats("%d makefiles %s", len(readMks), human(size))
+}
+
 func showSerializedGraphStats(g SerializableGraph) {
 	showSerializedNodesStats(g.Nodes)
 	showSerializedVarsStats(g.Vars)
 	showSerializedTsvsStats(g.Tsvs)
 	showSerializedTargetsStats(g.Targets)
+	showSerializedReadMksStats(g.ReadMks)
 }
 
 func DeserializeGraph(g SerializableGraph) *DepGraph {
