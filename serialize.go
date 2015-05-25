@@ -560,6 +560,11 @@ func LoadDepGraph(filename string) *DepGraph {
 }
 
 func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
+	startTime := time.Now()
+	defer func() {
+		LogStats("Cache lookup time: %q", time.Now().Sub(startTime))
+	}()
+
 	filename := GetCacheFilename(makefile, roots)
 	if !exists(filename) {
 		LogAlways("Cache not found")
