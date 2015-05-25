@@ -3,28 +3,27 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 )
 
+const (
+	FILE_EXISTS       = 0
+	FILE_NOT_EXISTS   = 1
+	FILE_INCONSISTENT = 2 // Modified during kati is running.
+)
+
 type ReadMakefile struct {
 	Filename string
-	// We store the current time instead of the last modified time
-	// of the file. If we use the last modified time, we cannot
-	// notice the change of this file if the modification happens
-	// at the same second we read the file.
-	//
-	// -1 means the file did not exist and -2 means the timestamp
-	// was inconsistent.
-	Timestamp int64
+	Content  []byte
+	State    int32
 }
 
 type EvalResult struct {
 	vars     Vars
 	rules    []*Rule
 	ruleVars map[string]Vars
-	readMks  []ReadMakefile
+	readMks  []*ReadMakefile
 }
 
 type Evaluator struct {
@@ -37,7 +36,7 @@ type Evaluator struct {
 	currentScope Vars
 	avoidIO      bool
 	hasIO        bool
-	readMks      map[string]int64
+	readMks      map[string]*ReadMakefile
 
 	filename string
 	lineno   int
@@ -48,7 +47,7 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 		outVars:     make(Vars),
 		vars:        vars,
 		outRuleVars: make(map[string]Vars),
-		readMks:     make(map[string]int64),
+		readMks:     make(map[string]*ReadMakefile),
 	}
 }
 
@@ -242,13 +241,13 @@ func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
-func (ev *Evaluator) evalIncludeFile(fname string, f *os.File) error {
+func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	t := time.Now()
 	defer func() {
 		addStats("include", literal(fname), t)
 	}()
-	Log("Reading makefile %q", f)
-	mk, err := ParseMakefileFd(fname, f)
+	Log("Reading makefile %q", fname)
+	mk, err := ParseMakefile(c, fname)
 	if err != nil {
 		return err
 	}
@@ -262,21 +261,32 @@ func (ev *Evaluator) evalIncludeFile(fname string, f *os.File) error {
 	return nil
 }
 
-func (ev *Evaluator) updateMakefileTimestamp(fn string, ts int64) {
-	ts2, present := ev.readMks[fn]
+func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st int32) {
+	rm, present := ev.readMks[fn]
 	if present {
-		if ts2 == -1 && ts != -1 {
-			Warn(ev.filename, ev.lineno, "%s was created after the previous read", fn)
-			ev.readMks[fn] = -2
-		} else if ts != -1 && ts == -1 {
-			Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
-			ev.readMks[fn] = -2
+		switch rm.State {
+		case FILE_EXISTS:
+			if st != FILE_EXISTS {
+				Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
+			} else if !bytes.Equal(c, rm.Content) {
+				Warn(ev.filename, ev.lineno, "%s was modified after the previous read", fn)
+				ev.readMks[fn].State = FILE_INCONSISTENT
+			}
+			return
+		case FILE_NOT_EXISTS:
+			if st != FILE_NOT_EXISTS {
+				Warn(ev.filename, ev.lineno, "%s was created after the previous read", fn)
+				ev.readMks[fn].State = FILE_INCONSISTENT
+			}
+		case FILE_INCONSISTENT:
+			return
 		}
-		// Just keep old value otherwise. If the content has
-		// been changed, we can detect the change by the
-		// timestamp check.
 	} else {
-		ev.readMks[fn] = ts
+		ev.readMks[fn] = &ReadMakefile{
+			Filename: fn,
+			Content:  c,
+			State:    st,
+		}
 	}
 }
 
@@ -296,19 +306,17 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	files := splitSpaces(buf.String())
 	buf.Reset()
 	for _, fn := range files {
-		now := time.Now().Unix()
-		f, err := os.Open(fn)
+		c, err := readFile(fn)
 		if err != nil {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
-				ev.updateMakefileTimestamp(fn, -1)
+				ev.updateReadMakefile(fn, nil, FILE_NOT_EXISTS)
 				continue
 			}
 		}
-		ev.updateMakefileTimestamp(fn, now)
-		defer f.Close()
-		err = ev.evalIncludeFile(fn, f)
+		ev.updateReadMakefile(fn, c, FILE_EXISTS)
+		err = ev.evalIncludeFile(fn, c)
 		if err != nil {
 			panic(err)
 		}
@@ -368,13 +376,10 @@ func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
 
-func createTimestampArray(mp map[string]int64) []ReadMakefile {
-	var r []ReadMakefile
-	for k, v := range mp {
-		r = append(r, ReadMakefile{
-			Filename:  k,
-			Timestamp: v,
-		})
+func createReadMakefileArray(mp map[string]*ReadMakefile) []*ReadMakefile {
+	var r []*ReadMakefile
+	for _, v := range mp {
+		r = append(r, v)
 	}
 	return r
 }
@@ -399,6 +404,6 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 		vars:     ev.outVars,
 		rules:    ev.outRules,
 		ruleVars: ev.outRuleVars,
-		readMks:  createTimestampArray(ev.readMks),
+		readMks:  createReadMakefileArray(ev.readMks),
 	}, nil
 }

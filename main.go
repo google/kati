@@ -39,7 +39,7 @@ var (
 type DepGraph struct {
 	nodes    []*DepNode
 	vars     Vars
-	readMks  []ReadMakefile
+	readMks  []*ReadMakefile
 	isCached bool
 }
 
@@ -150,8 +150,11 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 
 	bmk := getBootstrapMakefile(targets)
 
-	now := time.Now().Unix()
-	mk, err := ParseMakefile(makefile)
+	content, err := readFile(makefile)
+	if err != nil {
+		panic(err)
+	}
+	mk, err := ParseMakefile(content, makefile)
 	if err != nil {
 		panic(err)
 	}
@@ -207,11 +210,12 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 		panic(err2)
 	}
 	LogStats("dep build time: %q", time.Now().Sub(startTime))
-	var readMks []ReadMakefile
+	var readMks []*ReadMakefile
 	// Always put the root Makefile as the first element.
-	readMks = append(readMks, ReadMakefile{
-		Filename:  makefile,
-		Timestamp: now,
+	readMks = append(readMks, &ReadMakefile{
+		Filename: makefile,
+		Content:  content,
+		State:    FILE_EXISTS,
 	})
 	readMks = append(readMks, er.readMks...)
 	return &DepGraph{
