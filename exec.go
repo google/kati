@@ -195,7 +195,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 }
 
 func (ex *Executor) reportStats() {
-	if !katiLogFlag && !katiStatsFlag {
+	if !katiLogFlag && !katiPeriodicStatsFlag {
 		return
 	}
 

@@ -14,24 +14,25 @@ import (
 )
 
 var (
-	katiLogFlag         bool
-	makefileFlag        string
-	dryRunFlag          bool
-	jobsFlag            int
-	cpuprofile          string
-	heapprofile         string
-	memstats            string
-	katiStatsFlag       bool
-	katiEvalStatsFlag   bool
-	loadJson            string
-	saveJson            string
-	loadGob             string
-	saveGob             string
-	syntaxCheckOnlyFlag bool
-	queryFlag           string
-	eagerCmdEvalFlag    bool
-	useParaFlag         bool
-	useCache            bool
+	katiLogFlag           bool
+	makefileFlag          string
+	dryRunFlag            bool
+	jobsFlag              int
+	cpuprofile            string
+	heapprofile           string
+	memstats              string
+	katiStatsFlag         bool
+	katiPeriodicStatsFlag bool
+	katiEvalStatsFlag     bool
+	loadJson              string
+	saveJson              string
+	loadGob               string
+	saveGob               string
+	syntaxCheckOnlyFlag   bool
+	queryFlag             string
+	eagerCmdEvalFlag      bool
+	useParaFlag           bool
+	useCache              bool
 
 	katiDir string
 )
@@ -61,6 +62,7 @@ func parseFlags() {
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.StringVar(&memstats, "kati_memstats", "", "Show memstats with given templates")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
+	flag.BoolVar(&katiPeriodicStatsFlag, "kati_periodic_stats", false, "Show a bunch of periodic statistics")
 	flag.BoolVar(&katiEvalStatsFlag, "kati_eval_stats", false, "Show eval statistics")
 	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&useParaFlag, "use_para", false, "Use para.")

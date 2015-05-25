@@ -475,7 +475,7 @@ func (s bySuffix) Less(i, j int) bool {
 }
 
 func (db *DepBuilder) reportStats() {
-	if !katiLogFlag && !katiStatsFlag {
+	if !katiLogFlag && !katiPeriodicStatsFlag {
 		return
 	}
 
