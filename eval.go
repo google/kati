@@ -262,6 +262,10 @@ func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 }
 
 func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st int32) {
+	if !useCache {
+		return
+	}
+
 	rm, present := ev.readMks[fn]
 	if present {
 		switch rm.State {
