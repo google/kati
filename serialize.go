@@ -94,7 +94,7 @@ type SerializableGraph struct {
 	Tsvs    []SerializableTargetSpecificVar
 	Targets []string
 	Roots   []string
-	ReadMks []ReadMakefile
+	ReadMks []*ReadMakefile
 }
 
 func encGob(v interface{}) string {
@@ -265,7 +265,7 @@ func DumpDepGraphCache(g *DepGraph, roots []string) {
 	cacheFile := GetCacheFilename(g.readMks[0].Filename, roots)
 	for _, mk := range g.readMks {
 		// Inconsistent, do not dump this result.
-		if mk.Timestamp == -2 {
+		if mk.State == 2 {
 			if exists(cacheFile) {
 				os.Remove(cacheFile)
 			}
@@ -568,22 +568,20 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 
 	g := LoadDepGraph(filename)
 	for _, mk := range g.readMks {
-		// TODO: A hack for Android build. Maybe we should
-		// keep their contents instead of the timestamp.
-		if mk.Filename == "out/target/product/generic/clean_steps.mk" ||
-			mk.Filename == "out/target/common/obj/previous_aidl_config.mk" ||
-			mk.Filename == "out/target/product/generic/previous_build_config.mk" {
-			continue
+		if mk.State != FILE_EXISTS && mk.State != FILE_NOT_EXISTS {
+			panic(fmt.Sprintf("Internal error: broken state: %d", mk.State))
 		}
-
-		ts := getTimestamp(mk.Filename)
-		if mk.Timestamp >= 0 && ts < 0 {
-			LogAlways("Cache expired: %s", mk.Filename)
-			return nil
-		}
-		if mk.Timestamp <= ts {
-			LogAlways("Cache expired: %s", mk.Filename)
-			return nil
+		if mk.State == FILE_NOT_EXISTS {
+			if exists(mk.Filename) {
+				LogAlways("Cache expired: %s", mk.Filename)
+				return nil
+			}
+		} else {
+			c, err := readFile(mk.Filename)
+			if err != nil || !bytes.Equal(c, mk.Content) {
+				LogAlways("Cache expired: %s", mk.Filename)
+				return nil
+			}
 		}
 	}
 	g.isCached = true

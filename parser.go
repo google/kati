@@ -8,7 +8,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -574,6 +573,7 @@ func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
 	return parser.parse()
 }
 
+/*
 func ParseMakefile(filename string) (Makefile, error) {
 	Log("ParseMakefile %q", filename)
 	f, err := os.Open(filename)
@@ -594,6 +594,7 @@ func ParseDefaultMakefile() (Makefile, string, error) {
 	}
 	return Makefile{}, "", errors.New("no targets specified and no makefile found.")
 }
+*/
 
 func GetDefaultMakefile() string {
 	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
@@ -620,4 +621,10 @@ func ParseMakefileString(s string, name string, lineno int) (Makefile, error) {
 
 func ParseMakefileBytes(s []byte, name string, lineno int) (Makefile, error) {
 	return parseMakefileReader(bytes.NewReader(s), name, lineno)
+}
+
+func ParseMakefile(s []byte, filename string) (Makefile, error) {
+	Log("ParseMakefile %q", filename)
+	parser := newParser(bytes.NewReader(s), filename)
+	return parser.parse()
 }
