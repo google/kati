@@ -355,6 +355,7 @@ var makeDirectives = map[string]directiveFunc{
 	"define ":   defineDirective,
 	"override ": overrideDirective,
 	"export ":   exportDirective,
+	"unexport ": unexportDirective,
 }
 
 // TODO(ukai): use []byte
@@ -365,7 +366,7 @@ func (p *parser) isDirective(line []byte, directives map[string]directiveFunc) (
 	if len(stripped) == 0 {
 		return nil, false
 	}
-	if ch := stripped[0]; ch != 'i' && ch != '-' && ch != 's' && ch != 'e' && ch != 'd' && ch != 'o' {
+	if ch := stripped[0]; ch != 'i' && ch != '-' && ch != 's' && ch != 'e' && ch != 'd' && ch != 'o' && ch != 'u' {
 		return nil, false
 	}
 
@@ -442,6 +443,8 @@ func overrideDirective(p *parser, line []byte) []byte {
 }
 
 func exportDirective(p *parser, line []byte) []byte {
+	Warn(p.mk.filename, p.lineno, "export is not properly supported yet")
+
 	p.defOpt = "export"
 	line = trimLeftSpaceBytes(line[len("export "):])
 	defineDirective := map[string]directiveFunc{
@@ -451,9 +454,20 @@ func exportDirective(p *parser, line []byte) []byte {
 		f(p, line)
 		return nil
 	}
+
+	// e.g., export FOO BAR
+	if !bytes.Contains(line, []byte{'='}) {
+		return nil
+	}
+
 	// e.g. export foo := bar
 	// line will be "foo := bar".
 	return line
+}
+
+func unexportDirective(p *parser, line []byte) []byte {
+	Warn(p.mk.filename, p.lineno, "unexport is not supported yet, ignored")
+	return nil
 }
 
 func (p *parser) parse() (mk Makefile, err error) {
