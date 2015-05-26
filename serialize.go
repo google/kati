@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
@@ -512,7 +513,7 @@ func showSerializedTargetsStats(targets []string) {
 func showSerializedReadMksStats(readMks []*ReadMakefile) {
 	size := 0
 	for _, rm := range readMks {
-		size += len(rm.Filename) + len(rm.Content) + 4
+		size += len(rm.Filename) + len(rm.Hash) + 4
 	}
 	LogStats("%d makefiles %s", len(readMks), human(size))
 }
@@ -592,7 +593,12 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 			}
 		} else {
 			c, err := readFile(mk.Filename)
-			if err != nil || !bytes.Equal(c, mk.Content) {
+			if err != nil {
+				LogAlways("Cache expired: %s", mk.Filename)
+				return nil
+			}
+			h := sha1.Sum(c)
+			if !bytes.Equal(h[:], mk.Hash[:]) {
 				LogAlways("Cache expired: %s", mk.Filename)
 				return nil
 			}
