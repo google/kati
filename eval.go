@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ const (
 
 type ReadMakefile struct {
 	Filename string
-	Content  []byte
+	Hash     [sha1.Size]byte
 	State    int32
 }
 
@@ -266,13 +267,14 @@ func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st int32) {
 		return
 	}
 
+	h := sha1.Sum(c)
 	rm, present := ev.readMks[fn]
 	if present {
 		switch rm.State {
 		case FILE_EXISTS:
 			if st != FILE_EXISTS {
 				Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
-			} else if !bytes.Equal(c, rm.Content) {
+			} else if !bytes.Equal(h[:], rm.Hash[:]) {
 				Warn(ev.filename, ev.lineno, "%s was modified after the previous read", fn)
 				ev.readMks[fn].State = FILE_INCONSISTENT
 			}
@@ -288,7 +290,7 @@ func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st int32) {
 	} else {
 		ev.readMks[fn] = &ReadMakefile{
 			Filename: fn,
-			Content:  c,
+			Hash:     h,
 			State:    st,
 		}
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"flag"
 	"fmt"
 	"os"
@@ -216,7 +217,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	// Always put the root Makefile as the first element.
 	readMks = append(readMks, &ReadMakefile{
 		Filename: makefile,
-		Content:  content,
+		Hash:     sha1.Sum(content),
 		State:    FILE_EXISTS,
 	})
 	readMks = append(readMks, er.readMks...)
