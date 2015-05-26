@@ -39,7 +39,10 @@ func genShellScript(runners []runner) string {
 				buf.WriteString(" && ")
 			}
 		}
-		buf.WriteString(r.cmd)
+		cmd := strings.Replace(r.cmd, "$", "$$", -1)
+		cmd = strings.Replace(cmd, "\t", " ", -1)
+		cmd = strings.Replace(cmd, "\\\n", " ", -1)
+		buf.WriteString(cmd)
 		if i == len(runners)-1 && r.ignoreError {
 			buf.WriteString(" ; true")
 		}
@@ -52,6 +55,10 @@ func (n *NinjaGenerator) emitNode(node *DepNode) {
 		return
 	}
 	n.done[node.Output] = true
+
+	if len(node.Cmds) == 0 && len(node.Deps) == 0 && !node.IsPhony {
+		return
+	}
 
 	runners, _ := n.ex.createRunners(node, true)
 	ruleName := "phony"
