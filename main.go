@@ -34,6 +34,7 @@ var (
 	eagerCmdEvalFlag      bool
 	useParaFlag           bool
 	useCache              bool
+	generateNinja         bool
 
 	katiDir string
 )
@@ -71,6 +72,7 @@ func parseFlags() {
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	// TODO: Make this default.
 	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
+	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.Parse()
 }
 
@@ -284,6 +286,13 @@ func main() {
 		startTime := time.Now()
 		EvalCommands(nodes, vars)
 		LogStats("eager eval command time: %q", time.Now().Sub(startTime))
+	}
+
+	if generateNinja {
+		startTime := time.Now()
+		GenerateNinja(g)
+		LogStats("generate ninja time: %q", time.Now().Sub(startTime))
+		return
 	}
 
 	if saveGob != "" {
