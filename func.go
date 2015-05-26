@@ -424,12 +424,15 @@ type funcWildcard struct{ fclosure }
 func (f *funcWildcard) Arity() int { return 1 }
 func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
-	if ev.avoidIO {
-		ev.hasIO = true
-		return
-	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	if ev.avoidIO {
+		ev.hasIO = true
+		w.Write([]byte("$(/bin/ls "))
+		w.Write(abuf.Bytes())
+		w.Write([]byte(" 2> /dev/null)"))
+		return
+	}
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -449,10 +452,6 @@ type funcDir struct{ fclosure }
 func (f *funcDir) Arity() int { return 1 }
 func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("dir", 1, len(f.args))
-	if ev.avoidIO {
-		ev.hasIO = true
-		return
-	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	ws := newWordScanner(abuf.Bytes())
@@ -473,10 +472,6 @@ type funcNotdir struct{ fclosure }
 func (f *funcNotdir) Arity() int { return 1 }
 func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("notdir", 1, len(f.args))
-	if ev.avoidIO {
-		ev.hasIO = true
-		return
-	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	ws := newWordScanner(abuf.Bytes())
@@ -570,6 +565,7 @@ func (f *funcRealpath) Arity() int { return 1 }
 func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("realpath", 1, len(f.args))
 	if ev.avoidIO {
+		w.Write([]byte("KATI_TODO(realpath)"))
 		ev.hasIO = true
 		return
 	}
@@ -599,10 +595,6 @@ type funcAbspath struct{ fclosure }
 func (f *funcAbspath) Arity() int { return 1 }
 func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("abspath", 1, len(f.args))
-	if ev.avoidIO {
-		ev.hasIO = true
-		return
-	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	ws := newWordScanner(abuf.Bytes())
@@ -686,12 +678,15 @@ func (f *funcShell) Arity() int { return 1 }
 
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("shell", 1, len(f.args))
-	if ev.avoidIO {
-		ev.hasIO = true
-		return
-	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	if ev.avoidIO {
+		ev.hasIO = true
+		w.Write([]byte("$("))
+		w.Write(abuf.Bytes())
+		w.Write([]byte{')'})
+		return
+	}
 	arg := abuf.String()
 	freeBuf(abuf)
 	shellVar := ev.LookupVar("SHELL")
@@ -985,6 +980,7 @@ func (f *funcInfo) Arity() int { return 1 }
 func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("info", 1, len(f.args))
 	if ev.avoidIO {
+		w.Write([]byte("KATI_TODO(info)"))
 		ev.hasIO = true
 		return
 	}
@@ -1000,6 +996,7 @@ func (f *funcWarning) Arity() int { return 1 }
 func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("warning", 1, len(f.args))
 	if ev.avoidIO {
+		w.Write([]byte("KATI_TODO(warning)"))
 		ev.hasIO = true
 		return
 	}
@@ -1015,6 +1012,7 @@ func (f *funcError) Arity() int { return 1 }
 func (f *funcError) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("error", 1, len(f.args))
 	if ev.avoidIO {
+		w.Write([]byte("KATI_TODO(error)"))
 		ev.hasIO = true
 		return
 	}
