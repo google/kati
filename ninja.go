@@ -29,25 +29,56 @@ func NewNinjaGenerator(g *DepGraph) *NinjaGenerator {
 	}
 }
 
-func genShellScript(runners []runner) string {
+func genShellScript(r runner) string {
 	var buf bytes.Buffer
-	for i, r := range runners {
-		if i > 0 {
-			if runners[i-1].ignoreError {
-				buf.WriteString(" ; ")
-			} else {
-				buf.WriteString(" && ")
-			}
-		}
-		cmd := strings.Replace(r.cmd, "$", "$$", -1)
-		cmd = strings.Replace(cmd, "\t", " ", -1)
-		cmd = strings.Replace(cmd, "\\\n", " ", -1)
-		buf.WriteString(cmd)
-		if i == len(runners)-1 && r.ignoreError {
-			buf.WriteString(" ; true")
-		}
+	cmd := trimLeftSpace(r.cmd)
+	cmd = strings.TrimRight(cmd, " \t\n;")
+	cmd = strings.Replace(cmd, "$", "$$", -1)
+	cmd = strings.Replace(cmd, "\t", " ", -1)
+	cmd = strings.Replace(cmd, "\\\n", " ", -1)
+	buf.WriteString(cmd)
+	if r.ignoreError {
+		buf.WriteString(" ; true")
 	}
 	return buf.String()
+}
+
+func (n *NinjaGenerator) genRuleName() string {
+	ruleName := fmt.Sprintf("rule%d", n.ruleId)
+	n.ruleId++
+	return ruleName
+}
+
+func (n *NinjaGenerator) emitBuild(output, rule, dep string) {
+	fmt.Fprintf(n.f, "build %s: %s", output, rule)
+	if dep != "" {
+		fmt.Fprintf(n.f, " %s", dep)
+	}
+	fmt.Fprintf(n.f, "\n")
+}
+
+func getDepString(node *DepNode) string {
+	var deps []string
+	var orderOnlys []string
+	for _, d := range node.Deps {
+		if d.IsOrderOnly {
+			orderOnlys = append(orderOnlys, d.Output)
+		} else {
+			deps = append(deps, d.Output)
+		}
+	}
+	dep := ""
+	if len(deps) > 0 {
+		dep += fmt.Sprintf(" %s", strings.Join(deps, " "))
+	}
+	if len(orderOnlys) > 0 {
+		dep += fmt.Sprintf(" || %s", strings.Join(orderOnlys, " "))
+	}
+	return dep
+}
+
+func genIntermediateTargetName(o string, i int) string {
+	return fmt.Sprintf(".make_targets/%s@%d", o, i)
 }
 
 func (n *NinjaGenerator) emitNode(node *DepNode) {
@@ -61,33 +92,32 @@ func (n *NinjaGenerator) emitNode(node *DepNode) {
 	}
 
 	runners, _ := n.ex.createRunners(node, true)
-	ruleName := "phony"
-	if len(runners) > 0 {
-		ruleName = fmt.Sprintf("rule%d", n.ruleId)
-		n.ruleId++
-		fmt.Fprintf(n.f, `rule %s
+	if len(runners) == 0 {
+		n.emitBuild(node.Output, "phony", getDepString(node))
+	} else {
+		for i, r := range runners {
+			cmd := genShellScript(r)
+			output := node.Output
+			if i < len(runners)-1 {
+				output = genIntermediateTargetName(node.Output, i)
+				cmd += " && touch $out"
+			}
+
+			ruleName := n.genRuleName()
+			fmt.Fprintf(n.f, `rule %s
  command = %s
  description = build $out
-`, ruleName, genShellScript(runners))
-	}
+`, ruleName, cmd)
 
-	fmt.Fprintf(n.f, "build %s: %s", node.Output, ruleName)
-	var deps []string
-	var orderOnlys []string
-	for _, d := range node.Deps {
-		if d.IsOrderOnly {
-			orderOnlys = append(orderOnlys, d.Output)
-		} else {
-			deps = append(deps, d.Output)
+			var dep string
+			if i == 0 {
+				dep = getDepString(node)
+			} else {
+				dep = genIntermediateTargetName(node.Output, i-1)
+			}
+			n.emitBuild(output, ruleName, dep)
 		}
 	}
-	if len(deps) > 0 {
-		fmt.Fprintf(n.f, " %s", strings.Join(deps, " "))
-	}
-	if len(orderOnlys) > 0 {
-		fmt.Fprintf(n.f, " | %s", strings.Join(orderOnlys, " "))
-	}
-	fmt.Fprintf(n.f, "\n")
 
 	for _, d := range node.Deps {
 		n.emitNode(d)
