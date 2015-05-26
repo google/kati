@@ -241,6 +241,11 @@ func (ex *Executor) Exec(roots []*DepNode) error {
 }
 
 func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
+	var runners []runner
+	if len(n.Cmds) == 0 {
+		return runners, false
+	}
+
 	var restores []func()
 	defer func() {
 		for i := len(restores) - 1; i >= 0; i-- {
@@ -262,7 +267,6 @@ func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
 	ev.avoidIO = avoidIO
 	ev.filename = n.Filename
 	ev.lineno = n.Lineno
-	var runners []runner
 	Log("Building: %s cmds:%q", n.Output, n.Cmds)
 	r := runner{
 		output: n.Output,
