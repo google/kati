@@ -676,11 +676,28 @@ var shellFuncTime time.Duration
 
 func (f *funcShell) Arity() int { return 1 }
 
+// A hack for Android build. We need to evaluate things like $((3+4))
+// when we emit ninja file, because the result of such expressions
+// will be passed to other make functions.
+// TODO: Maybe we should modify Android's Makefile and remove this
+// workaround. It would be also nice if we can detect things like
+// this.
+func hasNoIoInShellScript(s []byte) bool {
+	if len(s) == 0 {
+		return true
+	}
+	if !bytes.HasPrefix(s, []byte("echo $((")) || s[len(s)-1] != ')' {
+		return false
+	}
+	fmt.Printf("has no IO!!! %s\n", s)
+	return true
+}
+
 func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("shell", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	if ev.avoidIO {
+	if ev.avoidIO && !hasNoIoInShellScript(abuf.Bytes()) {
 		ev.hasIO = true
 		w.Write([]byte("$("))
 		w.Write(abuf.Bytes())
