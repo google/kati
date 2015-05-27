@@ -75,6 +75,9 @@ func genShellScript(runners []runner) string {
 		cmd = strings.TrimRight(cmd, " \t\n;")
 		cmd = strings.Replace(cmd, "$", "$$", -1)
 		cmd = strings.Replace(cmd, "\t", " ", -1)
+		if cmd == "" {
+			cmd = "true"
+		}
 		buf.WriteString(cmd)
 		if i == len(runners)-1 && r.ignoreError {
 			buf.WriteString(" ; true")
