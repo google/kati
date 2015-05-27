@@ -182,6 +182,13 @@ func (n *NinjaGenerator) emitNode(node *DepNode) {
 		fmt.Fprintf(n.f, " description = build $out\n")
 
 		ss := genShellScript(runners)
+		depfile, err := getDepfile(ss)
+		if err != nil {
+			panic(err)
+		}
+		if depfile != "" {
+			fmt.Fprintf(n.f, " depfile = %s\n", depfile)
+		}
 		// It seems Linux is OK with ~130kB.
 		// TODO: Find this number automatically.
 		ArgLenLimit := 100 * 1000
