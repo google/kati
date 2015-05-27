@@ -689,7 +689,7 @@ func hasNoIoInShellScript(s []byte) bool {
 	if !bytes.HasPrefix(s, []byte("echo $((")) || s[len(s)-1] != ')' {
 		return false
 	}
-	fmt.Printf("has no IO!!! %s\n", s)
+	Log("has no IO - evaluate now: %s", s)
 	return true
 }
 
