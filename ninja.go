@@ -29,6 +29,36 @@ func NewNinjaGenerator(g *DepGraph) *NinjaGenerator {
 	}
 }
 
+func stripShellComment(s string) string {
+	if strings.IndexByte(s, '#') < 0 {
+		// Fast path.
+		return s
+	}
+	var escape bool
+	var quote rune
+	for i, c := range s {
+		if quote > 0 {
+			if quote == c && (quote == '\'' || !escape) {
+				quote = 0
+			}
+		} else if !escape {
+			if c == '#' {
+				return s[:i]
+			} else if c == '\'' || c == '"' || c == '`' {
+				quote = c
+			}
+		}
+		if escape {
+			escape = false
+		} else if c == '\\' {
+			escape = true
+		} else {
+			escape = false
+		}
+	}
+	return s
+}
+
 func genShellScript(runners []runner) string {
 	var buf bytes.Buffer
 	for i, r := range runners {
@@ -39,7 +69,8 @@ func genShellScript(runners []runner) string {
 				buf.WriteString(" && ")
 			}
 		}
-		cmd := trimLeftSpace(r.cmd)
+		cmd := stripShellComment(r.cmd)
+		cmd = trimLeftSpace(cmd)
 		cmd = strings.Replace(cmd, "\\\n", " ", -1)
 		cmd = strings.TrimRight(cmd, " \t\n;")
 		cmd = strings.Replace(cmd, "$", "$$", -1)
