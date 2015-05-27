@@ -29,16 +29,25 @@ func NewNinjaGenerator(g *DepGraph) *NinjaGenerator {
 	}
 }
 
-func genShellScript(r runner) string {
+func genShellScript(runners []runner) string {
 	var buf bytes.Buffer
-	cmd := trimLeftSpace(r.cmd)
-	cmd = strings.TrimRight(cmd, " \t\n;")
-	cmd = strings.Replace(cmd, "$", "$$", -1)
-	cmd = strings.Replace(cmd, "\t", " ", -1)
-	cmd = strings.Replace(cmd, "\\\n", " ", -1)
-	buf.WriteString(cmd)
-	if r.ignoreError {
-		buf.WriteString(" ; true")
+	for i, r := range runners {
+		if i > 0 {
+			if runners[i-1].ignoreError {
+				buf.WriteString(" ; ")
+			} else {
+				buf.WriteString(" && ")
+			}
+		}
+		cmd := trimLeftSpace(r.cmd)
+		cmd = strings.Replace(cmd, "\\\n", " ", -1)
+		cmd = strings.TrimRight(cmd, " \t\n;")
+		cmd = strings.Replace(cmd, "$", "$$", -1)
+		cmd = strings.Replace(cmd, "\t", " ", -1)
+		buf.WriteString(cmd)
+		if i == len(runners)-1 && r.ignoreError {
+			buf.WriteString(" ; true")
+		}
 	}
 	return buf.String()
 }
@@ -92,32 +101,25 @@ func (n *NinjaGenerator) emitNode(node *DepNode) {
 	}
 
 	runners, _ := n.ex.createRunners(node, true)
-	if len(runners) == 0 {
-		n.emitBuild(node.Output, "phony", getDepString(node))
-	} else {
-		for i, r := range runners {
-			cmd := genShellScript(r)
-			output := node.Output
-			if i < len(runners)-1 {
-				output = genIntermediateTargetName(node.Output, i)
-				cmd += " && touch $out"
-			}
+	ruleName := "phony"
+	if len(runners) > 0 {
+		ruleName = n.genRuleName()
+		fmt.Fprintf(n.f, "rule %s\n", ruleName)
+		fmt.Fprintf(n.f, " description = build $out\n")
 
-			ruleName := n.genRuleName()
-			fmt.Fprintf(n.f, `rule %s
- command = %s
- description = build $out
-`, ruleName, cmd)
-
-			var dep string
-			if i == 0 {
-				dep = getDepString(node)
-			} else {
-				dep = genIntermediateTargetName(node.Output, i-1)
-			}
-			n.emitBuild(output, ruleName, dep)
+		ss := genShellScript(runners)
+		// It seems Linux is OK with ~130kB.
+		// TODO: Find this number automatically.
+		ArgLenLimit := 100 * 1000
+		if len(ss) > ArgLenLimit {
+			fmt.Fprintf(n.f, " rspfile = $out.rsp\n")
+			fmt.Fprintf(n.f, " rspfile_content = %s\n", ss)
+			ss = "sh $out.rsp"
 		}
+		fmt.Fprintf(n.f, " command = %s\n", ss)
+
 	}
+	n.emitBuild(node.Output, ruleName, getDepString(node))
 
 	for _, d := range node.Deps {
 		n.emitNode(d)
