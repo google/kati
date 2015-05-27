@@ -29,6 +29,46 @@ func NewNinjaGenerator(g *DepGraph) *NinjaGenerator {
 	}
 }
 
+func getDepfile(ss string) (string, error) {
+	tss := ss + " "
+	if !strings.Contains(tss, " -MD ") && !strings.Contains(tss, " -MMD ") {
+		return "", nil
+	}
+
+	mfIndex := strings.Index(ss, " -MF ")
+	if mfIndex >= 0 {
+		mf := trimLeftSpace(ss[mfIndex+4:])
+		if strings.Index(mf, " -MF ") >= 0 {
+			return "", fmt.Errorf("Multiple output file candidates in %s", ss)
+		}
+		mfEndIndex := strings.IndexAny(mf, " \t\n")
+		if mfEndIndex >= 0 {
+			mf = mf[:mfEndIndex]
+		}
+
+		// A hack for Android to get .P files instead of .d.
+		p := stripExt(mf) + ".P"
+		if strings.Contains(ss, p) {
+			return p, nil
+		}
+		return mf, nil
+	}
+
+	outIndex := strings.Index(ss, " -o ")
+	if outIndex < 0 {
+		return "", fmt.Errorf("Cannot find the depfile in %s", ss)
+	}
+	out := trimLeftSpace(ss[outIndex+4:])
+	if strings.Index(out, " -o ") >= 0 {
+		return "", fmt.Errorf("Multiple output file candidates in %s", ss)
+	}
+	outEndIndex := strings.IndexAny(out, " \t\n")
+	if outEndIndex >= 0 {
+		out = out[:outEndIndex]
+	}
+	return stripExt(out) + ".d", nil
+}
+
 func stripShellComment(s string) string {
 	if strings.IndexByte(s, '#') < 0 {
 		// Fast path.
