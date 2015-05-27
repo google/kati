@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -35,6 +36,11 @@ func getDepfile(ss string) (string, error) {
 		return "", nil
 	}
 
+	// A hack for Android - llvm-rs-cc seems not to emit a dep file.
+	if strings.Contains(ss, "bin/llvm-rs-cc ") {
+		return "", nil
+	}
+
 	mfIndex := strings.Index(ss, " -MF ")
 	if mfIndex >= 0 {
 		mf := trimLeftSpace(ss[mfIndex+4:])
@@ -51,6 +57,14 @@ func getDepfile(ss string) (string, error) {
 		if strings.Contains(ss, p) {
 			return p, nil
 		}
+
+		// A hack for Android. For .s files, GCC does not use
+		// C preprocessor, so it ignores -MF flag.
+		as := "/" + stripExt(filepath.Base(mf)) + ".s"
+		if strings.Contains(ss, as) {
+			return "", nil
+		}
+
 		return mf, nil
 	}
 
