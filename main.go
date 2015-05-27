@@ -288,13 +288,6 @@ func main() {
 		LogStats("eager eval command time: %q", time.Now().Sub(startTime))
 	}
 
-	if generateNinja {
-		startTime := time.Now()
-		GenerateNinja(g)
-		LogStats("generate ninja time: %q", time.Now().Sub(startTime))
-		return
-	}
-
 	if saveGob != "" {
 		startTime := time.Now()
 		DumpDepGraph(g, saveGob, targets)
@@ -310,6 +303,13 @@ func main() {
 		startTime := time.Now()
 		DumpDepGraphCache(g, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
+	}
+
+	if generateNinja {
+		startTime := time.Now()
+		GenerateNinja(g)
+		LogStats("generate ninja time: %q", time.Now().Sub(startTime))
+		return
 	}
 
 	if syntaxCheckOnlyFlag {
