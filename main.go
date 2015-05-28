@@ -109,7 +109,12 @@ SHELL:=/bin/sh
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<
 # TODO: Add more builtin rules.
 `
-	bootstrap = fmt.Sprintf("%s\nMAKECMDGOALS:=%s\n", bootstrap, strings.Join(targets, " "))
+	bootstrap += fmt.Sprintf("MAKECMDGOALS:=%s\n", strings.Join(targets, " "))
+	cwd, err := filepath.Abs(".")
+	if err != nil {
+		panic(err)
+	}
+	bootstrap += fmt.Sprintf("CURDIR:=%s\n", cwd)
 	mk, err := ParseMakefileString(bootstrap, BootstrapMakefile, 0)
 	if err != nil {
 		panic(err)
