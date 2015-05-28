@@ -72,7 +72,7 @@ func getDepfile(ss string) (string, error) {
 	}
 
 	r, err := getDepfileImpl(ss)
-	if err != nil {
+	if r == "" || err != nil {
 		return r, err
 	}
 

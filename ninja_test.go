@@ -111,6 +111,10 @@ func TestGetDepFile(t *testing.T) {
 			in:   `(echo "bc: libclcore.bc <= frameworks/rs/driver/runtime/arch/generic.c") && (mkdir -p out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/) && (prebuilts/clang/linux-x86/host/3.6/bin/clang -Iframeworks/rs/scriptc -Iexternal/clang/lib/Headers -MD -DRS_VERSION=23 -std=c99 -c -O3 -fno-builtin -emit-llvm -target armv7-none-linux-gnueabi -fsigned-char   -Iframeworks/rs/cpu_ref -DRS_DECLARE_EXPIRED_APIS -Xclang -target-feature -Xclang +long64  frameworks/rs/driver/runtime/arch/generic.c -o out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.bc) && (cp out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.d out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.P; sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.d >> out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.P; rm -f out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.d)`,
 			want: `out/target/product/generic/obj/SHARED_LIBRARIES/libclcore.bc_intermediates/arch/generic.P`,
 		},
+		{
+			in:   `gcc -c foo.P.c`,
+			want: ``,
+		},
 	} {
 		got, err := getDepfile(tc.in)
 		if got != tc.want {
