@@ -132,9 +132,21 @@ func genShellScript(runners []runner) string {
 		if cmd == "" {
 			cmd = "true"
 		}
+
+		needsSubShell := i > 0 || len(runners) > 1
+		if cmd[0] == '(' {
+			needsSubShell = false
+		}
+
+		if needsSubShell {
+			buf.WriteByte('(')
+		}
 		buf.WriteString(cmd)
 		if i == len(runners)-1 && r.ignoreError {
 			buf.WriteString(" ; true")
+		}
+		if needsSubShell {
+			buf.WriteByte(')')
 		}
 	}
 	return buf.String()
