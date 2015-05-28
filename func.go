@@ -332,9 +332,6 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 	if !ok {
 		Error(ev.filename, ev.lineno, `*** non-numeric second argument to "wordlist" function: %q.`, v)
 	}
-	if ei == 0 {
-		Error(ev.filename, ev.lineno, `*** invalid second argument to "wordlist" function: %s`, f.args[2])
-	}
 
 	ws := newWordScanner(fargs[2])
 	i := 0
