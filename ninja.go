@@ -30,14 +30,9 @@ func NewNinjaGenerator(g *DepGraph) *NinjaGenerator {
 	}
 }
 
-func getDepfile(ss string) (string, error) {
+func getDepfileImpl(ss string) (string, error) {
 	tss := ss + " "
 	if !strings.Contains(tss, " -MD ") && !strings.Contains(tss, " -MMD ") {
-		return "", nil
-	}
-
-	// A hack for Android - llvm-rs-cc seems not to emit a dep file.
-	if strings.Contains(ss, "bin/llvm-rs-cc ") {
 		return "", nil
 	}
 
@@ -50,19 +45,6 @@ func getDepfile(ss string) (string, error) {
 		mfEndIndex := strings.IndexAny(mf, " \t\n")
 		if mfEndIndex >= 0 {
 			mf = mf[:mfEndIndex]
-		}
-
-		// A hack for Android to get .P files instead of .d.
-		p := stripExt(mf) + ".P"
-		if strings.Contains(ss, p) {
-			return p, nil
-		}
-
-		// A hack for Android. For .s files, GCC does not use
-		// C preprocessor, so it ignores -MF flag.
-		as := "/" + stripExt(filepath.Base(mf)) + ".s"
-		if strings.Contains(ss, as) {
-			return "", nil
 		}
 
 		return mf, nil
@@ -81,6 +63,33 @@ func getDepfile(ss string) (string, error) {
 		out = out[:outEndIndex]
 	}
 	return stripExt(out) + ".d", nil
+}
+
+func getDepfile(ss string) (string, error) {
+	// A hack for Android - llvm-rs-cc seems not to emit a dep file.
+	if strings.Contains(ss, "bin/llvm-rs-cc ") {
+		return "", nil
+	}
+
+	r, err := getDepfileImpl(ss)
+	if err != nil {
+		return r, err
+	}
+
+	// A hack for Android to get .P files instead of .d.
+	p := stripExt(r) + ".P"
+	if strings.Contains(ss, p) {
+		return p, nil
+	}
+
+	// A hack for Android. For .s files, GCC does not use
+	// C preprocessor, so it ignores -MF flag.
+	as := "/" + stripExt(filepath.Base(r)) + ".s"
+	if strings.Contains(ss, as) {
+		return "", nil
+	}
+
+	return r, nil
 }
 
 func stripShellComment(s string) string {
