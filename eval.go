@@ -208,6 +208,10 @@ func (ev *Evaluator) evalCommand(ast *CommandAST) {
 			}
 			return
 		}
+		// Or, a comment is OK.
+		if strings.TrimSpace(ast.cmd)[0] == '#' {
+			return
+		}
 		Error(ast.filename, ast.lineno, "*** commands commence before first target.")
 	}
 	ev.lastRule.cmds = append(ev.lastRule.cmds, ast.cmd)
