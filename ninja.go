@@ -174,10 +174,6 @@ func getDepString(node *DepNode) string {
 	return dep
 }
 
-func genIntermediateTargetName(o string, i int) string {
-	return fmt.Sprintf(".make_targets/%s@%d", o, i)
-}
-
 func (n *NinjaGenerator) emitNode(node *DepNode) {
 	if n.done[node.Output] {
 		return
