@@ -324,7 +324,7 @@ func main() {
 	}
 
 	if queryFlag != "" {
-		HandleQuery(queryFlag, nodes, vars)
+		HandleQuery(queryFlag, g)
 		return
 	}
 

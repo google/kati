@@ -53,19 +53,26 @@ func HandleNodeQuery(q string, nodes []*DepNode) {
 	}
 }
 
-func HandleQuery(q string, nodes []*DepNode, vars Vars) {
+func HandleQuery(q string, g *DepGraph) {
+	if q == "$MAKEFILE_LIST" {
+		for _, mk := range g.readMks {
+			fmt.Printf("%s: state=%d\n", mk.Filename, mk.State)
+		}
+		return
+	}
+
 	if q == "$*" {
-		for k, v := range vars {
+		for k, v := range g.vars {
 			fmt.Printf("%s=%s\n", k, v.String())
 		}
 		return
 	}
 
 	if q == "*" {
-		for _, n := range nodes {
+		for _, n := range g.nodes {
 			fmt.Printf("%s\n", n.Output)
 		}
 		return
 	}
-	HandleNodeQuery(q, nodes)
+	HandleNodeQuery(q, g.nodes)
 }
