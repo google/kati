@@ -249,6 +249,14 @@ func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
+// Only for a few special uses such as getting SHELL and handling
+// export/unexport.
+func (ev *Evaluator) EvaluateVar(name string) string {
+	var buf bytes.Buffer
+	ev.LookupVar(name).Eval(&buf, ev)
+	return buf.String()
+}
+
 func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	t := time.Now()
 	defer func() {
