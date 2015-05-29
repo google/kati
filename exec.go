@@ -216,8 +216,8 @@ func NewExecutor(vars Vars) *Executor {
 	}
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
-	shellVar := ex.vars.Lookup("SHELL")
-	ex.shell = shellVar.String()
+	ev := newEvaluator(ex.vars)
+	ex.shell = ev.EvaluateVar("SHELL")
 	for k, v := range map[string]Var{
 		"@": AutoAtVar{AutoVar: AutoVar{ex: ex}},
 		"<": AutoLessVar{AutoVar: AutoVar{ex: ex}},

@@ -332,9 +332,7 @@ func main() {
 	ev := newEvaluator(vars)
 	for name, export := range g.exports {
 		if export {
-			var buf bytes.Buffer
-			vars.Lookup(name).Eval(&buf, ev)
-			os.Setenv(name, buf.String())
+			os.Setenv(name, ev.EvaluateVar(name))
 		} else {
 			os.Unsetenv(name)
 		}
