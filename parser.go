@@ -442,7 +442,17 @@ func overrideDirective(p *parser, line []byte) []byte {
 	return line
 }
 
-func handleExport(p *parser, line []byte, export bool) {
+func handleExport(p *parser, line []byte, export bool) (hasEqual bool) {
+	equalIndex := bytes.IndexByte(line, '=')
+	if equalIndex > 0 {
+		hasEqual = true
+		switch line[equalIndex-1] {
+		case ':', '+', '?':
+			equalIndex--
+		}
+		line = line[:equalIndex]
+	}
+
 	ast := &ExportAST{
 		expr:   line,
 		export: export,
@@ -450,6 +460,7 @@ func handleExport(p *parser, line []byte, export bool) {
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	p.addStatement(ast)
+	return hasEqual
 }
 
 func exportDirective(p *parser, line []byte) []byte {
@@ -463,10 +474,7 @@ func exportDirective(p *parser, line []byte) []byte {
 		return nil
 	}
 
-	handleExport(p, line, true)
-
-	// e.g., export FOO BAR
-	if !bytes.Contains(line, []byte{'='}) {
+	if !handleExport(p, line, true) {
 		return nil
 	}
 
