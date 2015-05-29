@@ -326,26 +326,34 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	v.Eval(&buf, ev)
 	pats := splitSpaces(buf.String())
 	buf.Reset()
+
+	var files []string
 	for _, pat := range pats {
-		files, err := filepath.Glob(pat)
-		if err != nil {
-			panic(err)
-		}
-		for _, fn := range files {
-			c, err := readFile(fn)
-			if err != nil {
-				if ast.op == "include" {
-					Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
-				} else {
-					ev.updateReadMakefile(fn, nil, FILE_NOT_EXISTS)
-					continue
-				}
-			}
-			ev.updateReadMakefile(fn, c, FILE_EXISTS)
-			err = ev.evalIncludeFile(fn, c)
+		if strings.Contains(pat, "*") || strings.Contains(pat, "?") {
+			matched, err := filepath.Glob(pat)
 			if err != nil {
 				panic(err)
 			}
+			files = append(files, matched...)
+		} else {
+			files = append(files, pat)
+		}
+	}
+
+	for _, fn := range files {
+		c, err := readFile(fn)
+		if err != nil {
+			if ast.op == "include" {
+				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
+			} else {
+				ev.updateReadMakefile(fn, nil, FILE_NOT_EXISTS)
+				continue
+			}
+		}
+		ev.updateReadMakefile(fn, c, FILE_EXISTS)
+		err = ev.evalIncludeFile(fn, c)
+		if err != nil {
+			panic(err)
 		}
 	}
 }
