@@ -43,6 +43,7 @@ type DepGraph struct {
 	nodes    []*DepNode
 	vars     Vars
 	readMks  []*ReadMakefile
+	exports  map[string]bool
 	isCached bool
 }
 
@@ -232,6 +233,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 		nodes:   nodes,
 		vars:    vars,
 		readMks: readMks,
+		exports: er.exports,
 	}
 }
 
@@ -324,6 +326,18 @@ func main() {
 	if queryFlag != "" {
 		HandleQuery(queryFlag, nodes, vars)
 		return
+	}
+
+	// TODO: Handle target specific variables.
+	ev := newEvaluator(vars)
+	for name, export := range g.exports {
+		if export {
+			var buf bytes.Buffer
+			vars.Lookup(name).Eval(&buf, ev)
+			os.Setenv(name, buf.String())
+		} else {
+			os.Unsetenv(name)
+		}
 	}
 
 	startTime := time.Now()

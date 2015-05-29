@@ -25,6 +25,7 @@ type EvalResult struct {
 	rules    []*Rule
 	ruleVars map[string]Vars
 	readMks  []*ReadMakefile
+	exports  map[string]bool
 }
 
 type Evaluator struct {
@@ -38,6 +39,7 @@ type Evaluator struct {
 	avoidIO      bool
 	hasIO        bool
 	readMks      map[string]*ReadMakefile
+	exports      map[string]bool
 
 	filename string
 	lineno   int
@@ -49,6 +51,7 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 		vars:        vars,
 		outRuleVars: make(map[string]Vars),
 		readMks:     make(map[string]*ReadMakefile),
+		exports:     make(map[string]bool),
 	}
 }
 
@@ -382,6 +385,10 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 	}
 }
 
+func (ev *Evaluator) evalExport(ast *ExportAST) {
+	ev.exports[ast.name] = ast.export
+}
+
 func (ev *Evaluator) eval(ast AST) {
 	ast.eval(ev)
 }
@@ -415,5 +422,6 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 		rules:    ev.outRules,
 		ruleVars: ev.outRuleVars,
 		readMks:  createReadMakefileArray(ev.readMks),
+		exports:  ev.exports,
 	}, nil
 }

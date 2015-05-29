@@ -442,9 +442,19 @@ func overrideDirective(p *parser, line []byte) []byte {
 	return line
 }
 
-func exportDirective(p *parser, line []byte) []byte {
-	Warn(p.mk.filename, p.lineno, "export is not properly supported yet")
+func handleExport(p *parser, line []byte, export bool) {
+	for _, n := range splitSpacesBytes(line) {
+		ast := &ExportAST{
+			name:   string(n),
+			export: export,
+		}
+		ast.filename = p.mk.filename
+		ast.lineno = p.lineno
+		p.addStatement(ast)
+	}
+}
 
+func exportDirective(p *parser, line []byte) []byte {
 	p.defOpt = "export"
 	line = trimLeftSpaceBytes(line[len("export "):])
 	defineDirective := map[string]directiveFunc{
@@ -454,6 +464,8 @@ func exportDirective(p *parser, line []byte) []byte {
 		f(p, line)
 		return nil
 	}
+
+	handleExport(p, line, true)
 
 	// e.g., export FOO BAR
 	if !bytes.Contains(line, []byte{'='}) {
@@ -466,7 +478,7 @@ func exportDirective(p *parser, line []byte) []byte {
 }
 
 func unexportDirective(p *parser, line []byte) []byte {
-	Warn(p.mk.filename, p.lineno, "unexport is not supported yet, ignored")
+	handleExport(p, line[len("unexport "):], false)
 	return nil
 }
 

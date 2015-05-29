@@ -145,3 +145,18 @@ func (ast *IfAST) show() {
 	// TODO
 	Log("if")
 }
+
+type ExportAST struct {
+	ASTBase
+	name   string
+	export bool
+}
+
+func (ast *ExportAST) eval(ev *Evaluator) {
+	ev.evalExport(ast)
+}
+
+func (ast *ExportAST) show() {
+	// TODO
+	Log("if")
+}
