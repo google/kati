@@ -148,7 +148,7 @@ func (ast *IfAST) show() {
 
 type ExportAST struct {
 	ASTBase
-	name   string
+	expr   []byte
 	export bool
 }
 
@@ -158,5 +158,5 @@ func (ast *ExportAST) eval(ev *Evaluator) {
 
 func (ast *ExportAST) show() {
 	// TODO
-	Log("if")
+	Log("export")
 }

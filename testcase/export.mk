@@ -16,6 +16,11 @@ export Y X
 # up FOO, BAR, X, Y, and Z.
 export FOO BAR X Y Z := FAIL
 
+VARREF:=VAR1 VAR2
+export $(VARREF)
+VAR1:=PASS_VAR1
+VAR2:=PASS_VAR2
+
 test:
 	echo $$FOO
 	echo $$BAR
@@ -23,3 +28,5 @@ test:
 	echo $$X
 	echo $$Y
 	echo $$Z
+	echo $$VAR1
+	echo $$VAR2
