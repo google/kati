@@ -394,7 +394,19 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 }
 
 func (ev *Evaluator) evalExport(ast *ExportAST) {
-	ev.exports[ast.name] = ast.export
+	ev.lastRule = nil
+	ev.filename = ast.filename
+	ev.lineno = ast.lineno
+
+	v, _, err := parseExpr(ast.expr, nil)
+	if err != nil {
+		panic(err)
+	}
+	var buf bytes.Buffer
+	v.Eval(&buf, ev)
+	for _, n := range splitSpacesBytes(buf.Bytes()) {
+		ev.exports[string(n)] = ast.export
+	}
 }
 
 func (ev *Evaluator) eval(ast AST) {

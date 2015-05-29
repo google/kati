@@ -443,15 +443,13 @@ func overrideDirective(p *parser, line []byte) []byte {
 }
 
 func handleExport(p *parser, line []byte, export bool) {
-	for _, n := range splitSpacesBytes(line) {
-		ast := &ExportAST{
-			name:   string(n),
-			export: export,
-		}
-		ast.filename = p.mk.filename
-		ast.lineno = p.lineno
-		p.addStatement(ast)
+	ast := &ExportAST{
+		expr:   line,
+		export: export,
 	}
+	ast.filename = p.mk.filename
+	ast.lineno = p.lineno
+	p.addStatement(ast)
 }
 
 func exportDirective(p *parser, line []byte) []byte {
