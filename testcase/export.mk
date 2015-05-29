@@ -1,4 +1,5 @@
 export FOO = PASS_FOO
+export FOO2=PASS_FOO2
 BAR := PASS_BAR
 export BAR
 export X Y Z
@@ -6,7 +7,9 @@ X := PASS_X
 Y := PASS_Y
 Z := PASS_Z
 
-export BAZ = FAIL
+NOT_EXPORTED := FAIL
+
+export BAZ = NOT_EXPORTED
 unexport BAZ
 
 unexport Y
@@ -23,6 +26,7 @@ VAR2:=PASS_VAR2
 
 test:
 	echo $$FOO
+	echo $$FOO2
 	echo $$BAR
 	echo $$BAZ
 	echo $$X
@@ -30,3 +34,4 @@ test:
 	echo $$Z
 	echo $$VAR1
 	echo $$VAR2
+	echo $$NOT_EXPORTED
