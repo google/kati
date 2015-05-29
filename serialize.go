@@ -96,6 +96,7 @@ type SerializableGraph struct {
 	Targets []string
 	Roots   []string
 	ReadMks []*ReadMakefile
+	Exports map[string]bool
 }
 
 func encGob(v interface{}) string {
@@ -221,6 +222,7 @@ func MakeSerializableGraph(g *DepGraph, roots []string) SerializableGraph {
 		Targets: ns.targets,
 		Roots:   roots,
 		ReadMks: g.readMks,
+		Exports: g.exports,
 	}
 }
 
@@ -536,6 +538,7 @@ func DeserializeGraph(g SerializableGraph) *DepGraph {
 		nodes:   nodes,
 		vars:    vars,
 		readMks: g.ReadMks,
+		exports: g.Exports,
 	}
 }
 
