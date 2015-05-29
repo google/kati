@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -317,29 +318,34 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.lineno = ast.lineno
 
 	Log("%s:%d include %q", ev.filename, ev.lineno, ast.expr)
-	// TODO: Handle glob
 	v, _, err := parseExpr([]byte(ast.expr), nil)
 	if err != nil {
 		panic(err)
 	}
 	var buf bytes.Buffer
 	v.Eval(&buf, ev)
-	files := splitSpaces(buf.String())
+	pats := splitSpaces(buf.String())
 	buf.Reset()
-	for _, fn := range files {
-		c, err := readFile(fn)
-		if err != nil {
-			if ast.op == "include" {
-				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
-			} else {
-				ev.updateReadMakefile(fn, nil, FILE_NOT_EXISTS)
-				continue
-			}
-		}
-		ev.updateReadMakefile(fn, c, FILE_EXISTS)
-		err = ev.evalIncludeFile(fn, c)
+	for _, pat := range pats {
+		files, err := filepath.Glob(pat)
 		if err != nil {
 			panic(err)
+		}
+		for _, fn := range files {
+			c, err := readFile(fn)
+			if err != nil {
+				if ast.op == "include" {
+					Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
+				} else {
+					ev.updateReadMakefile(fn, nil, FILE_NOT_EXISTS)
+					continue
+				}
+			}
+			ev.updateReadMakefile(fn, c, FILE_EXISTS)
+			err = ev.evalIncludeFile(fn, c)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }
