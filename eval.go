@@ -342,6 +342,9 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	}
 
 	for _, fn := range files {
+		if ignoreOptionalInclude != "" && ast.op == "-include" && strings.HasPrefix(fn, ignoreOptionalInclude) {
+			continue
+		}
 		c, err := ioutil.ReadFile(fn)
 		if err != nil {
 			if ast.op == "include" {
