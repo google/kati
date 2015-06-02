@@ -237,6 +237,10 @@ func DumpDepGraphAsJson(g *DepGraph, filename string, roots []string) {
 		panic(err2)
 	}
 	f.Write(o)
+	err = f.Close()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func DumpDepGraph(g *DepGraph, filename string, roots []string) {
@@ -251,6 +255,10 @@ func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	startTime = time.Now()
 	e.Encode(sg)
 	LogStats("serialize output time: %q", time.Now().Sub(startTime))
+	err = f.Close()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetCacheFilename(mk string, roots []string) string {
@@ -547,6 +555,7 @@ func LoadDepGraphFromJson(filename string) *DepGraph {
 	if err != nil {
 		panic(err)
 	}
+	defer f.Close()
 
 	d := json.NewDecoder(f)
 	g := SerializableGraph{Vars: make(map[string]SerializableVar)}
@@ -562,6 +571,7 @@ func LoadDepGraph(filename string) *DepGraph {
 	if err != nil {
 		panic(err)
 	}
+	defer f.Close()
 
 	d := gob.NewDecoder(f)
 	g := SerializableGraph{Vars: make(map[string]SerializableVar)}
