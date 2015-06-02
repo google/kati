@@ -833,6 +833,7 @@ func (f *funcEval) Compact() Value {
 			}
 		}
 		// TODO(ukai): eval -> varassign. e.g $(eval $(foo) := $(x)).
+		return f
 	default:
 		return f
 	}
