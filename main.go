@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -161,7 +162,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 
 	bmk := getBootstrapMakefile(targets)
 
-	content, err := readFile(makefile)
+	content, err := ioutil.ReadFile(makefile)
 	if err != nil {
 		panic(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"time"
@@ -341,7 +342,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	}
 
 	for _, fn := range files {
-		c, err := readFile(fn)
+		c, err := ioutil.ReadFile(fn)
 		if err != nil {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
