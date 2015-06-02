@@ -33,6 +33,12 @@ define evaltest
  echo _$(g)_
 endef
 
+a.x=X
+y:=Y
+$(foreach tag,x,$(eval a.$(tag)+=$(y)))
+y:=Z
+$(foreach tag,x,$(eval a.$(tag)+=$(y)))
+$(info $(a.x))
+
 test:
 	$(call evaltest)
-
