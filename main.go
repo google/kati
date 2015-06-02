@@ -36,6 +36,7 @@ var (
 	useParaFlag           bool
 	useCache              bool
 	generateNinja         bool
+	ignoreOptionalInclude string
 
 	katiDir string
 )
@@ -75,6 +76,7 @@ func parseFlags() {
 	// TODO: Make this default.
 	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
+	flag.StringVar(&ignoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
 	flag.Parse()
 }
 
