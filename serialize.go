@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"sort"
@@ -605,7 +606,7 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 				return nil
 			}
 		} else {
-			c, err := readFile(mk.Filename)
+			c, err := ioutil.ReadFile(mk.Filename)
 			if err != nil {
 				LogAlways("Cache expired: %s", mk.Filename)
 				return nil
