@@ -431,7 +431,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	f.args[1].Eval(abuf, ev)
 	if ev.avoidIO {
 		ev.hasIO = true
-		w.Write([]byte("$(/bin/ls "))
+		w.Write([]byte("$(/bin/ls -d "))
 		w.Write(abuf.Bytes())
 		w.Write([]byte(" 2> /dev/null)"))
 		return
@@ -444,7 +444,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 			// For some reason, go's Glob normalizes
 			// foo/../bar to bar. We ask shell to expand
 			// a glob to avoid this.
-			cmdline := []string{"/bin/sh", "-c", "/bin/ls " + pat}
+			cmdline := []string{"/bin/sh", "-c", "/bin/ls -d " + pat}
 			cmd := exec.Cmd{
 				Path: cmdline[0],
 				Args: cmdline,
