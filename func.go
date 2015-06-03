@@ -109,6 +109,12 @@ func numericValueForFunc(v string) (int, bool) {
 	return n, true
 }
 
+func formatCommandOutput(out []byte) []byte {
+	out = bytes.TrimRight(out, "\n")
+	out = bytes.Replace(out, []byte{'\n'}, []byte{' '}, -1)
+	return out
+}
+
 type fclosure struct {
 	// args[0] is "(funcname", or "{funcname".
 	args []Value
@@ -433,12 +439,27 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
-		files, err := filepath.Glob(string(ws.Bytes()))
-		if err != nil {
-			panic(err)
-		}
-		for _, file := range files {
-			sw.WriteString(file)
+		pat := string(ws.Bytes())
+		if strings.Contains(pat, "..") {
+			// For some reason, go's Glob normalizes
+			// foo/../bar to bar. We ask shell to expand
+			// a glob to avoid this.
+			cmdline := []string{"/bin/sh", "-c", "/bin/ls " + pat}
+			cmd := exec.Cmd{
+				Path: cmdline[0],
+				Args: cmdline,
+			}
+			// Ignore errors.
+			out, _ := cmd.Output()
+			w.Write(formatCommandOutput(out))
+		} else {
+			files, err := filepath.Glob(string(ws.Bytes()))
+			if err != nil {
+				panic(err)
+			}
+			for _, file := range files {
+				sw.WriteString(file)
+			}
 		}
 	}
 	freeBuf(abuf)
@@ -718,9 +739,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 		Log("$(shell %q) failed: %q", arg, err)
 	}
 
-	out = bytes.TrimRight(out, "\n")
-	out = bytes.Replace(out, []byte{'\n'}, []byte{' '}, -1)
-	w.Write(out)
+	w.Write(formatCommandOutput(out))
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
