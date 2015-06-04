@@ -234,13 +234,13 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 	return ast
 }
 
-func (p *parser) parseIfdef(line string, oplen int) AST {
-	lhs, _, err := parseExpr([]byte(line[oplen+1:]), nil)
+func (p *parser) parseIfdef(line []byte, oplen int) AST {
+	lhs, _, err := parseExpr(line[oplen+1:], nil)
 	if err != nil {
 		panic(fmt.Errorf("ifdef parse %s:%d %v", p.mk.filename, p.lineno, err))
 	}
 	ast := &IfAST{
-		op:  line[:oplen],
+		op:  string(line[:oplen]),
 		lhs: lhs,
 	}
 	ast.filename = p.mk.filename
@@ -438,12 +438,12 @@ func sincludeDirective(p *parser, line []byte) []byte {
 }
 
 func ifdefDirective(p *parser, line []byte) []byte {
-	p.parseIfdef(string(line), len("ifdef"))
+	p.parseIfdef(line, len("ifdef"))
 	return nil
 }
 
 func ifndefDirective(p *parser, line []byte) []byte {
-	p.parseIfdef(string(line), len("ifndef"))
+	p.parseIfdef(line, len("ifndef"))
 	return nil
 }
 
