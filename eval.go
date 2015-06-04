@@ -356,10 +356,7 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 	var isTrue bool
 	switch ast.op {
 	case "ifdef", "ifndef":
-		expr, _, err := parseExpr([]byte(ast.lhs), nil)
-		if err != nil {
-			panic(fmt.Errorf("ifdef parse %s:%d %v", ast.filename, ast.lineno, err))
-		}
+		expr := ast.lhs
 		buf := newBuf()
 		expr.Eval(buf, ev)
 		v := ev.LookupVar(buf.String())
@@ -371,14 +368,8 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		isTrue = (val > 0) == (ast.op == "ifdef")
 		Log("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
 	case "ifeq", "ifneq":
-		lexpr, _, err := parseExpr([]byte(ast.lhs), nil)
-		if err != nil {
-			panic(fmt.Errorf("ifeq lhs parse %s:%d %v", ast.filename, ast.lineno, err))
-		}
-		rexpr, _, err := parseExpr([]byte(ast.rhs), nil)
-		if err != nil {
-			panic(fmt.Errorf("ifeq rhs parse %s:%d %v", ast.filename, ast.lineno, err))
-		}
+		lexpr := ast.lhs
+		rexpr := ast.rhs
 		buf := newBuf()
 		params := ev.args(buf, lexpr, rexpr)
 		lhs := string(params[0])
