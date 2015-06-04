@@ -14,6 +14,7 @@ case "$1" in
     cat - <<EOF
 Usage:
   m2n         # for full-build
+  m2n --goma  # use goma. \$HOME/goma must exist
   m2n bionic  # works like mmm
 EOF
     exit 1
@@ -39,6 +40,6 @@ if [ x"${target}" != x"" ]; then
   echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
 fi
 
-${kati} --ninja --ignore_optional_include=out/ ${goma_flag}
+${kati} --ninja --ignore_optional_include=out/%.P ${goma_flag}
 
 echo ninja.sh and build.ninja were generated, please run ./ninja.sh
