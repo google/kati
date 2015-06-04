@@ -71,7 +71,7 @@ func (ast *AssignAST) show() {
 // are expanded.
 type MaybeRuleAST struct {
 	ASTBase
-	expr           string
+	expr           []byte
 	equalIndex     int
 	semicolonIndex int
 }

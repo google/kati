@@ -181,8 +181,8 @@ func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	return ast
 }
 
-func (p *parser) parseMaybeRule(line string, equalIndex, semicolonIndex int) AST {
-	if len(strings.TrimSpace(line)) == 0 {
+func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST {
+	if len(trimSpaceBytes(line)) == 0 {
 		return nil
 	}
 
@@ -602,7 +602,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 			}
 		}
 		if ast == nil {
-			ast = p.parseMaybeRule(string(line), equalIndex, semicolonIndex)
+			ast = p.parseMaybeRule(line, equalIndex, semicolonIndex)
 			if ast != nil {
 				p.addStatement(ast)
 			}
