@@ -84,26 +84,27 @@ func (r *Rule) parseVar(s []byte) *AssignAST {
 	if eq <= 0 {
 		return nil
 	}
-	assign := &AssignAST{
-		rhs: string(trimLeftSpaceBytes(s[eq+1:])),
-	}
-	assign.filename = r.filename
-	assign.lineno = r.lineno
+	rhs := trimLeftSpaceBytes(s[eq+1:])
+	var lhs []byte
+	var op string
 	// TODO(ukai): support override, export.
 	switch s[eq-1] { // s[eq] is '='
 	case ':':
-		assign.lhs = string(trimSpaceBytes(s[:eq-1]))
-		assign.op = ":="
+		lhs = trimSpaceBytes(s[:eq-1])
+		op = ":="
 	case '+':
-		assign.lhs = string(trimSpaceBytes(s[:eq-1]))
-		assign.op = "+="
+		lhs = trimSpaceBytes(s[:eq-1])
+		op = "+="
 	case '?':
-		assign.lhs = string(trimSpaceBytes(s[:eq-1]))
-		assign.op = "?="
+		lhs = trimSpaceBytes(s[:eq-1])
+		op = "?="
 	default:
-		assign.lhs = string(trimSpaceBytes(s[:eq]))
-		assign.op = "="
+		lhs = trimSpaceBytes(s[:eq])
+		op = "="
 	}
+	assign := newAssignAST(nil, lhs, rhs, op)
+	assign.filename = r.filename
+	assign.lineno = r.lineno
 	return assign
 }
 

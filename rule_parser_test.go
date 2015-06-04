@@ -5,6 +5,14 @@ import (
 	"testing"
 )
 
+func parseExprForTest(e string) Value {
+	v, _, err := parseExpr([]byte(e), nil)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func TestRuleParser(t *testing.T) {
 	for _, tc := range []struct {
 		in     string
@@ -87,8 +95,8 @@ func TestRuleParser(t *testing.T) {
 				outputs: []string{"foo"},
 			},
 			assign: &AssignAST{
-				lhs: "CFLAGS",
-				rhs: "-g",
+				lhs: parseExprForTest("CFLAGS"),
+				rhs: parseExprForTest("-g"),
 				op:  "=",
 			},
 		},
@@ -98,8 +106,8 @@ func TestRuleParser(t *testing.T) {
 				outputs: []string{"foo"},
 			},
 			assign: &AssignAST{
-				lhs: "CFLAGS",
-				rhs: "-g",
+				lhs: parseExprForTest("CFLAGS"),
+				rhs: parseExprForTest("-g"),
 				op:  "=",
 			},
 		},
@@ -109,8 +117,8 @@ func TestRuleParser(t *testing.T) {
 				outputs: []string{"foo"},
 			},
 			assign: &AssignAST{
-				lhs: "CFLAGS",
-				rhs: "-g",
+				lhs: parseExprForTest("CFLAGS"),
+				rhs: parseExprForTest("-g"),
 				op:  ":=",
 			},
 		},
@@ -120,8 +128,8 @@ func TestRuleParser(t *testing.T) {
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 			},
 			assign: &AssignAST{
-				lhs: "CFLAGS",
-				rhs: "-g",
+				lhs: parseExprForTest("CFLAGS"),
+				rhs: parseExprForTest("-g"),
 				op:  ":=",
 			},
 		},

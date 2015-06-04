@@ -8,7 +8,7 @@ import (
 type Var interface {
 	Value
 	Append(*Evaluator, string) Var
-	AppendVar(*Evaluator, Var) Var
+	AppendVar(*Evaluator, Value) Var
 	Flavor() string
 	Origin() string
 	IsDefined() bool
@@ -25,7 +25,7 @@ func (v TargetSpecificVar) Append(ev *Evaluator, s string) Var {
 		op: v.op,
 	}
 }
-func (v TargetSpecificVar) AppendVar(ev *Evaluator, v2 Var) Var {
+func (v TargetSpecificVar) AppendVar(ev *Evaluator, v2 Value) Var {
 	return TargetSpecificVar{
 		v:  v.v.AppendVar(ev, v2),
 		op: v.op,
@@ -102,7 +102,7 @@ func (v SimpleVar) Append(ev *Evaluator, s string) Var {
 	return v
 }
 
-func (v SimpleVar) AppendVar(ev *Evaluator, val Var) Var {
+func (v SimpleVar) AppendVar(ev *Evaluator, val Value) Var {
 	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
 	val.Eval(buf, ev)
@@ -156,7 +156,7 @@ func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
 	return v
 }
 
-func (v RecursiveVar) AppendVar(ev *Evaluator, val Var) Var {
+func (v RecursiveVar) AppendVar(ev *Evaluator, val Value) Var {
 	var buf bytes.Buffer
 	buf.WriteString(v.expr.String())
 	buf.WriteByte(' ')
@@ -188,7 +188,7 @@ func (_ UndefinedVar) Append(*Evaluator, string) Var {
 	return UndefinedVar{}
 }
 
-func (_ UndefinedVar) AppendVar(_ *Evaluator, val Var) Var {
+func (_ UndefinedVar) AppendVar(_ *Evaluator, val Value) Var {
 	return UndefinedVar{}
 }
 

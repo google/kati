@@ -43,7 +43,7 @@ func (v AutoVar) String() string  { panic("not implemented") }
 func (v AutoVar) Append(*Evaluator, string) Var {
 	panic("must not be called")
 }
-func (v AutoVar) AppendVar(*Evaluator, Var) Var {
+func (v AutoVar) AppendVar(*Evaluator, Value) Var {
 	panic("must not be called")
 }
 func (v AutoVar) Serialize() SerializableVar {

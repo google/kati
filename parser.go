@@ -152,15 +152,30 @@ func (p *parser) unreadLine(line []byte) {
 	p.hasUnBuf = true
 }
 
+func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *AssignAST {
+	lhs, _, err := parseExpr(lhsBytes, nil)
+	if err != nil {
+		panic(err)
+	}
+	rhs, _, err := parseExpr(rhsBytes, nil)
+	if err != nil {
+		panic(err)
+	}
+	opt := ""
+	if p != nil {
+		opt = p.defOpt
+	}
+	return &AssignAST{
+		lhs: lhs,
+		rhs: rhs,
+		op:  op,
+		opt: opt,
+	}
+}
+
 func (p *parser) parseAssign(line []byte, sep, esep int) AST {
 	Log("parseAssign %q op:%q", line, line[sep:esep])
-	// TODO(ukai): parse expr here.
-	ast := &AssignAST{
-		lhs: string(bytes.TrimSpace(line[:sep])),
-		rhs: trimLeftSpace(string(line[esep:])),
-		op:  string(line[sep:esep]),
-		opt: p.defOpt,
-	}
+	ast := newAssignAST(p, bytes.TrimSpace(line[:sep]), trimLeftSpaceBytes(line[esep:]), string(line[sep:esep]))
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
 	return ast
@@ -502,12 +517,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 			line = p.processDefineLine(line)
 			if trimLeftSpace(string(line)) == "endef" {
 				Log("multilineAssign %q", p.inDef)
-				ast := &AssignAST{
-					lhs: p.inDef[0],
-					rhs: strings.Join(p.inDef[1:], "\n"),
-					op:  "=",
-					opt: p.defOpt,
-				}
+				ast := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
 				ast.filename = p.mk.filename
 				ast.lineno = p.lineno - len(p.inDef)
 				p.addStatement(ast)
