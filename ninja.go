@@ -272,9 +272,9 @@ func (n *NinjaGenerator) generateShell() {
 		}
 	}
 	if gomaDir == "" {
-		fmt.Fprintf(f, "exec ninja\n")
+		fmt.Fprintln(f, `exec ninja "$@"`)
 	} else {
-		fmt.Fprintf(f, "exec ninja -j300\n")
+		fmt.Fprintln(f, `exec ninja -j300 "$@"`)
 	}
 
 	err = f.Chmod(0755)
