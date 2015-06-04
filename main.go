@@ -287,6 +287,7 @@ func main() {
 	}
 
 	clvars, targets := parseCommandLine()
+	InitMakefileCache()
 
 	g := getDepGraph(clvars, targets)
 	nodes := g.nodes
