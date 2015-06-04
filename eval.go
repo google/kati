@@ -122,12 +122,6 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.lineno = ast.lineno
 
 	expr := ast.expr
-	if ast.semicolonIndex >= 0 {
-		expr = expr[0:ast.semicolonIndex]
-	}
-	if ast.equalIndex >= 0 {
-		expr = expr[0:ast.equalIndex]
-	}
 	lexpr, _, err := parseExpr(expr, nil)
 	if err != nil {
 		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
@@ -135,8 +129,8 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	buf := newBuf()
 	lexpr.Eval(buf, ev)
 	line := buf.Bytes()
-	if ast.equalIndex >= 0 {
-		line = append(line, ast.expr[ast.equalIndex:]...)
+	if ast.term == '=' {
+		line = append(line, ast.afterTerm...)
 	}
 	Log("rule? %q=>%q", ast.expr, line)
 
@@ -161,9 +155,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	//Log("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
-		if ast.semicolonIndex >= 0 {
+		if ast.term == ';' {
 			// TODO(ukai): reuse lexpr above?
-			lexpr, _, err := parseExpr([]byte(ast.expr), nil)
+			lexpr, _, err := parseExpr(append(ast.expr, ast.afterTerm...), nil)
 			if err != nil {
 				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 			}
@@ -184,8 +178,8 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		return
 	}
 
-	if ast.semicolonIndex > 0 {
-		rule.cmds = append(rule.cmds, string(ast.expr[ast.semicolonIndex+1:]))
+	if ast.term == ';' {
+		rule.cmds = append(rule.cmds, string(ast.afterTerm[1:]))
 	}
 	Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	ev.lastRule = rule
