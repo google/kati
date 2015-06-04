@@ -128,7 +128,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.equalIndex >= 0 {
 		expr = expr[0:ast.equalIndex]
 	}
-	lexpr, _, err := parseExpr([]byte(expr), nil)
+	lexpr, _, err := parseExpr(expr, nil)
 	if err != nil {
 		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 	}
@@ -136,7 +136,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	lexpr.Eval(buf, ev)
 	line := buf.Bytes()
 	if ast.equalIndex >= 0 {
-		line = append(line, []byte(ast.expr[ast.equalIndex:])...)
+		line = append(line, ast.expr[ast.equalIndex:]...)
 	}
 	Log("rule? %q=>%q", ast.expr, line)
 
@@ -185,7 +185,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	}
 
 	if ast.semicolonIndex > 0 {
-		rule.cmds = append(rule.cmds, ast.expr[ast.semicolonIndex+1:])
+		rule.cmds = append(rule.cmds, string(ast.expr[ast.semicolonIndex+1:]))
 	}
 	Log("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	ev.lastRule = rule
