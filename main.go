@@ -37,6 +37,7 @@ var (
 	useCache              bool
 	generateNinja         bool
 	ignoreOptionalInclude string
+	gomaDir               string
 
 	katiDir string
 )
@@ -77,6 +78,7 @@ func parseFlags() {
 	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&ignoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
+	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
 	flag.Parse()
 }
 
