@@ -87,12 +87,8 @@ func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	v, _, err := parseExpr([]byte(ast.lhs), nil)
-	if err != nil {
-		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
-	}
 	var lhs string
-	switch v := v.(type) {
+	switch v := ast.lhs.(type) {
 	case literal:
 		lhs = string(v)
 	case tmpval:

@@ -20,9 +20,8 @@ type ASTBase struct {
 
 type AssignAST struct {
 	ASTBase
-	// TODO(ukai): use Value.
-	lhs string
-	rhs string
+	lhs Value
+	rhs Value
 	op  string
 	opt string // "override", "export"
 }
@@ -42,39 +41,23 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	// TODO(ukai): handle ast.opt == "export"
 	switch ast.op {
 	case ":=":
-		rexpr, _, err := parseExpr([]byte(ast.rhs), nil)
-		if err != nil {
-			panic(fmt.Errorf("parse assign rhs %s:%d %v", ast.filename, ast.lineno, err))
-		}
 		var buf bytes.Buffer
-		rexpr.Eval(&buf, ev)
+		ast.rhs.Eval(&buf, ev)
 		return SimpleVar{value: buf.Bytes(), origin: origin}
 	case "=":
-		v, _, err := parseExpr([]byte(ast.rhs), nil)
-		if err != nil {
-			panic(err)
-		}
-		return RecursiveVar{expr: v, origin: origin}
+		return RecursiveVar{expr: ast.rhs, origin: origin}
 	case "+=":
 		prev := ev.LookupVarInCurrentScope(lhs)
 		if !prev.IsDefined() {
-			v, _, err := parseExpr([]byte(ast.rhs), nil)
-			if err != nil {
-				panic(err)
-			}
-			return RecursiveVar{expr: v, origin: origin}
+			return RecursiveVar{expr: ast.rhs, origin: origin}
 		}
-		return prev.Append(ev, ast.rhs)
+		return prev.AppendVar(ev, ast.rhs)
 	case "?=":
 		prev := ev.LookupVarInCurrentScope(lhs)
 		if prev.IsDefined() {
 			return prev
 		}
-		v, _, err := parseExpr([]byte(ast.rhs), nil)
-		if err != nil {
-			panic(err)
-		}
-		return RecursiveVar{expr: v, origin: origin}
+		return RecursiveVar{expr: ast.rhs, origin: origin}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}
