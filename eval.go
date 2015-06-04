@@ -121,11 +121,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	expr := ast.expr
-	lexpr, _, err := parseExpr(expr, nil)
-	if err != nil {
-		panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
-	}
+	lexpr := ast.expr
 	buf := newBuf()
 	lexpr.Eval(buf, ev)
 	line := buf.Bytes()
@@ -156,11 +152,12 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 
 	if assign != nil {
 		if ast.term == ';' {
-			// TODO(ukai): reuse lexpr above?
-			lexpr, _, err := parseExpr(append(ast.expr, ast.afterTerm...), nil)
+			nexpr, _, err := parseExpr(ast.afterTerm, nil)
 			if err != nil {
 				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 			}
+			lexpr = Expr{lexpr, nexpr}
+
 			buf = newBuf()
 			lexpr.Eval(buf, ev)
 			assign, err = rule.parse(buf.Bytes())
