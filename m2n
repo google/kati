@@ -1,0 +1,44 @@
+#!/bin/bash
+#
+# A wrapper for kati which generates build.ninja mainly for Android.
+#
+
+set -e
+
+kati_dir=$(cd $(dirname $0) && pwd)
+
+goma_flag=
+
+case "$1" in
+  --help)
+    cat - <<EOF
+Usage:
+  m2n         # for full-build
+  m2n bionic  # works like mmm
+EOF
+    exit 1
+    ;;
+  --goma)
+    if [ ! -e $HOME/goma/goma_ctl.py ]; then
+      echo "$HOME/goma/goma_ctl.py should exist to use goma"
+      exit 1
+    fi
+    $HOME/goma/goma_ctl.py ensure_start
+    goma_flag=--goma_dir=$HOME/goma
+    ;;
+  *)
+    target=$1
+    shift
+    ;;
+esac
+
+kati=${kati_dir}/kati
+
+if [ x"${target}" != x"" ]; then
+  export ONE_SHOT_MAKEFILE=${target}/Android.mk
+  echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
+fi
+
+${kati} --ninja --ignore_optional_include=out/ ${goma_flag}
+
+echo ninja.sh and build.ninja were generated, please run ./ninja.sh
