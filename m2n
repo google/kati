@@ -19,6 +19,7 @@ Usage:
 EOF
     exit 1
     ;;
+
   --goma)
     if [ ! -e $HOME/goma/goma_ctl.py ]; then
       echo "$HOME/goma/goma_ctl.py should exist to use goma"
@@ -27,9 +28,12 @@ EOF
     $HOME/goma/goma_ctl.py ensure_start
     goma_flag=--goma_dir=$HOME/goma
     ;;
+
   *)
-    target=$1
-    shift
+    if [ x"$1" != x"" ]; then
+      target=$1
+      shift
+    fi
     ;;
 esac
 
