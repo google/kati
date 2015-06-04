@@ -186,6 +186,10 @@ func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST
 		return nil
 	}
 
+	expr := line
+	var term byte
+	var afterTerm []byte
+
 	// Either '=' or ';' is used.
 	if equalIndex >= 0 && semicolonIndex >= 0 {
 		if equalIndex < semicolonIndex {
@@ -194,11 +198,20 @@ func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST
 			equalIndex = -1
 		}
 	}
+	if semicolonIndex >= 0 {
+		afterTerm = expr[semicolonIndex:]
+		expr = expr[0:semicolonIndex]
+		term = ';'
+	} else if equalIndex >= 0 {
+		afterTerm = expr[equalIndex:]
+		expr = expr[0:equalIndex]
+		term = '='
+	}
 
 	ast := &MaybeRuleAST{
-		expr:           line,
-		equalIndex:     equalIndex,
-		semicolonIndex: semicolonIndex,
+		expr:      expr,
+		term:      term,
+		afterTerm: afterTerm,
 	}
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
