@@ -235,10 +235,13 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 }
 
 func (p *parser) parseIfdef(line string, oplen int) AST {
-	// TODO(ukai): parse expr here.
+	lhs, _, err := parseExpr([]byte(line[oplen+1:]), nil)
+	if err != nil {
+		panic(fmt.Errorf("ifdef parse %s:%d %v", p.mk.filename, p.lineno, err))
+	}
 	ast := &IfAST{
 		op:  line[:oplen],
-		lhs: line[oplen+1:],
+		lhs: lhs,
 	}
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
@@ -303,9 +306,18 @@ func (p *parser) parseEq(s string, op string) (string, string, bool) {
 
 func (p *parser) parseIfeq(line string, oplen int) AST {
 	op := line[:oplen]
-	lhs, rhs, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]), op)
+	lhsBytes, rhsBytes, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]), op)
 	if !ok {
 		Error(p.mk.filename, p.lineno, `*** invalid syntax in conditional.`)
+	}
+
+	lhs, _, err := parseExpr([]byte(lhsBytes), nil)
+	if err != nil {
+		panic(fmt.Errorf("parse ifeq lhs %s:%d %v", p.mk.filename, p.lineno, err))
+	}
+	rhs, _, err := parseExpr([]byte(rhsBytes), nil)
+	if err != nil {
+		panic(fmt.Errorf("parse ifeq rhs %s:%d %v", p.mk.filename, p.lineno, err))
 	}
 
 	ast := &IfAST{

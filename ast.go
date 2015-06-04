@@ -114,8 +114,8 @@ func (ast *IncludeAST) show() {
 type IfAST struct {
 	ASTBase
 	op         string
-	lhs        string
-	rhs        string // Empty if |op| is ifdef or ifndef.
+	lhs        Value
+	rhs        Value // Empty if |op| is ifdef or ifndef.
 	trueStmts  []AST
 	falseStmts []AST
 }
