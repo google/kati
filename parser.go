@@ -208,8 +208,13 @@ func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST
 		term = '='
 	}
 
+	v, _, err := parseExpr(expr, nil)
+	if err != nil {
+		panic(fmt.Errorf("parse %s:%d %v", p.mk.filename, p.lineno, err))
+	}
+
 	ast := &MaybeRuleAST{
-		expr:      expr,
+		expr:      v,
 		term:      term,
 		afterTerm: afterTerm,
 	}
