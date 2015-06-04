@@ -264,8 +264,11 @@ func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	defer func() {
 		addStats("include", literal(fname), t)
 	}()
-	Log("Reading makefile %q", fname)
-	mk, err := ParseMakefile(c, fname)
+	mk, err, ok := LookupMakefileCache(fname)
+	if !ok {
+		Log("Reading makefile %q", fname)
+		mk, err = ParseMakefile(c, fname)
+	}
 	if err != nil {
 		return err
 	}

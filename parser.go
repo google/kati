@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 type Makefile struct {
@@ -655,8 +656,41 @@ func ParseMakefileBytes(s []byte, name string, lineno int) (Makefile, error) {
 	return parseMakefileReader(bytes.NewReader(s), name, lineno)
 }
 
+type MakefileCache struct {
+	mk  Makefile
+	err error
+	ts  int64
+}
+
+var makefileCache map[string]MakefileCache
+
+func InitMakefileCache() {
+	if makefileCache == nil {
+		makefileCache = make(map[string]MakefileCache)
+	}
+}
+
+func LookupMakefileCache(filename string) (Makefile, error, bool) {
+	c, present := makefileCache[filename]
+	if !present {
+		return Makefile{}, nil, false
+	}
+	ts := getTimestamp(filename)
+	if ts < 0 || ts >= c.ts {
+		return Makefile{}, nil, false
+	}
+	Log("Cache hit for %q", filename)
+	return c.mk, c.err, true
+}
+
 func ParseMakefile(s []byte, filename string) (Makefile, error) {
 	Log("ParseMakefile %q", filename)
 	parser := newParser(bytes.NewReader(s), filename)
-	return parser.parse()
+	mk, err := parser.parse()
+	makefileCache[filename] = MakefileCache{
+		mk:  mk,
+		err: err,
+		ts:  time.Now().Unix(),
+	}
+	return mk, err
 }
