@@ -178,7 +178,7 @@ func (r runner) run(output string) error {
 	return err
 }
 
-func (j Job) createRunners() []runner {
+func (j *Job) createRunners() []runner {
 	runners, _ := j.ex.createRunners(j.n, false)
 	return runners
 }
@@ -192,7 +192,7 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-func (j Job) build() {
+func (j *Job) build() {
 	if j.n.IsPhony {
 		j.outputTs = -2 // trigger cmd even if all inputs don't exist.
 	} else {
