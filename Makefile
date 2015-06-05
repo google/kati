@@ -12,24 +12,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOSRC = $(wildcard *.go)
+GO_SRCS:=$(wildcard *.go)
+CXX_SRCS:= \
+	ast.cc \
+	dep.cc \
+	eval.cc \
+	exec.cc \
+	file.cc \
+	file_cache.cc \
+	fileutil.cc \
+	func.cc \
+	main.cc \
+	parser.cc \
+	rule.cc \
+	string_piece.cc \
+	string_pool.cc \
+	stringprintf.cc \
+	strutil.cc \
+	value.cc \
+	var.cc
+CXX_TEST_SRCS:= \
+	$(wildcard *_test.cc)
+CXX_OBJS:=$(CXX_SRCS:.cc=.o)
+CXX_TEST_OBJS:=$(CXX_TEST_SRCS:.cc=.o)
+CXX_ALL_OBJS:=$(CXX_SRCS:.cc=.o) $(CXX_TEST_SRCS:.cc=.o)
+CXX_TEST_EXES:=$(CXX_TEST_OBJS:.o=)
+CXXFLAGS:=-g -W -Wall -MMD # -O
 
-all: kati go_test para
+all: kati para ckati $(CXX_TEST_EXES)
 
-kati: $(GOSRC)
+kati: $(GO_SRCS)
 	env $(shell go env) go build -o $@ *.go
 
-go_test: $(GOSRC) para
+ckati: $(CXX_OBJS)
+	$(CXX) -std=c++11 $(CXXFLAGS) -o $@ $(CXX_OBJS)
+
+$(CXX_ALL_OBJS): %.o: %.cc
+	$(CXX) -c -std=c++11 $(CXXFLAGS) -o $@ $<
+
+$(CXX_TEST_EXES): $(filter-out main.o,$(CXX_OBJS))
+$(CXX_TEST_EXES): %: %.o
+	$(CXX) $^ -o $@
+
+go_test: $(GO_SRCS) para
 	env $(shell go env) go test *.go
 
 para: para.cc
 	$(CXX) -std=c++11 -g -O -W -Wall -MMD -o $@ $<
 
-test: all
+test: all go_test
 	ruby runtest.rb
 
 clean:
-	rm -rf out kati
+	rm -rf out kati ckati *.o *.d
 
 .PHONY: test
 
