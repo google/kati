@@ -451,7 +451,9 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 			}
 			// Ignore errors.
 			out, _ := cmd.Output()
-			sw.Write(formatCommandOutput(out))
+			if len(trimSpaceBytes(out)) > 0 {
+				sw.Write(formatCommandOutput(out))
+			}
 		} else {
 			files, err := filepath.Glob(string(ws.Bytes()))
 			if err != nil {
