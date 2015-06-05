@@ -199,7 +199,11 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("strip", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	w.Write(trimSpaceBytes(abuf.Bytes()))
+	ws := newWordScanner(abuf.Bytes())
+	sw := ssvWriter{w: w}
+	for ws.Scan() {
+		sw.Write(ws.Bytes())
+	}
 	freeBuf(abuf)
 }
 
