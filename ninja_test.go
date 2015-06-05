@@ -115,6 +115,14 @@ func TestGetDepFile(t *testing.T) {
 			in:   `gcc -c foo.P.c`,
 			want: ``,
 		},
+		{
+			in:   `(/bin/sh ./libtool  --tag=CXX   --mode=compile g++ -DHAVE_CONFIG_H -I. -I./src -I./src     -Wall -Wwrite-strings -Woverloaded-virtual -Wno-sign-compare  -DNO_FRAME_POINTER  -DNDEBUG -g -O2 -MT libglog_la-logging.lo -MD -MP -MF .deps/libglog_la-logging.Tpo -c -o libglog_la-logging.lo ` + "`" + `test -f 'src/logging.cc' || echo './'` + "`" + `src/logging.cc) && (mv -f .deps/libglog_la-logging.Tpo .deps/libglog_la-logging.Plo)`,
+			want: `.deps/libglog_la-logging.Plo`,
+		},
+		{
+			in:   `(g++ -DHAVE_CONFIG_H -I. -I./src  -I./src  -pthread     -Wall -Wwrite-strings -Woverloaded-virtual -Wno-sign-compare  -DNO_FRAME_POINTER  -g -O2 -MT signalhandler_unittest-signalhandler_unittest.o -MD -MP -MF .deps/signalhandler_unittest-signalhandler_unittest.Tpo -c -o signalhandler_unittest-signalhandler_unittest.o ` + "`" + `test -f 'src/signalhandler_unittest.cc' || echo './'` + "`" + `src/signalhandler_unittest.cc) && (mv -f .deps/signalhandler_unittest-signalhandler_unittest.Tpo .deps/signalhandler_unittest-signalhandler_unittest.Po)`,
+			want: `.deps/signalhandler_unittest-signalhandler_unittest.Po`,
+		},
 	} {
 		got, err := getDepfile(tc.in)
 		if got != tc.want {
