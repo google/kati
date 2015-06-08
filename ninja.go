@@ -16,7 +16,7 @@ type NinjaGenerator struct {
 	vars    Vars
 	exports map[string]bool
 	ex      *Executor
-	ruleId  int
+	ruleID  int
 	done    map[string]bool
 	ccRe    *regexp.Regexp
 }
@@ -183,8 +183,8 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 }
 
 func (n *NinjaGenerator) genRuleName() string {
-	ruleName := fmt.Sprintf("rule%d", n.ruleId)
-	n.ruleId++
+	ruleName := fmt.Sprintf("rule%d", n.ruleID)
+	n.ruleID++
 	return ruleName
 }
 

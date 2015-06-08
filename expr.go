@@ -61,7 +61,7 @@ func (s literal) Serialize() SerializableVar {
 	return SerializableVar{Type: "literal", V: string(s)}
 }
 func (s literal) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_LITERAL)
+	dumpByte(w, ValueTypeLiteral)
 	dumpBytes(w, []byte(s))
 }
 
@@ -78,7 +78,7 @@ func (t tmpval) Serialize() SerializableVar {
 	return SerializableVar{Type: "tmpval", V: string(t)}
 }
 func (t tmpval) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_TMPVAL)
+	dumpByte(w, ValueTypeTmpval)
 	dumpBytes(w, t)
 }
 
@@ -107,7 +107,7 @@ func (e Expr) Serialize() SerializableVar {
 	return r
 }
 func (e Expr) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_EXPR)
+	dumpByte(w, ValueTypeExpr)
 	dumpInt(w, len(e))
 	for _, v := range e {
 		v.Dump(w)
@@ -152,7 +152,7 @@ func (v varref) Serialize() SerializableVar {
 	}
 }
 func (v varref) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_VARREF)
+	dumpByte(w, ValueTypeVarref)
 	v.varname.Dump(w)
 }
 
@@ -180,7 +180,7 @@ func (p paramref) Serialize() SerializableVar {
 }
 
 func (p paramref) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_PARAMREF)
+	dumpByte(w, ValueTypeParamref)
 	dumpInt(w, int(p))
 }
 
@@ -230,7 +230,7 @@ func (v varsubst) Serialize() SerializableVar {
 }
 
 func (v varsubst) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_VARSUBST)
+	dumpByte(w, ValueTypeVarsubst)
 	v.varname.Dump(w)
 	v.pat.Dump(w)
 	v.subst.Dump(w)

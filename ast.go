@@ -67,6 +67,7 @@ func (ast *AssignAST) show() {
 	Logf("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
 }
 
+// MaybeRuleAST is an ast for rule line.
 // Note we cannot be sure what this is, until all variables in |expr|
 // are expanded.
 type MaybeRuleAST struct {

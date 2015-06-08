@@ -26,10 +26,10 @@ var (
 	katiStatsFlag         bool
 	katiPeriodicStatsFlag bool
 	katiEvalStatsFlag     bool
-	loadJson              string
-	saveJson              string
-	loadGob               string
-	saveGob               string
+	loadJSON              string
+	saveJSON              string
+	loadGOB               string
+	saveGOB               string
 	syntaxCheckOnlyFlag   bool
 	queryFlag             string
 	eagerCmdEvalFlag      bool
@@ -59,10 +59,10 @@ func parseFlags() {
 
 	flag.IntVar(&jobsFlag, "j", 1, "Allow N jobs at once.")
 
-	flag.StringVar(&loadGob, "load", "", "")
-	flag.StringVar(&saveGob, "save", "", "")
-	flag.StringVar(&loadJson, "load_json", "", "")
-	flag.StringVar(&saveJson, "save_json", "", "")
+	flag.StringVar(&loadGOB, "load", "", "")
+	flag.StringVar(&saveGOB, "save", "", "")
+	flag.StringVar(&loadJSON, "load_json", "", "")
+	flag.StringVar(&saveJSON, "save_json", "", "")
 
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
@@ -141,13 +141,13 @@ func maybeWriteHeapProfile() {
 func getDepGraph(clvars []string, targets []string) *DepGraph {
 	startTime := time.Now()
 
-	if loadGob != "" {
-		g := LoadDepGraph(loadGob)
+	if loadGOB != "" {
+		g := LoadDepGraph(loadGOB)
 		LogStats("deserialize time: %q", time.Now().Sub(startTime))
 		return g
 	}
-	if loadJson != "" {
-		g := LoadDepGraphFromJson(loadJson)
+	if loadJSON != "" {
+		g := LoadDepGraphFromJSON(loadJSON)
 		LogStats("deserialize time: %q", time.Now().Sub(startTime))
 		return g
 	}
@@ -231,7 +231,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	readMks = append(readMks, &ReadMakefile{
 		Filename: makefile,
 		Hash:     sha1.Sum(content),
-		State:    FILE_EXISTS,
+		State:    FileExists,
 	})
 	readMks = append(readMks, er.readMks...)
 	return &DepGraph{
@@ -301,14 +301,14 @@ func main() {
 		LogStats("eager eval command time: %q", time.Now().Sub(startTime))
 	}
 
-	if saveGob != "" {
+	if saveGOB != "" {
 		startTime := time.Now()
-		DumpDepGraph(g, saveGob, targets)
+		DumpDepGraph(g, saveGOB, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
-	if saveJson != "" {
+	if saveJSON != "" {
 		startTime := time.Now()
-		DumpDepGraphAsJson(g, saveJson, targets)
+		DumpDepGraphAsJSON(g, saveJSON, targets)
 		LogStats("serialize time: %q", time.Now().Sub(startTime))
 	}
 

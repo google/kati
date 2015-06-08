@@ -710,17 +710,17 @@ func InitMakefileCache() {
 	}
 }
 
-func LookupMakefileCache(filename string) (Makefile, error, bool) {
+func LookupMakefileCache(filename string) (Makefile, bool, error) {
 	c, present := makefileCache[filename]
 	if !present {
-		return Makefile{}, nil, false
+		return Makefile{}, false, nil
 	}
 	ts := getTimestamp(filename)
 	if ts < 0 || ts >= c.ts {
-		return Makefile{}, nil, false
+		return Makefile{}, false, nil
 	}
 	Logf("Cache hit for %q", filename)
-	return c.mk, c.err, true
+	return c.mk, true, c.err
 }
 
 func ParseMakefile(s []byte, filename string) (Makefile, error) {
