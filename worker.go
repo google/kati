@@ -351,7 +351,6 @@ func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
 		neededBy.numDeps--
 		if neededBy.id > 0 {
 			panic("already in WM... can this happen?")
-			wm.maybePushToReadyQueue(neededBy)
 		}
 	} else {
 		j.parents = append(j.parents, neededBy)

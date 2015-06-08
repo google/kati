@@ -131,7 +131,7 @@ func TestGetDepFile(t *testing.T) {
 		if tc.err && err == nil {
 			t.Errorf(`stripShellComment(%q) unexpectedly has no error`, tc.in)
 		} else if !tc.err && err != nil {
-			t.Errorf(`stripShellComment(%q) has an error: %q`, err)
+			t.Errorf(`stripShellComment(%q) has an error: %q`, tc.in, err)
 		}
 	}
 }

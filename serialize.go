@@ -358,7 +358,6 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	default:
 		panic(fmt.Sprintf("unknown serialized variable type: %q", sv))
 	}
-	return UndefinedVar{}
 }
 
 func DeserializeVars(vars map[string]SerializableVar) Vars {
@@ -412,14 +411,14 @@ func DeserializeNodes(g SerializableGraph) (r []*DepNode) {
 		for _, o := range n.Deps {
 			c, present := nodeMap[targets[o]]
 			if !present {
-				panic(fmt.Sprintf("unknown target: %s", o))
+				panic(fmt.Sprintf("unknown target: %d (%s)", o, targets[o]))
 			}
 			d.Deps = append(d.Deps, c)
 		}
 		for _, o := range n.Parents {
 			c, present := nodeMap[targets[o]]
 			if !present {
-				panic(fmt.Sprintf("unknown target: %s", o))
+				panic(fmt.Sprintf("unknown target: %d (%s)", o, targets[o]))
 			}
 			d.Parents = append(d.Parents, c)
 		}
