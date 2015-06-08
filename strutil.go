@@ -6,13 +6,14 @@ import (
 	"strings"
 )
 
+var wsbytes = [256]bool{' ': true, '\t': true, '\n': true, '\r': true}
+
 // TODO(ukai): use unicode.IsSpace?
 func isWhitespace(ch rune) bool {
-	switch ch {
-	case ' ', '\t', '\n', '\r':
-		return true
+	if int(ch) >= len(wsbytes) {
+		return false
 	}
-	return false
+	return wsbytes[ch]
 }
 
 func splitSpaces(s string) []string {
@@ -73,8 +74,7 @@ func newWordScanner(in []byte) *wordScanner {
 
 func (ws *wordScanner) Scan() bool {
 	for ws.s = ws.i; ws.s < len(ws.in); ws.s++ {
-		ch := rune(ws.in[ws.s])
-		if !isWhitespace(ch) {
+		if !wsbytes[ws.in[ws.s]] {
 			break
 		}
 	}
@@ -82,8 +82,7 @@ func (ws *wordScanner) Scan() bool {
 		return false
 	}
 	for ws.i = ws.s; ws.i < len(ws.in); ws.i++ {
-		ch := rune(ws.in[ws.i])
-		if isWhitespace(ch) {
+		if wsbytes[ws.in[ws.i]] {
 			break
 		}
 	}
