@@ -28,6 +28,7 @@ EOF
       fi
       $HOME/goma/goma_ctl.py ensure_start
       goma_flag=--goma_dir=$HOME/goma
+      shift
       ;;
 
     --*)
