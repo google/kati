@@ -551,7 +551,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 	if compactor, ok := f.(Compactor); ok {
 		fv = compactor.Compact()
 	}
-	if katiStatsFlag {
+	if katiEvalStatsFlag {
 		fv = funcstats{fv}
 	}
 	return fv, i, nil
