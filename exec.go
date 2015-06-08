@@ -129,7 +129,7 @@ func (v AutoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
 func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 	output := n.Output
 	if neededBy != nil {
-		Log("MakeJob: %s for %s", output, neededBy.n.Output)
+		Logf("MakeJob: %s for %s", output, neededBy.n.Output)
 	}
 	ex.buildCnt++
 	if ex.buildCnt%100 == 0 {
@@ -147,7 +147,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 				neededBy.numDeps--
 			}
 		} else {
-			Log("%s already done: %d", j.n.Output, j.outputTs)
+			Logf("%s already done: %d", j.n.Output, j.outputTs)
 			if neededBy != nil {
 				ex.wm.ReportNewDep(j, neededBy)
 			}
@@ -177,7 +177,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 		}
 		deps = append(deps, d)
 	}
-	Log("new: %s (%d)", j.n.Output, j.numDeps)
+	Logf("new: %s (%d)", j.n.Output, j.numDeps)
 
 	for _, d := range deps {
 		ex.trace = append(ex.trace, d.Output)
@@ -267,7 +267,7 @@ func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
 	ev.avoidIO = avoidIO
 	ev.filename = n.Filename
 	ev.lineno = n.Lineno
-	Log("Building: %s cmds:%q", n.Output, n.Cmds)
+	Logf("Building: %s cmds:%q", n.Output, n.Cmds)
 	r := runner{
 		output: n.Output,
 		echo:   true,

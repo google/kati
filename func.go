@@ -169,7 +169,7 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	from := fargs[0]
 	to := fargs[1]
 	text := fargs[2]
-	Log("subst from:%q to:%q text:%q", from, to, text)
+	Logf("subst from:%q to:%q text:%q", from, to, text)
 	w.Write(bytes.Replace(text, from, to, -1))
 	freeBuf(abuf)
 }
@@ -601,12 +601,12 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
-			Log("abs: %v", err)
+			Logf("abs: %v", err)
 			continue
 		}
 		name, err = filepath.EvalSymlinks(name)
 		if err != nil {
-			Log("realpath: %v", err)
+			Logf("realpath: %v", err)
 			continue
 		}
 		sw.WriteString(name)
@@ -627,7 +627,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
-			Log("abs: %v", err)
+			Logf("abs: %v", err)
 			continue
 		}
 		sw.WriteString(name)
@@ -713,7 +713,7 @@ func hasNoIoInShellScript(s []byte) bool {
 	if !bytes.HasPrefix(s, []byte("echo $((")) || s[len(s)-1] != ')' {
 		return false
 	}
-	Log("has no IO - evaluate now: %s", s)
+	Logf("has no IO - evaluate now: %s", s)
 	return true
 }
 
@@ -742,7 +742,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	out, err := cmd.Output()
 	shellFuncTime += time.Now().Sub(t)
 	if err != nil {
-		Log("$(shell %q) failed: %q", arg, err)
+		Logf("$(shell %q) failed: %q", arg, err)
 	}
 
 	w.Write(formatCommandOutput(out))
@@ -757,7 +757,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
 	variable := fargs[0]
-	Log("call %q variable %q", f.args[1], variable)
+	Logf("call %q variable %q", f.args[1], variable)
 	v := ev.LookupVar(string(variable))
 	// Evalualte all arguments first before we modify the table.
 	var args []tmpval
@@ -770,7 +770,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for i, arg := range fargs[1:] {
 		// f.args[2]=>args[1] will be $1.
 		args = append(args, tmpval(arg))
-		Log("call $%d: %q=>%q", i+1, arg, fargs[i+1])
+		Logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
 	}
 	oldParams := ev.paramVars
 	ev.paramVars = args
@@ -794,7 +794,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 		restore()
 	}
 	ev.paramVars = oldParams
-	Log("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
+	Logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 	freeBuf(abuf)
 }
 
@@ -817,7 +817,7 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	s := abuf.Bytes()
-	Log("eval %q at %s:%d", s, ev.filename, ev.lineno)
+	Logf("eval %q at %s:%d", s, ev.filename, ev.lineno)
 	mk, err := ParseMakefileBytes(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
@@ -849,7 +849,7 @@ func (f *funcEval) Compact() Value {
 					rhs = append(rhs, rhsprefix)
 				}
 				rhs = append(rhs, arg[1:]...)
-				Log("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
+				Logf("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
 				return &funcEvalAssign{
 					lhs: lhs,
 					op:  op,
@@ -971,7 +971,7 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		}
 		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
-	Log("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
+	Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	ev.outVars.Assign(f.lhs, rvalue)
 }
 

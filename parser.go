@@ -174,7 +174,7 @@ func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *Assig
 }
 
 func (p *parser) parseAssign(line []byte, sep, esep int) AST {
-	Log("parseAssign %q op:%q", line, line[sep:esep])
+	Logf("parseAssign %q op:%q", line, line[sep:esep])
 	ast := newAssignAST(p, bytes.TrimSpace(line[:sep]), trimLeftSpaceBytes(line[esep:]), string(line[sep:esep]))
 	ast.filename = p.mk.filename
 	ast.lineno = p.lineno
@@ -546,7 +546,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		if len(p.inDef) > 0 {
 			line = p.processDefineLine(line)
 			if trimLeftSpace(string(line)) == "endef" {
-				Log("multilineAssign %q", p.inDef)
+				Logf("multilineAssign %q", p.inDef)
 				ast := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
 				ast.filename = p.mk.filename
 				ast.lineno = p.lineno - len(p.inDef)
@@ -648,7 +648,7 @@ func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
 
 /*
 func ParseMakefile(filename string) (Makefile, error) {
-	Log("ParseMakefile %q", filename)
+	Logf("ParseMakefile %q", filename)
 	f, err := os.Open(filename)
 	if err != nil {
 		return Makefile{}, err
@@ -719,12 +719,12 @@ func LookupMakefileCache(filename string) (Makefile, error, bool) {
 	if ts < 0 || ts >= c.ts {
 		return Makefile{}, nil, false
 	}
-	Log("Cache hit for %q", filename)
+	Logf("Cache hit for %q", filename)
 	return c.mk, c.err, true
 }
 
 func ParseMakefile(s []byte, filename string) (Makefile, error) {
-	Log("ParseMakefile %q", filename)
+	Logf("ParseMakefile %q", filename)
 	parser := newParser(bytes.NewReader(s), filename)
 	mk, err := parser.parse()
 	makefileCache[filename] = MakefileCache{
