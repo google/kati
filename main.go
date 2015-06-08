@@ -145,12 +145,12 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 
 	if loadGOB != "" {
 		g := LoadDepGraph(loadGOB)
-		LogStats("deserialize time: %q", time.Now().Sub(startTime))
+		LogStats("deserialize time: %q", time.Since(startTime))
 		return g
 	}
 	if loadJSON != "" {
 		g := LoadDepGraphFromJSON(loadJSON)
-		LogStats("deserialize time: %q", time.Now().Sub(startTime))
+		LogStats("deserialize time: %q", time.Since(startTime))
 		return g
 	}
 
@@ -215,19 +215,19 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 
 	vars.Merge(er.vars)
 
-	LogStats("eval time: %q", time.Now().Sub(startTime))
-	LogStats("shell func time: %q", shellFuncTime)
+	LogStats("eval time: %q", time.Since(startTime))
+	LogStats("shell func time: %q %d", shellFuncTime, shellFuncCount)
 
 	startTime = time.Now()
 	db := NewDepBuilder(er, vars)
-	LogStats("dep build prepare time: %q", time.Now().Sub(startTime))
+	LogStats("dep build prepare time: %q", time.Since(startTime))
 
 	startTime = time.Now()
 	nodes, err2 := db.Eval(targets)
 	if err2 != nil {
 		panic(err2)
 	}
-	LogStats("dep build time: %q", time.Now().Sub(startTime))
+	LogStats("dep build time: %q", time.Since(startTime))
 	var readMks []*ReadMakefile
 	// Always put the root Makefile as the first element.
 	readMks = append(readMks, &ReadMakefile{
@@ -300,30 +300,30 @@ func main() {
 	if eagerCmdEvalFlag {
 		startTime := time.Now()
 		EvalCommands(nodes, vars)
-		LogStats("eager eval command time: %q", time.Now().Sub(startTime))
+		LogStats("eager eval command time: %q", time.Since(startTime))
 	}
 
 	if saveGOB != "" {
 		startTime := time.Now()
 		DumpDepGraph(g, saveGOB, targets)
-		LogStats("serialize time: %q", time.Now().Sub(startTime))
+		LogStats("serialize time: %q", time.Since(startTime))
 	}
 	if saveJSON != "" {
 		startTime := time.Now()
 		DumpDepGraphAsJSON(g, saveJSON, targets)
-		LogStats("serialize time: %q", time.Now().Sub(startTime))
+		LogStats("serialize time: %q", time.Since(startTime))
 	}
 
 	if useCache && !g.isCached {
 		startTime := time.Now()
 		DumpDepGraphCache(g, targets)
-		LogStats("serialize time: %q", time.Now().Sub(startTime))
+		LogStats("serialize time: %q", time.Since(startTime))
 	}
 
 	if generateNinja {
 		startTime := time.Now()
 		GenerateNinja(g)
-		LogStats("generate ninja time: %q", time.Now().Sub(startTime))
+		LogStats("generate ninja time: %q", time.Since(startTime))
 		return
 	}
 
@@ -352,5 +352,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	LogStats("exec time: %q", time.Now().Sub(startTime))
+	LogStats("exec time: %q", time.Since(startTime))
 }

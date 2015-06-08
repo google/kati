@@ -252,10 +252,10 @@ func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	e := gob.NewEncoder(f)
 	startTime := time.Now()
 	sg := MakeSerializableGraph(g, roots)
-	LogStats("serialize prepare time: %q", time.Now().Sub(startTime))
+	LogStats("serialize prepare time: %q", time.Since(startTime))
 	startTime = time.Now()
 	e.Encode(sg)
-	LogStats("serialize output time: %q", time.Now().Sub(startTime))
+	LogStats("serialize output time: %q", time.Since(startTime))
 	err = f.Close()
 	if err != nil {
 		panic(err)
@@ -586,7 +586,7 @@ func LoadDepGraph(filename string) *DepGraph {
 func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 	startTime := time.Now()
 	defer func() {
-		LogStats("Cache lookup time: %q", time.Now().Sub(startTime))
+		LogStats("Cache lookup time: %q", time.Since(startTime))
 	}()
 
 	filename := GetCacheFilename(makefile, roots)
