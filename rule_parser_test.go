@@ -157,7 +157,7 @@ func TestRuleParser(t *testing.T) {
 			continue
 		}
 		if !reflect.DeepEqual(*got, tc.want) {
-			t.Errorf(`r.parse(%q); r=%q, want %q`, tc.in, *got, tc.want)
+			t.Errorf(`r.parse(%q); r=%#v, want %#v`, tc.in, *got, tc.want)
 		}
 		if tc.assign != nil {
 			if assign == nil {
