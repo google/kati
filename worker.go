@@ -243,7 +243,7 @@ func (wm *WorkerManager) handleJobs() {
 			return
 		}
 		j := heap.Pop(&wm.readyQueue).(*Job)
-		Log("run: %s", j.n.Output)
+		Logf("run: %s", j.n.Output)
 
 		if useParaFlag {
 			j.runners = j.createRunners()
@@ -267,7 +267,7 @@ func (wm *WorkerManager) handleJobs() {
 func (wm *WorkerManager) updateParents(j *Job) {
 	for _, p := range j.parents {
 		p.numDeps--
-		Log("child: %s (%d)", p.n.Output, p.numDeps)
+		Logf("child: %s (%d)", p.n.Output, p.numDeps)
 		if p.depsTs < j.outputTs {
 			p.depsTs = j.outputTs
 		}
@@ -343,7 +343,7 @@ func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
 		return
 	}
 	heap.Push(&wm.readyQueue, j)
-	Log("ready: %s", j.n.Output)
+	Logf("ready: %s", j.n.Output)
 }
 
 func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
@@ -362,19 +362,19 @@ func (wm *WorkerManager) Run() {
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || len(wm.runnings) > 0 || !done {
 		select {
 		case j := <-wm.jobChan:
-			Log("wait: %s (%d)", j.n.Output, j.numDeps)
+			Logf("wait: %s (%d)", j.n.Output, j.numDeps)
 			j.id = len(wm.jobs) + 1
 			wm.jobs = append(wm.jobs, j)
 			wm.maybePushToReadyQueue(j)
 		case jr := <-wm.resultChan:
-			Log("done: %s", jr.j.n.Output)
+			Logf("done: %s", jr.j.n.Output)
 			delete(wm.busyWorkers, jr.w)
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
 			wm.finishCnt++
 		case af := <-wm.newDepChan:
 			wm.handleNewDep(af.j, af.neededBy)
-			Log("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
+			Logf("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
 		case pr := <-wm.paraChan:
 			if pr.status < 0 && pr.signal < 0 {
 				j := wm.runnings[pr.output]
@@ -400,14 +400,14 @@ func (wm *WorkerManager) Run() {
 			if numBusy > jobsFlag {
 				numBusy = jobsFlag
 			}
-			Log("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), jobsFlag-numBusy, numBusy)
+			Logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), jobsFlag-numBusy, numBusy)
 		} else {
-			Log("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
+			Logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
 		}
 	}
 
 	if useParaFlag {
-		Log("Wait for para to finish")
+		Logf("Wait for para to finish")
 		wm.para.Wait()
 	} else {
 		for _, w := range wm.freeWorkers {

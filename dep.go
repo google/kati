@@ -133,8 +133,8 @@ func (db *DepBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if len(outputs) != 1 {
 		panic(fmt.Sprintf("Implicit rule should have only one output but %q", outputs))
 	}
-	Log("merge? %q", db.ruleVars)
-	Log("merge? %q", outputs[0])
+	Logf("merge? %q", db.ruleVars)
+	Logf("merge? %q", outputs[0])
 	ivars, present := db.ruleVars[outputs[0]]
 	if !present {
 		return vars
@@ -142,7 +142,7 @@ func (db *DepBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if vars == nil {
 		return ivars
 	}
-	Log("merge!")
+	Logf("merge!")
 	v := make(Vars)
 	v.Merge(ivars)
 	v.Merge(vars)
@@ -223,7 +223,7 @@ func (db *DepBuilder) pickRule(output string) (*Rule, Vars, bool) {
 }
 
 func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
-	Log("Evaluating command: %s", output)
+	Logf("Evaluating command: %s", output)
 	db.nodeCnt++
 	if db.nodeCnt%100 == 0 {
 		db.reportStats()
@@ -278,7 +278,7 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 
 	var children []*DepNode
 	var actualInputs []string
-	Log("Evaluating command: %s inputs:%q", output, rule.inputs)
+	Logf("Evaluating command: %s inputs:%q", output, rule.inputs)
 	for _, input := range rule.inputs {
 		if len(rule.outputPatterns) > 0 {
 			if len(rule.outputPatterns) > 1 {

@@ -184,7 +184,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	vars := make(Vars)
 	for _, env := range os.Environ() {
 		kv := strings.SplitN(env, "=", 2)
-		Log("envvar %q", kv)
+		Logf("envvar %q", kv)
 		if len(kv) < 2 {
 			panic(fmt.Sprintf("A weird environ variable %q", kv))
 		}
@@ -196,7 +196,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	vars.Assign("MAKEFILE_LIST", SimpleVar{value: []byte{}, origin: "file"})
 	for _, v := range clvars {
 		kv := strings.SplitN(v, "=", 2)
-		Log("cmdlinevar %q", kv)
+		Logf("cmdlinevar %q", kv)
 		if len(kv) < 2 {
 			panic(fmt.Sprintf("unexpected command line var %q", kv))
 		}

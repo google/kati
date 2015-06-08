@@ -22,7 +22,7 @@ func LogStats(f string, a ...interface{}) {
 	LogAlways(f, a...)
 }
 
-func Log(f string, a ...interface{}) {
+func Logf(f string, a ...interface{}) {
 	if !katiLogFlag {
 		return
 	}
