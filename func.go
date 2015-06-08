@@ -433,41 +433,23 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	if ev.avoidIO {
+	t := time.Now()
+	if ev.avoidIO && !useWildcardCache {
 		ev.hasIO = true
 		w.Write([]byte("$(/bin/ls -d "))
 		w.Write(abuf.Bytes())
 		w.Write([]byte(" 2> /dev/null)"))
+		addStats("wildcard", tmpval(abuf.Bytes()), t)
+		freeBuf(abuf)
 		return
 	}
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		pat := string(ws.Bytes())
-		if strings.Contains(pat, "..") {
-			// For some reason, go's Glob normalizes
-			// foo/../bar to bar. We ask shell to expand
-			// a glob to avoid this.
-			cmdline := []string{"/bin/sh", "-c", "/bin/ls -d " + pat}
-			cmd := exec.Cmd{
-				Path: cmdline[0],
-				Args: cmdline,
-			}
-			// Ignore errors.
-			out, _ := cmd.Output()
-			if len(trimSpaceBytes(out)) > 0 {
-				sw.Write(formatCommandOutput(out))
-			}
-		} else {
-			files, err := filepath.Glob(string(ws.Bytes()))
-			if err != nil {
-				panic(err)
-			}
-			for _, file := range files {
-				sw.WriteString(file)
-			}
-		}
+		wildcard(&sw, pat)
 	}
+	addStats("wildcard", tmpval(abuf.Bytes()), t)
 	freeBuf(abuf)
 }
 

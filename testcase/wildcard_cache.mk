@@ -1,4 +1,3 @@
-# TODO
 # maybe, make has wildcard cache at startup time?
 files = $(wildcard *,*)
 
