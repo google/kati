@@ -19,7 +19,7 @@ func addStats(name string, v Value, t time.Time) {
 	if !katiEvalStatsFlag {
 		return
 	}
-	d := time.Now().Sub(t)
+	d := time.Since(t)
 	key := fmt.Sprintf("%s:%s", name, v.String())
 	s := stats[key]
 	if d > s.Longest {
