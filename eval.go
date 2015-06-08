@@ -10,16 +10,18 @@ import (
 	"time"
 )
 
+type FileState int
+
 const (
-	FILE_EXISTS       = 0
-	FILE_NOT_EXISTS   = 1
-	FILE_INCONSISTENT = 2 // Modified during kati is running.
+	FileExists FileState = iota
+	FileNotExists
+	FileInconsistent // Modified during kati is running.
 )
 
 type ReadMakefile struct {
 	Filename string
 	Hash     [sha1.Size]byte
-	State    int32
+	State    FileState
 }
 
 type EvalResult struct {
@@ -238,6 +240,7 @@ func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
+// EvaluateVar evaluates variable named name.
 // Only for a few special uses such as getting SHELL and handling
 // export/unexport.
 func (ev *Evaluator) EvaluateVar(name string) string {
@@ -251,7 +254,7 @@ func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	defer func() {
 		addStats("include", literal(fname), t)
 	}()
-	mk, err, ok := LookupMakefileCache(fname)
+	mk, ok, err := LookupMakefileCache(fname)
 	if !ok {
 		Logf("Reading makefile %q", fname)
 		mk, err = ParseMakefile(c, fname)
@@ -269,7 +272,7 @@ func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	return nil
 }
 
-func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st int32) {
+func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st FileState) {
 	if !useCache {
 		return
 	}
@@ -278,20 +281,20 @@ func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st int32) {
 	rm, present := ev.readMks[fn]
 	if present {
 		switch rm.State {
-		case FILE_EXISTS:
-			if st != FILE_EXISTS {
+		case FileExists:
+			if st != FileExists {
 				Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
 			} else if !bytes.Equal(h[:], rm.Hash[:]) {
 				Warn(ev.filename, ev.lineno, "%s was modified after the previous read", fn)
-				ev.readMks[fn].State = FILE_INCONSISTENT
+				ev.readMks[fn].State = FileInconsistent
 			}
 			return
-		case FILE_NOT_EXISTS:
-			if st != FILE_NOT_EXISTS {
+		case FileNotExists:
+			if st != FileNotExists {
 				Warn(ev.filename, ev.lineno, "%s was created after the previous read", fn)
-				ev.readMks[fn].State = FILE_INCONSISTENT
+				ev.readMks[fn].State = FileInconsistent
 			}
-		case FILE_INCONSISTENT:
+		case FileInconsistent:
 			return
 		}
 	} else {
@@ -340,11 +343,11 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
-				ev.updateReadMakefile(fn, nil, FILE_NOT_EXISTS)
+				ev.updateReadMakefile(fn, nil, FileNotExists)
 				continue
 			}
 		}
-		ev.updateReadMakefile(fn, c, FILE_EXISTS)
+		ev.updateReadMakefile(fn, c, FileExists)
 		err = ev.evalIncludeFile(fn, c)
 		if err != nil {
 			panic(err)
@@ -428,9 +431,9 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 		}
 	}()
 
-	makefile_list := vars.Lookup("MAKEFILE_LIST")
-	makefile_list = makefile_list.Append(ev, mk.filename)
-	ev.outVars.Assign("MAKEFILE_LIST", makefile_list)
+	makefileList := vars.Lookup("MAKEFILE_LIST")
+	makefileList = makefileList.Append(ev, mk.filename)
+	ev.outVars.Assign("MAKEFILE_LIST", makefileList)
 
 	for _, stmt := range mk.stmts {
 		ev.eval(stmt)

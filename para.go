@@ -12,9 +12,8 @@ import (
 func btoi(b bool) int {
 	if b {
 		return 1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func sendMsg(w io.Writer, data []byte) {

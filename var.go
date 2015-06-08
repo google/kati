@@ -58,7 +58,7 @@ func (v TargetSpecificVar) Serialize() SerializableVar {
 }
 
 func (v TargetSpecificVar) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_TSV)
+	dumpByte(w, ValueTypeTSV)
 	dumpString(w, v.op)
 	v.v.Dump(w)
 }
@@ -85,7 +85,7 @@ func (v SimpleVar) Serialize() SerializableVar {
 	}
 }
 func (v SimpleVar) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_SIMPLE)
+	dumpByte(w, ValueTypeSimple)
 	dumpBytes(w, v.value)
 	dumpString(w, v.origin)
 }
@@ -131,7 +131,7 @@ func (v RecursiveVar) Serialize() SerializableVar {
 	}
 }
 func (v RecursiveVar) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_RECURSIVE)
+	dumpByte(w, ValueTypeRecursive)
 	v.expr.Dump(w)
 	dumpString(w, v.origin)
 }
@@ -171,24 +171,24 @@ func (v RecursiveVar) AppendVar(ev *Evaluator, val Value) Var {
 
 type UndefinedVar struct{}
 
-func (_ UndefinedVar) Flavor() string  { return "undefined" }
-func (_ UndefinedVar) Origin() string  { return "undefined" }
-func (_ UndefinedVar) IsDefined() bool { return false }
-func (_ UndefinedVar) String() string  { return "" }
-func (_ UndefinedVar) Eval(_ io.Writer, _ *Evaluator) {
+func (UndefinedVar) Flavor() string  { return "undefined" }
+func (UndefinedVar) Origin() string  { return "undefined" }
+func (UndefinedVar) IsDefined() bool { return false }
+func (UndefinedVar) String() string  { return "" }
+func (UndefinedVar) Eval(_ io.Writer, _ *Evaluator) {
 }
-func (_ UndefinedVar) Serialize() SerializableVar {
+func (UndefinedVar) Serialize() SerializableVar {
 	return SerializableVar{Type: "undefined"}
 }
-func (_ UndefinedVar) Dump(w io.Writer) {
-	dumpByte(w, VALUE_TYPE_UNDEFINED)
+func (UndefinedVar) Dump(w io.Writer) {
+	dumpByte(w, ValueTypeUndefined)
 }
 
-func (_ UndefinedVar) Append(*Evaluator, string) Var {
+func (UndefinedVar) Append(*Evaluator, string) Var {
 	return UndefinedVar{}
 }
 
-func (_ UndefinedVar) AppendVar(_ *Evaluator, val Value) Var {
+func (UndefinedVar) AppendVar(_ *Evaluator, val Value) Var {
 	return UndefinedVar{}
 }
 

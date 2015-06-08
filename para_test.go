@@ -18,8 +18,8 @@ func TestPara(t *testing.T) {
 	para := NewParaWorker(paraChan)
 	go para.Run()
 
-	num_tasks := 100
-	for i := 0; i < num_tasks; i++ {
+	numTasks := 100
+	for i := 0; i < numTasks; i++ {
 		runners := []runner{
 			{
 				output: fmt.Sprintf("%d", i),
@@ -32,7 +32,7 @@ func TestPara(t *testing.T) {
 
 	var started []*ParaResult
 	var results []*ParaResult
-	for len(started) != num_tasks || len(results) != num_tasks {
+	for len(started) != numTasks || len(results) != numTasks {
 		select {
 		case r := <-paraChan:
 			fmt.Printf("started=%d finished=%d\n", len(started), len(results))

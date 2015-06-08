@@ -17,19 +17,19 @@ import (
 )
 
 const (
-	VALUE_TYPE_RECURSIVE = 'R'
-	VALUE_TYPE_SIMPLE    = 'S'
-	VALUE_TYPE_TSV       = 'T'
-	VALUE_TYPE_UNDEFINED = 'U'
-	VALUE_TYPE_ASSIGN    = 'a'
-	VALUE_TYPE_EXPR      = 'e'
-	VALUE_TYPE_FUNC      = 'f'
-	VALUE_TYPE_LITERAL   = 'l'
-	VALUE_TYPE_NOP       = 'n'
-	VALUE_TYPE_PARAMREF  = 'p'
-	VALUE_TYPE_VARREF    = 'r'
-	VALUE_TYPE_VARSUBST  = 's'
-	VALUE_TYPE_TMPVAL    = 't'
+	ValueTypeRecursive = 'R'
+	ValueTypeSimple    = 'S'
+	ValueTypeTSV       = 'T'
+	ValueTypeUndefined = 'U'
+	ValueTypeAssign    = 'a'
+	ValueTypeExpr      = 'e'
+	ValueTypeFunc      = 'f'
+	ValueTypeLiteral   = 'l'
+	ValueTypeNop       = 'n'
+	ValueTypeParamref  = 'p'
+	ValueTypeVarref    = 'r'
+	ValueTypeVarsubst  = 's'
+	ValueTypeTmpval    = 't'
 )
 
 func dumpData(w io.Writer, data []byte) {
@@ -227,7 +227,7 @@ func MakeSerializableGraph(g *DepGraph, roots []string) SerializableGraph {
 	}
 }
 
-func DumpDepGraphAsJson(g *DepGraph, filename string, roots []string) {
+func DumpDepGraphAsJSON(g *DepGraph, filename string, roots []string) {
 	sg := MakeSerializableGraph(g, roots)
 	o, err := json.MarshalIndent(sg, " ", " ")
 	if err != nil {
@@ -430,13 +430,14 @@ func DeserializeNodes(g SerializableGraph) (r []*DepNode) {
 func human(n int) string {
 	if n >= 10*1000*1000*1000 {
 		return fmt.Sprintf("%.2fGB", float32(n)/1000/1000/1000)
-	} else if n >= 10*1000*1000 {
-		return fmt.Sprintf("%.2fMB", float32(n)/1000/1000)
-	} else if n >= 10*1000 {
-		return fmt.Sprintf("%.2fkB", float32(n)/1000)
-	} else {
-		return fmt.Sprintf("%dB", n)
 	}
+	if n >= 10*1000*1000 {
+		return fmt.Sprintf("%.2fMB", float32(n)/1000/1000)
+	}
+	if n >= 10*1000 {
+		return fmt.Sprintf("%.2fkB", float32(n)/1000)
+	}
+	return fmt.Sprintf("%dB", n)
 }
 
 func showSerializedNodesStats(nodes []*SerializableDepNode) {
@@ -550,7 +551,7 @@ func DeserializeGraph(g SerializableGraph) *DepGraph {
 	}
 }
 
-func LoadDepGraphFromJson(filename string) *DepGraph {
+func LoadDepGraphFromJSON(filename string) *DepGraph {
 	f, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -596,10 +597,10 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 
 	g := LoadDepGraph(filename)
 	for _, mk := range g.readMks {
-		if mk.State != FILE_EXISTS && mk.State != FILE_NOT_EXISTS {
+		if mk.State != FileExists && mk.State != FileNotExists {
 			panic(fmt.Sprintf("Internal error: broken state: %d", mk.State))
 		}
-		if mk.State == FILE_NOT_EXISTS {
+		if mk.State == FileNotExists {
 			if exists(mk.Filename) {
 				LogAlways("Cache expired: %s", mk.Filename)
 				return nil
