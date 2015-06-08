@@ -678,7 +678,10 @@ func (f *funcOr) Eval(w io.Writer, ev *Evaluator) {
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 type funcShell struct{ fclosure }
 
-var shellFuncTime time.Duration
+var (
+	shellFuncTime  time.Duration
+	shellFuncCount int
+)
 
 func (f *funcShell) Arity() int { return 1 }
 
@@ -704,10 +707,13 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	if ev.avoidIO && !hasNoIoInShellScript(abuf.Bytes()) {
+		t := time.Now()
 		ev.hasIO = true
 		w.Write([]byte("$("))
 		w.Write(abuf.Bytes())
 		w.Write([]byte{')'})
+		addStats("shell", tmpval(abuf.Bytes()), t)
+		freeBuf(abuf)
 		return
 	}
 	arg := abuf.String()
@@ -722,12 +728,13 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	}
 	t := time.Now()
 	out, err := cmd.Output()
-	shellFuncTime += time.Now().Sub(t)
+	shellFuncTime += time.Since(t)
+	shellFuncCount++
 	if err != nil {
 		Logf("$(shell %q) failed: %q", arg, err)
 	}
-
 	w.Write(formatCommandOutput(out))
+	addStats("shell", literal(arg), t)
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
