@@ -130,11 +130,16 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 	i := sort.Search(len(c.files), func(i int) bool {
 		return c.files[i].path >= dir
 	})
-	Logf("android find cache in dir: %s i=%d/%d", dir, i, len(c.files))
+	Logf("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
 	for ; i < len(c.files); i++ {
-		if c.files[i].path != dir && !strings.HasPrefix(c.files[i].path, dir+"/") {
-			Logf("android find cache in dir: %s different prefix: %s", dir, c.files[i].path)
-			break
+		if c.files[i].path != dir {
+			if !strings.HasPrefix(c.files[i].path, dir) {
+				Logf("android find in dir cache: %s different prefix at %d: %s", dir, i, c.files[i].path)
+				break
+			}
+			if !strings.HasPrefix(c.files[i].path, dir+"/") {
+				continue
+			}
 		}
 		// -not -name '.*'
 		if strings.HasPrefix(filepath.Base(c.files[i].path), ".") {
@@ -148,6 +153,56 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 		name := strings.TrimPrefix(c.files[i].path, dir+"/")
 		name = "./" + name
 		sw.WriteString(name)
-		Logf("android find cache in dir: %s=> %s", dir, name)
+		Logf("android find in dir cache: %s=> %s", dir, name)
 	}
+}
+
+// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
+// returns false if symlink is found.
+func (c *androidFindCacheT) findJavaInDir(sw *ssvWriter, chdir string, root string) bool {
+	chdir = strings.TrimPrefix(chdir, "./")
+	dir := filepath.Join(chdir, root)
+	i := sort.Search(len(c.files), func(i int) bool {
+		return c.files[i].path >= dir
+	})
+	Logf("android find java in dir cache: %s i=%d/%d", dir, i, len(c.files))
+	start := i
+	end := len(c.files)
+	// check symlinks
+	for ; i < len(c.files); i++ {
+		if c.files[i].path != dir {
+			if !strings.HasPrefix(c.files[i].path, dir) {
+				Logf("android find in dir cache: %s different prefix at %d: %s", dir, i, c.files[i].path)
+				end = i
+				break
+			}
+			if !strings.HasPrefix(c.files[i].path, dir+"/") {
+				continue
+			}
+		}
+		if c.files[i].mode&os.ModeSymlink == os.ModeSymlink {
+			Logf("android find java in dir cache: detect symlink %s %v", c.files[i].path, c.files[i].mode)
+			return false
+		}
+	}
+
+	// no symlinks
+	for i := start; i < end; i++ {
+		if c.files[i].path != dir && !strings.HasPrefix(c.files[i].path, dir+"/") {
+			continue
+		}
+		base := filepath.Base(c.files[i].path)
+		// -name "*.java"
+		if filepath.Ext(base) != ".java" {
+			continue
+		}
+		// -not -name ".*"
+		if strings.HasPrefix(base, ".") {
+			continue
+		}
+		name := strings.TrimPrefix(c.files[i].path, chdir+"/")
+		sw.WriteString(name)
+		Logf("android find java in dir cache: %s=> %s", dir, name)
+	}
+	return true
 }

@@ -757,6 +757,14 @@ func (f *funcShell) Compact() Value {
 			dir:       dir,
 		}
 	}
+	if chdir, roots, ok := matchAndroidFindJavaInDir(expr); ok {
+		androidFindCache.init()
+		return &funcShellAndroidFindJavaInDir{
+			funcShell: f,
+			chdir:     chdir,
+			roots:     roots,
+		}
+	}
 	return f
 }
 
@@ -789,16 +797,6 @@ func matchAndroidFindFileInDir(expr Expr) (Value, bool) {
 	return paramref(1), true
 }
 
-// TODO(ukai): pattern:
-// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
-//
-// cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a -name ".svn" -prune \
-// -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
-// -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
-// -a \! -name "*~" -print )
-//
-// echo $1 | tr 'a-zA-Z' 'n-za-mN-ZA-M'
-
 type funcShellAndroidFindFileInDir struct {
 	*funcShell
 	dir Value
@@ -823,6 +821,90 @@ func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) {
 	sw := ssvWriter{w: w}
 	androidFindCache.findInDir(&sw, dir)
 }
+
+// pattern:
+// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
+func matchAndroidFindJavaInDir(expr Expr) (Value, Value, bool) {
+	// literal: "cd "
+	// varref: xxx
+	// literal: " ; find -L "
+	// paramref: 1
+	// literal: " -name "*.java" -and -not -name ".*"
+	if len(expr) != 5 {
+		return nil, nil, false
+	}
+	if expr[0] != literal("cd ") {
+		return nil, nil, false
+	}
+	if _, ok := expr[1].(varref); !ok {
+		return nil, nil, false
+	}
+	if expr[2] != literal(" ; find -L ") {
+		return nil, nil, false
+	}
+	if expr[3] != paramref(1) {
+		return nil, nil, false
+	}
+	if expr[4] != literal(` -name "*.java" -and -not -name ".*"`) {
+		return nil, nil, false
+	}
+	return expr[1], paramref(1), true
+}
+
+type funcShellAndroidFindJavaInDir struct {
+	*funcShell
+	chdir Value
+	roots Value
+}
+
+func (f *funcShellAndroidFindJavaInDir) Eval(w io.Writer, ev *Evaluator) {
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.chdir, f.roots)
+	chdir := string(trimSpaceBytes(fargs[0]))
+	var roots []string
+	hasDotDot := false
+	ws := newWordScanner(fargs[1])
+	for ws.Scan() {
+		root := string(ws.Bytes())
+		if strings.Contains(root, "..") {
+			hasDotDot = true
+		}
+		roots = append(roots, string(ws.Bytes()))
+	}
+	freeBuf(abuf)
+	Logf("shellAndroidFindJavaInDir %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
+	if strings.Contains(chdir, "..") || hasDotDot {
+		Logf("shellAndroidFindJavaInDir contains ..: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	if !androidFindCache.ready() {
+		Logf("shellAndroidFindJavaInDir androidFindCache is not ready: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	buf := newBuf()
+	sw := ssvWriter{w: buf}
+	for _, root := range roots {
+		if !androidFindCache.findJavaInDir(&sw, chdir, root) {
+			freeBuf(buf)
+			Logf("shellAndroidFindJavaInDir androidFindCache couldn't handle: call original shell")
+			f.funcShell.Eval(w, ev)
+			return
+		}
+	}
+	w.Write(buf.Bytes())
+	freeBuf(buf)
+}
+
+// TODO(ukai): pattern:
+//
+// cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a -name ".svn" -prune \
+// -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
+// -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
+// -a \! -name "*~" -print )
+//
+// echo $1 | tr 'a-zA-Z' 'n-za-mN-ZA-M'
 
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
 type funcCall struct{ fclosure }
