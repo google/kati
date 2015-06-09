@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -124,74 +126,99 @@ func (f fileInfoByName) Less(i, j int) bool {
 	return f[i].path < f[j].path
 }
 
-// if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
-func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
-	dir = strings.TrimPrefix(dir, "./")
+var errSkipDir = errors.New("skip dir")
+
+func (c *androidFindCacheT) walk(dir string, walkFn func(int, fileInfo) error) error {
 	i := sort.Search(len(c.files), func(i int) bool {
 		return c.files[i].path >= dir
 	})
 	Logf("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
-	for ; i < len(c.files); i++ {
-		if c.files[i].path != dir {
-			if !strings.HasPrefix(c.files[i].path, dir) {
-				Logf("android find in dir cache: %s different prefix at %d: %s", dir, i, c.files[i].path)
-				break
+	start := i
+	var skipdirs []string
+Loop:
+	for i := start; i < len(c.files); i++ {
+		if c.files[i].path == dir {
+			err := walkFn(i, c.files[i])
+			if err != nil {
+				return err
 			}
-			if !strings.HasPrefix(c.files[i].path, dir+"/") {
-				continue
+			continue
+		}
+		if !strings.HasPrefix(c.files[i].path, dir) {
+			Logf("android find in dir cache: %s end=%d/%d", dir, i, len(c.files))
+			return nil
+		}
+		if !strings.HasPrefix(c.files[i].path, dir+"/") {
+			continue
+		}
+		for _, skip := range skipdirs {
+			if strings.HasPrefix(c.files[i].path, skip+"/") {
+				continue Loop
 			}
 		}
-		// -not -name '.*'
-		if strings.HasPrefix(filepath.Base(c.files[i].path), ".") {
+
+		err := walkFn(i, c.files[i])
+		if err == errSkipDir {
+			Logf("android find in skip dir: %s", c.files[i].path)
+			skipdirs = append(skipdirs, c.files[i].path)
 			continue
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// pattern in repo/android/build/core/definitions.mk
+// find-subdir-assets
+// if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
+func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
+	dir = filepath.Clean(dir)
+	Logf("android find in dir cache: %s", dir)
+	c.walk(dir, func(_ int, fi fileInfo) error {
+		// -not -name '.*'
+		if strings.HasPrefix(filepath.Base(fi.path), ".") {
+			return nil
 		}
 		// -type f and -not -type l
 		// regular type and not symlink
-		if !c.files[i].mode.IsRegular() {
-			continue
+		if !fi.mode.IsRegular() {
+			return nil
 		}
-		name := strings.TrimPrefix(c.files[i].path, dir+"/")
+		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
 		sw.WriteString(name)
 		Logf("android find in dir cache: %s=> %s", dir, name)
-	}
+		return nil
+	})
 }
 
+// pattern in repo/android/build/core/definitions.mk
+// all-java-files-under
 // cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
 // returns false if symlink is found.
 func (c *androidFindCacheT) findJavaInDir(sw *ssvWriter, chdir string, root string) bool {
-	chdir = strings.TrimPrefix(chdir, "./")
+	chdir = filepath.Clean(chdir)
 	dir := filepath.Join(chdir, root)
-	i := sort.Search(len(c.files), func(i int) bool {
-		return c.files[i].path >= dir
-	})
-	Logf("android find java in dir cache: %s i=%d/%d", dir, i, len(c.files))
-	start := i
-	end := len(c.files)
+	Logf("android find java in dir cache: %s %s", chdir, root)
 	// check symlinks
-	for ; i < len(c.files); i++ {
-		if c.files[i].path != dir {
-			if !strings.HasPrefix(c.files[i].path, dir) {
-				Logf("android find in dir cache: %s different prefix at %d: %s", dir, i, c.files[i].path)
-				end = i
-				break
-			}
-			if !strings.HasPrefix(c.files[i].path, dir+"/") {
-				continue
-			}
-		}
-		if c.files[i].mode&os.ModeSymlink == os.ModeSymlink {
+	var matches []int
+	err := c.walk(dir, func(i int, fi fileInfo) error {
+		if fi.mode&os.ModeSymlink == os.ModeSymlink {
 			Logf("android find java in dir cache: detect symlink %s %v", c.files[i].path, c.files[i].mode)
-			return false
+			return fmt.Errorf("symlink %s", fi.path)
 		}
+		matches = append(matches, i)
+		return nil
+	})
+	if err != nil {
+		return false
 	}
-
 	// no symlinks
-	for i := start; i < end; i++ {
-		if c.files[i].path != dir && !strings.HasPrefix(c.files[i].path, dir+"/") {
-			continue
-		}
-		base := filepath.Base(c.files[i].path)
+	for _, i := range matches {
+		fi := c.files[i]
+		base := filepath.Base(fi.path)
 		// -name "*.java"
 		if filepath.Ext(base) != ".java" {
 			continue
@@ -200,9 +227,46 @@ func (c *androidFindCacheT) findJavaInDir(sw *ssvWriter, chdir string, root stri
 		if strings.HasPrefix(base, ".") {
 			continue
 		}
-		name := strings.TrimPrefix(c.files[i].path, chdir+"/")
+		name := strings.TrimPrefix(fi.path, chdir+"/")
 		sw.WriteString(name)
 		Logf("android find java in dir cache: %s=> %s", dir, name)
 	}
 	return true
+}
+
+// pattern: in repo/android/build/core/base_rules.mk
+// java_resource_file_groups+= ...
+// cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a -name ".svn" -prune \
+// -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
+// -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
+// -a \! -name "*~" -print )
+func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string) {
+	Logf("android find java resource in dir cache: %s", dir)
+	c.walk(filepath.Clean(dir), func(_ int, fi fileInfo) error {
+		// -type d -a -name ".svn" -prune
+		if fi.mode.IsDir() && filepath.Base(fi.path) == ".svn" {
+			return errSkipDir
+		}
+		// -type f
+		if !fi.mode.IsRegular() {
+			return nil
+		}
+		// ! -name "*.java" -a ! -name "package.html" -a
+		// ! -name "overview.html" -a ! -name ".*.swp" -a
+		// ! -name ".DS_Store" -a ! -name "*~"
+		base := filepath.Base(fi.path)
+		if filepath.Ext(base) == ".java" ||
+			base == "package.html" ||
+			base == "overview.html" ||
+			(strings.HasPrefix(base, ".") && strings.HasSuffix(base, ".swp")) ||
+			base == ".DS_Store" ||
+			strings.HasSuffix(base, "~") {
+			return nil
+		}
+		name := strings.TrimPrefix(fi.path, dir+"/")
+		name = "./" + name
+		sw.WriteString(name)
+		Logf("android find java resource in dir cache: %s=> %s", dir, name)
+		return nil
+	})
 }

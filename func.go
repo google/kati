@@ -765,10 +765,19 @@ func (f *funcShell) Compact() Value {
 			roots:     roots,
 		}
 	}
+	if dir, ok := matchAndroidFindJavaResourceFileGroup(expr); ok {
+		androidFindCache.init()
+		return &funcShellAndroidFindJavaResourceFileGroup{
+			funcShell: f,
+			dir:       dir,
+		}
+	}
+	Logf("shell compact no match: %s", expr)
 	return f
 }
 
-// pattern:
+// pattern in repo/android/build/core/definitions.mk
+// find-subdir-assets
 // if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
 func matchAndroidFindFileInDir(expr Expr) (Value, bool) {
 	// literal: "if [ -d "
@@ -822,7 +831,8 @@ func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) {
 	androidFindCache.findInDir(&sw, dir)
 }
 
-// pattern:
+// pattern in repo/android/build/core/definitions.mk
+// all-java-files-under
 // cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
 func matchAndroidFindJavaInDir(expr Expr) (Value, Value, bool) {
 	// literal: "cd "
@@ -897,12 +907,70 @@ func (f *funcShellAndroidFindJavaInDir) Eval(w io.Writer, ev *Evaluator) {
 	freeBuf(buf)
 }
 
-// TODO(ukai): pattern:
-//
+// pattern: in repo/android/build/core/base_rules.mk
+// java_resource_file_groups+= ...
 // cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a -name ".svn" -prune \
 // -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
 // -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
 // -a \! -name "*~" -print )
+func matchAndroidFindJavaResourceFileGroup(expr Expr) (Value, bool) {
+	// literal: "cd "
+	// varref: TOP_DIR
+	// varref: LOCAL_PATH
+	// literal: "/"
+	// varref: dir
+	// literal: " && find . -type d -a name ".svn" -prune -o .."
+	if len(expr) != 6 {
+		return nil, false
+	}
+	if expr[0] != literal("cd ") {
+		return nil, false
+	}
+	if _, ok := expr[1].(varref); !ok {
+		return nil, false
+	}
+	if _, ok := expr[2].(varref); !ok {
+		return nil, false
+	}
+	if expr[3] != literal("/") {
+		return nil, false
+	}
+	if _, ok := expr[4].(varref); !ok {
+		return nil, false
+	}
+	if expr[5] != literal(` && find . -type d -a -name ".svn" -prune -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" -a \! -name "*~" -print `) {
+		Logf("shell compact mismatch: expr[5]=%q", expr[5])
+		return nil, false
+	}
+	return expr[1:5], true
+}
+
+type funcShellAndroidFindJavaResourceFileGroup struct {
+	*funcShell
+	dir Value
+}
+
+func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w io.Writer, ev *Evaluator) {
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.dir)
+	dir := string(trimSpaceBytes(fargs[0]))
+	freeBuf(abuf)
+	Logf("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
+	if strings.Contains(dir, "..") {
+		Logf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	if !androidFindCache.ready() {
+		Logf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	sw := ssvWriter{w: w}
+	androidFindCache.findJavaResourceFileGroup(&sw, dir)
+}
+
+// TODO(ukai): pattern:
 //
 // echo $1 | tr 'a-zA-Z' 'n-za-mN-ZA-M'
 
