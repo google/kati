@@ -35,6 +35,7 @@ var (
 	eagerCmdEvalFlag      bool
 	useParaFlag           bool
 	useCache              bool
+	useFindCache          bool
 	useWildcardCache      bool
 	generateNinja         bool
 	ignoreOptionalInclude string
@@ -77,6 +78,7 @@ func parseFlags() {
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	// TODO: Make this default.
 	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
+	flag.BoolVar(&useFindCache, "use_find_cache", false, "Use find cache.")
 	flag.BoolVar(&useWildcardCache, "use_wildcard_cache", true, "Use wildcard cache.")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&ignoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
