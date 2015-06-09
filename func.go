@@ -737,6 +737,93 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	addStats("shell", literal(arg), t)
 }
 
+func (f *funcShell) Compact() Value {
+	if len(f.args)-1 < 1 {
+		return f
+	}
+	if !useFindCache {
+		return f
+	}
+
+	expr, ok := f.args[1].(Expr)
+	if !ok {
+		return f
+	}
+	// hack for android
+	if dir, ok := matchAndroidFindFileInDir(expr); ok {
+		androidFindCache.init()
+		return &funcShellAndroidFindFileInDir{
+			funcShell: f,
+			dir:       dir,
+		}
+	}
+	return f
+}
+
+// pattern:
+// if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
+func matchAndroidFindFileInDir(expr Expr) (Value, bool) {
+	// literal: "if [ -d "
+	// paramref: 1
+	// literal: " ] ; then cd "
+	// paramref: 1
+	// literal: " ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi"
+	if len(expr) != 5 {
+		return nil, false
+	}
+	if expr[0] != literal("if [ -d ") {
+		return nil, false
+	}
+	if expr[1] != paramref(1) {
+		return nil, false
+	}
+	if expr[2] != literal(" ] ; then cd ") {
+		return nil, false
+	}
+	if expr[3] != paramref(1) {
+		return nil, false
+	}
+	if expr[4] != literal(" ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi") {
+		return nil, false
+	}
+	return paramref(1), true
+}
+
+// TODO(ukai): pattern:
+// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
+//
+// cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a -name ".svn" -prune \
+// -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
+// -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
+// -a \! -name "*~" -print )
+//
+// echo $1 | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+
+type funcShellAndroidFindFileInDir struct {
+	*funcShell
+	dir Value
+}
+
+func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) {
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.dir)
+	dir := string(trimSpaceBytes(fargs[0]))
+	freeBuf(abuf)
+	Logf("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
+	if strings.Contains(dir, "..") {
+		Logf("shellAndroidFindFileInDir contains ..: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	if !androidFindCache.ready() {
+		Logf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	sw := ssvWriter{w: w}
+	androidFindCache.findInDir(&sw, dir)
+}
+
 // https://www.gnu.org/software/make/manual/html_node/Call-Function.html#Call-Function
 type funcCall struct{ fclosure }
 
