@@ -764,6 +764,12 @@ func (f *funcShell) Compact() Value {
 		return f
 	}
 	// hack for android
+	if v, ok := matchAndroidRot13(expr); ok {
+		return &funcShellAndroidRot13{
+			funcShell: f,
+			v:         v,
+		}
+	}
 	if dir, ok := matchAndroidFindFileInDir(expr); ok {
 		androidFindCache.init()
 		return &funcShellAndroidFindFileInDir{
@@ -788,6 +794,59 @@ func (f *funcShell) Compact() Value {
 	}
 	Logf("shell compact no match: %s", expr)
 	return f
+}
+
+// pattern in repo/android/build/core/definisions.mk
+// rot13
+// echo $(1) | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+func matchAndroidRot13(expr Expr) (Value, bool) {
+	// literal: "echo "
+	// paramref: 1
+	// literal: " | tr 'a-zA-Z' 'n-za-mN-ZA-M'"
+	if len(expr) != 3 {
+		return nil, false
+	}
+	if expr[0] != literal("echo ") {
+		return nil, false
+	}
+	if expr[1] != paramref(1) {
+		return nil, false
+	}
+	if expr[2] != literal(" | tr 'a-zA-Z' 'n-za-mN-ZA-M'") {
+		return nil, false
+	}
+	return expr[1], true
+}
+
+type funcShellAndroidRot13 struct {
+	*funcShell
+	v Value
+}
+
+func rot13(buf []byte) {
+	for i, b := range buf {
+		// tr 'a-zA-Z' 'n-za-mN-ZA-M'
+		if b >= 'a' && b <= 'z' {
+			b += 'n' - 'a'
+			if b > 'z' {
+				b -= 'z' - 'a' + 1
+			}
+		} else if b >= 'A' && b <= 'Z' {
+			b += 'N' - 'A'
+			if b > 'Z' {
+				b -= 'Z' - 'A' + 1
+			}
+		}
+		buf[i] = b
+	}
+}
+
+func (f *funcShellAndroidRot13) Eval(w io.Writer, ev *Evaluator) {
+	abuf := newBuf()
+	fargs := ev.args(abuf, f.v)
+	rot13(fargs[0])
+	w.Write(fargs[0])
+	freeBuf(abuf)
 }
 
 // pattern in repo/android/build/core/definitions.mk
