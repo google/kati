@@ -110,7 +110,7 @@ func (c *androidFindCacheT) start() {
 	t := time.Now()
 	defer func() {
 		c.scanTime = time.Since(t)
-		Logf("android find cache scan: %v", c.scanTime)
+		LogStats("android find cache scan: %v", c.scanTime)
 	}()
 
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
