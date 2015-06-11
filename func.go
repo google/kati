@@ -1056,6 +1056,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
 	variable := fargs[0]
+	te := traceEvent.begin("call", tmpval(variable))
 	Logf("call %q variable %q", f.args[1], variable)
 	v := ev.LookupVar(string(variable))
 	// Evalualte all arguments first before we modify the table.
@@ -1093,6 +1094,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 		restore()
 	}
 	ev.paramVars = oldParams
+	traceEvent.end(te)
 	Logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 	freeBuf(abuf)
 }
