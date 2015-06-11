@@ -98,14 +98,15 @@ func (c *androidFindCacheT) ready() bool {
 	return c.ok
 }
 
-func (c *androidFindCacheT) init() {
+func (c *androidFindCacheT) init(prunes []string) {
 	c.once.Do(func() {
 		c.mu.Lock()
-		go c.start()
+		go c.start(prunes)
 	})
 }
 
-func (c *androidFindCacheT) start() {
+func (c *androidFindCacheT) start(prunes []string) {
+	Logf("find cache init: %q", prunes)
 	defer c.mu.Unlock()
 	t := time.Now()
 	defer func() {
@@ -114,13 +115,21 @@ func (c *androidFindCacheT) start() {
 	}()
 
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			for _, prune := range prunes {
+				if info.Name() == prune {
+					Logf("find cache prune: %s", path)
+					return filepath.SkipDir
+				}
+			}
+		}
 		c.files = append(c.files, fileInfo{
 			path: strings.TrimPrefix(path, "./"),
 			mode: info.Mode(),
 		})
 		return nil
 	})
-	if err != nil {
+	if err != nil && err != filepath.SkipDir {
 		Logf("error in adnroid find cache: %v", err)
 		c.ok = false
 		return

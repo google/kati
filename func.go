@@ -771,14 +771,14 @@ func (f *funcShell) Compact() Value {
 		}
 	}
 	if dir, ok := matchAndroidFindFileInDir(expr); ok {
-		androidFindCache.init()
+		androidFindCache.init(nil)
 		return &funcShellAndroidFindFileInDir{
 			funcShell: f,
 			dir:       dir,
 		}
 	}
 	if chdir, roots, ok := matchAndroidFindJavaInDir(expr); ok {
-		androidFindCache.init()
+		androidFindCache.init(nil)
 		return &funcShellAndroidFindJavaInDir{
 			funcShell: f,
 			chdir:     chdir,
@@ -786,7 +786,7 @@ func (f *funcShell) Compact() Value {
 		}
 	}
 	if dir, ok := matchAndroidFindJavaResourceFileGroup(expr); ok {
-		androidFindCache.init()
+		androidFindCache.init(nil)
 		return &funcShellAndroidFindJavaResourceFileGroup{
 			funcShell: f,
 			dir:       dir,
