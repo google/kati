@@ -48,21 +48,22 @@ func (t *traceEventT) stop() {
 type event struct {
 	name, v string
 	t       time.Time
+	emit    bool
 }
 
 func (t *traceEventT) begin(name string, v Value) event {
 	var e event
 	e.t = time.Now()
 	if t.f != nil {
-		emit := name == "include"
+		e.emit = name == "include" || name == "shell"
 		if t.pid == 0 {
 			t.pid = os.Getpid()
-		} else if emit {
+		} else if e.emit {
 			fmt.Fprint(t.f, ",\n")
 		}
 		e.name = name
 		e.v = v.String()
-		if emit {
+		if e.emit {
 			ts := e.t.Sub(t.t0)
 			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"B","cat":%q,"name":%q,"args":{}}`,
 				t.pid,
@@ -79,7 +80,7 @@ func (t *traceEventT) end(e event) {
 	if t.f != nil {
 		now := time.Now()
 		ts := now.Sub(t.t0)
-		if e.name == "include" {
+		if e.emit {
 			fmt.Fprint(t.f, ",\n")
 			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"E","cat":%q,"name":%q}`,
 				t.pid,
