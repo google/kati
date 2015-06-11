@@ -54,6 +54,10 @@ type event struct {
 func (t *traceEventT) begin(name string, v Value) event {
 	var e event
 	e.t = time.Now()
+	if t.f != nil || katiEvalStatsFlag {
+		e.name = name
+		e.v = v.String()
+	}
 	if t.f != nil {
 		e.emit = name == "include" || name == "shell"
 		if t.pid == 0 {
@@ -61,8 +65,6 @@ func (t *traceEventT) begin(name string, v Value) event {
 		} else if e.emit {
 			fmt.Fprint(t.f, ",\n")
 		}
-		e.name = name
-		e.v = v.String()
 		if e.emit {
 			ts := e.t.Sub(t.t0)
 			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"B","cat":%q,"name":%q,"args":{}}`,
