@@ -584,3 +584,32 @@ func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
 	// TODO(ukai): per functype?
 	traceEvent.end(te)
 }
+
+type matchVarref struct{}
+
+func (m matchVarref) String() string                  { return "$(match-any)" }
+func (m matchVarref) Eval(w io.Writer, ev *Evaluator) { panic("not implemented") }
+func (m matchVarref) Serialize() SerializableVar      { panic("not implemented") }
+func (m matchVarref) Dump(w io.Writer)                { panic("not implemented") }
+
+func matchExpr(expr, pat Expr) ([]Value, bool) {
+	if len(expr) != len(pat) {
+		return nil, false
+	}
+	var mv matchVarref
+	var matches []Value
+	for i := range expr {
+		if pat[i] == mv {
+			switch expr[i].(type) {
+			case paramref, varref:
+				matches = append(matches, expr[i])
+				continue
+			}
+			return nil, false
+		}
+		if expr[i] != pat[i] {
+			return nil, false
+		}
+	}
+	return matches, true
+}
