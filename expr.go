@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 var (
@@ -150,13 +149,13 @@ func (v varref) String() string {
 }
 
 func (v varref) Eval(w io.Writer, ev *Evaluator) {
-	t := time.Now()
+	te := traceEvent.begin("var", v)
 	buf := newBuf()
 	v.varname.Eval(buf, ev)
 	vv := ev.LookupVar(buf.String())
 	freeBuf(buf)
 	vv.Eval(w, ev)
-	addStats("var", v, t)
+	traceEvent.end(te)
 }
 
 func (v varref) Serialize() SerializableVar {
@@ -178,7 +177,7 @@ func (p paramref) String() string {
 }
 
 func (p paramref) Eval(w io.Writer, ev *Evaluator) {
-	t := time.Now()
+	te := traceEvent.begin("param", p)
 	n := int(p)
 	if n < len(ev.paramVars) {
 		ev.paramVars[n].Eval(w, ev)
@@ -186,7 +185,7 @@ func (p paramref) Eval(w io.Writer, ev *Evaluator) {
 		// out of range?
 		// panic(fmt.Sprintf("out of range %d: %d", n, len(ev.paramVars)))
 	}
-	addStats("param", p, t)
+	traceEvent.end(te)
 }
 
 func (p paramref) Serialize() SerializableVar {
@@ -210,7 +209,7 @@ func (v varsubst) String() string {
 }
 
 func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
-	t := time.Now()
+	te := traceEvent.begin("varsubst", v)
 	buf := newBuf()
 	params := ev.args(buf, v.varname, v.pat, v.subst)
 	vname := string(params[0])
@@ -229,7 +228,7 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 		io.WriteString(w, substRef(pat, subst, val))
 		space = true
 	}
-	addStats("varsubst", v, t)
+	traceEvent.end(te)
 }
 
 func (v varsubst) Serialize() SerializableVar {
@@ -565,7 +564,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 	if compactor, ok := f.(Compactor); ok {
 		fv = compactor.Compact()
 	}
-	if katiEvalStatsFlag {
+	if katiEvalStatsFlag || traceEvent.enabled() {
 		fv = funcstats{fv}
 	}
 	return fv, i, nil
@@ -580,8 +579,8 @@ type funcstats struct {
 }
 
 func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
-	t := time.Now()
+	te := traceEvent.begin("func", f)
 	f.Value.Eval(w, ev)
 	// TODO(ukai): per functype?
-	addStats("func", f, t)
+	traceEvent.end(te)
 }

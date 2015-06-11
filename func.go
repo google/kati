@@ -447,13 +447,13 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	t := time.Now()
+	te := traceEvent.begin("wildcard", tmpval(abuf.Bytes()))
 	if ev.avoidIO && !useWildcardCache {
 		ev.hasIO = true
 		w.Write([]byte("$(/bin/ls -d "))
 		w.Write(abuf.Bytes())
 		w.Write([]byte(" 2> /dev/null)"))
-		addStats("wildcard", tmpval(abuf.Bytes()), t)
+		traceEvent.end(te)
 		freeBuf(abuf)
 		return
 	}
@@ -463,7 +463,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 		pat := string(ws.Bytes())
 		wildcard(&sw, pat)
 	}
-	addStats("wildcard", tmpval(abuf.Bytes()), t)
+	traceEvent.end(te)
 	freeBuf(abuf)
 }
 
@@ -721,12 +721,12 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	if ev.avoidIO && !hasNoIoInShellScript(abuf.Bytes()) {
-		t := time.Now()
+		te := traceEvent.begin("shell", tmpval(abuf.Bytes()))
 		ev.hasIO = true
 		w.Write([]byte("$("))
 		w.Write(abuf.Bytes())
 		w.Write([]byte{')'})
-		addStats("shell", tmpval(abuf.Bytes()), t)
+		traceEvent.end(te)
 		freeBuf(abuf)
 		return
 	}
@@ -740,15 +740,15 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 		Args:   cmdline,
 		Stderr: os.Stderr,
 	}
-	t := time.Now()
+	te := traceEvent.begin("shell", literal(arg))
 	out, err := cmd.Output()
-	shellFuncTime += time.Since(t)
+	shellFuncTime += time.Since(te.t)
 	shellFuncCount++
 	if err != nil {
 		Logf("$(shell %q) failed: %q", arg, err)
 	}
 	w.Write(formatCommandOutput(out))
-	addStats("shell", literal(arg), t)
+	traceEvent.end(te)
 }
 
 func (f *funcShell) Compact() Value {

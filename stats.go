@@ -16,9 +16,81 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"time"
 )
+
+type traceEventT struct {
+	f   io.WriteCloser
+	t0  time.Time
+	pid int
+}
+
+var traceEvent traceEventT
+
+func (t *traceEventT) start(f io.WriteCloser) {
+	t.f = f
+	t.t0 = time.Now()
+	fmt.Fprint(t.f, "[ ")
+}
+
+func (t *traceEventT) enabled() bool {
+	return t.f != nil
+}
+
+func (t *traceEventT) stop() {
+	fmt.Fprint(t.f, "\n]\n")
+	t.f.Close()
+}
+
+type event struct {
+	name, v string
+	t       time.Time
+}
+
+func (t *traceEventT) begin(name string, v Value) event {
+	var e event
+	e.t = time.Now()
+	if t.f != nil {
+		emit := name == "include"
+		if t.pid == 0 {
+			t.pid = os.Getpid()
+		} else if emit {
+			fmt.Fprint(t.f, ",\n")
+		}
+		e.name = name
+		e.v = v.String()
+		if emit {
+			ts := e.t.Sub(t.t0)
+			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"B","cat":%q,"name":%q,"args":{}}`,
+				t.pid,
+				ts.Nanoseconds()/1e3,
+				e.name,
+				e.v,
+			)
+		}
+	}
+	return e
+}
+
+func (t *traceEventT) end(e event) {
+	if t.f != nil {
+		now := time.Now()
+		ts := now.Sub(t.t0)
+		if e.name == "include" {
+			fmt.Fprint(t.f, ",\n")
+			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"E","cat":%q,"name":%q}`,
+				t.pid,
+				ts.Nanoseconds()/1e3,
+				e.name,
+				e.v,
+			)
+		}
+	}
+	addStats(e.name, e.v, e.t)
+}
 
 type statsData struct {
 	Name    string
@@ -29,12 +101,12 @@ type statsData struct {
 
 var stats = map[string]statsData{}
 
-func addStats(name string, v Value, t time.Time) {
+func addStats(name, v string, t time.Time) {
 	if !katiEvalStatsFlag {
 		return
 	}
 	d := time.Since(t)
-	key := fmt.Sprintf("%s:%s", name, v.String())
+	key := fmt.Sprintf("%s:%s", name, v)
 	s := stats[key]
 	if d > s.Longest {
 		s.Longest = d
