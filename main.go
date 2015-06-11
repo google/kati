@@ -37,6 +37,7 @@ var (
 	cpuprofile            string
 	heapprofile           string
 	memstats              string
+	traceEventFile        string
 	katiStatsFlag         bool
 	katiPeriodicStatsFlag bool
 	katiEvalStatsFlag     bool
@@ -84,6 +85,7 @@ func parseFlags() {
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
 	flag.StringVar(&memstats, "kati_memstats", "", "Show memstats with given templates")
+	flag.StringVar(&traceEventFile, "kati_trace_event", "", "write trace event to `file`")
 	flag.BoolVar(&katiStatsFlag, "kati_stats", false, "Show a bunch of statistics")
 	flag.BoolVar(&katiPeriodicStatsFlag, "kati_periodic_stats", false, "Show a bunch of periodic statistics")
 	flag.BoolVar(&katiEvalStatsFlag, "kati_eval_stats", false, "Show eval statistics")
@@ -307,6 +309,14 @@ func main() {
 			t.Execute(&buf, ms)
 			fmt.Println(buf.String())
 		}()
+	}
+	if traceEventFile != "" {
+		f, err := os.Create(traceEventFile)
+		if err != nil {
+			panic(err)
+		}
+		traceEvent.start(f)
+		defer traceEvent.stop()
 	}
 
 	if findCachePrunes != "" {

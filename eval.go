@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type FileState int
@@ -264,9 +263,9 @@ func (ev *Evaluator) EvaluateVar(name string) string {
 }
 
 func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
-	t := time.Now()
+	te := traceEvent.begin("include", literal(fname))
 	defer func() {
-		addStats("include", literal(fname), t)
+		traceEvent.end(te)
 	}()
 	mk, ok, err := LookupMakefileCache(fname)
 	if !ok {
