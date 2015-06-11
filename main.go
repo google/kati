@@ -50,6 +50,7 @@ var (
 	useParaFlag           bool
 	useCache              bool
 	useFindCache          bool
+	findCachePrunes       string
 	useWildcardCache      bool
 	generateNinja         bool
 	ignoreOptionalInclude string
@@ -93,6 +94,8 @@ func parseFlags() {
 	// TODO: Make this default.
 	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
 	flag.BoolVar(&useFindCache, "use_find_cache", false, "Use find cache.")
+	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
+		"space separated prune directories for find cache.")
 	flag.BoolVar(&useWildcardCache, "use_wildcard_cache", true, "Use wildcard cache.")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&ignoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
@@ -304,6 +307,11 @@ func main() {
 			t.Execute(&buf, ms)
 			fmt.Println(buf.String())
 		}()
+	}
+
+	if findCachePrunes != "" {
+		useFindCache = true
+		androidFindCache.init(strings.Fields(findCachePrunes))
 	}
 
 	clvars, targets := parseCommandLine()
