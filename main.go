@@ -53,6 +53,7 @@ var (
 	useFindCache          bool
 	findCachePrunes       string
 	useWildcardCache      bool
+	useShellBuiltins      bool
 	generateNinja         bool
 	ignoreOptionalInclude string
 	gomaDir               string
@@ -99,6 +100,7 @@ func parseFlags() {
 	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
 		"space separated prune directories for find cache.")
 	flag.BoolVar(&useWildcardCache, "use_wildcard_cache", true, "Use wildcard cache.")
+	flag.BoolVar(&useShellBuiltins, "use_shell_builtins", true, "Use shell builtins")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&ignoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
 	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
