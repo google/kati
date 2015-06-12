@@ -170,11 +170,11 @@ func (p *parser) unreadLine(line []byte) {
 }
 
 func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *AssignAST {
-	lhs, _, err := parseExpr(lhsBytes, nil)
+	lhs, _, err := parseExpr(lhsBytes, nil, true)
 	if err != nil {
 		panic(err)
 	}
-	rhs, _, err := parseExpr(rhsBytes, nil)
+	rhs, _, err := parseExpr(rhsBytes, nil, true)
 	if err != nil {
 		panic(err)
 	}
@@ -225,7 +225,7 @@ func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST
 		term = '='
 	}
 
-	v, _, err := parseExpr(expr, nil)
+	v, _, err := parseExpr(expr, nil, true)
 	if err != nil {
 		panic(fmt.Errorf("parse %s:%d %v", p.mk.filename, p.lineno, err))
 	}
@@ -252,7 +252,7 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 }
 
 func (p *parser) parseIfdef(line []byte, oplen int) AST {
-	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil)
+	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil, true)
 	if err != nil {
 		panic(fmt.Errorf("ifdef parse %s:%d %v", p.mk.filename, p.lineno, err))
 	}
@@ -300,14 +300,14 @@ func (p *parser) parseEq(s string, op string) (string, string, bool) {
 		s = s[1 : len(s)-1]
 		term := []byte{','}
 		in := []byte(s)
-		v, n, err := parseExpr(in, term)
+		v, n, err := parseExpr(in, term, false)
 		if err != nil {
 			return "", "", false
 		}
 		lhs := v.String()
 		n++
 		n += skipSpaces(in[n:], nil)
-		v, n, err = parseExpr(in[n:], nil)
+		v, n, err = parseExpr(in[n:], nil, false)
 		if err != nil {
 			return "", "", false
 		}
@@ -328,11 +328,11 @@ func (p *parser) parseIfeq(line string, oplen int) AST {
 		Error(p.mk.filename, p.lineno, `*** invalid syntax in conditional.`)
 	}
 
-	lhs, _, err := parseExpr([]byte(lhsBytes), nil)
+	lhs, _, err := parseExpr([]byte(lhsBytes), nil, true)
 	if err != nil {
 		panic(fmt.Errorf("parse ifeq lhs %s:%d %v", p.mk.filename, p.lineno, err))
 	}
-	rhs, _, err := parseExpr([]byte(rhsBytes), nil)
+	rhs, _, err := parseExpr([]byte(rhsBytes), nil, true)
 	if err != nil {
 		panic(fmt.Errorf("parse ifeq rhs %s:%d %v", p.mk.filename, p.lineno, err))
 	}

@@ -26,6 +26,7 @@ import (
 
 var (
 	errEndOfInput = errors.New("parse: unexpected end of input")
+	errNotLiteral  = errors.New("valueNum: not literal")
 
 	bufFree = sync.Pool{
 		New: func() interface{} { return new(buffer) },
@@ -63,7 +64,6 @@ type Valuer interface {
 }
 
 // literal is literal value.
-// TODO(ukai): always use []byte?
 type literal string
 
 func (s literal) String() string { return string(s) }
@@ -79,7 +79,6 @@ func (s literal) Dump(w io.Writer) {
 }
 
 // tmpval is temporary value.
-// TODO(ukai): Values() returns []Value? (word list?)
 type tmpval []byte
 
 func (t tmpval) String() string { return string(t) }
@@ -249,14 +248,51 @@ func (v varsubst) Dump(w io.Writer) {
 	v.subst.Dump(w)
 }
 
+func str(buf []byte, alloc bool) Value {
+	if alloc {
+		return literal(string(buf))
+	}
+	return tmpval(buf)
+}
+
+func appendStr(expr Expr, buf []byte, alloc bool) Expr {
+	if len(buf) == 0 {
+		return expr
+	}
+	if len(expr) == 0 {
+		return Expr{str(buf, alloc)}
+	}
+	switch v := expr[len(expr)-1].(type) {
+	case literal:
+		v += literal(string(buf))
+		expr[len(expr)-1] = v
+		return expr
+	case tmpval:
+		v = append(v, buf...)
+		expr[len(expr)-1] = v
+		return expr
+	}
+	return append(expr, str(buf, alloc))
+}
+
+func valueNum(v Value) (int, error) {
+	switch v := v.(type) {
+	case literal, tmpval:
+		n, err := strconv.ParseInt(v.String(), 10, 64)
+		return int(n), err
+	}
+	return 0, errNotLiteral
+}
+
 // parseExpr parses expression in `in` until it finds any byte in term.
 // if term is nil, it will parse to end of input.
 // if term is not nil, and it reaches to end of input, return errEndOfInput.
 // it returns parsed value, and parsed length `n`, so in[n-1] is any byte of
 // term, and in[n:] is next input.
-func parseExpr(in, term []byte) (Value, int, error) {
+// if alloc is true, text will be literal (allocate string).
+// otherwise, text will be tmpval on in.
+func parseExpr(in, term []byte, alloc bool) (Value, int, error) {
 	var expr Expr
-	buf := make([]byte, 0, len(in))
 	b := 0
 	i := 0
 	var saveParen byte
@@ -273,28 +309,20 @@ Loop:
 				break Loop
 			}
 			if in[i+1] == '$' {
-				buf = append(buf, in[b:i+1]...)
+				expr = appendStr(expr, in[b:i+1], alloc)
 				i += 2
 				b = i
 				continue
 			}
 			if bytes.IndexByte(term, in[i+1]) >= 0 {
-				buf = append(buf, in[b:i]...)
-				if len(buf) > 0 {
-					expr = append(expr, literal(string(buf)))
-					buf = buf[:0]
-				}
+				expr = appendStr(expr, in[b:i], alloc)
 				expr = append(expr, varref{varname: literal("")})
 				i++
 				b = i
 				break Loop
 			}
-			buf = append(buf, in[b:i]...)
-			if len(buf) > 0 {
-				expr = append(expr, literal(string(buf)))
-				buf = buf[:0]
-			}
-			v, n, err := parseDollar(in[i:])
+			expr = appendStr(expr, in[b:i], alloc)
+			v, n, err := parseDollar(in[i:], alloc)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -321,10 +349,7 @@ Loop:
 		}
 		i++
 	}
-	buf = append(buf, in[b:i]...)
-	if len(buf) > 0 {
-		expr = append(expr, literal(string(buf)))
-	}
+	expr = appendStr(expr, in[b:i], alloc)
 	if i == len(in) && term != nil {
 		return expr, i, errEndOfInput
 	}
@@ -347,7 +372,7 @@ func closeParen(ch byte) byte {
 //   $(expr)
 //   $x
 // it returns parsed value and parsed length.
-func parseDollar(in []byte) (Value, int, error) {
+func parseDollar(in []byte, alloc bool) (Value, int, error) {
 	if len(in) <= 1 {
 		return nil, 0, errors.New("empty expr")
 	}
@@ -363,14 +388,14 @@ func parseDollar(in []byte) (Value, int, error) {
 		if in[1] >= '0' && in[1] <= '9' {
 			return paramref(in[1] - '0'), 2, nil
 		}
-		return varref{varname: literal(string(in[1]))}, 2, nil
+		return varref{varname: str(in[1:2], alloc)}, 2, nil
 	}
 	term := []byte{paren, ':', ' '}
 	var varname Expr
 	i := 2
 Again:
 	for {
-		e, n, err := parseExpr(in[i:], term)
+		e, n, err := parseExpr(in[i:], term, alloc)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -380,40 +405,40 @@ Again:
 		case paren:
 			// ${expr}
 			vname := compactExpr(varname)
-			if vname, ok := vname.(literal); ok {
-				n, err := strconv.ParseInt(string(vname), 10, 64)
-				if err == nil {
-					// ${n}
-					return paramref(n), i + 1, nil
-				}
+			n, err := valueNum(vname)
+			if err == nil {
+				// ${n}
+				return paramref(n), i + 1, nil
 			}
 			return varref{varname: vname}, i + 1, nil
 		case ' ':
 			// ${e ...}
-			if token, ok := e.(literal); ok {
-				funcName := string(token)
+			switch token := e.(type) {
+			case literal, tmpval:
+				funcName := intern(token.String())
 				if f, ok := funcMap[funcName]; ok {
-					return parseFunc(f(), in, i+1, term[:1], funcName)
+					return parseFunc(f(), in, i+1, term[:1], funcName, alloc)
 				}
 			}
 			term = term[:2] // drop ' '
 			continue Again
 		case ':':
 			// ${varname:...}
+			colon := in[i:i+1]
 			term = term[:2]
 			term[1] = '=' // term={paren, '='}.
-			e, n, err := parseExpr(in[i+1:], term)
+			e, n, err := parseExpr(in[i+1:], term, alloc)
 			if err != nil {
 				return nil, 0, err
 			}
 			i += 1 + n
 			if in[i] == paren {
-				varname = append(varname, literal(string(":")), e)
+				varname = appendStr(varname, colon, alloc)
 				return varref{varname: varname}, i + 1, nil
 			}
 			// ${varname:xx=...}
 			pat := e
-			subst, n, err := parseExpr(in[i+1:], term[:1])
+			subst, n, err := parseExpr(in[i+1:], term[:1], alloc)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -485,6 +510,7 @@ func trimLiteralSpace(v Value) Value {
 }
 
 // concatLine concatinates line with "\\\n" in function expression.
+// TODO(ukai): less alloc?
 func concatLine(v Value) Value {
 	switch v := v.(type) {
 	case literal:
@@ -523,8 +549,8 @@ func concatLine(v Value) Value {
 // parseFunc parses function arguments from in[s:] for f.
 // in[0] is '$' and in[s] is space just after func name.
 // in[:n] will be "${func args...}"
-func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, int, error) {
-	f.AddArg(literal(string(in[1 : s-1])))
+func parseFunc(f Func, in []byte, s int, term []byte, funcName string, alloc bool) (Value, int, error) {
+	f.AddArg(str(in[1:s-1], alloc))
 	arity := f.Arity()
 	term = append(term, ',')
 	i := skipSpaces(in[s:], term)
@@ -538,7 +564,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 			// final arguments.
 			term = term[:1] // drop ','
 		}
-		v, n, err := parseExpr(in[i:], term)
+		v, n, err := parseExpr(in[i:], term, alloc)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -597,6 +623,15 @@ func (m matchVarref) Eval(w io.Writer, ev *Evaluator) { panic("not implemented")
 func (m matchVarref) Serialize() SerializableVar      { panic("not implemented") }
 func (m matchVarref) Dump(w io.Writer)                { panic("not implemented") }
 
+func matchValue(expr, pat Value) bool {
+	switch pat := pat.(type) {
+	case literal:
+		return literal(expr.String()) == pat
+	}
+	// TODO: other type match?
+	return false
+}
+
 func matchExpr(expr, pat Expr) ([]Value, bool) {
 	if len(expr) != len(pat) {
 		return nil, false
@@ -612,7 +647,7 @@ func matchExpr(expr, pat Expr) ([]Value, bool) {
 			}
 			return nil, false
 		}
-		if expr[i] != pat[i] {
+		if !matchValue(expr[i], pat[i]) {
 			return nil, false
 		}
 	}
