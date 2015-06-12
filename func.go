@@ -979,13 +979,13 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 	case ":=":
 		// TODO(ukai): compute parsed expr in Compact when f.rhs is
 		// literal? e.g. literal("$(foo)") => varref{literal("foo")}.
-		expr, _, err := parseExpr(rhs, nil)
+		expr, _, err := parseExpr(rhs, nil, false)
 		if err != nil {
 			panic(fmt.Sprintf("eval assign error: %q: %v", f.String(), err))
 		}
-		abuf.Reset()
-		expr.Eval(&abuf, ev)
-		rvalue = SimpleVar{value: tmpval(abuf.Bytes()), origin: "file"}
+		var vbuf bytes.Buffer
+		expr.Eval(&vbuf, ev)
+		rvalue = SimpleVar{value: tmpval(vbuf.Bytes()), origin: "file"}
 	case "=":
 		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":

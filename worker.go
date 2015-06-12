@@ -126,7 +126,7 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 		return []runner{r}
 	}
 	// TODO(ukai): parse once more earlier?
-	expr, _, err := parseExpr([]byte(r.cmd), nil)
+	expr, _, err := parseExpr([]byte(r.cmd), nil, false)
 	if err != nil {
 		panic(fmt.Errorf("parse cmd %q: %v", r.cmd, err))
 	}

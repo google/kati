@@ -281,7 +281,7 @@ func TestParseExpr(t *testing.T) {
 			},
 		},
 	} {
-		val, _, err := parseExpr([]byte(tc.in), nil)
+		val, _, err := parseExpr([]byte(tc.in), nil, true)
 		if tc.isErr {
 			if err == nil {
 				t.Errorf(`parseExpr(%q)=_, _, nil; want error`, tc.in)

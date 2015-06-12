@@ -105,7 +105,7 @@ func (v SimpleVar) Dump(w io.Writer) {
 }
 
 func (v SimpleVar) Append(ev *Evaluator, s string) Var {
-	val, _, err := parseExpr([]byte(s), nil)
+	val, _, err := parseExpr([]byte(s), nil, false)
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +157,7 @@ func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
 	} else {
 		expr = Expr{v.expr, literal(" ")}
 	}
-	sv, _, err := parseExpr([]byte(s), nil)
+	sv, _, err := parseExpr([]byte(s), nil, true)
 	if err != nil {
 		panic(err)
 	}
@@ -175,7 +175,7 @@ func (v RecursiveVar) AppendVar(ev *Evaluator, val Value) Var {
 	buf.WriteString(v.expr.String())
 	buf.WriteByte(' ')
 	buf.WriteString(val.String())
-	e, _, err := parseExpr(buf.Bytes(), nil)
+	e, _, err := parseExpr(buf.Bytes(), nil, true)
 	if err != nil {
 		panic(err)
 	}

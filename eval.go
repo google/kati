@@ -167,7 +167,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 
 	if assign != nil {
 		if ast.term == ';' {
-			nexpr, _, err := parseExpr(ast.afterTerm, nil)
+			nexpr, _, err := parseExpr(ast.afterTerm, nil, false)
 			if err != nil {
 				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 			}
@@ -325,7 +325,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	ev.lineno = ast.lineno
 
 	Logf("%s:%d include %q", ev.filename, ev.lineno, ast.expr)
-	v, _, err := parseExpr([]byte(ast.expr), nil)
+	v, _, err := parseExpr([]byte(ast.expr), nil, false)
 	if err != nil {
 		panic(err)
 	}
@@ -413,7 +413,7 @@ func (ev *Evaluator) evalExport(ast *ExportAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	v, _, err := parseExpr(ast.expr, nil)
+	v, _, err := parseExpr(ast.expr, nil, false)
 	if err != nil {
 		panic(err)
 	}
