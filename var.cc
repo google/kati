@@ -1,5 +1,6 @@
 #include "var.h"
 
+#include "log.h"
 #include "value.h"
 
 UndefinedVar kUndefinedBuf;
@@ -11,12 +12,23 @@ Var::Var() {
 Var::~Var() {
 }
 
+void Var::AppendVar(Evaluator*, Value*) {
+  CHECK(false);
+}
+
 SimpleVar::SimpleVar(shared_ptr<string> v, const char* origin)
     : v_(v), origin_(origin) {
 }
 
 void SimpleVar::Eval(Evaluator*, string* s) const {
   *s += *v_;
+}
+
+void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
+  shared_ptr<string> s = make_shared<string>(*v_);
+  s->push_back(' ');
+  v->Eval(ev, s.get());
+  v_ = s;
 }
 
 string SimpleVar::DebugString() const {
@@ -29,6 +41,10 @@ RecursiveVar::RecursiveVar(Value* v, const char* origin)
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   v_->Eval(ev, s);
+}
+
+void RecursiveVar::AppendVar(Evaluator*, Value* v) {
+  v_ = NewExpr3(v_, NewLiteral(" "), v);
 }
 
 string RecursiveVar::DebugString() const {

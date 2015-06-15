@@ -387,3 +387,15 @@ string JoinValues(const vector<Value*> vals, const char* sep) {
   }
   return JoinStrings(val_strs, sep);
 }
+
+Value* NewExpr3(Value* v1, Value* v2, Value* v3) {
+  Expr* e = new Expr();
+  e->AddValue(v1);
+  e->AddValue(v2);
+  e->AddValue(v3);
+  return e;
+}
+
+Value* NewLiteral(const char* s) {
+  return new Literal(s);
+}
