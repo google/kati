@@ -254,3 +254,12 @@ func reverse(s string) string {
 	}
 	return string(r)
 }
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}

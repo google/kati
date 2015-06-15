@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -82,9 +83,10 @@ type fileInfo struct {
 
 type androidFindCacheT struct {
 	once     sync.Once
-	mu       sync.Mutex
-	ok       bool
+	filesch  chan []fileInfo
+	leavesch chan []fileInfo
 	files    []fileInfo
+	leaves   []fileInfo
 	scanTime time.Duration
 }
 
@@ -93,53 +95,143 @@ var (
 )
 
 func (c *androidFindCacheT) ready() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.ok
+	if c.files != nil {
+		return true
+	}
+	select {
+	case c.files = <-c.filesch:
+	}
+	return c.files != nil
 }
 
-func (c *androidFindCacheT) init(prunes []string) {
+func (c *androidFindCacheT) leavesReady() bool {
+	if c.leaves != nil {
+		return true
+	}
+	select {
+	case c.leaves = <-c.leavesch:
+	}
+	return c.leaves != nil
+}
+
+func (c *androidFindCacheT) init(prunes, leaves []string) {
 	c.once.Do(func() {
-		c.mu.Lock()
-		go c.start(prunes)
+		c.filesch = make(chan []fileInfo, 1)
+		c.leavesch = make(chan []fileInfo, 1)
+		go c.start(prunes, leaves)
 	})
 }
 
-func (c *androidFindCacheT) start(prunes []string) {
-	Logf("find cache init: %q", prunes)
-	defer c.mu.Unlock()
-	te := traceEvent.begin("findcache", "init", traceEventFindCache)
+func (c *androidFindCacheT) start(prunes, leafNames []string) {
+	Logf("find cache init: prunes=%q leafNames=%q", prunes, leafNames)
+	te := traceEvent.begin("findcache", literal("init"), traceEventFindCache)
 	defer func() {
 		traceEvent.end(te)
 		c.scanTime = time.Since(te.t)
 		LogStats("android find cache scan: %v", c.scanTime)
 	}()
 
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			for _, prune := range prunes {
-				if info.Name() == prune {
-					Logf("find cache prune: %s", path)
-					return filepath.SkipDir
+	dirs := make(chan string, 32)
+	filech := make(chan fileInfo, 1000)
+	leafch := make(chan fileInfo, 1000)
+	var wg sync.WaitGroup
+	numWorker := runtime.NumCPU() - 1
+	wg.Add(numWorker)
+	for i := 0; i < numWorker; i++ {
+		go func() {
+			defer wg.Done()
+			for dir := range dirs {
+				err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+					if info.IsDir() {
+						for _, prune := range prunes {
+							if info.Name() == prune {
+								Logf("find cache prune: %s", path)
+								return filepath.SkipDir
+							}
+						}
+						leafch <- fileInfo{
+							path: path,
+							mode: info.Mode(),
+						}
+					}
+					filech <- fileInfo{
+						path: path,
+						mode: info.Mode(),
+					}
+					for _, leaf := range leafNames {
+						if info.Name() == leaf {
+							Logf("find cache leaf: %s", path)
+							leafch <- fileInfo{
+								path: path,
+								mode: info.Mode(),
+							}
+							break
+						}
+					}
+					return nil
+				})
+				if err != nil && err != filepath.SkipDir {
+					Logf("error in adnroid find cache: %v", err)
+					close(c.filesch)
+					close(c.leavesch)
+					return
 				}
 			}
+		}()
+	}
+
+	go func() {
+		leavesTe := traceEvent.begin("findcache", literal("leaves"), traceEventFindCacheLeaves)
+		var leaves []fileInfo
+		for leaf := range leafch {
+			leaves = append(leaves, leaf)
 		}
-		c.files = append(c.files, fileInfo{
-			path: strings.TrimPrefix(path, "./"),
-			mode: info.Mode(),
-		})
-		return nil
-	})
-	if err != nil && err != filepath.SkipDir {
-		Logf("error in adnroid find cache: %v", err)
-		c.ok = false
+		// TODO(ukai): remove directory that doesn't have leaf names in subdirs.
+		sort.Sort(fileInfoByLeaf(leaves))
+		c.leavesch <- leaves
+		traceEvent.end(leavesTe)
+		for i, leaf := range leaves {
+			Logf("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
+		}
+	}()
+
+	go func() {
+		filesTe := traceEvent.begin("findcache", literal("files"), traceEventFindCacheFiles)
+		var files []fileInfo
+		for file := range filech {
+			files = append(files, file)
+		}
+		sort.Sort(fileInfoByName(files))
+		c.filesch <- files
+		traceEvent.end(filesTe)
+		for i, fi := range files {
+			Logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
+		}
+	}()
+
+	curdir, err := os.Open(".")
+	if err != nil {
+		Logf("open . failed: %v", err)
+		close(c.filesch)
+		close(c.leavesch)
 		return
 	}
-	sort.Sort(fileInfoByName(c.files))
-	for i, fi := range c.files {
-		Logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
+	names, err := curdir.Readdirnames(-1)
+	if err != nil {
+		Logf("readdir . failed: %v", err)
+		close(c.filesch)
+		close(c.leavesch)
+		return
 	}
-	c.ok = true
+	curdir.Close()
+
+	for _, name := range names {
+		dirs <- name
+	}
+	close(dirs)
+	wg.Wait()
+	close(filech)
+	close(leafch)
 }
 
 type fileInfoByName []fileInfo
@@ -147,6 +239,29 @@ type fileInfoByName []fileInfo
 func (f fileInfoByName) Len() int      { return len(f) }
 func (f fileInfoByName) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
 func (f fileInfoByName) Less(i, j int) bool {
+	return f[i].path < f[j].path
+}
+
+type fileInfoByLeaf []fileInfo
+
+func (f fileInfoByLeaf) Len() int      { return len(f) }
+func (f fileInfoByLeaf) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
+func (f fileInfoByLeaf) Less(i, j int) bool {
+	di := strings.Count(f[i].path, "/")
+	dj := strings.Count(f[j].path, "/")
+	if di != dj {
+		return di < dj
+	}
+	diri := filepath.Dir(f[i].path)
+	dirj := filepath.Dir(f[j].path)
+	if diri != dirj {
+		return diri < dirj
+	}
+	mdi := f[i].mode & os.ModeDir
+	mdj := f[j].mode & os.ModeDir
+	if mdi != mdj {
+		return mdi < mdj
+	}
 	return f[i].path < f[j].path
 }
 
@@ -293,4 +408,51 @@ func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string)
 		Logf("android find java resource in dir cache: %s=> %s", dir, name)
 		return nil
 	})
+}
+
+func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes []string, mindepth int) bool {
+	var dirs []string
+	topdepth := 1 + strings.Count(dir, "/")
+	dirs = append(dirs, dir)
+	for len(dirs) > 0 {
+		dir = filepath.Clean(dirs[0]) + "/"
+		dirs = dirs[1:]
+		if dir == "./" {
+			dir = ""
+		}
+		depth := strings.Count(dir, "/")
+		// Logf("android findleaves dir=%q depth=%d dirs=%q", dir, depth, dirs)
+		i := sort.Search(len(c.leaves), func(i int) bool {
+			di := strings.Count(c.leaves[i].path, "/")
+			if di != depth {
+				return di >= depth
+			}
+			return c.leaves[i].path >= dir
+		})
+		Logf("android findleaves dir=%q i=%d/%d", dir, i, len(c.leaves))
+
+	Scandir:
+		for ; i < len(c.leaves); i++ {
+			if dir == "" && strings.Contains(c.leaves[i].path, "/") {
+				break
+			}
+			if !strings.HasPrefix(c.leaves[i].path, dir) {
+				break
+			}
+			if mindepth < 0 || depth >= topdepth+mindepth {
+				if !c.leaves[i].mode.IsDir() && filepath.Base(c.leaves[i].path) == name {
+					n := "./" + c.leaves[i].path
+					sw.WriteString(n)
+					Logf("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
+					break Scandir
+				}
+			}
+			if c.leaves[i].mode.IsDir() {
+				dirs = append(dirs, c.leaves[i].path)
+			}
+		}
+		// Logf("android findleaves next dirs=%q", dirs)
+	}
+	Logf("android findleave done")
+	return true
 }

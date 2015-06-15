@@ -447,7 +447,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wildcard", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	te := traceEvent.begin("wildcard", string(abuf.Bytes()), traceEventMain)
+	te := traceEvent.begin("wildcard", tmpval(abuf.Bytes()), traceEventMain)
 	if ev.avoidIO && !useWildcardCache {
 		ev.hasIO = true
 		w.Write([]byte("$(/bin/ls -d "))
@@ -721,7 +721,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	if ev.avoidIO && !hasNoIoInShellScript(abuf.Bytes()) {
-		te := traceEvent.begin("shell", string(abuf.Bytes()), traceEventMain)
+		te := traceEvent.begin("shell", tmpval(abuf.Bytes()), traceEventMain)
 		ev.hasIO = true
 		w.Write([]byte("$("))
 		w.Write(abuf.Bytes())
@@ -740,7 +740,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 		Args:   cmdline,
 		Stderr: os.Stderr,
 	}
-	te := traceEvent.begin("shell", arg, traceEventMain)
+	te := traceEvent.begin("shell", literal(arg), traceEventMain)
 	out, err := cmd.Output()
 	shellFuncTime += time.Since(te.t)
 	shellFuncCount++
@@ -786,7 +786,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	fargs := ev.args(abuf, f.args[1:]...)
 	varname := fargs[0]
 	variable := string(varname)
-	te := traceEvent.begin("call", variable, traceEventMain)
+	te := traceEvent.begin("call", literal(variable), traceEventMain)
 	Logf("call %q variable %q", f.args[1], variable)
 	v := ev.LookupVar(variable)
 	// Evalualte all arguments first before we modify the table.

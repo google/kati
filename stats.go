@@ -33,6 +33,8 @@ type traceEventT struct {
 const (
 	traceEventMain = iota + 1
 	traceEventFindCache
+	traceEventFindCacheLeaves
+	traceEventFindCacheFiles
 )
 
 var traceEvent traceEventT
@@ -59,52 +61,46 @@ type event struct {
 	emit    bool
 }
 
-func (t *traceEventT) begin(name string, v string, tid int) event {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (t *traceEventT) begin(name string, v Value, tid int) event {
 	var e event
 	e.tid = tid
 	e.t = time.Now()
 	if t.f != nil || katiEvalStatsFlag {
 		e.name = name
-		e.v = v
+		e.v = v.String()
 	}
 	if t.f != nil {
 		e.emit = name == "include" || name == "shell" || name == "findcache"
 		if e.emit {
-			if t.pid == 0 {
-				t.pid = os.Getpid()
-			} else {
-				fmt.Fprintf(t.f, ",\n")
-			}
-			ts := e.t.Sub(t.t0)
-			fmt.Fprintf(t.f, `{"pid":%d,"tid":%d,"ts":%d,"ph":"B","cat":%q,"name":%q,"args":{}}`,
-				t.pid,
-				e.tid,
-				ts.Nanoseconds()/1e3,
-				e.name,
-				e.v,
-			)
+			t.emit("B", e, e.t.Sub(t.t0))
 		}
 	}
 	return e
 }
 
-func (t *traceEventT) end(e event) {
+func (t *traceEventT) emit(ph string, e event, ts time.Duration) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	if t.pid == 0 {
+		t.pid = os.Getpid()
+	} else {
+		fmt.Fprintf(t.f, ",\n")
+	}
+	fmt.Fprintf(t.f, `{"pid":%d,"tid":%d,"ts":%d,"ph":%q,"cat":%q,"name":%q,"args":{}}`,
+		t.pid,
+		e.tid,
+		ts.Nanoseconds()/1e3,
+		ph,
+		e.name,
+		e.v,
+	)
+}
+
+func (t *traceEventT) end(e event) {
 	if t.f != nil {
-		now := time.Now()
-		ts := now.Sub(t.t0)
 		if e.emit {
-			fmt.Fprint(t.f, ",\n")
-			fmt.Fprintf(t.f, `{"pid":%d,"tid":%d,"ts":%d,"ph":"E","cat":%q,"name":%q}`,
-				t.pid,
-				e.tid,
-				ts.Nanoseconds()/1e3,
-				e.name,
-				e.v,
-			)
+			t.emit("E", e, time.Since(t.t0))
 		}
 	}
 	addStats(e.name, e.v, e.t)

@@ -149,7 +149,7 @@ func (v varref) String() string {
 }
 
 func (v varref) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("var", v.String(), traceEventMain)
+	te := traceEvent.begin("var", v, traceEventMain)
 	buf := newBuf()
 	v.varname.Eval(buf, ev)
 	vv := ev.LookupVar(buf.String())
@@ -177,7 +177,7 @@ func (p paramref) String() string {
 }
 
 func (p paramref) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("param", p.String(), traceEventMain)
+	te := traceEvent.begin("param", p, traceEventMain)
 	n := int(p)
 	if n < len(ev.paramVars) {
 		ev.paramVars[n].Eval(w, ev)
@@ -209,7 +209,7 @@ func (v varsubst) String() string {
 }
 
 func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("varsubst", v.String(), traceEventMain)
+	te := traceEvent.begin("varsubst", v, traceEventMain)
 	buf := newBuf()
 	params := ev.args(buf, v.varname, v.pat, v.subst)
 	vname := string(params[0])
@@ -584,7 +584,7 @@ type funcstats struct {
 }
 
 func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("func", f.str, traceEventMain)
+	te := traceEvent.begin("func", literal(f.str), traceEventMain)
 	f.Value.Eval(w, ev)
 	// TODO(ukai): per functype?
 	traceEvent.end(te)
