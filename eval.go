@@ -263,7 +263,7 @@ func (ev *Evaluator) EvaluateVar(name string) string {
 }
 
 func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
-	te := traceEvent.begin("include", literal(fname))
+	te := traceEvent.begin("include", fname, traceEventMain)
 	defer func() {
 		traceEvent.end(te)
 	}()

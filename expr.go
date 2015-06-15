@@ -149,7 +149,7 @@ func (v varref) String() string {
 }
 
 func (v varref) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("var", v)
+	te := traceEvent.begin("var", v.String(), traceEventMain)
 	buf := newBuf()
 	v.varname.Eval(buf, ev)
 	vv := ev.LookupVar(buf.String())
@@ -177,7 +177,7 @@ func (p paramref) String() string {
 }
 
 func (p paramref) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("param", p)
+	te := traceEvent.begin("param", p.String(), traceEventMain)
 	n := int(p)
 	if n < len(ev.paramVars) {
 		ev.paramVars[n].Eval(w, ev)
@@ -209,7 +209,7 @@ func (v varsubst) String() string {
 }
 
 func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("varsubst", v)
+	te := traceEvent.begin("varsubst", v.String(), traceEventMain)
 	buf := newBuf()
 	params := ev.args(buf, v.varname, v.pat, v.subst)
 	vname := string(params[0])
@@ -565,7 +565,11 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string) (Value, i
 		fv = compactor.Compact()
 	}
 	if katiEvalStatsFlag || traceEvent.enabled() {
-		fv = funcstats{fv}
+		fv = funcstats{
+			Value: fv,
+			str:   fv.String(),
+		}
+
 	}
 	return fv, i, nil
 }
@@ -576,10 +580,11 @@ type Compactor interface {
 
 type funcstats struct {
 	Value
+	str string
 }
 
 func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
-	te := traceEvent.begin("func", f)
+	te := traceEvent.begin("func", f.str, traceEventMain)
 	f.Value.Eval(w, ev)
 	// TODO(ukai): per functype?
 	traceEvent.end(te)

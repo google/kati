@@ -19,14 +19,21 @@ import (
 	"io"
 	"os"
 	"sort"
+	"sync"
 	"time"
 )
 
 type traceEventT struct {
+	mu  sync.Mutex
 	f   io.WriteCloser
 	t0  time.Time
 	pid int
 }
+
+const (
+	traceEventMain = iota + 1
+	traceEventFindCache
+)
 
 var traceEvent traceEventT
 
@@ -47,28 +54,33 @@ func (t *traceEventT) stop() {
 
 type event struct {
 	name, v string
+	tid     int
 	t       time.Time
 	emit    bool
 }
 
-func (t *traceEventT) begin(name string, v Value) event {
+func (t *traceEventT) begin(name string, v string, tid int) event {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	var e event
+	e.tid = tid
 	e.t = time.Now()
 	if t.f != nil || katiEvalStatsFlag {
 		e.name = name
-		e.v = v.String()
+		e.v = v
 	}
 	if t.f != nil {
-		e.emit = name == "include" || name == "shell"
-		if t.pid == 0 {
-			t.pid = os.Getpid()
-		} else if e.emit {
-			fmt.Fprint(t.f, ",\n")
-		}
+		e.emit = name == "include" || name == "shell" || name == "findcache"
 		if e.emit {
+			if t.pid == 0 {
+				t.pid = os.Getpid()
+			} else {
+				fmt.Fprintf(t.f, ",\n")
+			}
 			ts := e.t.Sub(t.t0)
-			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"B","cat":%q,"name":%q,"args":{}}`,
+			fmt.Fprintf(t.f, `{"pid":%d,"tid":%d,"ts":%d,"ph":"B","cat":%q,"name":%q,"args":{}}`,
 				t.pid,
+				e.tid,
 				ts.Nanoseconds()/1e3,
 				e.name,
 				e.v,
@@ -79,13 +91,16 @@ func (t *traceEventT) begin(name string, v Value) event {
 }
 
 func (t *traceEventT) end(e event) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if t.f != nil {
 		now := time.Now()
 		ts := now.Sub(t.t0)
 		if e.emit {
 			fmt.Fprint(t.f, ",\n")
-			fmt.Fprintf(t.f, `{"pid":%d,"tid":1,"ts":%d,"ph":"E","cat":%q,"name":%q}`,
+			fmt.Fprintf(t.f, `{"pid":%d,"tid":%d,"ts":%d,"ph":"E","cat":%q,"name":%q}`,
 				t.pid,
+				e.tid,
 				ts.Nanoseconds()/1e3,
 				e.name,
 				e.v,
