@@ -108,9 +108,10 @@ func (c *androidFindCacheT) init(prunes []string) {
 func (c *androidFindCacheT) start(prunes []string) {
 	Logf("find cache init: %q", prunes)
 	defer c.mu.Unlock()
-	t := time.Now()
+	te := traceEvent.begin("findcache", "init", traceEventFindCache)
 	defer func() {
-		c.scanTime = time.Since(t)
+		traceEvent.end(te)
+		c.scanTime = time.Since(te.t)
 		LogStats("android find cache scan: %v", c.scanTime)
 	}()
 
