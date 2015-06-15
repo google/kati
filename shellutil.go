@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+var androidDefaultLeafNames = []string{"CleanSpec.mk", "Android.mk"}
+
 var shBuiltins = []struct {
 	name    string
 	pattern Expr
@@ -41,7 +43,7 @@ var shBuiltins = []struct {
 			if v[0] != v[1] {
 				return sh
 			}
-			androidFindCache.init(nil)
+			androidFindCache.init(nil, androidDefaultLeafNames)
 			return &funcShellAndroidFindFileInDir{
 				funcShell: sh,
 				dir:       v[0],
@@ -60,7 +62,7 @@ var shBuiltins = []struct {
 			literal(` -name "*.java" -and -not -name ".*"`),
 		},
 		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil)
+			androidFindCache.init(nil, androidDefaultLeafNames)
 			return &funcShellAndroidFindJavaInDir{
 				funcShell: sh,
 				chdir:     v[0],
@@ -85,10 +87,96 @@ var shBuiltins = []struct {
 			literal(` && find . -type d -a -name ".svn" -prune -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" -a \! -name "*~" -print `),
 		},
 		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil)
+			androidFindCache.init(nil, androidDefaultLeafNames)
 			return &funcShellAndroidFindJavaResourceFileGroup{
 				funcShell: sh,
 				dir:       Expr(v),
+			}
+		},
+	},
+	{
+		name: "android:subdir_cleanspecs",
+		// in repo/android/build/core/cleanspec.mk
+		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git . CleanSpec.mk)
+		pattern: Expr{
+			literal("build/tools/findleaves.py --prune="),
+			matchVarref{},
+			literal(" --prune=.repo --prune=.git . CleanSpec.mk"),
+		},
+		compact: func(sh *funcShell, v []Value) Value {
+			if !contains(androidDefaultLeafNames, "CleanSpec.mk") {
+				return sh
+			}
+			androidFindCache.init(nil, androidDefaultLeafNames)
+			return &funcShellAndroidFindleaves{
+				funcShell: sh,
+				prunes: []Value{
+					v[0],
+					literal(".repo"),
+					literal(".git"),
+				},
+				dirlist:  literal("."),
+				name:     literal("CleanSpec.mk"),
+				mindepth: -1,
+			}
+		},
+	},
+	{
+		name: "android:subdir_makefiles",
+		// in repo/android/build/core/main.mk
+		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git $(subdirs) Android.mk
+		pattern: Expr{
+			literal("build/tools/findleaves.py --prune="),
+			matchVarref{},
+			literal(" --prune=.repo --prune=.git "),
+			matchVarref{},
+			literal(" Android.mk"),
+		},
+		compact: func(sh *funcShell, v []Value) Value {
+			if !contains(androidDefaultLeafNames, "Android.mk") {
+				return sh
+			}
+			androidFindCache.init(nil, androidDefaultLeafNames)
+			return &funcShellAndroidFindleaves{
+				funcShell: sh,
+				prunes: []Value{
+					v[0],
+					literal(".repo"),
+					literal(".git"),
+				},
+				dirlist:  v[1],
+				name:     literal("Android.mk"),
+				mindepth: -1,
+			}
+		},
+	},
+	{
+		name: "android:first-makefiles-under",
+		// in repo/android/build/core/definisions.mk
+		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git \
+		// --mindepth=2 $(1) Android.mk
+		pattern: Expr{
+			literal("build/tools/findleaves.py --prune="),
+			matchVarref{},
+			literal(" --prune=.repo --prune=.git --mindepth=2 "),
+			matchVarref{},
+			literal(" Android.mk"),
+		},
+		compact: func(sh *funcShell, v []Value) Value {
+			if !contains(androidDefaultLeafNames, "Android.mk") {
+				return sh
+			}
+			androidFindCache.init(nil, androidDefaultLeafNames)
+			return &funcShellAndroidFindleaves{
+				funcShell: sh,
+				prunes: []Value{
+					v[0],
+					literal(".repo"),
+					literal(".git"),
+				},
+				dirlist:  v[1],
+				name:     literal("Android.mk"),
+				mindepth: 2,
 			}
 		},
 	},
@@ -219,4 +307,48 @@ func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w io.Writer, ev *Evalua
 	}
 	sw := ssvWriter{w: w}
 	androidFindCache.findJavaResourceFileGroup(&sw, dir)
+}
+
+type funcShellAndroidFindleaves struct {
+	*funcShell
+	prunes   []Value
+	dirlist  Value
+	name     Value
+	mindepth int
+}
+
+func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) {
+	if !androidFindCache.leavesReady() {
+		Logf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
+		f.funcShell.Eval(w, ev)
+		return
+	}
+	abuf := newBuf()
+	var params []Value
+	params = append(params, f.name)
+	params = append(params, f.dirlist)
+	params = append(params, f.prunes...)
+	fargs := ev.args(abuf, params...)
+	name := string(trimSpaceBytes(fargs[0]))
+	var dirs []string
+	ws := newWordScanner(fargs[1])
+	for ws.Scan() {
+		dir := string(ws.Bytes())
+		if strings.Contains(dir, "..") {
+			Logf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
+			f.funcShell.Eval(w, ev)
+			return
+		}
+		dirs = append(dirs, dir)
+	}
+	var prunes []string
+	for _, arg := range fargs[2:] {
+		prunes = append(prunes, string(trimSpaceBytes(arg)))
+	}
+	freeBuf(abuf)
+
+	sw := ssvWriter{w: w}
+	for _, dir := range dirs {
+		androidFindCache.findleaves(&sw, dir, name, prunes, f.mindepth)
+	}
 }

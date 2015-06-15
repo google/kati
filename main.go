@@ -52,6 +52,7 @@ var (
 	useCache              bool
 	useFindCache          bool
 	findCachePrunes       string
+	findCacheLeafNames    string
 	useWildcardCache      bool
 	useShellBuiltins      bool
 	generateNinja         bool
@@ -99,6 +100,8 @@ func parseFlags() {
 	flag.BoolVar(&useFindCache, "use_find_cache", false, "Use find cache.")
 	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
 		"space separated prune directories for find cache.")
+	flag.StringVar(&findCacheLeafNames, "find_cache_leaf_names", "",
+		"space separated leaf names for find cache.")
 	flag.BoolVar(&useWildcardCache, "use_wildcard_cache", true, "Use wildcard cache.")
 	flag.BoolVar(&useShellBuiltins, "use_shell_builtins", true, "Use shell builtins")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
@@ -321,9 +324,12 @@ func main() {
 		defer traceEvent.stop()
 	}
 
+	if findCacheLeafNames != "" {
+		androidDefaultLeafNames = strings.Fields(findCacheLeafNames)
+	}
 	if findCachePrunes != "" {
 		useFindCache = true
-		androidFindCache.init(strings.Fields(findCachePrunes))
+		androidFindCache.init(strings.Fields(findCachePrunes), androidDefaultLeafNames)
 	}
 
 	clvars, targets := parseCommandLine()
