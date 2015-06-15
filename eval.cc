@@ -39,6 +39,7 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
 
   StringPiece lhs = Intern(*ast->lhs->Eval(this));
   Var* rhs = NULL;
+  bool needs_assign = true;
   switch (ast->op) {
     case AssignOp::COLON_EQ:
       rhs = new SimpleVar(ast->rhs->Eval(this), origin);
@@ -51,8 +52,9 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(ast->rhs, origin);
       } else {
-        // TODO
-        abort();
+        prev->AppendVar(this, ast->rhs);
+        rhs = prev;
+        needs_assign = false;
       }
       break;
     }
@@ -69,7 +71,8 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
   }
 
   LOG("Assign: %.*s=%s", SPF(lhs), rhs->DebugString().c_str());
-  vars_->Assign(lhs, rhs);
+  if (needs_assign)
+    vars_->Assign(lhs, rhs);
 }
 
 void Evaluator::EvalRule(const RuleAST* ast) {

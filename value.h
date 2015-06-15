@@ -38,4 +38,8 @@ Value* ParseExpr(StringPiece s, bool is_command);
 
 string JoinValues(const vector<Value*> vals, const char* sep);
 
+Value* NewExpr3(Value* v1, Value* v2, Value* v3);
+
+Value* NewLiteral(const char* s);
+
 #endif  // VALUE_H_

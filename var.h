@@ -21,6 +21,8 @@ class Var : public Evaluable {
   virtual const char* Origin() const = 0;
   virtual bool IsDefined() const { return true; }
 
+  virtual void AppendVar(Evaluator* ev, Value* v);
+
   virtual string DebugString() const = 0;
 
  protected:
@@ -43,6 +45,8 @@ class SimpleVar : public Var {
   }
   virtual void Eval(Evaluator* ev, string* s) const override;
 
+  virtual void AppendVar(Evaluator* ev, Value* v);
+
   string DebugString() const override;
 
  private:
@@ -62,6 +66,8 @@ class RecursiveVar : public Var {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
+
+  virtual void AppendVar(Evaluator* ev, Value* v);
 
   string DebugString() const override;
 
