@@ -411,6 +411,7 @@ func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string)
 }
 
 func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes []string, mindepth int) bool {
+	var found []string
 	var dirs []string
 	topdepth := 1 + strings.Count(dir, "/")
 	dirs = append(dirs, dir)
@@ -446,7 +447,7 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 			if mindepth < 0 || depth >= topdepth+mindepth {
 				if !c.leaves[i].mode.IsDir() && filepath.Base(c.leaves[i].path) == name {
 					n := "./" + c.leaves[i].path
-					sw.WriteString(n)
+					found = append(found, n)
 					Logf("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
 					break Scandir
 				}
@@ -458,5 +459,9 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 		// Logf("android findleaves next dirs=%q", dirs)
 	}
 	Logf("android findleave done")
+	sort.Strings(found)
+	for _, f := range found {
+		sw.WriteString(f)
+	}
 	return true
 }
