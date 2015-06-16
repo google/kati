@@ -41,6 +41,8 @@ class Evaluator {
 
   EvalResult* GetEvalResult();
 
+  const Loc& loc() const { return loc_; }
+
 #if 0
   const vector<Rule*>& rules() const { return rules_; }
   const Vars* vars() const { return vars_; }
@@ -48,6 +50,8 @@ class Evaluator {
     return rule_vars_;
   }
 #endif
+
+  void Error(const string& msg);
 
  private:
   const Vars* in_vars_;
