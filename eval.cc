@@ -129,3 +129,7 @@ EvalResult* Evaluator::GetEvalResult() {
   er->rule_vars.swap(rule_vars_);
   return er;
 }
+
+void Evaluator::Error(const string& msg) {
+  ERROR("%s:%d: %s", loc_.filename, loc_.lineno, msg.c_str());
+}

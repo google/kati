@@ -4,6 +4,7 @@
 
 #include <unordered_map>
 
+#include "eval.h"
 #include "log.h"
 #include "strutil.h"
 
@@ -15,8 +16,21 @@ void BuiltinInfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   fflush(stdout);
 }
 
+void BuiltinWarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+  shared_ptr<string> a = args[0]->Eval(ev);
+  printf("%s:%d: %s\n", ev->loc().filename, ev->loc().lineno, a->c_str());
+  fflush(stdout);
+}
+
+void BuiltinErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+  shared_ptr<string> a = args[0]->Eval(ev);
+  ev->Error(StringPrintf("*** %s.", a->c_str()));
+}
+
 FuncInfo g_func_infos[] = {
   { "info", &BuiltinInfoFunc, 1 },
+  { "warning", &BuiltinWarningFunc, 1 },
+  { "error", &BuiltinErrorFunc, 1 },
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
