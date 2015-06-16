@@ -64,10 +64,23 @@ class Executor {
   void CreateRunners(DepNode* n, vector<Runner*>* runners) {
     unique_ptr<Evaluator> ev(new Evaluator(vars_));
     for (Value* v : n->cmds) {
+      shared_ptr<string> cmd = v->Eval(ev.get());
+      while (true) {
+        size_t index = cmd->find('\n');
+        if (index == string::npos)
+          break;
+
+        Runner* runner = new Runner;
+        runner->output = n->output;
+        runner->cmd = make_shared<string>(cmd->substr(0, index));
+        runners->push_back(runner);
+        cmd = make_shared<string>(cmd->substr(index + 1));
+      }
       Runner* runner = new Runner;
       runner->output = n->output;
-      runner->cmd = v->Eval(ev.get());
+      runner->cmd = cmd;
       runners->push_back(runner);
+      continue;
     }
   }
 
