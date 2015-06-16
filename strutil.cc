@@ -56,7 +56,7 @@ WordWriter::WordWriter(string* o)
 }
 
 void WordWriter::MaybeAddWhitespace() {
-  if (!needs_space_) {
+  if (needs_space_) {
     out_->push_back(' ');
   } else {
     needs_space_ = true;
