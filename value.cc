@@ -179,6 +179,11 @@ class Func : public Value {
       : fi_(fi) {
   }
 
+  ~Func() {
+    for (Value* a : args_)
+      delete a;
+  }
+
   virtual void Eval(Evaluator* ev, string* s) const override {
     LOG("Invoke func %s(%s)", name(), JoinValues(args_, ",").c_str());
     fi_->func(args_, ev, s);
@@ -285,6 +290,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       // ${func ...}
       if (Literal* lit = reinterpret_cast<Literal*>(vname)) {
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
+          delete lit;
           Func* func = new Func(fi);
           return ParseFunc(func, s, i+1, terms, index_out);
         }
