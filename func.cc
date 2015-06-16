@@ -14,22 +14,35 @@ void PatsubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat = args[0]->Eval(ev);
   shared_ptr<string> repl = args[1]->Eval(ev);
   shared_ptr<string> str = args[2]->Eval(ev);
-  bool needs_space = false;
+  WordWriter ww(s);
   for (StringPiece tok : WordScanner(*str)) {
-    if (needs_space)
-      s->push_back(' ');
-    else
-      needs_space = true;
+    ww.MaybeAddWhitespace();
     AppendSubstPattern(tok, *pat, *repl, s);
   }
 }
 
-void StripFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(strip)");
+void StripFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> str = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*str)) {
+    ww.Write(tok);
+  }
 }
 
-void SubstFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(subst)");
+void SubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> pat = args[0]->Eval(ev);
+  shared_ptr<string> repl = args[1]->Eval(ev);
+  shared_ptr<string> str = args[2]->Eval(ev);
+  size_t index = 0;
+  while (index < str->size()) {
+    size_t found = str->find(*pat, index);
+    if (found == string::npos)
+      break;
+    AppendString(StringPiece(*str).substr(index, found - index), s);
+    AppendString(*repl, s);
+    index = found + pat->size();
+  }
+  AppendString(StringPiece(*str).substr(index), s);
 }
 
 void FindstringFunc(const vector<Value*>&, Evaluator*, string*) {

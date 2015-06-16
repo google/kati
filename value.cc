@@ -150,12 +150,9 @@ class VarSubst : public Value {
     shared_ptr<string> value = v->Eval(ev);
     shared_ptr<string> pat = pat_->Eval(ev);
     shared_ptr<string> subst = subst_->Eval(ev);
-    bool needs_space = false;
+    WordWriter ww(s);
     for (StringPiece tok : WordScanner(*value)) {
-      if (needs_space)
-        s->push_back(' ');
-      else
-        needs_space = true;
+      ww.MaybeAddWhitespace();
       AppendSubstRef(tok, *pat, *subst, s);
     }
   }
