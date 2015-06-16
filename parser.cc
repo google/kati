@@ -49,6 +49,7 @@ class Parser {
     make_directives_ = new unordered_map<StringPiece, DirectiveHandler>;
     (*make_directives_)["include"] = &Parser::ParseIncludeAST;
     (*make_directives_)["-include"] = &Parser::ParseIncludeAST;
+    (*make_directives_)["sinclude"] = &Parser::ParseIncludeAST;
 
     shortest_directive_len_ = 9999;
     longest_directive_len_ = 0;
@@ -171,7 +172,7 @@ class Parser {
   void ParseIncludeAST(StringPiece line, StringPiece directive) {
     IncludeAST* ast = new IncludeAST();
     ast->expr = ParseExpr(line, false);
-    ast->op = directive[0] == '-' ? '-' : 0;
+    ast->should_exist = directive[0] == 'i';
     out_asts_->push_back(ast);
   }
 
