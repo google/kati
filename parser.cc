@@ -100,6 +100,10 @@ class Parser {
     }
 
     line = line.StripLeftSpaces();
+
+    if (line[0] == '#')
+      return;
+
     if (HandleDirective(line)) {
       return;
     }
