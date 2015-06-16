@@ -261,6 +261,12 @@ Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
       break;
   }
 
+  if (nargs < f->arity()) {
+    // TODO: Show filename and line number.
+    ERROR("*** insufficient number of arguments (%d) to function `%s'.",
+          nargs - 1, f->name());
+  }
+
   *index_out = i;
   return f;
 }
