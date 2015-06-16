@@ -47,4 +47,18 @@ inline string JoinStrings(vector<String> v, const char* sep) {
   return r;
 }
 
+void AppendString(StringPiece str, string* out);
+
+bool HasPrefix(StringPiece str, StringPiece prefix);
+
+bool HasSuffix(StringPiece str, StringPiece suffix);
+
+StringPiece TrimSuffix(StringPiece str, StringPiece suffix);
+
+void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
+                        string* out);
+
+void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
+                    string* out);
+
 #endif  // STRUTIL_H_

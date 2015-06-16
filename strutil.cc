@@ -74,3 +74,63 @@ StringPiece Intern(StringPiece s) {
   (*g_symtab)[s] = b;
   return s;
 }
+
+void AppendString(StringPiece str, string* out) {
+  out->append(str.begin(), str.end());
+}
+
+bool HasPrefix(StringPiece str, StringPiece prefix) {
+  ssize_t size_diff = str.size() - prefix.size();
+  return size_diff >= 0 && str.substr(0, size_diff) == prefix;
+}
+
+bool HasSuffix(StringPiece str, StringPiece suffix) {
+  ssize_t size_diff = str.size() - suffix.size();
+  return size_diff >= 0 && str.substr(size_diff) == suffix;
+}
+
+StringPiece TrimSuffix(StringPiece str, StringPiece suffix) {
+  ssize_t size_diff = str.size() - suffix.size();
+  if (size_diff < 0 || str.substr(size_diff) != suffix)
+    return str;
+  return str.substr(0, size_diff);
+}
+
+void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
+                        string* out) {
+  size_t pat_percent_index = pat.find('%');
+  if (pat_percent_index == string::npos) {
+    if (str == pat) {
+      AppendString(subst, out);
+      return;
+    } else {
+      AppendString(str, out);
+      return;
+    }
+  }
+
+  if (HasPrefix(str, pat.substr(0, pat_percent_index)) &&
+      HasPrefix(str, pat.substr(pat_percent_index + 1))) {
+    size_t subst_percent_index = subst.find('%');
+    if (subst_percent_index == string::npos) {
+      AppendString(subst, out);
+      return;
+    } else {
+      AppendString(subst.substr(0, subst_percent_index), out);
+      AppendString(str.substr(pat_percent_index,
+                              str.size() - pat_percent_index - 1), out);
+      AppendString(subst.substr(subst_percent_index + 1), out);
+      return;
+    }
+  }
+  AppendString(str, out);
+}
+
+void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
+                    string* out) {
+  if (pat.find('%') != string::npos && subst.find('%') != string::npos)
+    AppendSubstPattern(pat, subst, str, out);
+  StringPiece s = TrimSuffix(str, pat);
+  out->append(s.begin(), s.end());
+  out->append(subst.begin(), subst.end());
+}
