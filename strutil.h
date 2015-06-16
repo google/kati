@@ -31,6 +31,16 @@ class WordScanner {
   StringPiece in_;
 };
 
+class WordWriter {
+ public:
+  explicit WordWriter(string* o);
+  void Write(StringPiece s);
+
+ private:
+  string* out_;
+  bool needs_space_;
+};
+
 void InitSymtab();
 void QuitSymtab();
 StringPiece Intern(StringPiece s);

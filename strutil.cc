@@ -50,6 +50,20 @@ WordScanner::Iterator WordScanner::end() const {
   return iter;
 }
 
+WordWriter::WordWriter(string* o)
+    : out_(o),
+      needs_space_(false) {
+}
+
+void WordWriter::Write(StringPiece s) {
+  if (!needs_space_) {
+    out_->push_back(' ');
+  } else {
+    needs_space_ = true;
+  }
+  AppendString(s, out_);
+}
+
 static unordered_map<StringPiece, char*>* g_symtab;
 
 void InitSymtab() {

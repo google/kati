@@ -154,8 +154,9 @@ class VarSubst : public Value {
     for (StringPiece tok : WordScanner(*value)) {
       if (needs_space)
         s->push_back(' ');
+      else
+        needs_space = true;
       AppendSubstRef(tok, *pat, *subst, s);
-      needs_space = true;
     }
   }
 
