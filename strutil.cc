@@ -55,12 +55,16 @@ WordWriter::WordWriter(string* o)
       needs_space_(false) {
 }
 
-void WordWriter::Write(StringPiece s) {
+void WordWriter::MaybeAddWhitespace() {
   if (!needs_space_) {
     out_->push_back(' ');
   } else {
     needs_space_ = true;
   }
+}
+
+void WordWriter::Write(StringPiece s) {
+  MaybeAddWhitespace();
   AppendString(s, out_);
 }
 

@@ -34,6 +34,7 @@ class WordScanner {
 class WordWriter {
  public:
   explicit WordWriter(string* o);
+  void MaybeAddWhitespace();
   void Write(StringPiece s);
 
  private:
