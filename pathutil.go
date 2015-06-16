@@ -252,8 +252,8 @@ func (f fileInfoByLeaf) Less(i, j int) bool {
 	if di != dj {
 		return di < dj
 	}
-	diri := filepath.Dir(f[i].path)
-	dirj := filepath.Dir(f[j].path)
+	diri := filepath.Dir(f[i].path) + "/"
+	dirj := filepath.Dir(f[j].path) + "/"
 	if diri != dirj {
 		return diri < dirj
 	}
@@ -426,6 +426,10 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 			di := strings.Count(c.leaves[i].path, "/")
 			if di != depth {
 				return di >= depth
+			}
+			diri := filepath.Dir(c.leaves[i].path) + "/"
+			if diri != dir {
+				return diri >= dir
 			}
 			return c.leaves[i].path >= dir
 		})
