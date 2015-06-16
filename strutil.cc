@@ -154,3 +154,15 @@ void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
   out->append(s.begin(), s.end());
   out->append(subst.begin(), subst.end());
 }
+
+string NoLineBreak(const string& s) {
+  size_t index = s.find('\n');
+  if (index == string::npos)
+    return s;
+  string r = s;
+  while (index != string::npos) {
+    r = s.substr(0, index) + "\\n" + s.substr(index + 1);
+    index = s.find('\n', index + 2);
+  }
+  return r;
+}
