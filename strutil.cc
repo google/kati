@@ -81,7 +81,7 @@ void AppendString(StringPiece str, string* out) {
 
 bool HasPrefix(StringPiece str, StringPiece prefix) {
   ssize_t size_diff = str.size() - prefix.size();
-  return size_diff >= 0 && str.substr(0, size_diff) == prefix;
+  return size_diff >= 0 && str.substr(0, prefix.size()) == prefix;
 }
 
 bool HasSuffix(StringPiece str, StringPiece suffix) {
@@ -110,7 +110,7 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
   }
 
   if (HasPrefix(str, pat.substr(0, pat_percent_index)) &&
-      HasPrefix(str, pat.substr(pat_percent_index + 1))) {
+      HasSuffix(str, pat.substr(pat_percent_index + 1))) {
     size_t subst_percent_index = subst.find('%');
     if (subst_percent_index == string::npos) {
       AppendString(subst, out);
@@ -118,7 +118,7 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
     } else {
       AppendString(subst.substr(0, subst_percent_index), out);
       AppendString(str.substr(pat_percent_index,
-                              str.size() - pat_percent_index - 1), out);
+                              str.size() - pat.size() + 1), out);
       AppendString(subst.substr(subst_percent_index + 1), out);
       return;
     }
@@ -128,8 +128,10 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
 
 void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
                     string* out) {
-  if (pat.find('%') != string::npos && subst.find('%') != string::npos)
+  if (pat.find('%') != string::npos && subst.find('%') != string::npos) {
     AppendSubstPattern(pat, subst, str, out);
+    return;
+  }
   StringPiece s = TrimSuffix(str, pat);
   out->append(s.begin(), s.end());
   out->append(subst.begin(), subst.end());
