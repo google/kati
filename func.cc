@@ -10,187 +10,198 @@
 
 namespace {
 
-void BuiltinPatsubstFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(patsubst)");
+void PatsubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> pat = args[0]->Eval(ev);
+  shared_ptr<string> repl = args[1]->Eval(ev);
+  shared_ptr<string> str = args[2]->Eval(ev);
+  bool needs_space = false;
+  for (StringPiece tok : WordScanner(*str)) {
+    if (needs_space)
+      s->push_back(' ');
+    else
+      needs_space = true;
+    AppendSubstPattern(tok, *pat, *repl, s);
+  }
 }
 
-void BuiltinStripFunc(const vector<Value*>&, Evaluator*, string*) {
+void StripFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(strip)");
 }
 
-void BuiltinSubstFunc(const vector<Value*>&, Evaluator*, string*) {
+void SubstFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(subst)");
 }
 
-void BuiltinFindstringFunc(const vector<Value*>&, Evaluator*, string*) {
+void FindstringFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(findstring)");
 }
 
-void BuiltinFilterFunc(const vector<Value*>&, Evaluator*, string*) {
+void FilterFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(filter)");
 }
 
-void BuiltinFilterOutFunc(const vector<Value*>&, Evaluator*, string*) {
+void FilterOutFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(filter-out)");
 }
 
-void BuiltinSortFunc(const vector<Value*>&, Evaluator*, string*) {
+void SortFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(sort)");
 }
 
-void BuiltinWordFunc(const vector<Value*>&, Evaluator*, string*) {
+void WordFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(word)");
 }
 
-void BuiltinWordlistFunc(const vector<Value*>&, Evaluator*, string*) {
+void WordlistFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(wordlist)");
 }
 
-void BuiltinWordsFunc(const vector<Value*>&, Evaluator*, string*) {
+void WordsFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(words)");
 }
 
-void BuiltinFirstwordFunc(const vector<Value*>&, Evaluator*, string*) {
+void FirstwordFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(firstword)");
 }
 
-void BuiltinLastwordFunc(const vector<Value*>&, Evaluator*, string*) {
+void LastwordFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(lastword)");
 }
 
-void BuiltinJoinFunc(const vector<Value*>&, Evaluator*, string*) {
+void JoinFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(join)");
 }
 
-void BuiltinWildcardFunc(const vector<Value*>&, Evaluator*, string*) {
+void WildcardFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(wildcard)");
 }
 
-void BuiltinDirFunc(const vector<Value*>&, Evaluator*, string*) {
+void DirFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(dir)");
 }
 
-void BuiltinNotdirFunc(const vector<Value*>&, Evaluator*, string*) {
+void NotdirFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(notdir)");
 }
 
-void BuiltinSuffixFunc(const vector<Value*>&, Evaluator*, string*) {
+void SuffixFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(suffix)");
 }
 
-void BuiltinBasenameFunc(const vector<Value*>&, Evaluator*, string*) {
+void BasenameFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(basename)");
 }
 
-void BuiltinAddsuffixFunc(const vector<Value*>&, Evaluator*, string*) {
+void AddsuffixFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(addsuffix)");
 }
 
-void BuiltinAddprefixFunc(const vector<Value*>&, Evaluator*, string*) {
+void AddprefixFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(addprefix)");
 }
 
-void BuiltinRealpathFunc(const vector<Value*>&, Evaluator*, string*) {
+void RealpathFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(realpath)");
 }
 
-void BuiltinAbspathFunc(const vector<Value*>&, Evaluator*, string*) {
+void AbspathFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(abspath)");
 }
 
-void BuiltinIfFunc(const vector<Value*>&, Evaluator*, string*) {
+void IfFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(if)");
 }
 
-void BuiltinAndFunc(const vector<Value*>&, Evaluator*, string*) {
+void AndFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(and)");
 }
 
-void BuiltinOrFunc(const vector<Value*>&, Evaluator*, string*) {
+void OrFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(or)");
 }
 
-void BuiltinValueFunc(const vector<Value*>&, Evaluator*, string*) {
+void ValueFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(value)");
 }
 
-void BuiltinEvalFunc(const vector<Value*>&, Evaluator*, string*) {
+void EvalFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(eval)");
 }
 
-void BuiltinShellFunc(const vector<Value*>&, Evaluator*, string*) {
+void ShellFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(shell)");
 }
 
-void BuiltinCallFunc(const vector<Value*>&, Evaluator*, string*) {
+void CallFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(call)");
 }
 
-void BuiltinForeachFunc(const vector<Value*>&, Evaluator*, string*) {
+void ForeachFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(foreach)");
 }
 
-void BuiltinOriginFunc(const vector<Value*>&, Evaluator*, string*) {
+void OriginFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(origin)");
 }
 
-void BuiltinFlavorFunc(const vector<Value*>&, Evaluator*, string*) {
+void FlavorFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(flavor)");
 }
 
-void BuiltinInfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
   printf("%s\n", a->c_str());
   fflush(stdout);
 }
 
-void BuiltinWarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+void WarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
   printf("%s:%d: %s\n", LOCF(ev->loc()), a->c_str());
   fflush(stdout);
 }
 
-void BuiltinErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
   ev->Error(StringPrintf("*** %s.", a->c_str()));
 }
 
 FuncInfo g_func_infos[] = {
-  { "patsubst", &BuiltinPatsubstFunc, 1 },
-  { "strip", &BuiltinStripFunc, 1 },
-  { "subst", &BuiltinSubstFunc, 1 },
-  { "findstring", &BuiltinFindstringFunc, 1 },
-  { "filter", &BuiltinFilterFunc, 1 },
-  { "filter-out", &BuiltinFilterOutFunc, 1 },
-  { "sort", &BuiltinSortFunc, 1 },
-  { "word", &BuiltinWordFunc, 1 },
-  { "wordlist", &BuiltinWordlistFunc, 1 },
-  { "words", &BuiltinWordsFunc, 1 },
-  { "firstword", &BuiltinFirstwordFunc, 1 },
-  { "lastword", &BuiltinLastwordFunc, 1 },
-  { "join", &BuiltinJoinFunc, 1 },
-  { "wildcard", &BuiltinWildcardFunc, 1 },
-  { "dir", &BuiltinDirFunc, 1 },
-  { "notdir", &BuiltinNotdirFunc, 1 },
-  { "suffix", &BuiltinSuffixFunc, 1 },
-  { "basename", &BuiltinBasenameFunc, 1 },
-  { "addsuffix", &BuiltinAddsuffixFunc, 1 },
-  { "addprefix", &BuiltinAddprefixFunc, 1 },
-  { "realpath", &BuiltinRealpathFunc, 1 },
-  { "abspath", &BuiltinAbspathFunc, 1 },
-  { "if", &BuiltinIfFunc, 1 },
-  { "and", &BuiltinAndFunc, 1 },
-  { "or", &BuiltinOrFunc, 1 },
-  { "value", &BuiltinValueFunc, 1 },
-  { "eval", &BuiltinEvalFunc, 1 },
-  { "shell", &BuiltinShellFunc, 1 },
-  { "call", &BuiltinCallFunc, 1 },
-  { "foreach", &BuiltinForeachFunc, 1 },
-  { "origin", &BuiltinOriginFunc, 1 },
-  { "flavor", &BuiltinFlavorFunc, 1 },
-  { "info", &BuiltinInfoFunc, 1 },
-  { "warning", &BuiltinWarningFunc, 1 },
-  { "error", &BuiltinErrorFunc, 1 },
+  { "patsubst", &PatsubstFunc, 3 },
+  { "strip", &StripFunc, 1 },
+  { "subst", &SubstFunc, 3 },
+  { "findstring", &FindstringFunc, 2 },
+  { "filter", &FilterFunc, 2 },
+  { "filter-out", &FilterOutFunc, 2 },
+  { "sort", &SortFunc, 1 },
+  { "word", &WordFunc, 2 },
+  { "wordlist", &WordlistFunc, 3 },
+  { "words", &WordsFunc, 1 },
+  { "firstword", &FirstwordFunc, 1 },
+  { "lastword", &LastwordFunc, 1 },
+  { "join", &JoinFunc, 2 },
+
+  { "wildcard", &WildcardFunc, 1 },
+  { "dir", &DirFunc, 1 },
+  { "notdir", &NotdirFunc, 1 },
+  { "suffix", &SuffixFunc, 1 },
+  { "basename", &BasenameFunc, 1 },
+  { "addsuffix", &AddsuffixFunc, 1 },
+  { "addprefix", &AddprefixFunc, 1 },
+  { "realpath", &RealpathFunc, 1 },
+  { "abspath", &AbspathFunc, 1 },
+  { "if", &IfFunc, 1 },
+  { "and", &AndFunc, 1 },
+  { "or", &OrFunc, 1 },
+  { "value", &ValueFunc, 1 },
+  { "eval", &EvalFunc, 1 },
+  { "shell", &ShellFunc, 1 },
+  { "call", &CallFunc, 1 },
+  { "foreach", &ForeachFunc, 1 },
+  { "origin", &OriginFunc, 1 },
+  { "flavor", &FlavorFunc, 1 },
+  { "info", &InfoFunc, 1 },
+  { "warning", &WarningFunc, 1 },
+  { "error", &ErrorFunc, 1 },
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
