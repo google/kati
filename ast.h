@@ -103,7 +103,7 @@ struct IfAST : public AST {
 
 struct IncludeAST : public AST {
   Value* expr;
-  char op;  // '-' or 0.
+  bool should_exist;
 
   virtual ~IncludeAST();
 
