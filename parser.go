@@ -482,7 +482,7 @@ func endifDirective(p *parser, line []byte) []byte {
 }
 
 func defineDirective(p *parser, line []byte) []byte {
-	lhs := trimLeftSpaceBytes(line[len("define "):])
+	lhs := trimSpaceBytes(line[len("define "):])
 	p.inDef = []string{string(lhs)}
 	return nil
 }
@@ -548,6 +548,21 @@ func unexportDirective(p *parser, line []byte) []byte {
 	return nil
 }
 
+func (p *parser) isEndef(s string) bool {
+	if s == "endef" {
+		return true
+	}
+	found := strings.IndexAny(s, " \t")
+	if found >= 0 && s[:found] == "endef" {
+		rest := strings.TrimSpace(s[found+1:])
+		if rest != "" && rest[0] != '#' {
+			WarnNoPrefix(p.mk.filename, p.lineno, "extraneous text after \"endef\" directive")
+		}
+		return true
+	}
+	return false
+}
+
 func (p *parser) parse() (mk Makefile, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -558,8 +573,8 @@ func (p *parser) parse() (mk Makefile, err error) {
 		line := p.readLine()
 
 		if len(p.inDef) > 0 {
-			line = p.processDefineLine(line)
-			if trimLeftSpace(string(line)) == "endef" {
+			lineStr := string(p.processDefineLine(line))
+			if p.isEndef(lineStr) {
 				Logf("multilineAssign %q", p.inDef)
 				ast := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
 				ast.filename = p.mk.filename
@@ -569,7 +584,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 				p.defOpt = ""
 				continue
 			}
-			p.inDef = append(p.inDef, string(line))
+			p.inDef = append(p.inDef, lineStr)
 			continue
 		}
 		p.defOpt = ""
