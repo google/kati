@@ -129,7 +129,7 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
 void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
                     string* out) {
   if (pat.find('%') != string::npos && subst.find('%') != string::npos) {
-    AppendSubstPattern(pat, subst, str, out);
+    AppendSubstPattern(str, pat, subst, out);
     return;
   }
   StringPiece s = TrimSuffix(str, pat);
