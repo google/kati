@@ -105,6 +105,18 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
   LOG("Command: %s", ast->expr->DebugString().c_str());
 }
 
+void Evaluator::EvalIf(const IfAST* ast) {
+  ERROR("TODO");
+}
+
+void Evaluator::EvalInclude(const IncludeAST* ast) {
+  ERROR("TODO");
+}
+
+void Evaluator::EvalExport(const ExportAST* ast) {
+  ERROR("TODO");
+}
+
 Var* Evaluator::LookupVar(StringPiece name) {
   // TODO: TSV.
   Var* v = vars_->Lookup(name);

@@ -41,6 +41,11 @@ string CommandAST::DebugString() const {
                       expr->DebugString().c_str(), LOCF(loc()));
 }
 
+string IncludeAST::DebugString() const {
+  return StringPrintf("IncludeAST(%s, loc=%s:%d)",
+                      expr->DebugString().c_str(), LOCF(loc()));
+}
+
 RuleAST::~RuleAST() {
   delete expr;
   delete after_term;
@@ -65,4 +70,12 @@ CommandAST::~CommandAST() {
 
 void CommandAST::Eval(Evaluator* ev) const {
   ev->EvalCommand(this);
+}
+
+IncludeAST::~IncludeAST() {
+  delete expr;
+}
+
+void IncludeAST::Eval(Evaluator* ev) const {
+  ev->EvalInclude(this);
 }

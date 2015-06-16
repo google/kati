@@ -10,6 +10,7 @@
 #include "fileutil.h"
 #include "func.h"
 #include "log.h"
+#include "parser.h"
 #include "string_piece.h"
 #include "strutil.h"
 #include "var.h"
@@ -34,6 +35,7 @@ static void Init() {
   InitSymtab();
   InitFuncTable();
   InitDepNodePool();
+  InitParser();
 
   if (g_makefile == NULL) {
     if (Exists("GNUmakefile")) {
@@ -49,6 +51,7 @@ static void Init() {
 }
 
 static void Quit() {
+  QuitParser();
   QuitDepNodePool();
   QuitFuncTable();
   QuitSymtab();

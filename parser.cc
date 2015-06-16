@@ -1,5 +1,7 @@
 #include "parser.h"
 
+#include <unordered_map>
+
 #include "ast.h"
 #include "file.h"
 #include "loc.h"
@@ -43,6 +45,24 @@ class Parser {
     }
   }
 
+  static void Init() {
+    make_directives_ = new unordered_map<StringPiece, DirectiveHandler>;
+    (*make_directives_)["include"] = &Parser::ParseIncludeAST;
+    (*make_directives_)["-include"] = &Parser::ParseIncludeAST;
+
+    shortest_directive_len_ = 9999;
+    longest_directive_len_ = 0;
+    for (auto p : *make_directives_) {
+      size_t len = p.first.size();
+      shortest_directive_len_ = min(len, shortest_directive_len_);
+      longest_directive_len_ = max(len, longest_directive_len_);
+    }
+  }
+
+  static void Quit() {
+    delete make_directives_;
+  }
+
  private:
   void Error(const string& msg) {
     ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
@@ -78,7 +98,10 @@ class Parser {
       return;
     }
 
-    // TODO: directive.
+    line = line.StripLeftSpaces();
+    if (HandleDirective(line)) {
+      return;
+    }
 
     size_t sep = line.find_first_of(STRING_PIECE("=:"));
     if (sep == string::npos) {
@@ -145,6 +168,29 @@ class Parser {
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
+  void ParseIncludeAST(StringPiece line, StringPiece directive) {
+    IncludeAST* ast = new IncludeAST();
+    ast->expr = ParseExpr(line, false);
+    ast->op = directive[0] == '-' ? '-' : 0;
+    out_asts_->push_back(ast);
+  }
+
+  bool HandleDirective(StringPiece line) {
+    if (line.size() < shortest_directive_len_)
+      return false;
+    StringPiece prefix = line.substr(0, longest_directive_len_ + 1);
+    size_t space_index = prefix.find(' ');
+    if (space_index == string::npos)
+      return false;
+    StringPiece directive = prefix.substr(0, space_index);
+    auto found = make_directives_->find(directive);
+    if (found == make_directives_->end())
+      return false;
+
+    (this->*found->second)(line.substr(directive.size() + 1), directive);
+    return true;
+  }
+
   StringPiece buf_;
   size_t l_;
   ParserState state_;
@@ -153,6 +199,12 @@ class Parser {
 
   Loc loc_;
   bool fixed_lineno_;
+
+  typedef void (Parser::*DirectiveHandler)(
+      StringPiece line, StringPiece directive);
+  static unordered_map<StringPiece, DirectiveHandler>* make_directives_;
+  static size_t shortest_directive_len_;
+  static size_t longest_directive_len_;
 };
 
 void Parse(Makefile* mk) {
@@ -161,3 +213,15 @@ void Parse(Makefile* mk) {
                 mk->mutable_asts());
   parser.Parse();
 }
+
+void InitParser() {
+  Parser::Init();
+}
+
+void QuitParser() {
+  Parser::Quit();
+}
+
+unordered_map<StringPiece, Parser::DirectiveHandler>* Parser::make_directives_;
+size_t Parser::shortest_directive_len_;
+size_t Parser::longest_directive_len_;
