@@ -29,7 +29,7 @@ Value::~Value() {
 
 string Value::DebugString() const {
   if (this) {
-    return DebugString_();
+    return NoLineBreak(DebugString_());
   }
   return "(null)";
 }

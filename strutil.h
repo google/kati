@@ -72,4 +72,6 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
 void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
                     string* out);
 
+string NoLineBreak(const string& s);
+
 #endif  // STRUTIL_H_

@@ -7,6 +7,7 @@
 #include "loc.h"
 #include "log.h"
 #include "string_piece.h"
+#include "strutil.h"
 #include "value.h"
 
 enum struct ParserState {
@@ -50,6 +51,7 @@ class Parser {
     (*make_directives_)["include"] = &Parser::ParseInclude;
     (*make_directives_)["-include"] = &Parser::ParseInclude;
     (*make_directives_)["sinclude"] = &Parser::ParseInclude;
+    (*make_directives_)["define"] = &Parser::ParseDefine;
 
     shortest_directive_len_ = 9999;
     longest_directive_len_ = 0;
@@ -92,6 +94,11 @@ class Parser {
     if (line.empty() || (line.size() == 1 && line[0] == '\r'))
       return;
 
+    if (!define_name_.empty()) {
+      ParseInsideDefine(line);
+      return;
+    }
+
     if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
       CommandAST* ast = new CommandAST();
       ast->expr = ParseExpr(line.substr(1), true);
@@ -124,7 +131,7 @@ class Parser {
 
   void ParseRule(StringPiece line, size_t sep) {
     const bool is_rule = line.find(':') != string::npos;
-    RuleAST* ast = new RuleAST;
+    RuleAST* ast = new RuleAST();
     ast->set_loc(loc_);
 
     size_t found = line.substr(sep + 1).find_first_of("=;");
@@ -163,7 +170,7 @@ class Parser {
         break;
     }
 
-    AssignAST* ast = new AssignAST;
+    AssignAST* ast = new AssignAST();
     ast->set_loc(loc_);
     ast->lhs = ParseExpr(line.substr(0, lhs_end).StripSpaces(), false);
     ast->rhs = ParseExpr(line.substr(sep + 1).StripLeftSpaces(), false);
@@ -180,6 +187,35 @@ class Parser {
     out_asts_->push_back(ast);
   }
 
+  void ParseDefine(StringPiece line, StringPiece) {
+    if (line.empty()) {
+      Error("*** empty variable name.");
+    }
+    define_name_ = line;
+    define_start_ = 0;
+    define_start_line_ = loc_.lineno;
+  }
+
+  void ParseInsideDefine(StringPiece line) {
+    if (line.StripLeftSpaces() != "endef") {
+      if (define_start_ == 0)
+        define_start_ = l_;
+      return;
+    }
+
+    AssignAST* ast = new AssignAST();
+    ast->set_loc(Loc(loc_.filename, define_start_line_));
+    ast->lhs = ParseExpr(define_name_, false);
+    StringPiece rhs;
+    if (define_start_)
+      rhs = buf_.substr(define_start_, l_ - define_start_).StripRightSpaces();
+    ast->rhs = ParseExpr(rhs, false);
+    ast->op = AssignOp::EQ;
+    ast->directive = AssignDirective::NONE;
+    out_asts_->push_back(ast);
+    define_name_.clear();
+  }
+
   bool HandleDirective(StringPiece line) {
     if (line.size() < shortest_directive_len_)
       return false;
@@ -192,7 +228,8 @@ class Parser {
     if (found == make_directives_->end())
       return false;
 
-    (this->*found->second)(line.substr(directive.size() + 1), directive);
+    StringPiece rest = line.substr(directive.size() + 1).StripLeftSpaces();
+    (this->*found->second)(rest, directive);
     return true;
   }
 
@@ -201,6 +238,9 @@ class Parser {
   ParserState state_;
 
   vector<AST*>* out_asts_;
+  StringPiece define_name_;
+  size_t define_start_;
+  int define_start_line_;
 
   Loc loc_;
   bool fixed_lineno_;
