@@ -133,6 +133,45 @@ class VarRef : public Value {
   Value* name_;
 };
 
+class VarSubst : public Value {
+ public:
+  explicit VarSubst(Value* n, Value* p, Value* s)
+      : name_(n), pat_(p), subst_(s) {
+  }
+  virtual ~VarSubst() {
+    delete name_;
+    delete pat_;
+    delete subst_;
+  }
+
+  virtual void Eval(Evaluator* ev, string* s) const override {
+    shared_ptr<string> name = name_->Eval(ev);
+    Var* v = ev->LookupVar(*name);
+    shared_ptr<string> value = v->Eval(ev);
+    shared_ptr<string> pat = pat_->Eval(ev);
+    shared_ptr<string> subst = subst_->Eval(ev);
+    bool needs_space = false;
+    for (StringPiece tok : WordScanner(*value)) {
+      if (needs_space)
+        s->push_back(' ');
+      AppendSubstRef(tok, *pat, *subst, s);
+      needs_space = true;
+    }
+  }
+
+  virtual string DebugString_() const override {
+    return StringPrintf("VarSubst(%s:%s=%s)",
+                        name_->DebugString().c_str(),
+                        pat_->DebugString().c_str(),
+                        subst_->DebugString().c_str());
+  }
+
+ private:
+  Value* name_;
+  Value* pat_;
+  Value* subst_;
+};
+
 class Func : public Value {
  public:
   explicit Func(FuncInfo* fi)
@@ -260,8 +299,23 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
     }
 
     if (s[i] == ':') {
-      // Implement substr ref.
-      CHECK(false);
+      terms[2] = '\0';
+      terms[1] = '=';
+      size_t n;
+      Value* pat = ParseExprImpl(s.substr(i+1), terms, false, &n);
+      i += 1 + n;
+      if (s[i] == cp) {
+        Expr* v = new Expr;
+        v->AddValue(vname);
+        v->AddValue(new Literal(":"));
+        v->AddValue(pat);
+        return new VarRef(v);
+      }
+
+      terms[1] = '\0';
+      Value* subst = ParseExprImpl(s.substr(i+1), terms, false, &n);
+      i += 1 + n;
+      return new VarSubst(vname->Compact(), pat, subst);
     }
 
     CHECK(false);
