@@ -9,10 +9,11 @@ AST::AST() {}
 AST::~AST() {}
 
 string RuleAST::DebugString() const {
-  return StringPrintf("RuleAST(expr=%s term=%d after_term=%s)",
+  return StringPrintf("RuleAST(expr=%s term=%d after_term=%s loc=%s:%d)",
                       expr->DebugString().c_str(),
                       term,
-                      after_term->DebugString().c_str());
+                      after_term->DebugString().c_str(),
+                      LOCF(loc()));
 }
 
 string AssignAST::DebugString() const {
@@ -29,15 +30,15 @@ string AssignAST::DebugString() const {
     case AssignDirective::OVERRIDE: dirstr = "override"; break;
     case AssignDirective::EXPORT: dirstr = "export"; break;
   }
-  return StringPrintf("AssignAST(lhs=%s rhs=%s opstr=%s dir=%s)",
+  return StringPrintf("AssignAST(lhs=%s rhs=%s opstr=%s dir=%s loc=%s:%d)",
                       lhs->DebugString().c_str(),
                       rhs->DebugString().c_str(),
-                      opstr, dirstr);
+                      opstr, dirstr, LOCF(loc()));
 }
 
 string CommandAST::DebugString() const {
-  return StringPrintf("CommandAST(%s)",
-                      expr->DebugString().c_str());
+  return StringPrintf("CommandAST(%s, loc=%s:%d)",
+                      expr->DebugString().c_str(), LOCF(loc()));
 }
 
 RuleAST::~RuleAST() {
