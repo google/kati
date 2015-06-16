@@ -11,6 +11,9 @@ using namespace std;
 
 class AssignAST;
 class CommandAST;
+class ExportAST;
+class IfAST;
+class IncludeAST;
 class Makefile;
 class Rule;
 class RuleAST;
@@ -34,6 +37,9 @@ class Evaluator {
   void EvalAssign(const AssignAST* ast);
   void EvalRule(const RuleAST* ast);
   void EvalCommand(const CommandAST* ast);
+  void EvalIf(const IfAST* ast);
+  void EvalInclude(const IncludeAST* ast);
+  void EvalExport(const ExportAST* ast);
 
   Var* LookupVar(StringPiece name);
   // For target specific variables.

@@ -2,6 +2,7 @@
 #define AST_H_
 
 #include <string>
+#include <vector>
 
 #include "loc.h"
 #include "string_piece.h"
@@ -22,6 +23,13 @@ enum struct AssignDirective {
   NONE,
   OVERRIDE,
   EXPORT,
+};
+
+enum struct CondOp {
+  IFEQ,
+  IFNEQ,
+  IFDEF,
+  IFNDEF,
 };
 
 struct AST {
@@ -73,6 +81,42 @@ struct CommandAST : public AST {
   Value* expr;
 
   virtual ~CommandAST();
+
+  virtual void Eval(Evaluator* ev) const;
+
+  virtual string DebugString() const;
+};
+
+struct IfAST : public AST {
+  CondOp op;
+  Value* lhs;
+  Value* rhs;
+  vector<AST*> true_stmts;
+  vector<AST*> false_stmts;
+
+  virtual ~IfAST();
+
+  virtual void Eval(Evaluator* ev) const;
+
+  virtual string DebugString() const;
+};
+
+struct IncludeAST : public AST {
+  Value* expr;
+  char op;  // '-' or 0.
+
+  virtual ~IncludeAST();
+
+  virtual void Eval(Evaluator* ev) const;
+
+  virtual string DebugString() const;
+};
+
+struct ExportAST : public AST {
+  Value* expr;
+  bool is_export;
+
+  virtual ~ExportAST();
 
   virtual void Eval(Evaluator* ev) const;
 
