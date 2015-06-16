@@ -19,14 +19,14 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     return *this;
   }
   for (i = s; i < len; i++) {
-    if (isspace((*in)[s]))
+    if (isspace((*in)[i]))
       break;
   }
   return *this;
 }
 
 StringPiece WordScanner::Iterator::operator*() const {
-  return in->substr(s, i);
+  return in->substr(s, i - s);
 }
 
 WordScanner::WordScanner(StringPiece in)
