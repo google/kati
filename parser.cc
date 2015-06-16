@@ -47,9 +47,9 @@ class Parser {
 
   static void Init() {
     make_directives_ = new unordered_map<StringPiece, DirectiveHandler>;
-    (*make_directives_)["include"] = &Parser::ParseIncludeAST;
-    (*make_directives_)["-include"] = &Parser::ParseIncludeAST;
-    (*make_directives_)["sinclude"] = &Parser::ParseIncludeAST;
+    (*make_directives_)["include"] = &Parser::ParseInclude;
+    (*make_directives_)["-include"] = &Parser::ParseInclude;
+    (*make_directives_)["sinclude"] = &Parser::ParseInclude;
 
     shortest_directive_len_ = 9999;
     longest_directive_len_ = 0;
@@ -106,19 +106,19 @@ class Parser {
 
     size_t sep = line.find_first_of(STRING_PIECE("=:"));
     if (sep == string::npos) {
-      ParseRuleAST(line, sep);
+      ParseRule(line, sep);
     } else if (line[sep] == '=') {
-      ParseAssignAST(line, sep);
+      ParseAssign(line, sep);
     } else if (line.get(sep+1) == '=') {
-      ParseAssignAST(line, sep+1);
+      ParseAssign(line, sep+1);
     } else if (line[sep] == ':') {
-      ParseRuleAST(line, sep);
+      ParseRule(line, sep);
     } else {
       CHECK(false);
     }
   }
 
-  void ParseRuleAST(StringPiece line, size_t sep) {
+  void ParseRule(StringPiece line, size_t sep) {
     const bool is_rule = line.find(':') != string::npos;
     RuleAST* ast = new RuleAST;
     ast->set_loc(loc_);
@@ -139,7 +139,7 @@ class Parser {
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
   }
 
-  void ParseAssignAST(StringPiece line, size_t sep) {
+  void ParseAssign(StringPiece line, size_t sep) {
     if (sep == 0)
       Error("*** empty variable name ***");
     AssignOp op = AssignOp::EQ;
@@ -169,7 +169,7 @@ class Parser {
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
-  void ParseIncludeAST(StringPiece line, StringPiece directive) {
+  void ParseInclude(StringPiece line, StringPiece directive) {
     IncludeAST* ast = new IncludeAST();
     ast->expr = ParseExpr(line, false);
     ast->should_exist = directive[0] == 'i';
