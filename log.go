@@ -19,14 +19,19 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"sync"
 )
+
+var logMu sync.Mutex
 
 func LogAlways(f string, a ...interface{}) {
 	var buf bytes.Buffer
 	buf.WriteString("*kati*: ")
 	buf.WriteString(f)
 	buf.WriteByte('\n')
+	logMu.Lock()
 	fmt.Printf(buf.String(), a...)
+	logMu.Unlock()
 }
 
 func LogStats(f string, a ...interface{}) {
