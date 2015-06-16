@@ -30,23 +30,22 @@ class Parser {
     l_ = 0;
 
     for (l_ = 0; l_ < buf_.size();) {
-      if (!fixed_lineno_)
-        ++loc_.lineno;
       size_t lf_cnt = 0;
       size_t e = FindEndOfLine(&lf_cnt);
+      if (!fixed_lineno_)
+        loc_.lineno += lf_cnt;
       StringPiece line(buf_.data() + l_, e - l_);
       ParseLine(line);
       if (e == buf_.size())
         break;
 
       l_ = e + 1;
-      loc_.lineno += lf_cnt;
     }
   }
 
  private:
   void Error(const string& msg) {
-    ERROR("%s:%d: %s", loc_.filename, loc_.lineno, msg.c_str());
+    ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
   }
 
   size_t FindEndOfLine(size_t* lf_cnt) {

@@ -131,5 +131,5 @@ EvalResult* Evaluator::GetEvalResult() {
 }
 
 void Evaluator::Error(const string& msg) {
-  ERROR("%s:%d: %s", loc_.filename, loc_.lineno, msg.c_str());
+  ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
 }

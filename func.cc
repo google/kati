@@ -18,7 +18,7 @@ void BuiltinInfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 
 void BuiltinWarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
-  printf("%s:%d: %s\n", ev->loc().filename, ev->loc().lineno, a->c_str());
+  printf("%s:%d: %s\n", LOCF(ev->loc()), a->c_str());
   fflush(stdout);
 }
 

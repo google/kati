@@ -16,4 +16,6 @@ struct Loc {
   int lineno;
 };
 
+#define LOCF(x) (x).filename, (x).lineno
+
 #endif  // LOC_H_
