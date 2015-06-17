@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include <algorithm>
 #include <unordered_map>
 
 #include "eval.h"
@@ -52,17 +53,11 @@ void FindstringFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     AppendString(*find, s);
 }
 
-static void GetPats(const string& pat, vector<StringPiece>* pats) {
-  for (StringPiece tok : WordScanner(pat)) {
-    pats->push_back(tok);
-  }
-}
-
 void FilterFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat_buf = args[0]->Eval(ev);
   shared_ptr<string> text = args[1]->Eval(ev);
   vector<StringPiece> pats;
-  GetPats(*pat_buf, &pats);
+  WordScanner(*pat_buf).Split(&pats);
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
     for (StringPiece pat : pats) {
@@ -78,7 +73,7 @@ void FilterOutFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat_buf = args[0]->Eval(ev);
   shared_ptr<string> text = args[1]->Eval(ev);
   vector<StringPiece> pats;
-  GetPats(*pat_buf, &pats);
+  WordScanner(*pat_buf).Split(&pats);
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
     bool matched = false;
@@ -93,8 +88,19 @@ void FilterOutFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void SortFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(sort)");
+void SortFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> list = args[0]->Eval(ev);
+  vector<StringPiece> toks;
+  WordScanner(*list).Split(&toks);
+  sort(toks.begin(), toks.end());
+  WordWriter ww(s);
+  StringPiece prev;
+  for (StringPiece tok : toks) {
+    if (prev != tok) {
+      ww.Write(tok);
+      prev = tok;
+    }
+  }
 }
 
 void WordFunc(const vector<Value*>&, Evaluator*, string*) {

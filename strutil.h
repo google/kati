@@ -27,6 +27,8 @@ class WordScanner {
   Iterator begin() const;
   Iterator end() const;
 
+  void Split(vector<StringPiece>* o);
+
  private:
   StringPiece in_;
 };
