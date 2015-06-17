@@ -234,20 +234,44 @@ void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void DirFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(dir)");
+void DirFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    ww.Write(Dirname(tok));
+    if (tok != "/")
+      s->push_back('/');
+  }
 }
 
-void NotdirFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(notdir)");
+void NotdirFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    if (tok == "/") {
+      ww.Write(STRING_PIECE(""));
+    } else {
+      ww.Write(Basename(tok));
+    }
+  }
 }
 
-void SuffixFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(suffix)");
+void SuffixFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    StringPiece suf = GetExt(tok);
+    if (!suf.empty())
+      ww.Write(suf);
+  }
 }
 
-void BasenameFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(basename)");
+void BasenameFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    ww.Write(StripExt(tok));
+  }
 }
 
 void AddsuffixFunc(const vector<Value*>&, Evaluator*, string*) {
