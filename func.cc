@@ -1,8 +1,11 @@
 #include "func.h"
 
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <algorithm>
+#include <iterator>
 #include <unordered_map>
 
 #include "eval.h"
@@ -103,24 +106,97 @@ void SortFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void WordFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(word)");
+static int GetNumericValueForFunc(const string& buf) {
+  StringPiece s = TrimLeftSpace(buf);
+  char* end;
+  long n = strtol(s.data(), &end, 10);
+  if (n < 0 || n == LONG_MAX || s.data() + s.size() != end) {
+    return -1;
+  }
+  return n;
 }
 
-void WordlistFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(wordlist)");
+void WordFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> n_str = args[0]->Eval(ev);
+  int n = GetNumericValueForFunc(*n_str);
+  if (n < 0) {
+    ev->Error(StringPrintf(
+        "*** non-numeric first argument to `word' function: '%s'.",
+        n_str->c_str()));
+  }
+  if (n == 0) {
+    ev->Error("*** first argument to `word' function must be greater than 0.");
+  }
+
+  shared_ptr<string> text = args[1]->Eval(ev);
+  for (StringPiece tok : WordScanner(*text)) {
+    n--;
+    if (n == 0) {
+      AppendString(tok, s);
+      break;
+    }
+  }
 }
 
-void WordsFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(words)");
+void WordlistFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> s_str = args[0]->Eval(ev);
+  int si = GetNumericValueForFunc(*s_str);
+  if (si < 0) {
+    ev->Error(StringPrintf(
+        "*** non-numeric first argument to `wordlist' function: '%s'.",
+        s_str->c_str()));
+  }
+  if (si == 0) {
+    ev->Error(StringPrintf(
+        "*** invalid first argument to `wordlist' function: %s`",
+        s_str->c_str()));
+  }
+
+  shared_ptr<string> e_str = args[1]->Eval(ev);
+  int ei = GetNumericValueForFunc(*e_str);
+  if (ei < 0) {
+    ev->Error(StringPrintf(
+        "*** non-numeric second argument to `wordlist' function: '%s'.",
+        e_str->c_str()));
+  }
+
+  shared_ptr<string> text = args[2]->Eval(ev);
+  int i = 0;
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    i++;
+    if (si <= i && i <= ei) {
+      ww.Write(tok);
+    }
+  }
 }
 
-void FirstwordFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(firstword)");
+void WordsFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordScanner ws(*text);
+  int n = 0;
+  for (auto iter = ws.begin(); iter != ws.end(); ++iter)
+    n++;
+  char buf[32];
+  sprintf(buf, "%d", n);
+  *s += buf;
 }
 
-void LastwordFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(lastword)");
+void FirstwordFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  for (StringPiece tok : WordScanner(*text)) {
+    AppendString(tok, s);
+    return;
+  }
+}
+
+void LastwordFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  StringPiece last;
+  for (StringPiece tok : WordScanner(*text)) {
+    last = tok;
+  }
+  AppendString(last, s);
 }
 
 void JoinFunc(const vector<Value*>&, Evaluator*, string*) {
