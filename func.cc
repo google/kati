@@ -45,16 +45,52 @@ void SubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   AppendString(StringPiece(*str).substr(index), s);
 }
 
-void FindstringFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(findstring)");
+void FindstringFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> find = args[0]->Eval(ev);
+  shared_ptr<string> in = args[1]->Eval(ev);
+  if (in->find(*find) != string::npos)
+    AppendString(*find, s);
 }
 
-void FilterFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(filter)");
+static void GetPats(const string& pat, vector<StringPiece>* pats) {
+  for (StringPiece tok : WordScanner(pat)) {
+    pats->push_back(tok);
+  }
 }
 
-void FilterOutFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(filter-out)");
+void FilterFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> pat_buf = args[0]->Eval(ev);
+  shared_ptr<string> text = args[1]->Eval(ev);
+  vector<StringPiece> pats;
+  GetPats(*pat_buf, &pats);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    for (StringPiece pat : pats) {
+      if (MatchPattern(tok, pat)) {
+        ww.Write(tok);
+        break;
+      }
+    }
+  }
+}
+
+void FilterOutFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> pat_buf = args[0]->Eval(ev);
+  shared_ptr<string> text = args[1]->Eval(ev);
+  vector<StringPiece> pats;
+  GetPats(*pat_buf, &pats);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    bool matched = false;
+    for (StringPiece pat : pats) {
+      if (MatchPattern(tok, pat)) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched)
+      ww.Write(tok);
+  }
 }
 
 void SortFunc(const vector<Value*>&, Evaluator*, string*) {

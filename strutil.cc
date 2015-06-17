@@ -155,6 +155,13 @@ void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
   out->append(subst.begin(), subst.end());
 }
 
+bool MatchPattern(StringPiece str, StringPiece pat) {
+  size_t i = pat.find('%');
+  if (i == string::npos)
+    return str == pat;
+  return HasPrefix(str, pat.substr(0, i)) && HasSuffix(str, pat.substr(i+1));
+}
+
 string NoLineBreak(const string& s) {
   size_t index = s.find('\n');
   if (index == string::npos)
