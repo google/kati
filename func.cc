@@ -423,13 +423,16 @@ FuncInfo g_func_infos[] = {
   { "if", &IfFunc, 1 },
   { "and", &AndFunc, 1 },
   { "or", &OrFunc, 1 },
+
   { "value", &ValueFunc, 1 },
   { "eval", &EvalFunc, 1 },
   { "shell", &ShellFunc, 1 },
   { "call", &CallFunc, 1 },
   { "foreach", &ForeachFunc, 1 },
+
   { "origin", &OriginFunc, 1 },
   { "flavor", &FlavorFunc, 1 },
+
   { "info", &InfoFunc, 1 },
   { "warning", &WarningFunc, 1 },
   { "error", &ErrorFunc, 1 },
