@@ -279,7 +279,7 @@ class Parser {
         return false;
       s = TrimLeftSpace(s.substr(n+1));
       ast->rhs = ParseExprImpl(s, NULL, false, &n);
-      return TrimSpace(s.substr(n)) == "";
+      s = TrimLeftSpace(s.substr(n));
     } else {
       for (int i = 0; i < 2; i++) {
         if (s.empty())
@@ -297,8 +297,11 @@ class Parser {
           ast->rhs = v;
         s = TrimLeftSpace(s.substr(end+1));
       }
-      return s.empty();
     }
+    if (!s.empty()) {
+      Error("extraneous text after `ifeq' directive");
+    }
+    return true;
   }
 
   void ParseIfeq(StringPiece line, StringPiece directive) {
