@@ -215,13 +215,22 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void WildcardFunc(const vector<Value*>&, Evaluator*, string*) {
+void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat = args[0]->Eval(ev);
+  WordWriter ww(s);
   for (StringPiece tok : WordScanner(*pat)) {
     char orig = tok[tok.size()];
-    tok[tok.size()] = '\0';
-    glob(tok.data());
-    tok[tok.size()] = orig;
+    const_cast<char*>(tok.data())[tok.size()] = '\0';
+
+    // TODO: Make this faster by not always using glob.
+    glob_t gl;
+    glob(tok.data(), GLOB_NOSORT, NULL, &gl);
+    for (size_t i = 0; i < gl.gl_pathc; i++) {
+      ww.Write(gl.gl_pathv[i]);
+    }
+    globfree(&gl);
+
+    const_cast<char*>(tok.data())[tok.size()] = orig;
   }
 }
 
@@ -277,8 +286,29 @@ void EvalFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(eval)");
 }
 
-void ShellFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(shell)");
+void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> cmd = args[0]->Eval(ev);
+  LOG("ShellFunc: %s", cmd->c_str());
+  string out;
+  // TODO: Handle $(SHELL).
+  FILE* fp = popen(cmd->c_str(), "r");
+  while (true) {
+    char buf[4096];
+    size_t r = fread(buf, 1, 4096, fp);
+    out.append(buf, buf+r);
+    if (r == 0) {
+      fclose(fp);
+      break;
+    }
+  }
+
+  while (out[out.size()-1] == '\n')
+    out.pop_back();
+  for (size_t i = 0; i < out.size(); i++) {
+    if (out[i] == '\n')
+      out[i] = ' ';
+  }
+  *s += out;
 }
 
 void CallFunc(const vector<Value*>&, Evaluator*, string*) {
