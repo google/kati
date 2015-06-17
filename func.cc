@@ -216,7 +216,13 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 }
 
 void WildcardFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(wildcard)");
+  shared_ptr<string> pat = args[0]->Eval(ev);
+  for (StringPiece tok : WordScanner(*pat)) {
+    char orig = tok[tok.size()];
+    tok[tok.size()] = '\0';
+    glob(tok.data());
+    tok[tok.size()] = orig;
+  }
 }
 
 void DirFunc(const vector<Value*>&, Evaluator*, string*) {
