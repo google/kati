@@ -1,5 +1,6 @@
 #include "parser.h"
 
+#include <stack>
 #include <unordered_map>
 
 #include "ast.h"
@@ -17,11 +18,19 @@ enum struct ParserState {
 };
 
 class Parser {
+  struct IfState {
+    IfAST* ast;
+    bool is_in_else;
+    int num_nest;
+  };
+
  public:
   Parser(StringPiece buf, const char* filename, vector<AST*>* asts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
+        asts_(asts),
         out_asts_(asts),
+        num_if_nest_(0),
         loc_(filename, 0),
         fixed_lineno_(false) {
   }
@@ -52,6 +61,9 @@ class Parser {
     (*make_directives_)["-include"] = &Parser::ParseInclude;
     (*make_directives_)["sinclude"] = &Parser::ParseInclude;
     (*make_directives_)["define"] = &Parser::ParseDefine;
+    (*make_directives_)["ifdef"] = &Parser::ParseIfdef;
+    (*make_directives_)["ifndef"] = &Parser::ParseIfdef;
+    (*make_directives_)["endif"] = &Parser::ParseEndif;
 
     shortest_directive_len_ = 9999;
     longest_directive_len_ = 0;
@@ -216,6 +228,45 @@ class Parser {
     define_name_.clear();
   }
 
+  void ParseIfdef(StringPiece line, StringPiece directive) {
+    IfAST* ast = new IfAST();
+    ast->set_loc(loc_);
+    ast->op = directive[2] == 'n' ? CondOp::IFNDEF : CondOp::IFDEF;
+    ast->lhs = ParseExpr(line, false);
+    ast->rhs = NULL;
+    out_asts_->push_back(ast);
+
+    IfState* st = new IfState();
+    st->ast = ast;
+    st->is_in_else = false;
+    st->num_nest = num_if_nest_;
+    out_asts_ = &ast->true_stmts;
+  }
+
+  void ParseEndif(StringPiece, StringPiece) {
+    CheckIfStack("endif");
+    IfState st = *if_stack_.top();
+    for (int t = 0; t <= st.num_nest; t++) {
+      delete if_stack_.top();
+      if_stack_.pop();
+      if (if_stack_.empty()) {
+        out_asts_ = asts_;
+      } else {
+        IfState* st = if_stack_.top();
+        if (st->is_in_else)
+          out_asts_ = &st->ast->false_stmts;
+        else
+          out_asts_ = &st->ast->true_stmts;
+      }
+    }
+  }
+
+  void CheckIfStack(const char* keyword) {
+    if (if_stack_.empty()) {
+      Error(StringPrintf("*** extraneous `%s'.", keyword));
+    }
+  }
+
   bool HandleDirective(StringPiece line) {
     if (line.size() < shortest_directive_len_)
       return false;
@@ -237,10 +288,15 @@ class Parser {
   size_t l_;
   ParserState state_;
 
+  vector<AST*>* asts_;
   vector<AST*>* out_asts_;
+
   StringPiece define_name_;
   size_t define_start_;
   int define_start_line_;
+
+  int num_if_nest_;
+  stack<IfState*> if_stack_;
 
   Loc loc_;
   bool fixed_lineno_;
