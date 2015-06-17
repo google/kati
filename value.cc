@@ -223,9 +223,6 @@ static size_t SkipSpaces(StringPiece s, const char* terms) {
   return s.size();
 }
 
-static Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
-                            size_t* index_out);
-
 Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
                  size_t* index_out) {
   terms[1] = ',';
@@ -332,8 +329,8 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
   }
 }
 
-static Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
-                            size_t* index_out) {
+Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
+                     size_t* index_out, bool trim_right_space) {
   // TODO: A faulty optimization.
 #if 0
   char specials[] = "$(){}\\\n";
@@ -433,8 +430,13 @@ static Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
     }
   }
 
-  if (i > b)
-    r->AddValue(new Literal(s.substr(b, i-b)));
+  if (i > b) {
+    StringPiece rest = s.substr(b, i-b);
+    if (trim_right_space)
+      rest = TrimRightSpace(rest);
+    if (!rest.empty())
+      r->AddValue(new Literal(rest));
+  }
   *index_out = i;
   return r->Compact();
 }
@@ -442,6 +444,11 @@ static Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
 Value* ParseExpr(StringPiece s, bool is_command) {
   size_t n;
   return ParseExprImpl(s, NULL, is_command, &n);
+}
+
+Value* ParseExprUntilComma(StringPiece s, size_t* index_out) {
+  char terms[] = {',', '\0'};
+  return ParseExprImpl(s, terms, false, index_out);
 }
 
 string JoinValues(const vector<Value*> vals, const char* sep) {

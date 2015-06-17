@@ -67,6 +67,8 @@ class Parser {
     (*make_directives_)["define"] = &Parser::ParseDefine;
     (*make_directives_)["ifdef"] = &Parser::ParseIfdef;
     (*make_directives_)["ifndef"] = &Parser::ParseIfdef;
+    (*make_directives_)["ifeq"] = &Parser::ParseIfeq;
+    (*make_directives_)["ifneq"] = &Parser::ParseIfeq;
     (*make_directives_)["else"] = &Parser::ParseElse;
     (*make_directives_)["endif"] = &Parser::ParseEndif;
 
@@ -244,6 +246,15 @@ class Parser {
     define_name_.clear();
   }
 
+  void EnterIf(IfAST* ast) {
+    IfState* st = new IfState();
+    st->ast = ast;
+    st->is_in_else = false;
+    st->num_nest = num_if_nest_;
+    if_stack_.push(st);
+    out_asts_ = &ast->true_asts;
+  }
+
   void ParseIfdef(StringPiece line, StringPiece directive) {
     IfAST* ast = new IfAST();
     ast->set_loc(loc_);
@@ -251,13 +262,56 @@ class Parser {
     ast->lhs = ParseExpr(line, false);
     ast->rhs = NULL;
     out_asts_->push_back(ast);
+    EnterIf(ast);
+  }
 
-    IfState* st = new IfState();
-    st->ast = ast;
-    st->is_in_else = false;
-    st->num_nest = num_if_nest_;
-    if_stack_.push(st);
-    out_asts_ = &ast->true_asts;
+  bool ParseIfEqCond(StringPiece s, IfAST* ast) {
+    if (s.empty()) {
+      return false;
+    }
+
+    if (s[0] == '(' && s[s.size() - 1] == ')') {
+      s = s.substr(1, s.size() - 2);
+      char terms[] = {',', '\0'};
+      size_t n;
+      ast->lhs = ParseExprImpl(s, terms, false, &n, true);
+      if (s[n] != ',')
+        return false;
+      s = TrimLeftSpace(s.substr(n+1));
+      ast->rhs = ParseExprImpl(s, NULL, false, &n);
+      return TrimSpace(s.substr(n)) == "";
+    } else {
+      for (int i = 0; i < 2; i++) {
+        if (s.empty())
+          return false;
+        char quote = s[0];
+        if (quote != '\'' && quote != '"')
+          return false;
+        size_t end = s.find(quote, 1);
+        if (end == string::npos)
+          return false;
+        Value* v = ParseExpr(s.substr(1, end - 1), false);
+        if (i == 0)
+          ast->lhs = v;
+        else
+          ast->rhs = v;
+        s = TrimLeftSpace(s.substr(end+1));
+      }
+      return s.empty();
+    }
+  }
+
+  void ParseIfeq(StringPiece line, StringPiece directive) {
+    IfAST* ast = new IfAST();
+    ast->set_loc(loc_);
+    ast->op = directive[2] == 'n' ? CondOp::IFNEQ : CondOp::IFEQ;
+
+    if (!ParseIfEqCond(line, ast)) {
+      Error("*** invalid syntax in conditional.");
+    }
+
+    out_asts_->push_back(ast);
+    EnterIf(ast);
   }
 
   void ParseElse(StringPiece line, StringPiece) {
@@ -350,7 +404,7 @@ class Parser {
       return false;
 
     StringPiece rest = TrimRightSpace(RemoveComment(TrimLeftSpace(
-        line.substr(directive.size() + 1))));
+        line.substr(directive.size()))));
     (this->*found->second)(rest, directive);
     return true;
   }

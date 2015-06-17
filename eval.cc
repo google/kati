@@ -107,18 +107,20 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
 
 void Evaluator::EvalIf(const IfAST* ast) {
   bool is_true;
-  StringPiece lhs = Intern(*ast->lhs->Eval(this));
   switch (ast->op) {
     case CondOp::IFDEF:
     case CondOp::IFNDEF: {
+      StringPiece lhs = Intern(*ast->lhs->Eval(this));
       Var* v = LookupVarInCurrentScope(lhs);
       shared_ptr<string> s = v->Eval(this);
-      is_true = s->empty() == (ast->op == CondOp::IFNDEF);
+      is_true = (s->empty() == (ast->op == CondOp::IFNDEF));
       break;
     }
     case CondOp::IFEQ:
     case CondOp::IFNEQ: {
-      ERROR("TODO");
+      shared_ptr<string> lhs = ast->lhs->Eval(this);
+      shared_ptr<string> rhs = ast->rhs->Eval(this);
+      is_true = ((*lhs == *rhs) == (ast->op == CondOp::IFEQ));
       break;
     }
     default:
