@@ -41,6 +41,21 @@ string CommandAST::DebugString() const {
                       expr->DebugString().c_str(), LOCF(loc()));
 }
 
+string IfAST::DebugString() const {
+  const char* opstr = "???";
+  switch (op) {
+    case CondOp::IFEQ: opstr = "ifeq"; break;
+    case CondOp::IFNEQ: opstr = "ifneq"; break;
+    case CondOp::IFDEF: opstr = "ifdef"; break;
+    case CondOp::IFNDEF: opstr = "ifndef"; break;
+  }
+  return StringPrintf("IfAST(op=%s, lhs=%s, rhs=%s loc=%s:%d)",
+                      opstr,
+                      lhs->DebugString().c_str(),
+                      rhs->DebugString().c_str(),
+                      LOCF(loc()));
+}
+
 string IncludeAST::DebugString() const {
   return StringPrintf("IncludeAST(%s, loc=%s:%d)",
                       expr->DebugString().c_str(), LOCF(loc()));
@@ -70,6 +85,15 @@ CommandAST::~CommandAST() {
 
 void CommandAST::Eval(Evaluator* ev) const {
   ev->EvalCommand(this);
+}
+
+IfAST::~IfAST() {
+  delete lhs;
+  delete rhs;
+}
+
+void IfAST::Eval(Evaluator* ev) const {
+  ev->EvalIf(this);
 }
 
 IncludeAST::~IncludeAST() {

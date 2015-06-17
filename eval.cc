@@ -106,7 +106,34 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
 }
 
 void Evaluator::EvalIf(const IfAST* ast) {
-  ERROR("TODO");
+  bool is_true;
+  StringPiece lhs = Intern(*ast->lhs->Eval(this));
+  switch (ast->op) {
+    case CondOp::IFDEF:
+    case CondOp::IFNDEF: {
+      Var* v = LookupVarInCurrentScope(lhs);
+      shared_ptr<string> s = v->Eval(this);
+      is_true = s->empty() == (ast->op == CondOp::IFNDEF);
+      break;
+    }
+    case CondOp::IFEQ:
+    case CondOp::IFNEQ: {
+      ERROR("TODO");
+      break;
+    }
+    default:
+      CHECK(false);
+  }
+
+  const vector<AST*>* asts;
+  if (is_true) {
+    asts = &ast->true_stmts;
+  } else {
+    asts = &ast->false_stmts;
+  }
+  for (AST* a : *asts) {
+    a->Eval(this);
+  }
 }
 
 void Evaluator::EvalInclude(const IncludeAST* ast) {
