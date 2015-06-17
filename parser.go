@@ -249,7 +249,7 @@ func (p *parser) parseInclude(line string, oplen int) AST {
 }
 
 func (p *parser) parseIfdef(line []byte, oplen int) AST {
-	lhs, _, err := parseExpr(line[oplen+1:], nil)
+	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil)
 	if err != nil {
 		panic(fmt.Errorf("ifdef parse %s:%d %v", p.mk.filename, p.lineno, err))
 	}
@@ -482,7 +482,7 @@ func endifDirective(p *parser, line []byte) []byte {
 }
 
 func defineDirective(p *parser, line []byte) []byte {
-	lhs := trimSpaceBytes(line[len("define "):])
+	lhs := trimLeftSpaceBytes(line[len("define "):])
 	p.inDef = []string{string(lhs)}
 	return nil
 }
@@ -594,7 +594,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 		}
 
 		if f, ok := p.isDirective(line, makeDirectives); ok {
-			line = p.processMakefileLine(trimLeftSpaceBytes(line))
+			line = trimSpaceBytes(p.processMakefileLine(line))
 			line = f(p, line)
 			if len(line) == 0 {
 				continue
