@@ -127,9 +127,9 @@ void Evaluator::EvalIf(const IfAST* ast) {
 
   const vector<AST*>* asts;
   if (is_true) {
-    asts = &ast->true_stmts;
+    asts = &ast->true_asts;
   } else {
-    asts = &ast->false_stmts;
+    asts = &ast->false_asts;
   }
   for (AST* a : *asts) {
     a->Eval(this);

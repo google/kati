@@ -240,7 +240,7 @@ class Parser {
     st->ast = ast;
     st->is_in_else = false;
     st->num_nest = num_if_nest_;
-    out_asts_ = &ast->true_stmts;
+    out_asts_ = &ast->true_asts;
   }
 
   void ParseEndif(StringPiece, StringPiece) {
@@ -254,9 +254,9 @@ class Parser {
       } else {
         IfState* st = if_stack_.top();
         if (st->is_in_else)
-          out_asts_ = &st->ast->false_stmts;
+          out_asts_ = &st->ast->false_asts;
         else
-          out_asts_ = &st->ast->true_stmts;
+          out_asts_ = &st->ast->true_asts;
       }
     }
   }

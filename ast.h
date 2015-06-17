@@ -91,8 +91,8 @@ struct IfAST : public AST {
   CondOp op;
   Value* lhs;
   Value* rhs;
-  vector<AST*> true_stmts;
-  vector<AST*> false_stmts;
+  vector<AST*> true_asts;
+  vector<AST*> false_asts;
 
   virtual ~IfAST();
 
