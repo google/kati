@@ -104,7 +104,10 @@ func removeComment(line []byte) []byte {
 			parenStack = append(parenStack, ch)
 		case ')', '}':
 			if len(parenStack) > 0 {
-				parenStack = parenStack[:len(parenStack)-1]
+				cp := closeParen(parenStack[len(parenStack)-1])
+				if cp == ch {
+					parenStack = parenStack[:len(parenStack)-1]
+				}
 			}
 		case '#':
 			if len(parenStack) == 0 {
@@ -623,7 +626,10 @@ func (p *parser) parse() (mk Makefile, err error) {
 				if len(parenStack) == 0 {
 					Warn(p.mk.filename, p.lineno, "Unmatched parens: %s", line)
 				} else {
-					parenStack = parenStack[:len(parenStack)-1]
+					cp := closeParen(parenStack[len(parenStack)-1])
+					if cp == ch {
+						parenStack = parenStack[:len(parenStack)-1]
+					}
 				}
 			}
 			if len(parenStack) > 0 {
