@@ -86,5 +86,6 @@ StringPiece Dirname(StringPiece s);
 StringPiece Basename(StringPiece s);
 StringPiece GetExt(StringPiece s);
 StringPiece StripExt(StringPiece s);
+void AbsPath(StringPiece s, string* o);
 
 #endif  // STRUTIL_H_
