@@ -294,12 +294,27 @@ void AddprefixFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void RealpathFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(realpath)");
+void RealpathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    char orig = tok[tok.size()];
+    const_cast<char*>(tok.data())[tok.size()] = '\0';
+    char buf[PATH_MAX];
+    if (realpath(tok.data(), buf))
+      *s += buf;
+    const_cast<char*>(tok.data())[tok.size()] = orig;
+  }
 }
 
-void AbspathFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(abspath)");
+void AbspathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  WordWriter ww(s);
+  string buf;
+  for (StringPiece tok : WordScanner(*text)) {
+    AbsPath(tok, &buf);
+    ww.Write(buf);
+  }
 }
 
 void IfFunc(const vector<Value*>&, Evaluator*, string*) {

@@ -1,4 +1,4 @@
-foo = $(abspath ./foo)
+foo = $(abspath ./foo bar/../foo bar//..//foo / /usr)
 
 test:
 	echo $(foo)

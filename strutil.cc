@@ -1,10 +1,14 @@
 #include "strutil.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <unordered_map>
 #include <utility>
+
+#include "log.h"
 
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
@@ -227,4 +231,51 @@ StringPiece StripExt(StringPiece s) {
       (slash_index != string::npos && found < slash_index))
     return s;
   return s.substr(0, found);
+}
+
+void AbsPath(StringPiece s, string* o) {
+  if (s.get(0) == '/') {
+    o->clear();
+  } else {
+    char buf[PATH_MAX];
+    if (!getcwd(buf, PATH_MAX)) {
+      fprintf(stderr, "getcwd failed\n");
+      CHECK(false);
+    }
+
+    CHECK(buf[0] == '/');
+    *o = buf;
+    *o += '/';
+  }
+  AppendString(s, o);
+
+  size_t j = 1;
+  size_t prev_start = 1;
+  for (size_t i = 1; i < o->size(); i++) {
+    char c= (*o)[i];
+    if (c != '/') {
+      (*o)[j] = c;
+      j++;
+      continue;
+    }
+
+    StringPiece prev_dir = StringPiece(o->data() + prev_start, j - prev_start);
+    if (prev_dir == ".") {
+      j--;
+    } else if (prev_dir == "..") {
+      j -= 4;
+      j = o->rfind('/', j);
+      if (j == string::npos) {
+        j = 1;
+      } else {
+        j++;
+      }
+    } else if (!prev_dir.empty()) {
+      (*o)[j] = c;
+      j++;
+    }
+    LOG("%zu => %zu", prev_start, j);
+    prev_start = j;
+  }
+  o->resize(j);
 }
