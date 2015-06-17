@@ -24,6 +24,10 @@ class Parser {
     int num_nest;
   };
 
+  typedef void (Parser::*DirectiveHandler)(
+      StringPiece line, StringPiece directive);
+  typedef unordered_map<StringPiece, DirectiveHandler> DirectiveMap;
+
  public:
   Parser(StringPiece buf, const char* filename, vector<AST*>* asts)
       : buf_(buf),
@@ -56,14 +60,19 @@ class Parser {
   }
 
   static void Init() {
-    make_directives_ = new unordered_map<StringPiece, DirectiveHandler>;
+    make_directives_ = new DirectiveMap;
     (*make_directives_)["include"] = &Parser::ParseInclude;
     (*make_directives_)["-include"] = &Parser::ParseInclude;
     (*make_directives_)["sinclude"] = &Parser::ParseInclude;
     (*make_directives_)["define"] = &Parser::ParseDefine;
     (*make_directives_)["ifdef"] = &Parser::ParseIfdef;
     (*make_directives_)["ifndef"] = &Parser::ParseIfdef;
+    (*make_directives_)["else"] = &Parser::ParseElse;
     (*make_directives_)["endif"] = &Parser::ParseEndif;
+
+    else_if_directives_ = new DirectiveMap;
+    (*else_if_directives_)["ifdef"] = &Parser::ParseIfdef;
+    (*else_if_directives_)["ifndef"] = &Parser::ParseIfdef;
 
     shortest_directive_len_ = 9999;
     longest_directive_len_ = 0;
@@ -123,7 +132,7 @@ class Parser {
     if (line[0] == '#')
       return;
 
-    if (HandleDirective(line)) {
+    if (HandleDirective(line, make_directives_)) {
       return;
     }
 
@@ -240,11 +249,33 @@ class Parser {
     st->ast = ast;
     st->is_in_else = false;
     st->num_nest = num_if_nest_;
+    if_stack_.push(st);
     out_asts_ = &ast->true_asts;
   }
 
-  void ParseEndif(StringPiece, StringPiece) {
+  void ParseElse(StringPiece line, StringPiece) {
+    CheckIfStack("else");
+    IfState* st = if_stack_.top();
+    if (st->is_in_else)
+      Error("*** only one `else' per conditional.");
+    st->is_in_else = true;
+    out_asts_ = &st->ast->false_asts;
+
+    StringPiece next_if = TrimLeftSpace(line);
+    if (next_if.empty())
+      return;
+
+    num_if_nest_ = st->num_nest + 1;
+    if (!HandleDirective(next_if, else_if_directives_)) {
+      WARN("%s:%d: extraneous text after `else' directive", LOCF(loc_));
+    }
+    num_if_nest_ = 0;
+  }
+
+  void ParseEndif(StringPiece line, StringPiece) {
     CheckIfStack("endif");
+    if (!line.empty())
+      Error("extraneous text after `endif` directive");
     IfState st = *if_stack_.top();
     for (int t = 0; t <= st.num_nest; t++) {
       delete if_stack_.top();
@@ -267,16 +298,14 @@ class Parser {
     }
   }
 
-  bool HandleDirective(StringPiece line) {
+  bool HandleDirective(StringPiece line, const DirectiveMap* directive_map) {
     if (line.size() < shortest_directive_len_)
       return false;
     StringPiece prefix = line.substr(0, longest_directive_len_ + 1);
     size_t space_index = prefix.find(' ');
-    if (space_index == string::npos)
-      return false;
     StringPiece directive = prefix.substr(0, space_index);
-    auto found = make_directives_->find(directive);
-    if (found == make_directives_->end())
+    auto found = directive_map->find(directive);
+    if (found == directive_map->end())
       return false;
 
     StringPiece rest = TrimLeftSpace(line.substr(directive.size() + 1));
@@ -301,9 +330,8 @@ class Parser {
   Loc loc_;
   bool fixed_lineno_;
 
-  typedef void (Parser::*DirectiveHandler)(
-      StringPiece line, StringPiece directive);
-  static unordered_map<StringPiece, DirectiveHandler>* make_directives_;
+  static DirectiveMap* make_directives_;
+  static DirectiveMap* else_if_directives_;
   static size_t shortest_directive_len_;
   static size_t longest_directive_len_;
 };
@@ -323,6 +351,7 @@ void QuitParser() {
   Parser::Quit();
 }
 
-unordered_map<StringPiece, Parser::DirectiveHandler>* Parser::make_directives_;
+Parser::DirectiveMap* Parser::make_directives_;
+Parser::DirectiveMap* Parser::else_if_directives_;
 size_t Parser::shortest_directive_len_;
 size_t Parser::longest_directive_len_;

@@ -19,6 +19,12 @@
     exit(1);                                                    \
   } while (0)
 
+#define WARN(...) do {                                          \
+    char buf[999];                                              \
+    sprintf(buf, __VA_ARGS__);                                  \
+    fprintf(stderr, "%s\n", buf);                               \
+  } while (0)
+
 #define ERROR(...) do {                                         \
     char buf[999];                                              \
     sprintf(buf, __VA_ARGS__);                                  \
