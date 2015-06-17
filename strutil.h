@@ -82,4 +82,9 @@ StringPiece TrimLeftSpace(StringPiece s);
 StringPiece TrimRightSpace(StringPiece s);
 StringPiece TrimSpace(StringPiece s);
 
+StringPiece Dirname(StringPiece s);
+StringPiece Basename(StringPiece s);
+StringPiece GetExt(StringPiece s);
+StringPiece StripExt(StringPiece s);
+
 #endif  // STRUTIL_H_

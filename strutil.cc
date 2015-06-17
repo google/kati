@@ -196,3 +196,35 @@ StringPiece TrimRightSpace(StringPiece s) {
 StringPiece TrimSpace(StringPiece s) {
   return TrimRightSpace(TrimLeftSpace(s));
 }
+
+StringPiece Dirname(StringPiece s) {
+  size_t found = s.rfind('/');
+  if (found == string::npos)
+    return STRING_PIECE(".");
+  if (found == 0)
+    return s;
+  return s.substr(0, found);
+}
+
+StringPiece Basename(StringPiece s) {
+  size_t found = s.rfind('/');
+  if (found == string::npos || found == 0)
+    return s;
+  return s.substr(found + 1);
+}
+
+StringPiece GetExt(StringPiece s) {
+  size_t found = s.rfind('.');
+  if (found == string::npos)
+    return STRING_PIECE("");
+  return s.substr(found);
+}
+
+StringPiece StripExt(StringPiece s) {
+  size_t slash_index = s.rfind('/');
+  size_t found = s.rfind('.');
+  if (found == string::npos ||
+      (slash_index != string::npos && found < slash_index))
+    return s;
+  return s.substr(0, found);
+}
