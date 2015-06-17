@@ -50,6 +50,11 @@ WordScanner::Iterator WordScanner::end() const {
   return iter;
 }
 
+void WordScanner::Split(vector<StringPiece>* o) {
+  for (StringPiece t : *this)
+    o->push_back(t);
+}
+
 WordWriter::WordWriter(string* o)
     : out_(o),
       needs_space_(false) {
