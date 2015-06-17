@@ -74,4 +74,8 @@ void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
 
 string NoLineBreak(const string& s);
 
+StringPiece TrimLeftSpace(StringPiece s);
+StringPiece TrimRightSpace(StringPiece s);
+StringPiece TrimSpace(StringPiece s);
+
 #endif  // STRUTIL_H_

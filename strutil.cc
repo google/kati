@@ -166,3 +166,21 @@ string NoLineBreak(const string& s) {
   }
   return r;
 }
+
+StringPiece TrimLeftSpace(StringPiece s) {
+  size_t i = 0;
+  while (i < s.size() && isspace(s[i]))
+    i++;
+  return s.substr(i, s.size() - i);
+}
+
+StringPiece TrimRightSpace(StringPiece s) {
+  size_t i = 0;
+  while (i < s.size() && isspace(s[s.size() - 1 - i]))
+    i++;
+  return s.substr(0, s.size() - i);
+}
+
+StringPiece TrimSpace(StringPiece s) {
+  return TrimRightSpace(TrimLeftSpace(s));
+}

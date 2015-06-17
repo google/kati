@@ -106,7 +106,7 @@ class Parser {
       return;
     }
 
-    line = line.StripLeftSpaces();
+    line = TrimLeftSpace(line);
 
     if (line[0] == '#')
       return;
@@ -138,13 +138,13 @@ class Parser {
     if (found != string::npos) {
       found += sep + 1;
       ast->term = line[found];
-      ast->after_term = ParseExpr(line.substr(found + 1).StripLeftSpaces(),
+      ast->after_term = ParseExpr(TrimLeftSpace(line.substr(found + 1)),
                                   ast->term == ';');
-      ast->expr = ParseExpr(line.substr(0, found).StripSpaces(), false);
+      ast->expr = ParseExpr(TrimSpace(line.substr(0, found)), false);
     } else {
       ast->term = 0;
       ast->after_term = NULL;
-      ast->expr = ParseExpr(line.StripSpaces(), false);
+      ast->expr = ParseExpr(TrimSpace(line), false);
     }
     out_asts_->push_back(ast);
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
@@ -172,8 +172,8 @@ class Parser {
 
     AssignAST* ast = new AssignAST();
     ast->set_loc(loc_);
-    ast->lhs = ParseExpr(line.substr(0, lhs_end).StripSpaces(), false);
-    ast->rhs = ParseExpr(line.substr(sep + 1).StripLeftSpaces(), false);
+    ast->lhs = ParseExpr(TrimSpace(line.substr(0, lhs_end)), false);
+    ast->rhs = ParseExpr(TrimSpace(line.substr(sep + 1)), false);
     ast->op = op;
     ast->directive = AssignDirective::NONE;
     out_asts_->push_back(ast);
@@ -197,7 +197,7 @@ class Parser {
   }
 
   void ParseInsideDefine(StringPiece line) {
-    if (line.StripLeftSpaces() != "endef") {
+    if (TrimLeftSpace(line) != "endef") {
       if (define_start_ == 0)
         define_start_ = l_;
       return;
@@ -208,7 +208,7 @@ class Parser {
     ast->lhs = ParseExpr(define_name_, false);
     StringPiece rhs;
     if (define_start_)
-      rhs = buf_.substr(define_start_, l_ - define_start_).StripRightSpaces();
+      rhs = TrimRightSpace(buf_.substr(define_start_, l_ - define_start_));
     ast->rhs = ParseExpr(rhs, false);
     ast->op = AssignOp::EQ;
     ast->directive = AssignDirective::NONE;
@@ -228,7 +228,7 @@ class Parser {
     if (found == make_directives_->end())
       return false;
 
-    StringPiece rest = line.substr(directive.size() + 1).StripLeftSpaces();
+    StringPiece rest = TrimLeftSpace(line.substr(directive.size() + 1));
     (this->*found->second)(rest, directive);
     return true;
   }

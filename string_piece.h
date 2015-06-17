@@ -166,10 +166,6 @@ class StringPiece {
 
   char get(size_type i) const { return i < length_ ? ptr_[i] : 0; }
 
-  StringPiece StripLeftSpaces() const;
-  StringPiece StripRightSpaces() const;
-  StringPiece StripSpaces() const;
-
  private:
   const char*   ptr_;
   size_type     length_;
