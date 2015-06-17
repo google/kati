@@ -1,5 +1,6 @@
 #include "func.h"
 
+#include <glob.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -199,8 +200,19 @@ void LastwordFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   AppendString(last, s);
 }
 
-void JoinFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(join)");
+void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> list1 = args[0]->Eval(ev);
+  shared_ptr<string> list2 = args[1]->Eval(ev);
+  WordScanner ws1(*list1);
+  WordScanner ws2(*list2);
+  WordWriter ww(s);
+  for (WordScanner::Iterator iter1 = ws1.begin(), iter2 = ws2.begin();
+       iter1 != ws1.end() && iter2 != ws2.end();
+       ++iter1, ++iter2) {
+    ww.Write(*iter1);
+    // Use |AppendString| not to append extra ' '.
+    AppendString(*iter2, s);
+  }
 }
 
 void WildcardFunc(const vector<Value*>&, Evaluator*, string*) {
@@ -309,17 +321,18 @@ FuncInfo g_func_infos[] = {
   { "words", &WordsFunc, 1 },
   { "firstword", &FirstwordFunc, 1 },
   { "lastword", &LastwordFunc, 1 },
-  { "join", &JoinFunc, 2 },
 
+  { "join", &JoinFunc, 2 },
   { "wildcard", &WildcardFunc, 1 },
   { "dir", &DirFunc, 1 },
   { "notdir", &NotdirFunc, 1 },
   { "suffix", &SuffixFunc, 1 },
   { "basename", &BasenameFunc, 1 },
-  { "addsuffix", &AddsuffixFunc, 1 },
-  { "addprefix", &AddprefixFunc, 1 },
+  { "addsuffix", &AddsuffixFunc, 2 },
+  { "addprefix", &AddprefixFunc, 2 },
   { "realpath", &RealpathFunc, 1 },
   { "abspath", &AbspathFunc, 1 },
+
   { "if", &IfFunc, 1 },
   { "and", &AndFunc, 1 },
   { "or", &OrFunc, 1 },
