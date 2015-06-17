@@ -1,0 +1,3 @@
+$(info }#)
+test:
+	echo OK
