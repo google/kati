@@ -218,10 +218,17 @@ class Parser {
   }
 
   void ParseInsideDefine(StringPiece line) {
-    if (TrimLeftSpace(line) != "endef") {
+    line = TrimLeftSpace(line);
+    if (GetDirective(line) != "endef") {
       if (define_start_ == 0)
         define_start_ = l_;
       return;
+    }
+
+    StringPiece rest = TrimRightSpace(RemoveComment(TrimLeftSpace(
+        line.substr(sizeof("endef")))));
+    if (!rest.empty()) {
+      WARN("%s:%d: extraneous text after `endef' directive", LOCF(loc_));
     }
 
     AssignAST* ast = new AssignAST();
@@ -298,17 +305,52 @@ class Parser {
     }
   }
 
-  bool HandleDirective(StringPiece line, const DirectiveMap* directive_map) {
+  StringPiece RemoveComment(StringPiece line) {
+    bool prev_backslash = false;
+    stack<char> paren_stack;
+    for (size_t i = 0; i < line.size(); i++) {
+      char c = line[i];
+      switch (c) {
+        case '(':
+          paren_stack.push(')');
+          break;
+        case '{':
+          paren_stack.push('}');
+          break;
+
+        case ')':
+        case '}':
+          if (!paren_stack.empty() && c == paren_stack.top()) {
+            paren_stack.pop();
+          }
+          break;
+
+        case '#':
+          if (paren_stack.empty() && !prev_backslash)
+            return line.substr(0, i);
+
+      }
+      prev_backslash = c == '\\' && !prev_backslash;
+    }
+    return line;
+  }
+
+  StringPiece GetDirective(StringPiece line) {
     if (line.size() < shortest_directive_len_)
-      return false;
+      return StringPiece();
     StringPiece prefix = line.substr(0, longest_directive_len_ + 1);
-    size_t space_index = prefix.find(' ');
-    StringPiece directive = prefix.substr(0, space_index);
+    size_t space_index = prefix.find_first_of(" \t#");
+    return prefix.substr(0, space_index);
+  }
+
+  bool HandleDirective(StringPiece line, const DirectiveMap* directive_map) {
+    StringPiece directive = GetDirective(line);
     auto found = directive_map->find(directive);
     if (found == directive_map->end())
       return false;
 
-    StringPiece rest = TrimLeftSpace(line.substr(directive.size() + 1));
+    StringPiece rest = TrimRightSpace(RemoveComment(TrimLeftSpace(
+        line.substr(directive.size() + 1))));
     (this->*found->second)(rest, directive);
     return true;
   }
