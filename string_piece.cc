@@ -211,21 +211,3 @@ StringPiece StringPiece::substr(size_type pos, size_type n) const {
 }
 
 const StringPiece::size_type StringPiece::npos = size_type(-1);
-
-StringPiece StringPiece::StripLeftSpaces() const {
-  size_t i = 0;
-  while (i < size() && isspace(ptr_[i]))
-    i++;
-  return StringPiece(ptr_ + i, size() - i);
-}
-
-StringPiece StringPiece::StripRightSpaces() const {
-  size_t i = 0;
-  while (i < size() && isspace(ptr_[size() - 1 - i]))
-    i++;
-  return StringPiece(ptr_, size() - i);
-}
-
-StringPiece StringPiece::StripSpaces() const {
-  return StripLeftSpaces().StripRightSpaces();
-}
