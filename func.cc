@@ -274,12 +274,24 @@ void BasenameFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void AddsuffixFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(addsuffix)");
+void AddsuffixFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> suf = args[0]->Eval(ev);
+  shared_ptr<string> text = args[1]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    ww.Write(tok);
+    *s += *suf;
+  }
 }
 
-void AddprefixFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(addprefix)");
+void AddprefixFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> pre = args[0]->Eval(ev);
+  shared_ptr<string> text = args[1]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*text)) {
+    ww.Write(*pre);
+    AppendString(tok, s);
+  }
 }
 
 void RealpathFunc(const vector<Value*>&, Evaluator*, string*) {
