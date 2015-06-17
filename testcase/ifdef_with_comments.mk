@@ -20,8 +20,15 @@ else # bar
 PASS4:=PASS4
 endif # foo
 
+ifeq  ($(VAR),NOK)# hoge
+$(error fail)
+else# bar
+PASS5:=PASS5
+endif# foo
+
 test:
 	echo $(PASS1)
 	echo $(PASS2)
 	echo $(PASS3)
 	echo $(PASS4)
+	echo $(PASS5)

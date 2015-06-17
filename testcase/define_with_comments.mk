@@ -16,6 +16,11 @@ endef	baz
 define  endef_with_not_endef
 endefPASS
 endef
+define  with_immediate_comment#comment
+PASS6
+endef
+# Note: for some reason, the following is an error.
+#endef#comment
 
 test:
 	echo $(define_with_space)
@@ -24,3 +29,4 @@ test:
 	echo $(endef_with_not_comment)
 	echo $(endef_with_not_comment2)
 	echo $(endef_with_not_endef)
+	echo $(with_immediate_comment)
