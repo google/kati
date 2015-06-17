@@ -49,10 +49,12 @@ string IfAST::DebugString() const {
     case CondOp::IFDEF: opstr = "ifdef"; break;
     case CondOp::IFNDEF: opstr = "ifndef"; break;
   }
-  return StringPrintf("IfAST(op=%s, lhs=%s, rhs=%s loc=%s:%d)",
+  return StringPrintf("IfAST(op=%s, lhs=%s, rhs=%s t=%zu f=%zu loc=%s:%d)",
                       opstr,
                       lhs->DebugString().c_str(),
                       rhs->DebugString().c_str(),
+                      true_asts.size(),
+                      false_asts.size(),
                       LOCF(loc()));
 }
 

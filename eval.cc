@@ -132,6 +132,7 @@ void Evaluator::EvalIf(const IfAST* ast) {
     asts = &ast->false_asts;
   }
   for (AST* a : *asts) {
+    LOG("%s", a->DebugString().c_str());
     a->Eval(this);
   }
 }
