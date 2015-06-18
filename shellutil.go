@@ -63,10 +63,33 @@ var shBuiltins = []struct {
 		},
 		compact: func(sh *funcShell, v []Value) Value {
 			androidFindCache.init(nil, androidDefaultLeafNames)
-			return &funcShellAndroidFindJavaInDir{
+			return &funcShellAndroidFindExtFilesUnder{
 				funcShell: sh,
 				chdir:     v[0],
 				roots:     v[1],
+				ext:       ".java",
+			}
+		},
+	},
+	{
+		name: "android:all-proto-files-under",
+		// in repo/android/build/core/definitions.mk
+		// cd $(LOCAL_PATH) ; \
+		// find -L $(1) -name "*.proto" -and -not -name ".*"
+		pattern: Expr{
+			literal("cd "),
+			matchVarref{},
+			literal(" ; find -L "),
+			matchVarref{},
+			literal(" -name \"*.proto\" -and -not -name \".*\""),
+		},
+		compact: func(sh *funcShell, v []Value) Value {
+			androidFindCache.init(nil, androidDefaultLeafNames)
+			return &funcShellAndroidFindExtFilesUnder{
+				funcShell: sh,
+				chdir:     v[0],
+				roots:     v[1],
+				ext:       ".proto",
 			}
 		},
 	},
@@ -238,13 +261,14 @@ func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) {
 	androidFindCache.findInDir(&sw, dir)
 }
 
-type funcShellAndroidFindJavaInDir struct {
+type funcShellAndroidFindExtFilesUnder struct {
 	*funcShell
 	chdir Value
 	roots Value
+	ext   string
 }
 
-func (f *funcShellAndroidFindJavaInDir) Eval(w io.Writer, ev *Evaluator) {
+func (f *funcShellAndroidFindExtFilesUnder) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.chdir, f.roots)
 	chdir := string(trimSpaceBytes(fargs[0]))
@@ -259,23 +283,23 @@ func (f *funcShellAndroidFindJavaInDir) Eval(w io.Writer, ev *Evaluator) {
 		roots = append(roots, string(ws.Bytes()))
 	}
 	freeBuf(abuf)
-	Logf("shellAndroidFindJavaInDir %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
+	Logf("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
 	if strings.Contains(chdir, "..") || hasDotDot {
-		Logf("shellAndroidFindJavaInDir contains ..: call original shell")
+		Logf("shellAndroidFindExtFilesUnder contains ..: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
 	if !androidFindCache.ready() {
-		Logf("shellAndroidFindJavaInDir androidFindCache is not ready: call original shell")
+		Logf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
 	buf := newBuf()
 	sw := ssvWriter{w: buf}
 	for _, root := range roots {
-		if !androidFindCache.findJavaInDir(&sw, chdir, root) {
+		if !androidFindCache.findExtFilesUnder(&sw, chdir, root, f.ext) {
 			freeBuf(buf)
-			Logf("shellAndroidFindJavaInDir androidFindCache couldn't handle: call original shell")
+			Logf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
 			f.funcShell.Eval(w, ev)
 			return
 		}

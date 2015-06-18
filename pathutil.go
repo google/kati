@@ -344,18 +344,18 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 }
 
 // pattern in repo/android/build/core/definitions.mk
-// all-java-files-under
-// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
+// all-java-files-under etc
+// cd ${LOCAL_PATH} ; find -L $1 -name "*<ext>" -and -not -name ".*"
 // returns false if symlink is found.
-func (c *androidFindCacheT) findJavaInDir(sw *ssvWriter, chdir string, root string) bool {
+func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext string) bool {
 	chdir = filepath.Clean(chdir)
 	dir := filepath.Join(chdir, root)
-	Logf("android find java in dir cache: %s %s", chdir, root)
+	Logf("android find %s in dir cache: %s %s", ext, chdir, root)
 	// check symlinks
 	var matches []int
 	err := c.walk(dir, func(i int, fi fileInfo) error {
 		if fi.mode&os.ModeSymlink == os.ModeSymlink {
-			Logf("android find java in dir cache: detect symlink %s %v", c.files[i].path, c.files[i].mode)
+			Logf("android find %s in dir cache: detect symlink %s %v", ext, c.files[i].path, c.files[i].mode)
 			return fmt.Errorf("symlink %s", fi.path)
 		}
 		matches = append(matches, i)
@@ -368,8 +368,8 @@ func (c *androidFindCacheT) findJavaInDir(sw *ssvWriter, chdir string, root stri
 	for _, i := range matches {
 		fi := c.files[i]
 		base := filepath.Base(fi.path)
-		// -name "*.java"
-		if filepath.Ext(base) != ".java" {
+		// -name "*<ext>"
+		if filepath.Ext(base) != ext {
 			continue
 		}
 		// -not -name ".*"
@@ -378,7 +378,7 @@ func (c *androidFindCacheT) findJavaInDir(sw *ssvWriter, chdir string, root stri
 		}
 		name := strings.TrimPrefix(fi.path, chdir+"/")
 		sw.WriteString(name)
-		Logf("android find java in dir cache: %s=> %s", dir, name)
+		Logf("android find %s in dir cache: %s=> %s", ext, dir, name)
 	}
 	return true
 }
