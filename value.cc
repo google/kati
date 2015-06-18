@@ -148,12 +148,13 @@ class VarSubst : public Value {
     shared_ptr<string> name = name_->Eval(ev);
     Var* v = ev->LookupVar(*name);
     shared_ptr<string> value = v->Eval(ev);
-    shared_ptr<string> pat = pat_->Eval(ev);
+    shared_ptr<string> pat_str = pat_->Eval(ev);
     shared_ptr<string> subst = subst_->Eval(ev);
     WordWriter ww(s);
+    Pattern pat(*pat_str);
     for (StringPiece tok : WordScanner(*value)) {
       ww.MaybeAddWhitespace();
-      AppendSubstRef(tok, *pat, *subst, s);
+      pat.AppendSubstRef(tok, *subst, s);
     }
   }
 

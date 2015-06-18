@@ -20,13 +20,14 @@
 namespace {
 
 void PatsubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
-  shared_ptr<string> pat = args[0]->Eval(ev);
+  shared_ptr<string> pat_str = args[0]->Eval(ev);
   shared_ptr<string> repl = args[1]->Eval(ev);
   shared_ptr<string> str = args[2]->Eval(ev);
   WordWriter ww(s);
+  Pattern pat(*pat_str);
   for (StringPiece tok : WordScanner(*str)) {
     ww.MaybeAddWhitespace();
-    AppendSubstPattern(tok, *pat, *repl, s);
+    pat.AppendSubst(tok, *repl, s);
   }
 }
 
@@ -64,12 +65,14 @@ void FindstringFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void FilterFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat_buf = args[0]->Eval(ev);
   shared_ptr<string> text = args[1]->Eval(ev);
-  vector<StringPiece> pats;
-  WordScanner(*pat_buf).Split(&pats);
+  vector<Pattern> pats;
+  for (StringPiece pat : WordScanner(*pat_buf)) {
+    pats.push_back(Pattern(pat));
+  }
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
-    for (StringPiece pat : pats) {
-      if (MatchPattern(tok, pat)) {
+    for (const Pattern& pat : pats) {
+      if (pat.Match(tok)) {
         ww.Write(tok);
         break;
       }
@@ -80,13 +83,15 @@ void FilterFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void FilterOutFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat_buf = args[0]->Eval(ev);
   shared_ptr<string> text = args[1]->Eval(ev);
-  vector<StringPiece> pats;
-  WordScanner(*pat_buf).Split(&pats);
+  vector<Pattern> pats;
+  for (StringPiece pat : WordScanner(*pat_buf)) {
+    pats.push_back(Pattern(pat));
+  }
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
     bool matched = false;
-    for (StringPiece pat : pats) {
-      if (MatchPattern(tok, pat)) {
+    for (const Pattern& pat : pats) {
+      if (pat.Match(tok)) {
         matched = true;
         break;
       }

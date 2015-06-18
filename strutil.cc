@@ -133,11 +133,25 @@ StringPiece TrimSuffix(StringPiece str, StringPiece suffix) {
   return str.substr(0, size_diff);
 }
 
-void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
-                        string* out) {
-  size_t pat_percent_index = pat.find('%');
-  if (pat_percent_index == string::npos) {
-    if (str == pat) {
+Pattern::Pattern(StringPiece pat)
+    : pat_(pat), percent_index_(pat.find('%')) {
+}
+
+bool Pattern::Match(StringPiece str) const {
+  if (percent_index_ == string::npos)
+    return str == pat_;
+  return MatchImpl(str);
+}
+
+bool Pattern::MatchImpl(StringPiece str) const {
+  return (HasPrefix(str, pat_.substr(0, percent_index_)) &&
+          HasSuffix(str, pat_.substr(percent_index_ + 1)));
+}
+
+void Pattern::AppendSubst(StringPiece str, StringPiece subst,
+                          string* out) const {
+  if (percent_index_ == string::npos) {
+    if (str == pat_) {
       AppendString(subst, out);
       return;
     } else {
@@ -146,16 +160,15 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
     }
   }
 
-  if (HasPrefix(str, pat.substr(0, pat_percent_index)) &&
-      HasSuffix(str, pat.substr(pat_percent_index + 1))) {
+  if (MatchImpl(str)) {
     size_t subst_percent_index = subst.find('%');
     if (subst_percent_index == string::npos) {
       AppendString(subst, out);
       return;
     } else {
       AppendString(subst.substr(0, subst_percent_index), out);
-      AppendString(str.substr(pat_percent_index,
-                              str.size() - pat.size() + 1), out);
+      AppendString(str.substr(percent_index_,
+                              str.size() - pat_.size() + 1), out);
       AppendString(subst.substr(subst_percent_index + 1), out);
       return;
     }
@@ -163,22 +176,15 @@ void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
   AppendString(str, out);
 }
 
-void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
-                    string* out) {
-  if (pat.find('%') != string::npos && subst.find('%') != string::npos) {
-    AppendSubstPattern(str, pat, subst, out);
+void Pattern::AppendSubstRef(StringPiece str, StringPiece subst,
+                             string* out) const {
+  if (percent_index_ != string::npos && subst.find('%') != string::npos) {
+    AppendSubst(str, subst, out);
     return;
   }
-  StringPiece s = TrimSuffix(str, pat);
+  StringPiece s = TrimSuffix(str, pat_);
   out->append(s.begin(), s.end());
   out->append(subst.begin(), subst.end());
-}
-
-bool MatchPattern(StringPiece str, StringPiece pat) {
-  size_t i = pat.find('%');
-  if (i == string::npos)
-    return str == pat;
-  return HasPrefix(str, pat.substr(0, i)) && HasSuffix(str, pat.substr(i+1));
 }
 
 string NoLineBreak(const string& s) {
