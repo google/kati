@@ -260,7 +260,7 @@ func appendStr(expr Expr, buf []byte, alloc bool) Expr {
 		return expr
 	}
 	if len(expr) == 0 {
-		return Expr{str(buf, alloc)}
+		return append(expr, str(buf, alloc))
 	}
 	switch v := expr[len(expr)-1].(type) {
 	case literal:
