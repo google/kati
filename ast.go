@@ -55,9 +55,16 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	// TODO(ukai): handle ast.opt == "export"
 	switch ast.op {
 	case ":=":
-		var buf bytes.Buffer
-		ast.rhs.Eval(&buf, ev)
-		return &SimpleVar{value: buf.Bytes(), origin: origin}
+		switch v := ast.rhs.(type) {
+		case literal:
+			return &SimpleVar{value: v.String(), origin: origin}
+		case tmpval:
+			return &SimpleVar{value: v.String(), origin: origin}
+		default:
+			var buf bytes.Buffer
+			v.Eval(&buf, ev)
+			return &SimpleVar{value: buf.String(), origin: origin}
+		}
 	case "=":
 		return &RecursiveVar{expr: ast.rhs, origin: origin}
 	case "+=":

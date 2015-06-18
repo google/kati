@@ -813,9 +813,8 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for i, arg := range args {
 		name := strconv.FormatInt(int64(i), 10)
 		restores = append(restores, ev.outVars.save(name))
-		ev.outVars.Assign(name, &SimpleVar{
-			value:  arg,
-			origin: "automatic", // ??
+		ev.outVars.Assign(name, &AutomaticVar{
+			value: arg,
 		})
 	}
 
@@ -989,9 +988,10 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		if err != nil {
 			panic(fmt.Sprintf("eval assign error: %q: %v", f.String(), err))
 		}
-		var vbuf bytes.Buffer
-		expr.Eval(&vbuf, ev)
-		rvalue = &SimpleVar{value: tmpval(vbuf.Bytes()), origin: "file"}
+		vbuf := newBuf()
+		expr.Eval(vbuf, ev)
+		rvalue = &SimpleVar{value: vbuf.String(), origin: "file"}
+		freeBuf(vbuf)
 	case "=":
 		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
@@ -1118,11 +1118,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	space := false
 	for ws.Scan() {
 		word := ws.Bytes()
-		ev.outVars.Assign(varname,
-			&SimpleVar{
-				value:  tmpval(word),
-				origin: "automatic",
-			})
+		ev.outVars.Assign(varname, &AutomaticVar{value: word})
 		if space {
 			w.Write([]byte{' '})
 		}

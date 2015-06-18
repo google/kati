@@ -221,7 +221,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 			origin: "environment",
 		})
 	}
-	vars.Assign("MAKEFILE_LIST", &SimpleVar{value: []byte{}, origin: "file"})
+	vars.Assign("MAKEFILE_LIST", &SimpleVar{value: "", origin: "file"})
 	for _, v := range clvars {
 		kv := strings.SplitN(v, "=", 2)
 		Logf("cmdlinevar %q", kv)
