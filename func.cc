@@ -219,9 +219,7 @@ void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat = args[0]->Eval(ev);
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*pat)) {
-    char orig = tok[tok.size()];
-    const_cast<char*>(tok.data())[tok.size()] = '\0';
-
+    ScopedTerminator st(tok);
     // TODO: Make this faster by not always using glob.
     glob_t gl;
     glob(tok.data(), GLOB_NOSORT, NULL, &gl);
@@ -229,8 +227,6 @@ void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       ww.Write(gl.gl_pathv[i]);
     }
     globfree(&gl);
-
-    const_cast<char*>(tok.data())[tok.size()] = orig;
   }
 }
 
@@ -298,12 +294,10 @@ void RealpathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> text = args[0]->Eval(ev);
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
-    char orig = tok[tok.size()];
-    const_cast<char*>(tok.data())[tok.size()] = '\0';
+    ScopedTerminator st(tok);
     char buf[PATH_MAX];
     if (realpath(tok.data(), buf))
       *s += buf;
-    const_cast<char*>(tok.data())[tok.size()] = orig;
   }
 }
 

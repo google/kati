@@ -44,6 +44,17 @@ class WordWriter {
   bool needs_space_;
 };
 
+// Temporary modifies s[s.size()] to '\0'.
+class ScopedTerminator {
+ public:
+  explicit ScopedTerminator(StringPiece s);
+  ~ScopedTerminator();
+
+ private:
+  StringPiece s_;
+  char c_;
+};
+
 void InitSymtab();
 void QuitSymtab();
 StringPiece Intern(StringPiece s);

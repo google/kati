@@ -77,6 +77,15 @@ void WordWriter::Write(StringPiece s) {
   AppendString(s, out_);
 }
 
+ScopedTerminator::ScopedTerminator(StringPiece s)
+    : s_(s), c_(s[s.size()]) {
+  const_cast<char*>(s_.data())[s_.size()] = '\0';
+}
+
+ScopedTerminator::~ScopedTerminator() {
+  const_cast<char*>(s_.data())[s_.size()] = c_;
+}
+
 static unordered_map<StringPiece, char*>* g_symtab;
 
 void InitSymtab() {
