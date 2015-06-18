@@ -5,14 +5,60 @@
 
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "dep.h"
 #include "eval.h"
 #include "log.h"
 #include "string_piece.h"
+#include "strutil.h"
 #include "value.h"
+#include "var.h"
 
 namespace {
+
+class Executor;
+
+class AutoVar : public Var {
+ public:
+  virtual const char* Flavor() const override {
+    return "undefined";
+  }
+  virtual const char* Origin() const override {
+    return "automatic";
+  }
+
+  virtual bool IsDefined() const override { CHECK(false); }
+  virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }
+
+  virtual string DebugString() const override {
+    return string("AutoVar(") + sym_ + ")";
+  }
+
+ protected:
+  AutoVar(Executor* ex, const char* sym) : ex_(ex), sym_(sym) {}
+  virtual ~AutoVar() = default;
+
+  Executor* ex_;
+  const char* sym_;
+};
+
+#define DECLARE_AUTO_VAR_CLASS(name)                            \
+  class name : public AutoVar {                                 \
+   public:                                                      \
+   name(Executor* ex, const char* sym)                          \
+       : AutoVar(ex, sym) {}                                    \
+   virtual ~name() = default;                                   \
+   virtual void Eval(Evaluator* ev, string* s) const override;  \
+  }
+
+DECLARE_AUTO_VAR_CLASS(AutoAtVar);
+DECLARE_AUTO_VAR_CLASS(AutoLessVar);
+DECLARE_AUTO_VAR_CLASS(AutoHatVar);
+DECLARE_AUTO_VAR_CLASS(AutoPlusVar);
+DECLARE_AUTO_VAR_CLASS(AutoStarVar);
 
 struct Runner {
   Runner()
@@ -25,12 +71,20 @@ struct Runner {
   //StringPiece shell;
 };
 
-}  // namespace
-
 class Executor {
  public:
-  explicit Executor(const Vars* vars)
-      : vars_(vars) {
+  explicit Executor(Vars* vars)
+      : vars_(vars),
+        ev_(new Evaluator(vars_)) {
+#define INSERT_AUTO_VAR(name, sym) do {         \
+      Var* v = new AutoAtVar(this, sym);        \
+      (*vars)[STRING_PIECE(sym)] = v;           \
+    } while (0)
+    INSERT_AUTO_VAR(AutoAtVar, "@");
+    INSERT_AUTO_VAR(AutoLessVar, "<");
+    INSERT_AUTO_VAR(AutoHatVar, "^");
+    INSERT_AUTO_VAR(AutoPlusVar, "+");
+    INSERT_AUTO_VAR(AutoStarVar, "*");
   }
 
   void ExecNode(DepNode* n, DepNode* needed_by) {
@@ -62,9 +116,9 @@ class Executor {
   }
 
   void CreateRunners(DepNode* n, vector<Runner*>* runners) {
-    unique_ptr<Evaluator> ev(new Evaluator(vars_));
+    current_dep_node_ = n;
     for (Value* v : n->cmds) {
-      shared_ptr<string> cmd = v->Eval(ev.get());
+      shared_ptr<string> cmd = v->Eval(ev_.get());
       while (true) {
         size_t index = cmd->find('\n');
         if (index == string::npos)
@@ -84,13 +138,48 @@ class Executor {
     }
   }
 
- private:
-  const Vars* vars_;
-  unordered_map<StringPiece, bool> done_;
+  const DepNode* current_dep_node() const { return current_dep_node_; }
 
+ private:
+  Vars* vars_;
+  unique_ptr<Evaluator> ev_;
+  unordered_map<StringPiece, bool> done_;
+  DepNode* current_dep_node_;
 };
 
-void Exec(const vector<DepNode*>& roots, const Vars* vars) {
+void AutoAtVar::Eval(Evaluator*, string* s) const {
+  AppendString(ex_->current_dep_node()->output, s);
+}
+
+void AutoLessVar::Eval(Evaluator*, string* s) const {
+  auto& ai = ex_->current_dep_node()->actual_inputs;
+  if (!ai.empty())
+    AppendString(ai[0], s);
+}
+
+void AutoHatVar::Eval(Evaluator*, string* s) const {
+  unordered_set<StringPiece> seen;
+  WordWriter ww(s);
+  for (StringPiece ai : ex_->current_dep_node()->actual_inputs) {
+    if (seen.insert(ai).second)
+      ww.Write(ai);
+  }
+}
+
+void AutoPlusVar::Eval(Evaluator*, string* s) const {
+  WordWriter ww(s);
+  for (StringPiece ai : ex_->current_dep_node()->actual_inputs) {
+    ww.Write(ai);
+  }
+}
+
+void AutoStarVar::Eval(Evaluator*, string* s) const {
+  AppendString(StripExt(ex_->current_dep_node()->output), s);
+}
+
+}  // namespace
+
+void Exec(const vector<DepNode*>& roots, Vars* vars) {
   unique_ptr<Executor> executor(new Executor(vars));
   for (DepNode* root : roots) {
     executor->ExecNode(root, NULL);
