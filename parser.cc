@@ -373,33 +373,10 @@ class Parser {
   }
 
   StringPiece RemoveComment(StringPiece line) {
-    bool prev_backslash = false;
-    stack<char> paren_stack;
-    for (size_t i = 0; i < line.size(); i++) {
-      char c = line[i];
-      switch (c) {
-        case '(':
-          paren_stack.push(')');
-          break;
-        case '{':
-          paren_stack.push('}');
-          break;
-
-        case ')':
-        case '}':
-          if (!paren_stack.empty() && c == paren_stack.top()) {
-            paren_stack.pop();
-          }
-          break;
-
-        case '#':
-          if (paren_stack.empty() && !prev_backslash)
-            return line.substr(0, i);
-
-      }
-      prev_backslash = c == '\\' && !prev_backslash;
-    }
-    return line;
+    size_t i = FindOutsideParen(line, '#');
+    if (i == string::npos)
+      return line;
+    return line.substr(0, i);
   }
 
   StringPiece GetDirective(StringPiece line) {

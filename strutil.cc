@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <stack>
 #include <unordered_map>
 #include <utility>
 
@@ -287,4 +288,41 @@ void AbsPath(StringPiece s, string* o) {
     prev_start = j;
   }
   o->resize(j);
+}
+
+template<typename Cond>
+size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
+  bool prev_backslash = false;
+  stack<char> paren_stack;
+  for (size_t i = 0; i < s.size(); i++) {
+    char c = s[i];
+    if (cond(c) && paren_stack.empty() && !prev_backslash) {
+      return i;
+    }
+    switch (c) {
+      case '(':
+        paren_stack.push(')');
+        break;
+      case '{':
+        paren_stack.push('}');
+        break;
+
+      case ')':
+      case '}':
+        if (!paren_stack.empty() && c == paren_stack.top()) {
+          paren_stack.pop();
+        }
+        break;
+    }
+    prev_backslash = c == '\\' && !prev_backslash;
+  }
+  return string::npos;
+}
+
+size_t FindOutsideParen(StringPiece s, char c) {
+  return FindOutsideParenImpl(s, [&c](char d){return c == d;});
+}
+
+size_t FindColonOrEqualOutsideParen(StringPiece s) {
+  return FindOutsideParenImpl(s, [](char d){return d == ':' || d == '=';});
 }
