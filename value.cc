@@ -198,6 +198,9 @@ class Func : public Value {
 
   const char* name() const { return fi_->name; }
   int arity() const { return fi_->arity; }
+  int min_arity() const { return fi_->min_arity; }
+  bool trim_space() const { return fi_->trim_space; }
+  bool trim_right_space_1st() const { return fi_->trim_right_space_1st; }
 
  private:
   FuncInfo* fi_;
@@ -239,10 +242,15 @@ Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
       terms[1] = '\0';  // Drop ','.
     }
 
+    if (f->trim_space()) {
+      while (i < s.size() && isspace(s[i]))
+        i++;
+    }
+    const bool trim_right_space = (f->trim_space() ||
+                                   (nargs == 1 && f->trim_right_space_1st()));
     size_t n;
-    Value* v = ParseExprImpl(s.substr(i), terms, false, &n);
+    Value* v = ParseExprImpl(s.substr(i), terms, false, &n, trim_right_space);
     // TODO: concatLine???
-    // TODO: trimLiteralSpace for conditional functions.
     f->AddArg(v);
     i += n;
     nargs++;
@@ -255,7 +263,7 @@ Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
       break;
   }
 
-  if (nargs <= f->arity()) {
+  if (nargs <= f->min_arity()) {
     // TODO: Show filename and line number.
     ERROR("*** insufficient number of arguments (%d) to function `%s'.",
           nargs - 1, f->name());

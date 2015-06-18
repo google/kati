@@ -313,23 +313,43 @@ void AbspathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void IfFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(if)");
+void IfFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> cond = args[0]->Eval(ev);
+  if (cond->empty()) {
+    if (args.size() > 2)
+      args[2]->Eval(ev, s);
+  } else {
+    args[1]->Eval(ev, s);
+  }
 }
 
-void AndFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(and)");
+void AndFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> cond;
+  for (Value* a : args) {
+    cond = a->Eval(ev);
+    if (cond->empty())
+      return;
+  }
+  if (cond.get()) {
+    *s += *cond;
+  }
 }
 
-void OrFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(or)");
+void OrFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  for (Value* a : args) {
+    shared_ptr<string> cond = a->Eval(ev);
+    if (!cond->empty()) {
+      *s += *cond;
+      return;
+    }
+  }
 }
 
 void ValueFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(value)");
 }
 
-void EvalFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> text = args[0]->Eval(ev);
   vector<AST*> asts;
   Parse(*text, ev->loc(), &asts);
@@ -399,46 +419,46 @@ void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 }
 
 FuncInfo g_func_infos[] = {
-  { "patsubst", &PatsubstFunc, 3 },
-  { "strip", &StripFunc, 1 },
-  { "subst", &SubstFunc, 3 },
-  { "findstring", &FindstringFunc, 2 },
-  { "filter", &FilterFunc, 2 },
-  { "filter-out", &FilterOutFunc, 2 },
-  { "sort", &SortFunc, 1 },
-  { "word", &WordFunc, 2 },
-  { "wordlist", &WordlistFunc, 3 },
-  { "words", &WordsFunc, 1 },
-  { "firstword", &FirstwordFunc, 1 },
-  { "lastword", &LastwordFunc, 1 },
+  { "patsubst", &PatsubstFunc, 3, 3, false, false },
+  { "strip", &StripFunc, 1, 1, false, false },
+  { "subst", &SubstFunc, 3, 3, false, false },
+  { "findstring", &FindstringFunc, 2, 2, false, false },
+  { "filter", &FilterFunc, 2, 2, false, false },
+  { "filter-out", &FilterOutFunc, 2, 2, false, false },
+  { "sort", &SortFunc, 1, 1, false, false },
+  { "word", &WordFunc, 2, 2, false, false },
+  { "wordlist", &WordlistFunc, 3, 3, false, false },
+  { "words", &WordsFunc, 1, 1, false, false },
+  { "firstword", &FirstwordFunc, 1, 1, false, false },
+  { "lastword", &LastwordFunc, 1, 1, false, false },
 
-  { "join", &JoinFunc, 2 },
-  { "wildcard", &WildcardFunc, 1 },
-  { "dir", &DirFunc, 1 },
-  { "notdir", &NotdirFunc, 1 },
-  { "suffix", &SuffixFunc, 1 },
-  { "basename", &BasenameFunc, 1 },
-  { "addsuffix", &AddsuffixFunc, 2 },
-  { "addprefix", &AddprefixFunc, 2 },
-  { "realpath", &RealpathFunc, 1 },
-  { "abspath", &AbspathFunc, 1 },
+  { "join", &JoinFunc, 2, 2, false, false },
+  { "wildcard", &WildcardFunc, 1, 1, false, false },
+  { "dir", &DirFunc, 1, 1, false, false },
+  { "notdir", &NotdirFunc, 1, 1, false, false },
+  { "suffix", &SuffixFunc, 1, 1, false, false },
+  { "basename", &BasenameFunc, 1, 1, false, false },
+  { "addsuffix", &AddsuffixFunc, 2, 2, false, false },
+  { "addprefix", &AddprefixFunc, 2, 2, false, false },
+  { "realpath", &RealpathFunc, 1, 1, false, false },
+  { "abspath", &AbspathFunc, 1, 1, false, false },
 
-  { "if", &IfFunc, 1 },
-  { "and", &AndFunc, 1 },
-  { "or", &OrFunc, 1 },
+  { "if", &IfFunc, 3, 2, false, true },
+  { "and", &AndFunc, 0, 0, true, false },
+  { "or", &OrFunc, 0, 0, true, false },
 
-  { "value", &ValueFunc, 1 },
-  { "eval", &EvalFunc, 1 },
-  { "shell", &ShellFunc, 1 },
-  { "call", &CallFunc, 1 },
-  { "foreach", &ForeachFunc, 1 },
+  { "value", &ValueFunc, 1, 1, false, false },
+  { "eval", &EvalFunc, 1, 1, false, false },
+  { "shell", &ShellFunc, 1, 1, false, false },
+  { "call", &CallFunc, 0, 0, false, false },
+  { "foreach", &ForeachFunc, 3, 3, false, false },
 
-  { "origin", &OriginFunc, 1 },
-  { "flavor", &FlavorFunc, 1 },
+  { "origin", &OriginFunc, 1, 1, false, false },
+  { "flavor", &FlavorFunc, 1, 1, false, false },
 
-  { "info", &InfoFunc, 1 },
-  { "warning", &WarningFunc, 1 },
-  { "error", &ErrorFunc, 1 },
+  { "info", &InfoFunc, 1, 1, false, false },
+  { "warning", &WarningFunc, 1, 1, false, false },
+  { "error", &ErrorFunc, 1, 1, false, false },
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
