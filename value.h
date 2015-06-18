@@ -38,7 +38,7 @@ Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
                      size_t* index_out, bool trim_right_space = false);
 Value* ParseExpr(StringPiece s, bool is_command = false);
 
-string JoinValues(const vector<Value*> vals, const char* sep);
+string JoinValues(const vector<Value*>& vals, const char* sep);
 
 Value* NewExpr3(Value* v1, Value* v2, Value* v3);
 

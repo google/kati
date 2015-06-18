@@ -352,13 +352,16 @@ void ValueFunc(const vector<Value*>&, Evaluator*, string*) {
 }
 
 void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
-  shared_ptr<string> text = args[0]->Eval(ev);
+  // TODO: eval leaks everything... for now.
+  //shared_ptr<string> text = args[0]->Eval(ev);
+  string* text = new string;
+  args[0]->Eval(ev, text);
   vector<AST*> asts;
   Parse(*text, ev->loc(), &asts);
   for (AST* ast : asts) {
     LOG("%s", ast->DebugString().c_str());
     ast->Eval(ev);
-    delete ast;
+    //delete ast;
   }
 }
 
