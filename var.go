@@ -244,8 +244,7 @@ func (vt Vars) Merge(vt2 Vars) {
 // calling returned value will restore to the old value at the time
 // when save called.
 func (vt Vars) save(name string) func() {
-	v := vt.Lookup(name)
-	if v.IsDefined() {
+	if v, ok := vt[name]; ok {
 		return func() {
 			vt[name] = v
 		}
