@@ -295,7 +295,11 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("sort", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	toks := splitSpaces(abuf.String())
+	ws := newWordScanner(abuf.Bytes())
+	var toks []string
+	for ws.Scan() {
+		toks = append(toks, string(ws.Bytes()))
+	}
 	freeBuf(abuf)
 	sort.Strings(toks)
 
