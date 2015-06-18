@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 )
 
@@ -78,8 +79,7 @@ func (v *TargetSpecificVar) Dump(w io.Writer) {
 }
 
 type SimpleVar struct {
-	// TODO(ukai): []byte -> Value (literal or so?)
-	value  []byte
+	value  string
 	origin string
 }
 
@@ -87,24 +87,63 @@ func (v *SimpleVar) Flavor() string  { return "simple" }
 func (v *SimpleVar) Origin() string  { return v.origin }
 func (v *SimpleVar) IsDefined() bool { return true }
 
-func (v *SimpleVar) String() string { return string(v.value) }
+func (v *SimpleVar) String() string { return v.value }
 func (v *SimpleVar) Eval(w io.Writer, ev *Evaluator) {
-	w.Write(v.value)
+	io.WriteString(w, v.value)
 }
 func (v *SimpleVar) Serialize() SerializableVar {
 	return SerializableVar{
 		Type:   "simple",
-		V:      string(v.value),
+		V:      v.value,
 		Origin: v.origin,
 	}
 }
 func (v *SimpleVar) Dump(w io.Writer) {
 	dumpByte(w, ValueTypeSimple)
-	dumpBytes(w, v.value)
+	dumpString(w, v.value)
 	dumpString(w, v.origin)
 }
 
 func (v *SimpleVar) Append(ev *Evaluator, s string) Var {
+	val, _, err := parseExpr([]byte(s), nil, false)
+	if err != nil {
+		panic(err)
+	}
+	abuf := newBuf()
+	val.Eval(abuf, ev)
+	v.value += " " + abuf.String()
+	freeBuf(abuf)
+	return v
+}
+
+func (v *SimpleVar) AppendVar(ev *Evaluator, val Value) Var {
+	abuf := newBuf()
+	val.Eval(abuf, ev)
+	v.value += " " + abuf.String()
+	freeBuf(abuf)
+	return v
+}
+
+type AutomaticVar struct {
+	value []byte
+}
+
+func (v *AutomaticVar) Flavor() string  { return "simple" }
+func (v *AutomaticVar) Origin() string  { return "automatic" }
+func (v *AutomaticVar) IsDefined() bool { return true }
+
+func (v *AutomaticVar) String() string { return string(v.value) }
+func (v *AutomaticVar) Eval(w io.Writer, ev *Evaluator) {
+	w.Write(v.value)
+}
+func (v *AutomaticVar) Serialize() SerializableVar {
+	panic(fmt.Sprintf("cannnot serialize automatic var:%s", v.value))
+}
+func (v *AutomaticVar) Dump(w io.Writer) {
+	panic(fmt.Sprintf("cannnot dump automatic var:%s", v.value))
+}
+
+func (v *AutomaticVar) Append(ev *Evaluator, s string) Var {
 	val, _, err := parseExpr([]byte(s), nil, false)
 	if err != nil {
 		panic(err)
@@ -116,7 +155,7 @@ func (v *SimpleVar) Append(ev *Evaluator, s string) Var {
 	return v
 }
 
-func (v *SimpleVar) AppendVar(ev *Evaluator, val Value) Var {
+func (v *AutomaticVar) AppendVar(ev *Evaluator, val Value) Var {
 	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
 	val.Eval(buf, ev)

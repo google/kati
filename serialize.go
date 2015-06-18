@@ -354,7 +354,7 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 
 	case "simple":
 		return &SimpleVar{
-			value:  []byte(sv.V),
+			value:  sv.V,
 			origin: sv.Origin,
 		}
 	case "recursive":
