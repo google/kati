@@ -4,12 +4,22 @@
 
 #include "file.h"
 
+static MakefileCacheManager* g_instance;
+
 MakefileCacheManager::MakefileCacheManager() {}
 
 MakefileCacheManager::~MakefileCacheManager() {}
 
+MakefileCacheManager* MakefileCacheManager::Get() {
+  return g_instance;
+}
+
 class MakefileCacheManagerImpl : public MakefileCacheManager {
  public:
+  MakefileCacheManagerImpl() {
+    g_instance = this;
+  }
+
   virtual ~MakefileCacheManagerImpl() {
     for (auto p : cache_) {
       delete p.second;

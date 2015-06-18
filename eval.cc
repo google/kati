@@ -1,7 +1,10 @@
 #include "eval.h"
 
+#include <glob.h>
+
 #include "ast.h"
 #include "file.h"
+#include "file_cache.h"
 #include "rule.h"
 #include "strutil.h"
 #include "value.h"
@@ -106,6 +109,9 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
 }
 
 void Evaluator::EvalIf(const IfAST* ast) {
+  loc_ = ast->loc();
+  last_rule_ = NULL;
+
   bool is_true;
   switch (ast->op) {
     case CondOp::IFDEF:
@@ -139,11 +145,47 @@ void Evaluator::EvalIf(const IfAST* ast) {
   }
 }
 
+void Evaluator::DoInclude(const char* fname, bool should_exist) {
+  Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
+  if (!mk->Exists()) {
+    if (should_exist) {
+      Error(StringPrintf(
+          "Cannot read %s\n"
+          "NOTE: kati does not support generating missing makefiles", fname));
+    }
+    return;
+  }
+
+  for (AST* ast : mk->asts()) {
+    LOG("%s", ast->DebugString().c_str());
+    ast->Eval(this);
+  }
+}
+
 void Evaluator::EvalInclude(const IncludeAST* ast) {
-  ERROR("TODO");
+  loc_ = ast->loc();
+  last_rule_ = NULL;
+
+  shared_ptr<string> pats = ast->expr->Eval(this);
+  for (StringPiece pat : WordScanner(*pats)) {
+    ScopedTerminator st(pat);
+    if (pat.find_first_of("?*[") != string::npos) {
+      glob_t gl;
+      glob(pat.data(), GLOB_NOSORT, NULL, &gl);
+      for (size_t i = 0; i < gl.gl_pathc; i++) {
+        DoInclude(gl.gl_pathv[i], ast->should_exist);
+      }
+      globfree(&gl);
+    } else {
+      DoInclude(pat.data(), ast->should_exist);
+    }
+  }
 }
 
 void Evaluator::EvalExport(const ExportAST* ast) {
+  loc_ = ast->loc();
+  last_rule_ = NULL;
+
   ERROR("TODO");
 }
 

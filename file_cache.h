@@ -13,9 +13,10 @@ class MakefileCacheManager {
 
   virtual Makefile* ReadMakefile(const string& filename) = 0;
 
+  static MakefileCacheManager* Get();
+
  protected:
   MakefileCacheManager();
-
 };
 
 MakefileCacheManager* NewMakefileCacheManager();

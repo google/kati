@@ -25,6 +25,8 @@ class Makefile {
   const vector<AST*>& asts() const { return asts_; }
   vector<AST*>* mutable_asts() { return &asts_; }
 
+  bool Exists() const { return buf_; }
+
  private:
   char* buf_;
   size_t len_;

@@ -66,7 +66,6 @@ static int Run(const vector<StringPiece>& targets) {
   Evaluator* ev = new Evaluator(vars);
   for (AST* ast : mk->asts()) {
     LOG("%s", ast->DebugString().c_str());
-
     ast->Eval(ev);
   }
 

@@ -41,6 +41,7 @@ class Evaluator {
   void EvalInclude(const IncludeAST* ast);
   void EvalExport(const ExportAST* ast);
 
+
   Var* LookupVar(StringPiece name);
   // For target specific variables.
   Var* LookupVarInCurrentScope(StringPiece name);
@@ -60,6 +61,8 @@ class Evaluator {
   void Error(const string& msg);
 
  private:
+  void DoInclude(const char* fname, bool should_exist);
+
   const Vars* in_vars_;
   Vars* vars_;
   unordered_map<StringPiece, Vars*> rule_vars_;
