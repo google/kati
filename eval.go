@@ -127,7 +127,7 @@ func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
 	ev.currentScope = vars
 	lhs, rhs := ev.evalAssignAST(assign)
 	Logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
-	vars.Assign(lhs, TargetSpecificVar{v: rhs, op: assign.op})
+	vars.Assign(lhs, &TargetSpecificVar{v: rhs, op: assign.op})
 	ev.currentScope = nil
 }
 

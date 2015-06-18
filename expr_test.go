@@ -47,11 +47,11 @@ func TestParseExpr(t *testing.T) {
 		},
 		{
 			in:  "$foo",
-			val: Expr{varref{varname: literal("f")}, literal("oo")},
+			val: Expr{&varref{varname: literal("f")}, literal("oo")},
 		},
 		{
 			in:  "$(foo)",
-			val: varref{varname: literal("foo")},
+			val: &varref{varname: literal("foo")},
 		},
 		{
 			in: "$(foo:.c=.o)",
@@ -68,13 +68,13 @@ func TestParseExpr(t *testing.T) {
 					fclosure: fclosure{
 						args: []Value{
 							literal("(subst"),
-							varref{
+							&varref{
 								varname: literal("space"),
 							},
-							varref{
+							&varref{
 								varname: literal(","),
 							},
-							varref{
+							&varref{
 								varname: literal("foo"),
 							},
 						},
@@ -89,15 +89,15 @@ func TestParseExpr(t *testing.T) {
 				fclosure: fclosure{
 					args: []Value{
 						literal("(subst"),
-						varref{
+						&varref{
 							varname: literal("space"),
 						},
-						varref{
+						&varref{
 							varname: literal(""),
 						},
 						Expr{
 							literal(","),
-							varref{
+							&varref{
 								varname: literal("foo"),
 							},
 						},
@@ -183,10 +183,10 @@ func TestParseExpr(t *testing.T) {
 				fclosure: fclosure{
 					args: []Value{
 						literal("(and"),
-						varref{
+						&varref{
 							varname: literal("TRUE"),
 						},
-						varref{
+						&varref{
 							varname: literal("X"),
 						},
 					},
@@ -245,7 +245,7 @@ func TestParseExpr(t *testing.T) {
 			val: &funcEvalAssign{
 				lhs: "foo",
 				op:  ":=",
-				rhs: varref{
+				rhs: &varref{
 					literal("bar"),
 				},
 			},

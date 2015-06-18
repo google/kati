@@ -260,7 +260,7 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	if vars != nil {
 		for name, v := range vars {
 			// TODO: Consider not updating db.vars.
-			tsv := v.(TargetSpecificVar)
+			tsv := v.(*TargetSpecificVar)
 			restores = append(restores, db.vars.save(name))
 			restores = append(restores, tsvs.save(name))
 			switch tsv.op {
