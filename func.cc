@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <unordered_map>
 
 #include "ast.h"
@@ -14,6 +15,7 @@
 #include "log.h"
 #include "parser.h"
 #include "strutil.h"
+#include "var.h"
 
 namespace {
 
@@ -389,8 +391,17 @@ void CallFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(call)");
 }
 
-void ForeachFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(foreach)");
+void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> varname = args[0]->Eval(ev);
+  shared_ptr<string> list = args[1]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(*list)) {
+    unique_ptr<SimpleVar> v(new SimpleVar(
+        make_shared<string>(tok.data(), tok.size()), "automatic"));
+    ScopedVar sv(ev->mutable_vars(), *varname, v.get());
+    ww.MaybeAddWhitespace();
+    args[2]->Eval(ev, s);
+  }
 }
 
 void OriginFunc(const vector<Value*>&, Evaluator*, string*) {
