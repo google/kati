@@ -219,9 +219,10 @@ func (vt Vars) Assign(name string, v Var) {
 	switch v.Origin() {
 	case "override", "environment override":
 	default:
-		ov := vt.Lookup(name)
-		if ov.Origin() == "command line" {
-			return
+		if ov, ok := vt[name]; ok {
+			if ov.Origin() == "command line" {
+				return
+			}
 		}
 	}
 	vt[name] = v
