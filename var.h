@@ -47,7 +47,7 @@ class SimpleVar : public Var {
 
   virtual void AppendVar(Evaluator* ev, Value* v);
 
-  string DebugString() const override;
+  virtual string DebugString() const override;
 
  private:
   shared_ptr<string> v_;
@@ -69,7 +69,7 @@ class RecursiveVar : public Var {
 
   virtual void AppendVar(Evaluator* ev, Value* v);
 
-  string DebugString() const override;
+  virtual string DebugString() const override;
 
  private:
   Value* v_;
@@ -90,7 +90,7 @@ class UndefinedVar : public Var {
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
-  string DebugString() const override;
+  virtual string DebugString() const override;
 };
 
 extern UndefinedVar* kUndefined;
@@ -102,6 +102,18 @@ class Vars : public unordered_map<StringPiece, Var*> {
   Var* Lookup(StringPiece name) const;
 
   void Assign(StringPiece name, Var* v);
+};
+
+class ScopedVar {
+ public:
+  // Does not take ownerships of arguments.
+  ScopedVar(Vars* vars, StringPiece name, Var* var);
+  ~ScopedVar();
+
+ private:
+  Vars* vars_;
+  Var* orig_;
+  Vars::iterator iter_;
 };
 
 #endif  // VAR_H_

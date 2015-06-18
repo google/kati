@@ -50,13 +50,7 @@ class Evaluator {
 
   const Loc& loc() const { return loc_; }
 
-#if 0
-  const vector<Rule*>& rules() const { return rules_; }
-  const Vars* vars() const { return vars_; }
-  const unordered_map<StringPiece, Vars*>& rule_vars() const {
-    return rule_vars_;
-  }
-#endif
+  Vars* mutable_vars() { return vars_; }
 
   void Error(const string& msg);
 

@@ -82,3 +82,21 @@ void Vars::Assign(StringPiece name, Var* v) {
     p.first->second = v;
   }
 }
+
+ScopedVar::ScopedVar(Vars* vars, StringPiece name, Var* var)
+    : vars_(vars), orig_(NULL) {
+  auto p = vars->insert(make_pair(name, var));
+  iter_ = p.first;
+  if (!p.second) {
+    orig_ = iter_->second;
+    iter_->second = var;
+  }
+}
+
+ScopedVar::~ScopedVar() {
+  if (orig_) {
+    iter_->second = orig_;
+  } else {
+    vars_->erase(iter_);
+  }
+}
