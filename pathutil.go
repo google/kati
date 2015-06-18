@@ -149,10 +149,6 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 								return filepath.SkipDir
 							}
 						}
-						leafch <- fileInfo{
-							path: path,
-							mode: info.Mode(),
-						}
 					}
 					filech <- fileInfo{
 						path: path,
@@ -181,15 +177,29 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 	}
 
 	go func() {
+		dirs := make(map[string]bool)
 		leavesTe := traceEvent.begin("findcache", literal("leaves"), traceEventFindCacheLeaves)
 		var leaves []fileInfo
+		nfiles := 0
 		for leaf := range leafch {
 			leaves = append(leaves, leaf)
+			nfiles++
+			for dir := filepath.Dir(leaf.path); dir != "."; dir = filepath.Dir(dir) {
+				if dirs[dir] {
+					break
+				}
+				leaves = append(leaves, fileInfo{
+					path: dir,
+					mode: leaf.mode | os.ModeDir,
+				})
+				dirs[dir] = true
+			}
 		}
 		// TODO(ukai): remove directory that doesn't have leaf names in subdirs.
 		sort.Sort(fileInfoByLeaf(leaves))
 		c.leavesch <- leaves
 		traceEvent.end(leavesTe)
+		LogStats("%d leaves %d dirs in find cache", nfiles, len(dirs))
 		for i, leaf := range leaves {
 			Logf("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
 		}
@@ -204,6 +214,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		sort.Sort(fileInfoByName(files))
 		c.filesch <- files
 		traceEvent.end(filesTe)
+		LogStats("%d files in find cache", len(files))
 		for i, fi := range files {
 			Logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
 		}
