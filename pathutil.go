@@ -195,7 +195,6 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 				dirs[dir] = true
 			}
 		}
-		// TODO(ukai): remove directory that doesn't have leaf names in subdirs.
 		sort.Sort(fileInfoByLeaf(leaves))
 		c.leavesch <- leaves
 		traceEvent.end(leavesTe)
