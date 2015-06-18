@@ -39,6 +39,16 @@ class Parser {
         fixed_lineno_(false) {
   }
 
+  Parser(StringPiece buf, const Loc& loc, vector<AST*>* asts)
+      : buf_(buf),
+        state_(ParserState::NOT_AFTER_RULE),
+        asts_(asts),
+        out_asts_(asts),
+        num_if_nest_(0),
+        loc_(loc),
+        fixed_lineno_(true) {
+  }
+
   ~Parser() {
   }
 
@@ -439,6 +449,11 @@ void Parse(Makefile* mk) {
   Parser parser(StringPiece(mk->buf(), mk->len()),
                 mk->filename().c_str(),
                 mk->mutable_asts());
+  parser.Parse();
+}
+
+void Parse(StringPiece buf, const Loc& loc, vector<AST*>* out_asts) {
+  Parser parser(buf, loc, out_asts);
   parser.Parse();
 }
 

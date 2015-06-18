@@ -9,8 +9,10 @@
 #include <iterator>
 #include <unordered_map>
 
+#include "ast.h"
 #include "eval.h"
 #include "log.h"
+#include "parser.h"
 #include "strutil.h"
 
 namespace {
@@ -327,8 +329,15 @@ void ValueFunc(const vector<Value*>&, Evaluator*, string*) {
   printf("TODO(value)");
 }
 
-void EvalFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(eval)");
+void EvalFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> text = args[0]->Eval(ev);
+  vector<AST*> asts;
+  Parse(*text, ev->loc(), &asts);
+  for (AST* ast : asts) {
+    LOG("%s", ast->DebugString().c_str());
+    ast->Eval(ev);
+    delete ast;
+  }
 }
 
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
