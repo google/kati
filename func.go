@@ -102,17 +102,28 @@ type ssvWriter struct {
 	needsSpace bool
 }
 
+func byteWrite(w io.Writer, b byte) {
+	if bw, ok := w.(io.ByteWriter); ok {
+		bw.WriteByte(b)
+		return
+	}
+	w.Write([]byte{b})
+}
+
 func (sw *ssvWriter) Write(b []byte) {
 	if sw.needsSpace {
-		sw.w.Write([]byte{' '})
+		byteWrite(sw.w, ' ')
 	}
 	sw.needsSpace = true
 	sw.w.Write(b)
 }
 
 func (sw *ssvWriter) WriteString(s string) {
-	// TODO: Ineffcient. Nice if we can remove the cast.
-	sw.Write([]byte(s))
+	if sw.needsSpace {
+		byteWrite(sw.w, ' ')
+	}
+	sw.needsSpace = true
+	io.WriteString(sw.w, s)
 }
 
 func numericValueForFunc(v string) (int, bool) {
