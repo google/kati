@@ -91,7 +91,9 @@ func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.lastRule = nil
 	lhs, rhs := ev.evalAssignAST(ast)
-	Logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+	if katiLogFlag {
+		Logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+	}
 	if len(lhs) == 0 {
 		Error(ast.filename, ast.lineno, "*** empty variable name.")
 	}
@@ -126,7 +128,9 @@ func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
 	}
 	ev.currentScope = vars
 	lhs, rhs := ev.evalAssignAST(assign)
-	Logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
+	if katiLogFlag {
+		Logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
+	}
 	vars.Assign(lhs, &TargetSpecificVar{v: rhs, op: assign.op})
 	ev.currentScope = nil
 }
@@ -143,7 +147,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.term == '=' {
 		line = append(line, ast.afterTerm...)
 	}
-	Logf("rule? %q=>%q", ast.expr, line)
+	if katiLogFlag {
+		Logf("rule? %q=>%q", ast.expr, line)
+	}
 
 	// See semicolon.mk.
 	if len(bytes.TrimRight(line, " \t\n;")) == 0 {
@@ -160,7 +166,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		Error(ast.filename, ast.lineno, "%v", err.Error())
 	}
 	freeBuf(buf)
-	Logf("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
+	if katiLogFlag {
+		Logf("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
+	}
 
 	// TODO: Pretty print.
 	//Logf("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
@@ -193,7 +201,9 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.term == ';' {
 		rule.cmds = append(rule.cmds, string(ast.afterTerm[1:]))
 	}
-	Logf("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
+	if katiLogFlag {
+		Logf("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
+	}
 	ev.lastRule = rule
 	ev.outRules = append(ev.outRules, rule)
 }
@@ -269,7 +279,9 @@ func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	}()
 	mk, ok, err := LookupMakefileCache(fname)
 	if !ok {
-		Logf("Reading makefile %q", fname)
+		if katiLogFlag {
+			Logf("Reading makefile %q", fname)
+		}
 		mk, err = ParseMakefile(c, fname)
 	}
 	if err != nil {
@@ -382,7 +394,9 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		val := buf.Len()
 		freeBuf(buf)
 		isTrue = (val > 0) == (ast.op == "ifdef")
-		Logf("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
+		if katiLogFlag {
+			Logf("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
+		}
 	case "ifeq", "ifneq":
 		lexpr := ast.lhs
 		rexpr := ast.rhs
@@ -392,7 +406,9 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		rhs := string(params[1])
 		freeBuf(buf)
 		isTrue = (lhs == rhs) == (ast.op == "ifeq")
-		Logf("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
+		if katiLogFlag {
+			Logf("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
+		}
 	default:
 		panic(fmt.Sprintf("unknown if statement: %q", ast.op))
 	}
