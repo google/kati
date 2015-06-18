@@ -66,8 +66,8 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(ast->rhs, origin);
       } else {
-        // TODO
-        abort();
+        rhs = prev;
+        needs_assign = false;
       }
       break;
     }
