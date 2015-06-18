@@ -100,6 +100,6 @@ StringPiece StripExt(StringPiece s);
 void AbsPath(StringPiece s, string* o);
 
 size_t FindOutsideParen(StringPiece s, char c);
-size_t FindColonOrEqualOutsideParen(StringPiece s);
+size_t FindTwoOutsideParen(StringPiece s, char c1, char c2);
 
 #endif  // STRUTIL_H_

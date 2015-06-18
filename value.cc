@@ -459,7 +459,7 @@ Value* ParseExprUntilComma(StringPiece s, size_t* index_out) {
   return ParseExprImpl(s, terms, false, index_out);
 }
 
-string JoinValues(const vector<Value*> vals, const char* sep) {
+string JoinValues(const vector<Value*>& vals, const char* sep) {
   vector<string> val_strs;
   for (Value* v : vals) {
     val_strs.push_back(v->DebugString());

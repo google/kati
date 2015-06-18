@@ -323,6 +323,8 @@ size_t FindOutsideParen(StringPiece s, char c) {
   return FindOutsideParenImpl(s, [&c](char d){return c == d;});
 }
 
-size_t FindColonOrEqualOutsideParen(StringPiece s) {
-  return FindOutsideParenImpl(s, [](char d){return d == ':' || d == '=';});
+size_t FindTwoOutsideParen(StringPiece s, char c1, char c2) {
+  return FindOutsideParenImpl(s, [&c1, &c2](char d){
+      return d == c1 || d == c2;
+    });
 }

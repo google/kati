@@ -148,7 +148,7 @@ class Parser {
       return;
     }
 
-    size_t sep = line.find_first_of(STRING_PIECE("=:"));
+    size_t sep = FindTwoOutsideParen(line, ':', '=');
     if (sep == string::npos) {
       ParseRule(line, sep);
     } else if (line[sep] == '=') {
@@ -163,11 +163,11 @@ class Parser {
   }
 
   void ParseRule(StringPiece line, size_t sep) {
-    const bool is_rule = line.find(':') != string::npos;
+    const bool is_rule = sep != string::npos && line[sep] == ':';
     RuleAST* ast = new RuleAST();
     ast->set_loc(loc_);
 
-    size_t found = line.substr(sep + 1).find_first_of("=;");
+    size_t found = FindTwoOutsideParen(line.substr(sep + 1), '=', ';');
     if (found != string::npos) {
       found += sep + 1;
       ast->term = line[found];
