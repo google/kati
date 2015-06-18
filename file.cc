@@ -10,7 +10,7 @@
 #include "parser.h"
 
 Makefile::Makefile(const string& filename)
-    : len_(0), mtime_(0), filename_(filename) {
+    : buf_(NULL), len_(0), mtime_(0), filename_(filename) {
   int fd = open(filename.c_str(), O_RDONLY);
   if (fd < 0) {
     return;
