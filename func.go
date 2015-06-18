@@ -787,7 +787,9 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	varname := fargs[0]
 	variable := string(varname)
 	te := traceEvent.begin("call", literal(variable), traceEventMain)
-	Logf("call %q variable %q", f.args[1], variable)
+	if katiLogFlag {
+		Logf("call %q variable %q", f.args[1], variable)
+	}
 	v := ev.LookupVar(variable)
 	// Evalualte all arguments first before we modify the table.
 	var args []tmpval
@@ -800,14 +802,16 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for i, arg := range fargs[1:] {
 		// f.args[2]=>args[1] will be $1.
 		args = append(args, tmpval(arg))
-		Logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
+		if katiLogFlag {
+			Logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
+		}
 	}
 	oldParams := ev.paramVars
 	ev.paramVars = args
 
 	var restores []func()
 	for i, arg := range args {
-		name := fmt.Sprintf("%d", i)
+		name := strconv.FormatInt(int64(i), 10)
 		restores = append(restores, ev.outVars.save(name))
 		ev.outVars.Assign(name, &SimpleVar{
 			value:  arg,
@@ -825,7 +829,9 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	}
 	ev.paramVars = oldParams
 	traceEvent.end(te)
-	Logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
+	if katiLogFlag {
+		Logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
+	}
 	freeBuf(abuf)
 }
 
@@ -1002,7 +1008,9 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		}
 		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
-	Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
+	if katiLogFlag {
+		Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
+	}
 	ev.outVars.Assign(f.lhs, rvalue)
 }
 
