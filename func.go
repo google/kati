@@ -824,23 +824,11 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	oldParams := ev.paramVars
 	ev.paramVars = args
 
-	var restores []func()
-	for i, arg := range args {
-		name := strconv.FormatInt(int64(i), 10)
-		restores = append(restores, ev.outVars.save(name))
-		ev.outVars.Assign(name, &AutomaticVar{
-			value: arg,
-		})
-	}
-
 	var buf bytes.Buffer
 	if katiLogFlag {
 		w = io.MultiWriter(w, &buf)
 	}
 	v.Eval(w, ev)
-	for _, restore := range restores {
-		restore()
-	}
 	ev.paramVars = oldParams
 	traceEvent.end(te)
 	if katiLogFlag {

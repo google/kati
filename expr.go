@@ -181,8 +181,8 @@ func (p paramref) Eval(w io.Writer, ev *Evaluator) {
 	if n < len(ev.paramVars) {
 		ev.paramVars[n].Eval(w, ev)
 	} else {
-		// out of range?
-		// panic(fmt.Sprintf("out of range %d: %d", n, len(ev.paramVars)))
+		vv := ev.LookupVar(fmt.Sprintf("%d", n))
+		vv.Eval(w, ev)
 	}
 	traceEvent.end(te)
 }

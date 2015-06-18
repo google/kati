@@ -94,7 +94,7 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	if katiLogFlag {
 		Logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
 	}
-	if len(lhs) == 0 {
+	if lhs == "" {
 		Error(ast.filename, ast.lineno, "*** empty variable name.")
 	}
 	ev.outVars.Assign(lhs, rhs)
