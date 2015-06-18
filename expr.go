@@ -26,7 +26,7 @@ import (
 
 var (
 	errEndOfInput = errors.New("parse: unexpected end of input")
-	errNotLiteral  = errors.New("valueNum: not literal")
+	errNotLiteral = errors.New("valueNum: not literal")
 
 	bufFree = sync.Pool{
 		New: func() interface{} { return new(buffer) },
@@ -139,7 +139,7 @@ type varref struct {
 	varname Value
 }
 
-func (v varref) String() string {
+func (v *varref) String() string {
 	varname := v.varname.String()
 	if len(varname) == 1 {
 		return fmt.Sprintf("$%s", varname)
@@ -147,7 +147,7 @@ func (v varref) String() string {
 	return fmt.Sprintf("${%s}", varname)
 }
 
-func (v varref) Eval(w io.Writer, ev *Evaluator) {
+func (v *varref) Eval(w io.Writer, ev *Evaluator) {
 	te := traceEvent.begin("var", v, traceEventMain)
 	buf := newBuf()
 	v.varname.Eval(buf, ev)
@@ -157,13 +157,13 @@ func (v varref) Eval(w io.Writer, ev *Evaluator) {
 	traceEvent.end(te)
 }
 
-func (v varref) Serialize() SerializableVar {
+func (v *varref) Serialize() SerializableVar {
 	return SerializableVar{
 		Type:     "varref",
 		Children: []SerializableVar{v.varname.Serialize()},
 	}
 }
-func (v varref) Dump(w io.Writer) {
+func (v *varref) Dump(w io.Writer) {
 	dumpByte(w, ValueTypeVarref)
 	v.varname.Dump(w)
 }
@@ -316,7 +316,7 @@ Loop:
 			}
 			if bytes.IndexByte(term, in[i+1]) >= 0 {
 				expr = appendStr(expr, in[b:i], alloc)
-				expr = append(expr, varref{varname: literal("")})
+				expr = append(expr, &varref{varname: literal("")})
 				i++
 				b = i
 				break Loop
@@ -388,7 +388,7 @@ func parseDollar(in []byte, alloc bool) (Value, int, error) {
 		if in[1] >= '0' && in[1] <= '9' {
 			return paramref(in[1] - '0'), 2, nil
 		}
-		return varref{varname: str(in[1:2], alloc)}, 2, nil
+		return &varref{varname: str(in[1:2], alloc)}, 2, nil
 	}
 	term := []byte{paren, ':', ' '}
 	var varname Expr
@@ -410,7 +410,7 @@ Again:
 				// ${n}
 				return paramref(n), i + 1, nil
 			}
-			return varref{varname: vname}, i + 1, nil
+			return &varref{varname: vname}, i + 1, nil
 		case ' ':
 			// ${e ...}
 			switch token := e.(type) {
@@ -424,7 +424,7 @@ Again:
 			continue Again
 		case ':':
 			// ${varname:...}
-			colon := in[i:i+1]
+			colon := in[i : i+1]
 			term = term[:2]
 			term[1] = '=' // term={paren, '='}.
 			e, n, err := parseExpr(in[i+1:], term, alloc)
@@ -434,7 +434,7 @@ Again:
 			i += 1 + n
 			if in[i] == paren {
 				varname = appendStr(varname, colon, alloc)
-				return varref{varname: varname}, i + 1, nil
+				return &varref{varname: varname}, i + 1, nil
 			}
 			// ${varname:xx=...}
 			pat := e
@@ -641,7 +641,7 @@ func matchExpr(expr, pat Expr) ([]Value, bool) {
 	for i := range expr {
 		if pat[i] == mv {
 			switch expr[i].(type) {
-			case paramref, varref:
+			case paramref, *varref:
 				matches = append(matches, expr[i])
 				continue
 			}

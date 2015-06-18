@@ -33,45 +33,45 @@ type TargetSpecificVar struct {
 	op string
 }
 
-func (v TargetSpecificVar) Append(ev *Evaluator, s string) Var {
-	return TargetSpecificVar{
+func (v *TargetSpecificVar) Append(ev *Evaluator, s string) Var {
+	return &TargetSpecificVar{
 		v:  v.v.Append(ev, s),
 		op: v.op,
 	}
 }
-func (v TargetSpecificVar) AppendVar(ev *Evaluator, v2 Value) Var {
-	return TargetSpecificVar{
+func (v *TargetSpecificVar) AppendVar(ev *Evaluator, v2 Value) Var {
+	return &TargetSpecificVar{
 		v:  v.v.AppendVar(ev, v2),
 		op: v.op,
 	}
 }
-func (v TargetSpecificVar) Flavor() string {
+func (v *TargetSpecificVar) Flavor() string {
 	return v.v.Flavor()
 }
-func (v TargetSpecificVar) Origin() string {
+func (v *TargetSpecificVar) Origin() string {
 	return v.v.Origin()
 }
-func (v TargetSpecificVar) IsDefined() bool {
+func (v *TargetSpecificVar) IsDefined() bool {
 	return v.v.IsDefined()
 }
-func (v TargetSpecificVar) String() string {
+func (v *TargetSpecificVar) String() string {
 	// TODO: If we add the info of |op| a test starts
 	// failing. Shouldn't we use this only for debugging?
 	return v.v.String()
 	// return v.v.String() + " (op=" + v.op + ")"
 }
-func (v TargetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
+func (v *TargetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
 	v.v.Eval(w, ev)
 }
 
-func (v TargetSpecificVar) Serialize() SerializableVar {
+func (v *TargetSpecificVar) Serialize() SerializableVar {
 	return SerializableVar{
 		Type:     v.op,
 		Children: []SerializableVar{v.v.Serialize()},
 	}
 }
 
-func (v TargetSpecificVar) Dump(w io.Writer) {
+func (v *TargetSpecificVar) Dump(w io.Writer) {
 	dumpByte(w, ValueTypeTSV)
 	dumpString(w, v.op)
 	v.v.Dump(w)
@@ -83,28 +83,28 @@ type SimpleVar struct {
 	origin string
 }
 
-func (v SimpleVar) Flavor() string  { return "simple" }
-func (v SimpleVar) Origin() string  { return v.origin }
-func (v SimpleVar) IsDefined() bool { return true }
+func (v *SimpleVar) Flavor() string  { return "simple" }
+func (v *SimpleVar) Origin() string  { return v.origin }
+func (v *SimpleVar) IsDefined() bool { return true }
 
-func (v SimpleVar) String() string { return string(v.value) }
-func (v SimpleVar) Eval(w io.Writer, ev *Evaluator) {
+func (v *SimpleVar) String() string { return string(v.value) }
+func (v *SimpleVar) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(v.value)
 }
-func (v SimpleVar) Serialize() SerializableVar {
+func (v *SimpleVar) Serialize() SerializableVar {
 	return SerializableVar{
 		Type:   "simple",
 		V:      string(v.value),
 		Origin: v.origin,
 	}
 }
-func (v SimpleVar) Dump(w io.Writer) {
+func (v *SimpleVar) Dump(w io.Writer) {
 	dumpByte(w, ValueTypeSimple)
 	dumpBytes(w, v.value)
 	dumpString(w, v.origin)
 }
 
-func (v SimpleVar) Append(ev *Evaluator, s string) Var {
+func (v *SimpleVar) Append(ev *Evaluator, s string) Var {
 	val, _, err := parseExpr([]byte(s), nil, false)
 	if err != nil {
 		panic(err)
@@ -116,7 +116,7 @@ func (v SimpleVar) Append(ev *Evaluator, s string) Var {
 	return v
 }
 
-func (v SimpleVar) AppendVar(ev *Evaluator, val Value) Var {
+func (v *SimpleVar) AppendVar(ev *Evaluator, val Value) Var {
 	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
 	val.Eval(buf, ev)
@@ -129,28 +129,28 @@ type RecursiveVar struct {
 	origin string
 }
 
-func (v RecursiveVar) Flavor() string  { return "recursive" }
-func (v RecursiveVar) Origin() string  { return v.origin }
-func (v RecursiveVar) IsDefined() bool { return true }
+func (v *RecursiveVar) Flavor() string  { return "recursive" }
+func (v *RecursiveVar) Origin() string  { return v.origin }
+func (v *RecursiveVar) IsDefined() bool { return true }
 
-func (v RecursiveVar) String() string { return v.expr.String() }
-func (v RecursiveVar) Eval(w io.Writer, ev *Evaluator) {
+func (v *RecursiveVar) String() string { return v.expr.String() }
+func (v *RecursiveVar) Eval(w io.Writer, ev *Evaluator) {
 	v.expr.Eval(w, ev)
 }
-func (v RecursiveVar) Serialize() SerializableVar {
+func (v *RecursiveVar) Serialize() SerializableVar {
 	return SerializableVar{
 		Type:     "recursive",
 		Children: []SerializableVar{v.expr.Serialize()},
 		Origin:   v.origin,
 	}
 }
-func (v RecursiveVar) Dump(w io.Writer) {
+func (v *RecursiveVar) Dump(w io.Writer) {
 	dumpByte(w, ValueTypeRecursive)
 	v.expr.Dump(w)
 	dumpString(w, v.origin)
 }
 
-func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
+func (v *RecursiveVar) Append(_ *Evaluator, s string) Var {
 	var expr Expr
 	if e, ok := v.expr.(Expr); ok {
 		expr = append(e, literal(" "))
@@ -170,7 +170,7 @@ func (v RecursiveVar) Append(_ *Evaluator, s string) Var {
 	return v
 }
 
-func (v RecursiveVar) AppendVar(ev *Evaluator, val Value) Var {
+func (v *RecursiveVar) AppendVar(ev *Evaluator, val Value) Var {
 	var buf bytes.Buffer
 	buf.WriteString(v.expr.String())
 	buf.WriteByte(' ')

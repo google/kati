@@ -57,13 +57,13 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	case ":=":
 		var buf bytes.Buffer
 		ast.rhs.Eval(&buf, ev)
-		return SimpleVar{value: buf.Bytes(), origin: origin}
+		return &SimpleVar{value: buf.Bytes(), origin: origin}
 	case "=":
-		return RecursiveVar{expr: ast.rhs, origin: origin}
+		return &RecursiveVar{expr: ast.rhs, origin: origin}
 	case "+=":
 		prev := ev.LookupVarInCurrentScope(lhs)
 		if !prev.IsDefined() {
-			return RecursiveVar{expr: ast.rhs, origin: origin}
+			return &RecursiveVar{expr: ast.rhs, origin: origin}
 		}
 		return prev.AppendVar(ev, ast.rhs)
 	case "?=":
@@ -71,7 +71,7 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 		if prev.IsDefined() {
 			return prev
 		}
-		return RecursiveVar{expr: ast.rhs, origin: origin}
+		return &RecursiveVar{expr: ast.rhs, origin: origin}
 	default:
 		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
 	}

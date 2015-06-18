@@ -321,7 +321,7 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		}
 		return e
 	case "varref":
-		return varref{varname: DeserializeSingleChild(sv)}
+		return &varref{varname: DeserializeSingleChild(sv)}
 	case "paramref":
 		v, err := strconv.Atoi(sv.V)
 		if err != nil {
@@ -353,18 +353,18 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		return &funcNop{expr: sv.V}
 
 	case "simple":
-		return SimpleVar{
+		return &SimpleVar{
 			value:  []byte(sv.V),
 			origin: sv.Origin,
 		}
 	case "recursive":
-		return RecursiveVar{
+		return &RecursiveVar{
 			expr:   DeserializeSingleChild(sv),
 			origin: sv.Origin,
 		}
 
 	case ":=", "=", "+=", "?=":
-		return TargetSpecificVar{
+		return &TargetSpecificVar{
 			v:  DeserializeSingleChild(sv).(Var),
 			op: sv.Type,
 		}

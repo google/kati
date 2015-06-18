@@ -809,7 +809,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for i, arg := range args {
 		name := fmt.Sprintf("%d", i)
 		restores = append(restores, ev.outVars.save(name))
-		ev.outVars.Assign(name, SimpleVar{
+		ev.outVars.Assign(name, &SimpleVar{
 			value:  arg,
 			origin: "automatic", // ??
 		})
@@ -985,22 +985,22 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		}
 		var vbuf bytes.Buffer
 		expr.Eval(&vbuf, ev)
-		rvalue = SimpleVar{value: tmpval(vbuf.Bytes()), origin: "file"}
+		rvalue = &SimpleVar{value: tmpval(vbuf.Bytes()), origin: "file"}
 	case "=":
-		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
+		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
 		prev := ev.LookupVar(f.lhs)
 		if prev.IsDefined() {
 			rvalue = prev.Append(ev, string(rhs))
 		} else {
-			rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
+			rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
 		}
 	case "?=":
 		prev := ev.LookupVar(f.lhs)
 		if prev.IsDefined() {
 			return
 		}
-		rvalue = RecursiveVar{expr: tmpval(rhs), origin: "file"}
+		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
 	Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	ev.outVars.Assign(f.lhs, rvalue)
@@ -1111,7 +1111,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	for ws.Scan() {
 		word := ws.Bytes()
 		ev.outVars.Assign(varname,
-			SimpleVar{
+			&SimpleVar{
 				value:  tmpval(word),
 				origin: "automatic",
 			})

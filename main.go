@@ -216,19 +216,19 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 		if len(kv) < 2 {
 			panic(fmt.Sprintf("A weird environ variable %q", kv))
 		}
-		vars.Assign(kv[0], RecursiveVar{
+		vars.Assign(kv[0], &RecursiveVar{
 			expr:   literal(kv[1]),
 			origin: "environment",
 		})
 	}
-	vars.Assign("MAKEFILE_LIST", SimpleVar{value: []byte{}, origin: "file"})
+	vars.Assign("MAKEFILE_LIST", &SimpleVar{value: []byte{}, origin: "file"})
 	for _, v := range clvars {
 		kv := strings.SplitN(v, "=", 2)
 		Logf("cmdlinevar %q", kv)
 		if len(kv) < 2 {
 			panic(fmt.Sprintf("unexpected command line var %q", kv))
 		}
-		vars.Assign(kv[0], RecursiveVar{
+		vars.Assign(kv[0], &RecursiveVar{
 			expr:   literal(kv[1]),
 			origin: "command line",
 		})
