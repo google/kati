@@ -36,7 +36,7 @@ void TestHasSuffix() {
 
 string SubstPattern(StringPiece str, StringPiece pat, StringPiece subst) {
   string r;
-  AppendSubstPattern(str, pat, subst, &r);
+  Pattern(pat).AppendSubst(str, subst, &r);
   return r;
 }
 

@@ -79,13 +79,22 @@ bool HasSuffix(StringPiece str, StringPiece suffix);
 
 StringPiece TrimSuffix(StringPiece str, StringPiece suffix);
 
-void AppendSubstPattern(StringPiece str, StringPiece pat, StringPiece subst,
-                        string* out);
+class Pattern {
+ public:
+  explicit Pattern(StringPiece pat);
 
-void AppendSubstRef(StringPiece str, StringPiece pat, StringPiece subst,
-                    string* out);
+  bool Match(StringPiece str) const;
 
-bool MatchPattern(StringPiece str, StringPiece pat);
+  void AppendSubst(StringPiece str, StringPiece subst, string* out) const;
+
+  void AppendSubstRef(StringPiece str, StringPiece subst, string* out) const;
+
+ private:
+  bool MatchImpl(StringPiece str) const;
+
+  StringPiece pat_;
+  size_t percent_index_;
+};
 
 string NoLineBreak(const string& s);
 
