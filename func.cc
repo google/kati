@@ -387,8 +387,22 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   *s += out;
 }
 
-void CallFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(call)");
+void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  static const char* tmpvar_names[] = {
+    "0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9"
+  };
+
+  shared_ptr<string> func_name = args[0]->Eval(ev);
+  Var* func = ev->LookupVar(*func_name);
+  vector<unique_ptr<SimpleVar>> av;
+  vector<unique_ptr<ScopedVar>> sv;
+  for (size_t i = 1; i < args.size(); i++) {
+    unique_ptr<SimpleVar> s(new SimpleVar(args[i]->Eval(ev), "automatic"));
+    sv.push_back(move(unique_ptr<ScopedVar>(
+        new ScopedVar(ev->mutable_vars(), tmpvar_names[i], s.get()))));
+    av.push_back(move(s));
+  }
+  func->Eval(ev, s);
 }
 
 void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
