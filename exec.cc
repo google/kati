@@ -11,6 +11,7 @@
 
 #include "dep.h"
 #include "eval.h"
+#include "fileutil.h"
 #include "log.h"
 #include "string_piece.h"
 #include "strutil.h"
@@ -115,16 +116,20 @@ class Executor {
   void ExecNode(DepNode* n, DepNode* needed_by) {
     if (done_[n->output])
       return;
+    done_[n->output] = true;
 
     LOG("ExecNode: %s for %s",
         n->output.as_string().c_str(),
         needed_by ? needed_by->output.as_string().c_str() : "(null)");
 
     for (DepNode* d : n->deps) {
-#if 0
-      if (d.is_order_only && exists(d->output)) {
+      if (d->is_order_only && Exists(d->output)) {
+        continue;
       }
-#endif
+      // TODO: Check the timestamp.
+      if (Exists(d->output)) {
+        continue;
+      }
       ExecNode(d, n);
     }
 
