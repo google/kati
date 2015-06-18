@@ -60,6 +60,29 @@ DECLARE_AUTO_VAR_CLASS(AutoHatVar);
 DECLARE_AUTO_VAR_CLASS(AutoPlusVar);
 DECLARE_AUTO_VAR_CLASS(AutoStarVar);
 
+class AutoSuffixDVar : public AutoVar {
+ public:
+  AutoSuffixDVar(Executor* ex, const char* sym, Var* wrapped)
+      : AutoVar(ex, sym), wrapped_(wrapped) {
+  }
+  virtual ~AutoSuffixDVar() = default;
+  virtual void Eval(Evaluator* ev, string* s) const override;
+
+ private:
+  Var* wrapped_;
+};
+
+class AutoSuffixFVar : public AutoVar {
+ public:
+  AutoSuffixFVar(Executor* ex, const char* sym, Var* wrapped)
+      : AutoVar(ex, sym), wrapped_(wrapped) {}
+  virtual ~AutoSuffixFVar() = default;
+  virtual void Eval(Evaluator* ev, string* s) const override;
+
+ private:
+  Var* wrapped_;
+};
+
 struct Runner {
   Runner()
       : echo(true), ignore_error(false) {
@@ -76,9 +99,11 @@ class Executor {
   explicit Executor(Vars* vars)
       : vars_(vars),
         ev_(new Evaluator(vars_)) {
-#define INSERT_AUTO_VAR(name, sym) do {         \
-      Var* v = new AutoAtVar(this, sym);        \
-      (*vars)[STRING_PIECE(sym)] = v;           \
+#define INSERT_AUTO_VAR(name, sym) do {                                 \
+      Var* v = new name(this, sym);                                     \
+      (*vars)[STRING_PIECE(sym)] = v;                                   \
+      (*vars)[STRING_PIECE(sym"D")] = new AutoSuffixDVar(this, sym"D", v); \
+      (*vars)[STRING_PIECE(sym"F")] = new AutoSuffixFVar(this, sym"F", v); \
     } while (0)
     INSERT_AUTO_VAR(AutoAtVar, "@");
     INSERT_AUTO_VAR(AutoLessVar, "<");
@@ -175,6 +200,24 @@ void AutoPlusVar::Eval(Evaluator*, string* s) const {
 
 void AutoStarVar::Eval(Evaluator*, string* s) const {
   AppendString(StripExt(ex_->current_dep_node()->output), s);
+}
+
+void AutoSuffixDVar::Eval(Evaluator* ev, string* s) const {
+  string buf;
+  wrapped_->Eval(ev, &buf);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(buf)) {
+    ww.Write(Dirname(tok));
+  }
+}
+
+void AutoSuffixFVar::Eval(Evaluator* ev, string* s) const {
+  string buf;
+  wrapped_->Eval(ev, &buf);
+  WordWriter ww(s);
+  for (StringPiece tok : WordScanner(buf)) {
+    ww.Write(Basename(tok));
+  }
 }
 
 }  // namespace
