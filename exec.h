@@ -8,6 +8,6 @@ using namespace std;
 class DepNode;
 class Vars;
 
-void Exec(const vector<DepNode*>& roots, const Vars* vars);
+void Exec(const vector<DepNode*>& roots, Vars* vars);
 
 #endif  // EXEC_H_
