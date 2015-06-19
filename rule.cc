@@ -1,9 +1,12 @@
 #include "rule.h"
 
 #include "log.h"
+#include "parser.h"
 #include "stringprintf.h"
 #include "strutil.h"
 #include "value.h"
+
+namespace {
 
 // Strip leading sequences of './' from file names, so that ./file
 // and file are considered to be the same file.
@@ -30,27 +33,42 @@ static void ParseInputs(Rule* r, StringPiece s) {
   }
 }
 
+bool IsPatternRule(StringPiece s) {
+  return s.find('%') != string::npos;
+}
+
+}  // namespace
+
 Rule::Rule()
     : is_double_colon(false),
       is_suffix_rule(false),
       cmd_lineno(0) {
 }
 
-void Rule::Parse(StringPiece line) {
+void ParseRule(Loc& loc, StringPiece line,
+               Rule** out_rule, RuleVar* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {
-    Error("*** missing separator.");
+    ERROR("%s:%d: *** missing separator.", LOCF(loc));
   }
 
   StringPiece first = line.substr(0, index);
-  // TODO: isPattern?
-  if (false) {
-  } else {
-    for (StringPiece tok : WordScanner(first)) {
-      outputs.push_back(Intern(TrimLeadingCurdir(tok)));
+  vector<StringPiece> outputs;
+  for (StringPiece tok : WordScanner(first)) {
+    outputs.push_back(Intern(TrimLeadingCurdir(tok)));
+  }
+
+  CHECK(!outputs.empty());
+  const bool is_first_pattern = IsPatternRule(outputs[0]);
+  if (is_first_pattern) {
+    if (outputs.size() > 1) {
+      // TODO: Multiple output patterns are not supported yet.
+      ERROR("%s:%d: *** mixed implicit and normal rules: deprecated syntax",
+            LOCF(loc));
     }
   }
 
+  bool is_double_colon = false;
   index++;
   if (line.get(index) == ':') {
     is_double_colon = true;
@@ -58,15 +76,53 @@ void Rule::Parse(StringPiece line) {
   }
 
   StringPiece rest = line.substr(index);
+  size_t equal_index = rest.find('=');
+  if (equal_index != string::npos) {
+    rule_var->outputs.swap(outputs);
+    ParseAssignStatement(rest, equal_index,
+                         &rule_var->lhs, &rule_var->rhs, &rule_var->op);
+    *out_rule = NULL;
+    return;
+  }
 
-  // TODO: TSV
-  //if (
+  Rule* rule = new Rule();
+  *out_rule = rule;
+  rule->loc = loc;
+  rule->is_double_colon = is_double_colon;
+  if (is_first_pattern) {
+    rule->output_patterns.swap(outputs);
+  } else {
+    rule->outputs.swap(outputs);
+  }
 
   index = rest.find(':');
   if (index == string::npos) {
-    ParseInputs(this, rest);
+    ParseInputs(rule, rest);
     return;
   }
+
+  if (is_first_pattern) {
+    ERROR("%s:%d: *** mixed implicit and normal rules: deprecated syntax",
+          LOCF(loc));
+  }
+
+  StringPiece second = rest.substr(0, index);
+  StringPiece third = rest.substr(index+1);
+
+  for (StringPiece tok : WordScanner(second)) {
+    rule->output_patterns.push_back(tok);
+  }
+
+  if (rule->output_patterns.empty()) {
+    ERROR("%s:%d: *** missing target pattern.", LOCF(loc));
+  }
+  if (rule->output_patterns.size() > 1) {
+    ERROR("%s:%d: *** multiple target patterns.", LOCF(loc));
+  }
+  if (!IsPatternRule(rule->output_patterns[0])) {
+    ERROR("%s:%d: *** target pattern contains no '%%'.", LOCF(loc));
+  }
+  ParseInputs(rule, third);
 }
 
 string Rule::DebugString() const {

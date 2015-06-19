@@ -186,27 +186,15 @@ class Parser {
   void ParseAssign(StringPiece line, size_t sep) {
     if (sep == 0)
       Error("*** empty variable name ***");
-    AssignOp op = AssignOp::EQ;
-    size_t lhs_end = sep;
-    switch (line[sep-1]) {
-      case ':':
-        lhs_end--;
-        op = AssignOp::COLON_EQ;
-        break;
-      case '+':
-        lhs_end--;
-        op = AssignOp::PLUS_EQ;
-        break;
-      case '?':
-        lhs_end--;
-        op = AssignOp::QUESTION_EQ;
-        break;
-    }
+    StringPiece lhs;
+    StringPiece rhs;
+    AssignOp op;
+    ParseAssignStatement(line, sep, &lhs, &rhs, &op);
 
     AssignAST* ast = new AssignAST();
     ast->set_loc(loc_);
-    ast->lhs = ParseExpr(TrimSpace(line.substr(0, lhs_end)), false);
-    ast->rhs = ParseExpr(TrimSpace(line.substr(sep + 1)), false);
+    ast->lhs = ParseExpr(lhs, false);
+    ast->rhs = ParseExpr(rhs, false);
     ast->op = op;
     ast->directive = AssignDirective::NONE;
     out_asts_->push_back(ast);
@@ -446,3 +434,26 @@ Parser::DirectiveMap* Parser::make_directives_;
 Parser::DirectiveMap* Parser::else_if_directives_;
 size_t Parser::shortest_directive_len_;
 size_t Parser::longest_directive_len_;
+
+void ParseAssignStatement(StringPiece line, size_t sep,
+                          StringPiece* lhs, StringPiece* rhs, AssignOp* op) {
+  CHECK(sep != 0);
+  *op = AssignOp::EQ;
+  size_t lhs_end = sep;
+  switch (line[sep-1]) {
+    case ':':
+      lhs_end--;
+      *op = AssignOp::COLON_EQ;
+      break;
+    case '+':
+      lhs_end--;
+      *op = AssignOp::PLUS_EQ;
+      break;
+    case '?':
+      lhs_end--;
+      *op = AssignOp::QUESTION_EQ;
+      break;
+  }
+  *lhs = TrimSpace(line.substr(0, lhs_end));
+  *rhs = TrimSpace(line.substr(sep + 1));
+}
