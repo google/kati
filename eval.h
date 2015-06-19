@@ -1,6 +1,7 @@
 #ifndef EVAL_H_
 #define EVAL_H_
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -22,7 +23,7 @@ class Vars;
 
 struct EvalResult {
   ~EvalResult();
-  vector<Rule*> rules;
+  vector<shared_ptr<Rule>> rules;
   Vars* vars;
   unordered_map<StringPiece, Vars*> rule_vars;
   // TODO: read_mks
@@ -60,7 +61,7 @@ class Evaluator {
   const Vars* in_vars_;
   Vars* vars_;
   unordered_map<StringPiece, Vars*> rule_vars_;
-  vector<Rule*> rules_;
+  vector<shared_ptr<Rule>> rules_;
   Rule* last_rule_;
 
   Loc loc_;

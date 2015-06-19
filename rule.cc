@@ -42,8 +42,7 @@ bool IsPatternRule(StringPiece s) {
 Rule::Rule()
     : is_double_colon(false),
       is_suffix_rule(false),
-      cmd_lineno(0),
-      is_temporary(true) {
+      cmd_lineno(0) {
 }
 
 void ParseRule(Loc& loc, StringPiece line,
@@ -88,7 +87,6 @@ void ParseRule(Loc& loc, StringPiece line,
 
   Rule* rule = new Rule();
   *out_rule = rule;
-  rule->is_temporary = false;
   rule->loc = loc;
   rule->is_double_colon = is_double_colon;
   if (is_first_pattern) {
