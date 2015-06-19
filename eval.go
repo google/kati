@@ -73,7 +73,7 @@ func newEvaluator(vars map[string]Var) *Evaluator {
 }
 
 func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
-	var pos []int
+	pos := make([]int, 0, len(args))
 	for _, arg := range args {
 		arg.Eval(buf, ev)
 		pos = append(pos, buf.Len())

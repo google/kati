@@ -56,3 +56,24 @@ func BenchmarkFuncSort(b *testing.B) {
 		sort.Eval(&buf, ev)
 	}
 }
+
+func BenchmarkFuncPatsubst(b *testing.B) {
+	patsubst := &funcPatsubst{
+		fclosure: fclosure{
+			args: []Value{
+				literal("(patsubst"),
+				literal("%.java"),
+				literal("%.class"),
+				literal("foo.jar bar.java baz.h"),
+			},
+		},
+	}
+	ev := newEvaluator(make(map[string]Var))
+	var buf bytes.Buffer
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		patsubst.Eval(&buf, ev)
+	}
+}
