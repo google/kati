@@ -110,16 +110,20 @@ func (v *SimpleVar) Append(ev *Evaluator, s string) Var {
 		panic(err)
 	}
 	abuf := newBuf()
+	io.WriteString(abuf, v.value)
+	writeByte(abuf, ' ')
 	val.Eval(abuf, ev)
-	v.value += " " + abuf.String()
+	v.value = abuf.String()
 	freeBuf(abuf)
 	return v
 }
 
 func (v *SimpleVar) AppendVar(ev *Evaluator, val Value) Var {
 	abuf := newBuf()
+	io.WriteString(abuf, v.value)
+	writeByte(abuf, ' ')
 	val.Eval(abuf, ev)
-	v.value += " " + abuf.String()
+	v.value = abuf.String()
 	freeBuf(abuf)
 	return v
 }
