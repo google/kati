@@ -37,3 +37,22 @@ func BenchmarkFuncStrip(b *testing.B) {
 		strip.Eval(&buf, ev)
 	}
 }
+
+func BenchmarkFuncSort(b *testing.B) {
+	sort := &funcSort{
+		fclosure: fclosure{
+			args: []Value{
+				literal("(sort"),
+				literal("foo bar lose"),
+			},
+		},
+	}
+	ev := newEvaluator(make(map[string]Var))
+	var buf bytes.Buffer
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		sort.Eval(&buf, ev)
+	}
+}
