@@ -30,6 +30,8 @@ func BenchmarkFuncStrip(b *testing.B) {
 	}
 	ev := newEvaluator(make(map[string]Var))
 	var buf bytes.Buffer
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		strip.Eval(&buf, ev)
