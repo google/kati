@@ -87,13 +87,18 @@ void Evaluator::EvalRule(const RuleAST* ast) {
   if (expr->find_first_not_of(" \t\n;") == string::npos)
     return;
 
-  Rule* rule = new Rule;
-  rule->loc = loc_;
-  rule->Parse(*expr);
+  Rule* rule;
+  RuleVar rule_var;
+  ParseRule(loc_, *expr, &rule, &rule_var);
 
-  LOG("Rule: %s", rule->DebugString().c_str());
-  rules_.push_back(rule);
-  last_rule_ = rule;
+  if (rule) {
+    LOG("Rule: %s", rule->DebugString().c_str());
+    rules_.push_back(rule);
+    last_rule_ = rule;
+    return;
+  }
+
+  CHECK(false);
 }
 
 void Evaluator::EvalCommand(const CommandAST* ast) {

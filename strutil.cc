@@ -290,7 +290,6 @@ void AbsPath(StringPiece s, string* o) {
       (*o)[j] = c;
       j++;
     }
-    LOG("%zu => %zu", prev_start, j);
     prev_start = j;
   }
   o->resize(j);
