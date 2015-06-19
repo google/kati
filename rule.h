@@ -17,6 +17,8 @@ class Rule {
  public:
   Rule();
 
+  Loc cmd_loc() const { return Loc(loc.filename, cmd_lineno); }
+
   string DebugString() const;
 
   vector<StringPiece> outputs;

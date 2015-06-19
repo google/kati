@@ -107,32 +107,49 @@ class DepBuilder {
     return true;
   }
 
+  shared_ptr<Rule> MergeRules(const Rule& old_rule,
+                              const Rule& rule,
+                              StringPiece output,
+                              bool is_suffix_rule) {
+    if (old_rule.is_double_colon != rule.is_double_colon) {
+      ERROR("%s:%d: *** target file `%s' has both : and :: entries.",
+            LOCF(rule.loc), output.as_string().c_str());
+    }
+    if (!old_rule.cmds.empty() && !rule.cmds.empty() &&
+        !is_suffix_rule && !rule.is_double_colon) {
+      WARN("%s:%d: overriding commands for target `%s'",
+           LOCF(rule.cmd_loc()), output.as_string().c_str());
+      WARN("%s:%d: ignoring old commands for target `%s'",
+           LOCF(old_rule.cmd_loc()), output.as_string().c_str());
+    }
+
+    shared_ptr<Rule> r = make_shared<Rule>(rule);
+    if (rule.is_double_colon) {
+      r->cmds.clear();
+      for (Value* c : old_rule.cmds)
+        r->cmds.push_back(c);
+      for (Value* c : rule.cmds)
+        r->cmds.push_back(c);
+    } else if (!old_rule.cmds.empty() && rule.cmds.empty()) {
+      r->cmds = old_rule.cmds;
+    }
+    for (StringPiece p : old_rule.output_patterns) {
+      r->output_patterns.push_back(p);
+    }
+    return r;
+  }
+
   void PopulateExplicitRule(shared_ptr<Rule> rule) {
     for (StringPiece output : rule->outputs) {
       const bool is_suffix_rule = PopulateSuffixRule(rule, output);
-      // isSuffixRule := db.populateSuffixRule(rule, output)
-
-
-      /*
-          if oldRule, present := db.rules[output]; present {
-     r := mergeRules(oldRule, rule, output, isSuffixRule)
-                                                         db.rules[output] = r
-                                                         } else {
-        db.rules[output] = rule
-            if db.firstRule == nil && !strings.HasPrefix(output, ".") {
-                db.firstRule = rule
-              }
-      }
-      */
-
       auto p = rules_.insert(make_pair(output, rule));
       if (p.second) {
         if (!first_rule_ && output.get(0) != '.') {
           first_rule_ = rule;
         }
       } else {
-        // TODO: merge
-        CHECK(false);
+        p.first->second =
+            MergeRules(*p.first->second, *rule, output, is_suffix_rule);
       }
     }
   }
