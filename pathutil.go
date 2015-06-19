@@ -29,6 +29,67 @@ import (
 
 var wildcardCache = make(map[string][]string)
 
+func wildcardGlob(pat string) []string {
+	// TODO(ukai): use find cache for glob if exists.
+	pattern := filepath.Clean(pat)
+	if pattern != pat {
+		// For some reason, go's Glob normalizes
+		// foo/../bar to bar.
+		i := strings.IndexAny(pattern, "*?[")
+		if i < 0 {
+			// no wildcard. if any files matched with pattern,
+			// return pat.
+			_, err := os.Stat(pat)
+			if err != nil {
+				return nil
+			}
+			return []string{pat}
+		}
+		if strings.Contains(pattern[i+1:], "..") {
+			// We ask shell to expand a glob to avoid this.
+			cmdline := []string{"/bin/sh", "-c", "/bin/ls -d " + pat}
+			cmd := exec.Cmd{
+				Path: cmdline[0],
+				Args: cmdline,
+			}
+			// Ignore errors.
+			out, _ := cmd.Output()
+			ws := newWordScanner(out)
+			var files []string
+			for ws.Scan() {
+				files = append(files, string(ws.Bytes()))
+			}
+			return files
+		}
+		// prefix + meta + suffix, and suffix doesn't have '..'
+		prefix := pattern[:i]
+		i = strings.IndexAny(pat, "*?[")
+		if i < 0 {
+			panic(fmt.Sprintf("wildcard metachar mismatch? pattern=%q pat=%q", pattern, pat))
+		}
+		oprefix := pat[:i]
+		matched, err := filepath.Glob(pattern)
+		if err != nil {
+			panic(err)
+		}
+		var files []string
+		for _, m := range matched {
+			file := oprefix + strings.TrimPrefix(m, prefix)
+			_, err := os.Stat(file)
+			if err != nil {
+				continue
+			}
+			files = append(files, file)
+		}
+		return files
+	}
+	files, err := filepath.Glob(pat)
+	if err != nil {
+		panic(err)
+	}
+	return files
+}
+
 func wildcard(sw *ssvWriter, pat string) {
 	if useWildcardCache {
 		// TODO(ukai): make sure it didn't chdir?
@@ -39,35 +100,7 @@ func wildcard(sw *ssvWriter, pat string) {
 			return
 		}
 	}
-	if strings.Contains(pat, "..") {
-		// For some reason, go's Glob normalizes
-		// foo/../bar to bar. We ask shell to expand
-		// a glob to avoid this.
-		cmdline := []string{"/bin/sh", "-c", "/bin/ls -d " + pat}
-		cmd := exec.Cmd{
-			Path: cmdline[0],
-			Args: cmdline,
-		}
-		// Ignore errors.
-		out, _ := cmd.Output()
-		if len(trimSpaceBytes(out)) > 0 {
-			out = formatCommandOutput(out)
-			sw.Write(out)
-		}
-		if useWildcardCache {
-			ws := newWordScanner(out)
-			var files []string
-			for ws.Scan() {
-				files = append(files, string(ws.Bytes()))
-			}
-			wildcardCache[pat] = files
-		}
-		return
-	}
-	files, err := filepath.Glob(pat)
-	if err != nil {
-		panic(err)
-	}
+	files := wildcardGlob(pat)
 	for _, file := range files {
 		sw.WriteString(file)
 	}
