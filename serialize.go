@@ -46,36 +46,35 @@ const (
 	ValueTypeTmpval    = 't'
 )
 
-func dumpData(w io.Writer, data []byte) {
-	for len(data) != 0 {
-		written, err := w.Write(data)
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			panic(err)
-		}
-		data = data[written:]
-	}
-}
-
 func dumpInt(w io.Writer, i int) {
 	v := int32(i)
-	binary.Write(w, binary.LittleEndian, &v)
+	err := binary.Write(w, binary.LittleEndian, &v)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func dumpString(w io.Writer, s string) {
 	dumpInt(w, len(s))
-	dumpData(w, []byte(s))
+	_, err := io.WriteString(w, s)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func dumpBytes(w io.Writer, b []byte) {
 	dumpInt(w, len(b))
-	dumpData(w, b)
+	_, err := w.Write(b)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func dumpByte(w io.Writer, b byte) {
-	w.Write([]byte{b})
+	err := writeByte(w, b)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type SerializableVar struct {

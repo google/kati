@@ -398,8 +398,8 @@ func (wm *WorkerManager) Run() {
 					}
 				}
 			} else {
-				os.Stdout.Write([]byte(pr.stdout))
-				os.Stderr.Write([]byte(pr.stderr))
+				fmt.Fprint(os.Stdout, pr.stdout)
+				fmt.Fprint(os.Stderr, pr.stderr)
 				j := wm.runnings[pr.output]
 				wm.updateParents(j)
 				delete(wm.runnings, pr.output)
