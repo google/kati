@@ -1,9 +1,11 @@
 #include "dep.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "log.h"
 #include "rule.h"
+#include "strutil.h"
 #include "var.h"
 
 static vector<DepNode*>* g_dep_node_pool;
@@ -26,6 +28,12 @@ class DepBuilder {
         rule_vars_(rule_vars),
         first_rule_(NULL) {
     PopulateRules(rules);
+  }
+
+  ~DepBuilder() {
+    for (Rule* r : implicit_rules_) {
+      delete r;
+    }
   }
 
   void Build(vector<StringPiece> targets,
@@ -56,6 +64,7 @@ class DepBuilder {
         PopulateExplicitRule(rule);
       }
     }
+    reverse(implicit_rules_.begin(), implicit_rules_.end());
   }
 
   void PopulateExplicitRule(Rule* rule) {
@@ -87,8 +96,14 @@ class DepBuilder {
     }
   }
 
-  void PopulateImplicitRule(Rule*) {
-    CHECK(false);
+  void PopulateImplicitRule(Rule* rule) {
+    for (StringPiece output_pattern : rule->output_patterns) {
+      Rule* r = new Rule(*rule);
+      r->is_temporary = false;
+      r->output_patterns.clear();
+      r->output_patterns.push_back(output_pattern);
+      implicit_rules_.push_back(r);
+    }
   }
 
   Rule* LookupRule(StringPiece o) {
@@ -105,16 +120,43 @@ class DepBuilder {
     return NULL;
   }
 
-  bool PickRule(StringPiece output, Rule** r, Vars** v) {
+  bool PickRule(StringPiece output, Rule** out_rule, Vars** out_var) {
     Rule* rule = LookupRule(output);
     Vars* vars = LookupRuleVars(output);
-    *r = rule;
-    *v = vars;
+    *out_rule = rule;
+    *out_var = vars;
     if (rule) {
       if (!rule->cmds.empty()) {
         return true;
       }
     }
+
+    for (Rule* irule : implicit_rules_) {
+      CHECK(irule->output_patterns.size() == 1);
+      if (!Pattern(irule->output_patterns[0]).Match(output)) {
+        continue;
+      }
+      if (rule) {
+        Rule* r = new Rule(*rule);
+        r->output_patterns = irule->output_patterns;
+        for (StringPiece input : irule->inputs)
+          r->inputs.push_back(input);
+        r->cmds = irule->cmds;
+        r->loc = irule->loc;
+        r->cmd_lineno = irule->cmd_lineno;
+        *out_rule = r;
+        return true;
+      }
+      if (vars) {
+        // Merge implicit rule variables...
+        CHECK(false);
+      }
+      *out_rule = irule;
+      return true;
+    }
+
+    // Suffix rule.
+
     return rule;
   }
 
@@ -144,7 +186,9 @@ class DepBuilder {
         if (rule->output_patterns.size() > 1) {
           ERROR("TODO: multiple output pattern is not supported yet");
         }
-        ERROR("TODO");
+        string o;
+        Pattern(rule->output_patterns[0]).AppendSubst(input, output, &o);
+        input = Intern(o);
       }
 
       n->actual_inputs.push_back(input);
