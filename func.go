@@ -161,12 +161,14 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("subst", 3, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	from := fargs[0]
 	to := fargs[1]
 	text := fargs[2]
 	Logf("subst from:%q to:%q text:%q", from, to, text)
 	w.Write(bytes.Replace(text, from, to, -1))
 	freeBuf(abuf)
+	addStats("funcbody", "subst", t)
 }
 
 type funcPatsubst struct{ fclosure }
@@ -176,6 +178,7 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("patsubst", 3, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	pat := fargs[0]
 	repl := fargs[1]
 	ws := newWordScanner(fargs[2])
@@ -185,6 +188,7 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 		sw.Write(t)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "patsubst", t)
 }
 
 type funcStrip struct{ fclosure }
@@ -194,6 +198,7 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("strip", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	space := false
 	for ws.Scan() {
@@ -204,6 +209,7 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 		space = true
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "strip", t)
 }
 
 type funcFindstring struct{ fclosure }
@@ -213,12 +219,14 @@ func (f *funcFindstring) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("findstring", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	find := fargs[0]
 	text := fargs[1]
 	if bytes.Index(text, find) >= 0 {
 		w.Write(find)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "findstring", t)
 }
 
 type funcFilter struct{ fclosure }
@@ -228,6 +236,7 @@ func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("filter", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	var patterns [][]byte
 	ws := newWordScanner(fargs[0])
 	for ws.Scan() {
@@ -244,6 +253,7 @@ func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "filter", t)
 }
 
 type funcFilterOut struct{ fclosure }
@@ -253,6 +263,7 @@ func (f *funcFilterOut) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("filter-out", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	var patterns [][]byte
 	ws := newWordScanner(fargs[0])
 	for ws.Scan() {
@@ -271,6 +282,7 @@ Loop:
 		sw.Write(text)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "filter-out", t)
 }
 
 type funcSort struct{ fclosure }
@@ -280,6 +292,7 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("sort", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	var toks []string
 	for ws.Scan() {
@@ -297,6 +310,7 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 			prev = tok
 		}
 	}
+	addStats("funcbody", "sort", t)
 }
 
 type funcWord struct{ fclosure }
@@ -306,6 +320,7 @@ func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("word", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	v := string(trimSpaceBytes(fargs[0]))
 	index, ok := numericValueForFunc(v)
 	if !ok {
@@ -323,6 +338,7 @@ func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "word", t)
 }
 
 type funcWordlist struct{ fclosure }
@@ -332,6 +348,7 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("wordlist", 3, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	v := string(trimSpaceBytes(fargs[0]))
 	si, ok := numericValueForFunc(v)
 	if !ok {
@@ -356,6 +373,7 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "wordlist", t)
 }
 
 type funcWords struct{ fclosure }
@@ -365,6 +383,7 @@ func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("words", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	n := 0
 	for ws.Scan() {
@@ -372,6 +391,7 @@ func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
 	}
 	freeBuf(abuf)
 	io.WriteString(w, strconv.Itoa(n))
+	addStats("funcbody", "words", t)
 }
 
 type funcFirstword struct{ fclosure }
@@ -381,11 +401,13 @@ func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("firstword", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	if ws.Scan() {
 		w.Write(ws.Bytes())
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "firstword", t)
 }
 
 type funcLastword struct{ fclosure }
@@ -395,6 +417,7 @@ func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("lastword", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	var lw []byte
 	for ws.Scan() {
@@ -404,6 +427,7 @@ func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(lw)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "lastword", t)
 }
 
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
@@ -415,6 +439,7 @@ func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("join", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	ws1 := newWordScanner(fargs[0])
 	ws2 := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
@@ -427,6 +452,7 @@ func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ws2.Bytes())
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "join", t)
 }
 
 type funcWildcard struct{ fclosure }
@@ -446,6 +472,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 		freeBuf(abuf)
 		return
 	}
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -454,6 +481,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	}
 	traceEvent.end(te)
 	freeBuf(abuf)
+	addStats("funcbody", "wildcard", t)
 }
 
 type funcDir struct{ fclosure }
@@ -463,6 +491,7 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("dir", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -474,6 +503,7 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(filepath.Dir(string(name)) + string(filepath.Separator))
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "dir", t)
 }
 
 type funcNotdir struct{ fclosure }
@@ -483,6 +513,7 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("notdir", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -494,6 +525,7 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(filepath.Base(name))
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "notdir", t)
 }
 
 type funcSuffix struct{ fclosure }
@@ -503,6 +535,7 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("suffix", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -513,6 +546,7 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "suffix", t)
 }
 
 type funcBasename struct{ fclosure }
@@ -522,6 +556,7 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("basename", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -530,6 +565,7 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(e)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "basename", t)
 }
 
 type funcAddsuffix struct{ fclosure }
@@ -539,6 +575,7 @@ func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("addsuffix", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	suf := fargs[0]
 	ws := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
@@ -548,6 +585,7 @@ func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(suf)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "addsuffix", t)
 }
 
 type funcAddprefix struct{ fclosure }
@@ -557,6 +595,7 @@ func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("addprefix", 2, len(f.args))
 	abuf := newBuf()
 	fargs := ev.args(abuf, f.args[1:]...)
+	t := time.Now()
 	pre := fargs[0]
 	ws := newWordScanner(fargs[1])
 	sw := ssvWriter{w: w}
@@ -566,6 +605,7 @@ func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ws.Bytes())
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "addprefix", t)
 }
 
 type funcRealpath struct{ fclosure }
@@ -580,6 +620,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -597,6 +638,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(name)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "realpath", t)
 }
 
 type funcAbspath struct{ fclosure }
@@ -606,6 +648,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("abspath", 1, len(f.args))
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
+	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
@@ -618,6 +661,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(name)
 	}
 	freeBuf(abuf)
+	addStats("funcbody", "abspath", t)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
