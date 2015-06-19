@@ -182,10 +182,18 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 	pat := fargs[0]
 	repl := fargs[1]
 	ws := newWordScanner(fargs[2])
-	sw := ssvWriter{w: w}
+	space := false
 	for ws.Scan() {
-		t := substPatternBytes(pat, repl, ws.Bytes())
-		sw.Write(t)
+		if space {
+			writeByte(w, ' ')
+		}
+		pre, subst, post := substPatternBytes(pat, repl, ws.Bytes())
+		w.Write(pre)
+		if subst != nil {
+			w.Write(subst)
+			w.Write(post)
+		}
+		space = true
 	}
 	freeBuf(abuf)
 	addStats("funcbody", "patsubst", t)

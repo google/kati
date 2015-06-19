@@ -154,40 +154,36 @@ func substPattern(pat, repl, str string) string {
 	return rs[0] + trimed + rs[1]
 }
 
-func substPatternBytes(pat, repl, str []byte) []byte {
-	ps := bytes.SplitN(pat, []byte{'%'}, 2)
-	if len(ps) != 2 {
+func substPatternBytes(pat, repl, str []byte) (pre, subst, post []byte) {
+	i := bytes.IndexByte(pat, '%')
+	if i < 0 {
 		if bytes.Equal(str, pat) {
-			return repl
+			return repl, nil, nil
 		}
-		return str
+		return str, nil, nil
 	}
 	in := str
 	trimed := str
-	if len(ps[0]) != 0 {
-		trimed = bytes.TrimPrefix(in, ps[0])
+	if i > 0 {
+		trimed = bytes.TrimPrefix(in, pat[:i])
 		if bytes.Equal(trimed, in) {
-			return str
+			return str, nil, nil
 		}
 	}
 	in = trimed
-	if len(ps[1]) != 0 {
-		trimed = bytes.TrimSuffix(in, ps[1])
+	if i < len(pat)-1 {
+		trimed = bytes.TrimSuffix(in, pat[i+1:])
 		if bytes.Equal(trimed, in) {
-			return str
+			return str, nil, nil
 		}
 	}
 
-	rs := bytes.SplitN(repl, []byte{'%'}, 2)
-	if len(rs) != 2 {
-		return repl
+	i = bytes.IndexByte(repl, '%')
+	if i < 0 {
+		return repl, nil, nil
 	}
 
-	r := make([]byte, 0, len(rs[0])+len(trimed)+len(rs[1])+1)
-	r = append(r, rs[0]...)
-	r = append(r, trimed...)
-	r = append(r, rs[1]...)
-	return r
+	return repl[:i], trimed, repl[i+1:]
 }
 
 func substRef(pat, repl, str string) string {

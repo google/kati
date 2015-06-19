@@ -91,6 +91,14 @@ func TestWordScanner(t *testing.T) {
 }
 
 func TestSubstPattern(t *testing.T) {
+	concatStr := func(pre, subst, post []byte) string {
+		var s []byte
+		s = append(s, pre...)
+		s = append(s, subst...)
+		s = append(s, post...)
+		return string(s)
+	}
+
 	for _, tc := range []struct {
 		pat  string
 		repl string
@@ -151,7 +159,7 @@ func TestSubstPattern(t *testing.T) {
 			t.Errorf(`substPattern(%q,%q,%q)=%q, want %q`, tc.pat, tc.repl, tc.in, got, tc.want)
 		}
 
-		got = string(substPatternBytes([]byte(tc.pat), []byte(tc.repl), []byte(tc.in)))
+		got = concatStr(substPatternBytes([]byte(tc.pat), []byte(tc.repl), []byte(tc.in)))
 		if got != tc.want {
 			fmt.Printf("substPatternBytes(%q,%q,%q)=%q, want %q\n", tc.pat, tc.repl, tc.in, got, tc.want)
 			t.Errorf(`substPatternBytes(%q,%q,%q)=%q, want %q`, tc.pat, tc.repl, tc.in, got, tc.want)
