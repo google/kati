@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "fileutil.h"
 #include "log.h"
@@ -62,6 +64,15 @@ class DepBuilder {
   }
 
  private:
+  bool Exists(StringPiece target) {
+    auto found = rules_.find(target);
+    if (found != rules_.end())
+      return true;
+    if (phony_.count(target))
+      return true;
+    return ::Exists(target);
+  }
+
   void PopulateRules(const vector<shared_ptr<Rule>>& rules) {
     for (shared_ptr<Rule> rule : rules) {
       if (rule->outputs.empty()) {
@@ -149,6 +160,21 @@ class DepBuilder {
     return NULL;
   }
 
+  bool CanPickImplicitRule(shared_ptr<Rule> rule, StringPiece output) {
+    CHECK(rule->output_patterns.size() == 1);
+    Pattern pat(rule->output_patterns[0]);
+    if (!pat.Match(output)) {
+      return false;
+    }
+    for (StringPiece input : rule->inputs) {
+      string buf;
+      pat.AppendSubst(output, input, &buf);
+      if (!Exists(buf))
+        return false;
+    }
+    return true;
+  }
+
   bool PickRule(StringPiece output,
                 shared_ptr<Rule>* out_rule, Vars** out_var) {
     shared_ptr<Rule> rule = LookupRule(output);
@@ -162,10 +188,8 @@ class DepBuilder {
     }
 
     for (shared_ptr<Rule> irule : implicit_rules_) {
-      CHECK(irule->output_patterns.size() == 1);
-      if (!Pattern(irule->output_patterns[0]).Match(output)) {
+      if (!CanPickImplicitRule(irule, output))
         continue;
-      }
       if (rule) {
         shared_ptr<Rule> r = make_shared<Rule>(*rule);
         r->output_patterns = irule->output_patterns;
@@ -188,13 +212,14 @@ class DepBuilder {
     StringPiece output_suffix = GetExt(output);
     if (output_suffix.get(0) != '.')
       return rule.get();
+    output_suffix = output_suffix.substr(1);
 
     SuffixRuleMap::const_iterator found = suffix_rules_.find(output_suffix);
     if (found == suffix_rules_.end())
       return rule.get();
 
     for (shared_ptr<Rule> irule : found->second) {
-      CHECK(irule->inputs.size() != 1);
+      CHECK(irule->inputs.size() == 1);
       StringPiece input = ReplaceSuffix(output, irule->inputs[0]);
       if (!Exists(input))
         continue;
@@ -212,6 +237,8 @@ class DepBuilder {
         // TODO: Merge implicit variables...
         CHECK(false);
       }
+      *out_rule = irule;
+      return true;
     }
 
     return rule.get();
@@ -227,7 +254,7 @@ class DepBuilder {
       return found->second;
     }
 
-    DepNode* n = new DepNode(output, phony_[output]);
+    DepNode* n = new DepNode(output, phony_.count(output));
     done_[output] = n;
 
     shared_ptr<Rule> rule;
@@ -246,6 +273,8 @@ class DepBuilder {
         string o;
         Pattern(rule->output_patterns[0]).AppendSubst(input, output, &o);
         input = Intern(o);
+      } else if (rule->is_suffix_rule) {
+        input = Intern(ReplaceSuffix(output, input));
       }
 
       n->actual_inputs.push_back(input);
@@ -272,7 +301,7 @@ class DepBuilder {
 
   shared_ptr<Rule> first_rule_;
   unordered_map<StringPiece, DepNode*> done_;
-  unordered_map<StringPiece, bool> phony_;
+  unordered_set<StringPiece> phony_;
 };
 
 void MakeDep(const vector<shared_ptr<Rule>>& rules,

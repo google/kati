@@ -6,30 +6,30 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LOG(fmt, ...) do {                                              \
-    char buf[999];                                                      \
-    sprintf(buf, fmt, __VA_ARGS__);                                     \
-    fprintf(stderr, "*kati*: %s\n", buf);                               \
+#define LOG(args...) do {                       \
+    char log_buf[999];                          \
+    sprintf(log_buf, args);                     \
+    fprintf(stderr, "*kati*: %s\n", log_buf);   \
   } while(0)
 
 #define PERROR(...) do {                                        \
-    char buf[999];                                              \
-    sprintf(buf, __VA_ARGS__);                                  \
-    fprintf(stderr, "%s: %s\n", buf, strerror(errno));          \
+    char log_buf[999];                                          \
+    sprintf(log_buf, __VA_ARGS__);                              \
+    fprintf(stderr, "%s: %s\n", log_buf, strerror(errno));      \
     exit(1);                                                    \
   } while (0)
 
-#define WARN(...) do {                                          \
-    char buf[999];                                              \
-    sprintf(buf, __VA_ARGS__);                                  \
-    fprintf(stderr, "%s\n", buf);                               \
+#define WARN(...) do {                          \
+    char log_buf[999];                          \
+    sprintf(log_buf, __VA_ARGS__);              \
+    fprintf(stderr, "%s\n", log_buf);           \
   } while (0)
 
-#define ERROR(...) do {                                         \
-    char buf[999];                                              \
-    sprintf(buf, __VA_ARGS__);                                  \
-    fprintf(stderr, "%s\n", buf);                               \
-    exit(1);                                                    \
+#define ERROR(...) do {                         \
+    char log_buf[999];                          \
+    sprintf(log_buf, __VA_ARGS__);              \
+    fprintf(stderr, "%s\n", log_buf);           \
+    exit(1);                                    \
   } while (0)
 
 #define CHECK(c) if (!(c)) ERROR("%s:%d: %s", __FILE__, __LINE__, #c)
