@@ -34,9 +34,15 @@ class Value : public Evaluable {
   virtual string DebugString_() const = 0;
 };
 
-Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
+enum struct ParseExprOpt {
+  NORMAL = 0,
+  DEFINE,
+  COMMAND,
+};
+
+Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
                      size_t* index_out, bool trim_right_space = false);
-Value* ParseExpr(StringPiece s, bool is_command = false);
+Value* ParseExpr(StringPiece s, ParseExprOpt opt = ParseExprOpt::NORMAL);
 
 string JoinValues(const vector<Value*>& vals, const char* sep);
 
