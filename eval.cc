@@ -1,6 +1,8 @@
 #include "eval.h"
 
+#include <errno.h>
 #include <glob.h>
+#include <string.h>
 
 #include "ast.h"
 #include "file.h"
@@ -150,8 +152,9 @@ void Evaluator::DoInclude(const char* fname, bool should_exist) {
   if (!mk->Exists()) {
     if (should_exist) {
       Error(StringPrintf(
-          "Cannot read %s\n"
-          "NOTE: kati does not support generating missing makefiles", fname));
+          "%s: %s\n"
+          "NOTE: kati does not support generating missing makefiles",
+          fname, strerror(errno)));
     }
     return;
   }
