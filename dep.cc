@@ -3,12 +3,21 @@
 #include <algorithm>
 #include <memory>
 
+#include "fileutil.h"
 #include "log.h"
 #include "rule.h"
 #include "strutil.h"
 #include "var.h"
 
 static vector<DepNode*>* g_dep_node_pool;
+
+static StringPiece ReplaceSuffix(StringPiece s, StringPiece newsuf) {
+  string r;
+  AppendString(StripExt(s), &r);
+  r += '.';
+  AppendString(newsuf, &r);
+  return Intern(r);
+}
 
 DepNode::DepNode(StringPiece o, bool p)
     : output(o),
@@ -21,7 +30,7 @@ DepNode::DepNode(StringPiece o, bool p)
 
 class DepBuilder {
  public:
-  DepBuilder(const vector<Rule*>& rules,
+  DepBuilder(const vector<shared_ptr<Rule>>& rules,
              const Vars& vars,
              const unordered_map<StringPiece, Vars*>& rule_vars)
       : vars_(vars),
@@ -31,9 +40,6 @@ class DepBuilder {
   }
 
   ~DepBuilder() {
-    for (Rule* r : implicit_rules_) {
-      delete r;
-    }
   }
 
   void Build(vector<StringPiece> targets,
@@ -56,8 +62,8 @@ class DepBuilder {
   }
 
  private:
-  void PopulateRules(const vector<Rule*>& rules) {
-    for (Rule* rule : rules) {
+  void PopulateRules(const vector<shared_ptr<Rule>>& rules) {
+    for (shared_ptr<Rule> rule : rules) {
       if (rule->outputs.empty()) {
         PopulateImplicitRule(rule);
       } else {
@@ -67,8 +73,32 @@ class DepBuilder {
     reverse(implicit_rules_.begin(), implicit_rules_.end());
   }
 
-  void PopulateExplicitRule(Rule* rule) {
+  bool PopulateSuffixRule(shared_ptr<Rule> rule, StringPiece output) {
+    if (output.empty() || output[0] != '.')
+      return false;
+
+    StringPiece rest = output.substr(1);
+    size_t dot_index = rest.find('.');
+    // If there is only a single dot or the third dot, this is not a
+    // suffix rule.
+    if (dot_index == string::npos ||
+        rest.substr(dot_index+1).find('.') != string::npos) {
+      return false;
+    }
+
+    StringPiece input_suffix = rest.substr(0, dot_index);
+    StringPiece output_suffix = rest.substr(dot_index+1);
+    shared_ptr<Rule> r = make_shared<Rule>(*rule);
+    r->inputs.clear();
+    r->inputs.push_back(input_suffix);
+    r->is_suffix_rule = true;
+    suffix_rules_[output_suffix].push_back(r);
+    return true;
+  }
+
+  void PopulateExplicitRule(shared_ptr<Rule> rule) {
     for (StringPiece output : rule->outputs) {
+      const bool is_suffix_rule = PopulateSuffixRule(rule, output);
       // isSuffixRule := db.populateSuffixRule(rule, output)
 
 
@@ -96,17 +126,16 @@ class DepBuilder {
     }
   }
 
-  void PopulateImplicitRule(Rule* rule) {
+  void PopulateImplicitRule(shared_ptr<Rule> rule) {
     for (StringPiece output_pattern : rule->output_patterns) {
-      Rule* r = new Rule(*rule);
-      r->is_temporary = false;
+      shared_ptr<Rule> r = make_shared<Rule>(*rule);
       r->output_patterns.clear();
       r->output_patterns.push_back(output_pattern);
       implicit_rules_.push_back(r);
     }
   }
 
-  Rule* LookupRule(StringPiece o) {
+  shared_ptr<Rule> LookupRule(StringPiece o) {
     auto found = rules_.find(o);
     if (found != rules_.end())
       return found->second;
@@ -120,8 +149,9 @@ class DepBuilder {
     return NULL;
   }
 
-  bool PickRule(StringPiece output, Rule** out_rule, Vars** out_var) {
-    Rule* rule = LookupRule(output);
+  bool PickRule(StringPiece output,
+                shared_ptr<Rule>* out_rule, Vars** out_var) {
+    shared_ptr<Rule> rule = LookupRule(output);
     Vars* vars = LookupRuleVars(output);
     *out_rule = rule;
     *out_var = vars;
@@ -131,13 +161,13 @@ class DepBuilder {
       }
     }
 
-    for (Rule* irule : implicit_rules_) {
+    for (shared_ptr<Rule> irule : implicit_rules_) {
       CHECK(irule->output_patterns.size() == 1);
       if (!Pattern(irule->output_patterns[0]).Match(output)) {
         continue;
       }
       if (rule) {
-        Rule* r = new Rule(*rule);
+        shared_ptr<Rule> r = make_shared<Rule>(*rule);
         r->output_patterns = irule->output_patterns;
         for (StringPiece input : irule->inputs)
           r->inputs.push_back(input);
@@ -148,16 +178,43 @@ class DepBuilder {
         return true;
       }
       if (vars) {
-        // Merge implicit rule variables...
+        // TODO: Merge implicit variables...
         CHECK(false);
       }
       *out_rule = irule;
       return true;
     }
 
-    // Suffix rule.
+    StringPiece output_suffix = GetExt(output);
+    if (output_suffix.get(0) != '.')
+      return rule.get();
 
-    return rule;
+    SuffixRuleMap::const_iterator found = suffix_rules_.find(output_suffix);
+    if (found == suffix_rules_.end())
+      return rule.get();
+
+    for (shared_ptr<Rule> irule : found->second) {
+      CHECK(irule->inputs.size() != 1);
+      StringPiece input = ReplaceSuffix(output, irule->inputs[0]);
+      if (!Exists(input))
+        continue;
+
+      if (rule) {
+        shared_ptr<Rule> r = make_shared<Rule>(*rule);
+        r->inputs.insert(r->inputs.begin(), input);
+        r->cmds = irule->cmds;
+        r->loc = irule->loc;
+        r->cmd_lineno = irule->cmd_lineno;
+        *out_rule = r;
+        return true;
+      }
+      if (vars) {
+        // TODO: Merge implicit variables...
+        CHECK(false);
+      }
+    }
+
+    return rule.get();
   }
 
   DepNode* BuildPlan(StringPiece output, StringPiece needed_by, Vars* tsvs) {
@@ -173,7 +230,7 @@ class DepBuilder {
     DepNode* n = new DepNode(output, phony_[output]);
     done_[output] = n;
 
-    Rule* rule;
+    shared_ptr<Rule> rule;
     Vars* vars;
     if (!PickRule(output, &rule, &vars)) {
       return n;
@@ -203,21 +260,22 @@ class DepBuilder {
     return n;
   }
 
-  unordered_map<StringPiece, Rule*> rules_;
+  unordered_map<StringPiece, shared_ptr<Rule>> rules_;
   const Vars& vars_;
   const unordered_map<StringPiece, Vars*>& rule_vars_;
 
-  vector<Rule*> implicit_rules_;   // pattern=%. no prefix,suffix.
+  vector<shared_ptr<Rule>> implicit_rules_;   // pattern=%. no prefix,suffix.
   //vector<Rule*> iprefix_rules_;   // pattern=prefix%..  may have suffix
   //vector<Rule*> isuffix_rules_;   // pattern=%suffix  no prefix
+  typedef unordered_map<StringPiece, vector<shared_ptr<Rule>>> SuffixRuleMap;
+  SuffixRuleMap suffix_rules_;
 
-  unordered_map<StringPiece, vector<Rule*>> suffix_rules_;
-  Rule* first_rule_;
+  shared_ptr<Rule> first_rule_;
   unordered_map<StringPiece, DepNode*> done_;
   unordered_map<StringPiece, bool> phony_;
 };
 
-void MakeDep(const vector<Rule*>& rules,
+void MakeDep(const vector<shared_ptr<Rule>>& rules,
              const Vars& vars,
              const unordered_map<StringPiece, Vars*>& rule_vars,
              const vector<StringPiece>& targets,

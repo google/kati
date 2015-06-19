@@ -1,6 +1,7 @@
 #ifndef DEP_H_
 #define DEP_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -30,7 +31,7 @@ struct DepNode {
 void InitDepNodePool();
 void QuitDepNodePool();
 
-void MakeDep(const vector<Rule*>& rules,
+void MakeDep(const vector<shared_ptr<Rule>>& rules,
              const Vars& vars,
              const unordered_map<StringPiece, Vars*>& rule_vars,
              const vector<StringPiece>& targets,

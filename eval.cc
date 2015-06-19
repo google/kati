@@ -11,8 +11,6 @@
 #include "var.h"
 
 EvalResult::~EvalResult() {
-  for (Rule* r : rules)
-    delete r;
   for (auto p : rule_vars)
     delete p.second;
   delete vars;
@@ -25,9 +23,6 @@ Evaluator::Evaluator(const Vars* vars)
 }
 
 Evaluator::~Evaluator() {
-  for (Rule* r : rules_) {
-    delete r;
-  }
   delete vars_;
   // for (auto p : rule_vars) {
   //   delete p.second;
@@ -93,7 +88,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
 
   if (rule) {
     LOG("Rule: %s", rule->DebugString().c_str());
-    rules_.push_back(rule);
+    rules_.push_back(shared_ptr<Rule>(rule));
     last_rule_ = rule;
     return;
   }

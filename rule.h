@@ -28,7 +28,6 @@ class Rule {
   vector<Value*> cmds;
   Loc loc;
   int cmd_lineno;
-  bool is_temporary;
 
  private:
   void Error(const string& msg) {
