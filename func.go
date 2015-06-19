@@ -195,9 +195,13 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
+	space := false
 	for ws.Scan() {
-		sw.Write(ws.Bytes())
+		if space {
+			writeByte(w, ' ')
+		}
+		w.Write(ws.Bytes())
+		space = true
 	}
 	freeBuf(abuf)
 }
