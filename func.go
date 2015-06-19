@@ -96,36 +96,6 @@ func assertArity(name string, req, n int) {
 	}
 }
 
-// A space separated values writer.
-type ssvWriter struct {
-	w          io.Writer
-	needsSpace bool
-}
-
-func byteWrite(w io.Writer, b byte) {
-	if bw, ok := w.(io.ByteWriter); ok {
-		bw.WriteByte(b)
-		return
-	}
-	w.Write([]byte{b})
-}
-
-func (sw *ssvWriter) Write(b []byte) {
-	if sw.needsSpace {
-		byteWrite(sw.w, ' ')
-	}
-	sw.needsSpace = true
-	sw.w.Write(b)
-}
-
-func (sw *ssvWriter) WriteString(s string) {
-	if sw.needsSpace {
-		byteWrite(sw.w, ' ')
-	}
-	sw.needsSpace = true
-	io.WriteString(sw.w, s)
-}
-
 func numericValueForFunc(v string) (int, bool) {
 	n, err := strconv.Atoi(v)
 	if err != nil || n < 0 {
@@ -396,8 +366,8 @@ func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
 	for ws.Scan() {
 		n++
 	}
-	w.Write([]byte(strconv.Itoa(n)))
 	freeBuf(abuf)
+	io.WriteString(w, strconv.Itoa(n))
 }
 
 type funcFirstword struct{ fclosure }
@@ -465,9 +435,9 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	te := traceEvent.begin("wildcard", tmpval(abuf.Bytes()), traceEventMain)
 	if ev.avoidIO && !useWildcardCache {
 		ev.hasIO = true
-		w.Write([]byte("$(/bin/ls -d "))
+		io.WriteString(w, "$(/bin/ls -d ")
 		w.Write(abuf.Bytes())
-		w.Write([]byte(" 2> /dev/null)"))
+		io.WriteString(w, " 2> /dev/null)")
 		traceEvent.end(te)
 		freeBuf(abuf)
 		return
@@ -514,7 +484,7 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 	for ws.Scan() {
 		name := string(ws.Bytes())
 		if name == string(filepath.Separator) {
-			sw.Write([]byte{})
+			sw.Write([]byte{}) // separator
 			continue
 		}
 		sw.WriteString(filepath.Base(name))
@@ -600,7 +570,7 @@ func (f *funcRealpath) Arity() int { return 1 }
 func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("realpath", 1, len(f.args))
 	if ev.avoidIO {
-		w.Write([]byte("KATI_TODO(realpath)"))
+		io.WriteString(w, "KATI_TODO(realpath)")
 		ev.hasIO = true
 		return
 	}
@@ -738,9 +708,9 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	if ev.avoidIO && !hasNoIoInShellScript(abuf.Bytes()) {
 		te := traceEvent.begin("shell", tmpval(abuf.Bytes()), traceEventMain)
 		ev.hasIO = true
-		w.Write([]byte("$("))
+		io.WriteString(w, "$(")
 		w.Write(abuf.Bytes())
-		w.Write([]byte{')'})
+		writeByte(w, ')')
 		traceEvent.end(te)
 		freeBuf(abuf)
 		return
@@ -844,7 +814,7 @@ func (f *funcValue) Arity() int { return 1 }
 func (f *funcValue) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("value", 1, len(f.args))
 	v := ev.LookupVar(f.args[1].String())
-	w.Write([]byte(v.String()))
+	io.WriteString(w, v.String())
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Eval-Function
@@ -1042,7 +1012,7 @@ func (f *funcOrigin) Arity() int { return 1 }
 func (f *funcOrigin) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("origin", 1, len(f.args))
 	v := ev.LookupVar(f.args[1].String())
-	w.Write([]byte(v.Origin()))
+	io.WriteString(w, v.Origin())
 }
 
 // https://www.gnu.org/software/make/manual/html_node/Flavor-Function.html#Flavor-Function
@@ -1052,7 +1022,7 @@ func (f *funcFlavor) Arity() int { return 1 }
 func (f *funcFlavor) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("flavor", 1, len(f.args))
 	v := ev.LookupVar(f.args[1].String())
-	w.Write([]byte(v.Flavor()))
+	io.WriteString(w, v.Flavor())
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Make-Control-Functions
@@ -1062,7 +1032,7 @@ func (f *funcInfo) Arity() int { return 1 }
 func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("info", 1, len(f.args))
 	if ev.avoidIO {
-		w.Write([]byte("KATI_TODO(info)"))
+		io.WriteString(w, "KATI_TODO(info)")
 		ev.hasIO = true
 		return
 	}
@@ -1078,7 +1048,7 @@ func (f *funcWarning) Arity() int { return 1 }
 func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("warning", 1, len(f.args))
 	if ev.avoidIO {
-		w.Write([]byte("KATI_TODO(warning)"))
+		io.WriteString(w, "KATI_TODO(warning)")
 		ev.hasIO = true
 		return
 	}
@@ -1094,7 +1064,7 @@ func (f *funcError) Arity() int { return 1 }
 func (f *funcError) Eval(w io.Writer, ev *Evaluator) {
 	assertArity("error", 1, len(f.args))
 	if ev.avoidIO {
-		w.Write([]byte("KATI_TODO(error)"))
+		io.WriteString(w, "KATI_TODO(error)")
 		ev.hasIO = true
 		return
 	}
@@ -1123,7 +1093,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 		word := ws.Bytes()
 		ev.outVars.Assign(varname, &AutomaticVar{value: word})
 		if space {
-			w.Write([]byte{' '})
+			writeByte(w, ' ')
 		}
 		text.Eval(w, ev)
 		space = true

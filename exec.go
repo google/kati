@@ -116,11 +116,10 @@ type AutoSuffixDVar struct {
 func (v AutoSuffixDVar) Eval(w io.Writer, ev *Evaluator) {
 	var buf bytes.Buffer
 	v.v.Eval(&buf, ev)
-	for i, tok := range splitSpaces(buf.String()) {
-		if i > 0 {
-			w.Write([]byte{' '})
-		}
-		fmt.Fprint(w, filepath.Dir(tok))
+	ws := newWordScanner(buf.Bytes())
+	sw := ssvWriter{w: w}
+	for ws.Scan() {
+		sw.WriteString(filepath.Dir(string(ws.Bytes())))
 	}
 }
 
@@ -132,11 +131,10 @@ type AutoSuffixFVar struct {
 func (v AutoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
 	var buf bytes.Buffer
 	v.v.Eval(&buf, ev)
-	for i, tok := range splitSpaces(buf.String()) {
-		if i > 0 {
-			w.Write([]byte{' '})
-		}
-		fmt.Fprint(w, filepath.Base(tok))
+	ws := newWordScanner(buf.Bytes())
+	sw := ssvWriter{w: w}
+	for ws.Scan() {
+		sw.WriteString(filepath.Base(string(ws.Bytes())))
 	}
 }
 
