@@ -103,7 +103,7 @@ def normalize_kati_log(output)
   # kati specific log messages.
   output.gsub!(/^\*kati\*.*\n/, '')
   output.gsub!(/[`'"]/, '"')
-  output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
+  output.gsub!(/(: )(?:open )?(\S+): [Nn](o such file or directory)\nNOTE:.*/,
                "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
   output
 end

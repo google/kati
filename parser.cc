@@ -134,6 +134,7 @@ class Parser {
 
     if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
       CommandAST* ast = new CommandAST();
+      ast->set_loc(loc_);
       ast->expr = ParseExpr(line.substr(1), ParseExprOpt::COMMAND);
       out_asts_->push_back(ast);
       return;
@@ -204,6 +205,7 @@ class Parser {
 
   void ParseInclude(StringPiece line, StringPiece directive) {
     IncludeAST* ast = new IncludeAST();
+    ast->set_loc(loc_);
     ast->expr = ParseExpr(line);
     ast->should_exist = directive[0] == 'i';
     out_asts_->push_back(ast);
