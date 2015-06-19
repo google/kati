@@ -201,15 +201,30 @@ string NoLineBreak(const string& s) {
 
 StringPiece TrimLeftSpace(StringPiece s) {
   size_t i = 0;
-  while (i < s.size() && isspace(s[i]))
-    i++;
+  for (; i < s.size(); i++) {
+    if (isspace(s[i]))
+      continue;
+    char n = s.get(i+1);
+    if (s[i] == '\\' && (n == '\r' || n == '\n')) {
+      i++;
+      continue;
+    }
+    break;
+  }
   return s.substr(i, s.size() - i);
 }
 
 StringPiece TrimRightSpace(StringPiece s) {
   size_t i = 0;
-  while (i < s.size() && isspace(s[s.size() - 1 - i]))
-    i++;
+  for (; i < s.size(); i++) {
+    char c = s[s.size() - 1 - i];
+    if (isspace(c)) {
+      if ((c == '\r' || c == '\n') && s.get(s.size() - 2 - i) == '\\')
+        i++;
+      continue;
+    }
+    break;
+  }
   return s.substr(0, s.size() - i);
 }
 
