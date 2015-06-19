@@ -134,7 +134,7 @@ class Parser {
 
     if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
       CommandAST* ast = new CommandAST();
-      ast->expr = ParseExpr(line.substr(1), true);
+      ast->expr = ParseExpr(line.substr(1), ParseExprOpt::COMMAND);
       out_asts_->push_back(ast);
       return;
     }
@@ -171,13 +171,14 @@ class Parser {
     if (found != string::npos) {
       found += sep + 1;
       ast->term = line[found];
-      ast->after_term = ParseExpr(TrimLeftSpace(line.substr(found + 1)),
-                                  ast->term == ';');
-      ast->expr = ParseExpr(TrimSpace(line.substr(0, found)), false);
+      ParseExprOpt opt =
+          ast->term == ';' ? ParseExprOpt::COMMAND : ParseExprOpt::NORMAL;
+      ast->after_term = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
+      ast->expr = ParseExpr(TrimSpace(line.substr(0, found)));
     } else {
       ast->term = 0;
       ast->after_term = NULL;
-      ast->expr = ParseExpr(TrimSpace(line), false);
+      ast->expr = ParseExpr(TrimSpace(line));
     }
     out_asts_->push_back(ast);
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
@@ -193,8 +194,8 @@ class Parser {
 
     AssignAST* ast = new AssignAST();
     ast->set_loc(loc_);
-    ast->lhs = ParseExpr(lhs, false);
-    ast->rhs = ParseExpr(rhs, false);
+    ast->lhs = ParseExpr(lhs);
+    ast->rhs = ParseExpr(rhs);
     ast->op = op;
     ast->directive = AssignDirective::NONE;
     out_asts_->push_back(ast);
@@ -203,7 +204,7 @@ class Parser {
 
   void ParseInclude(StringPiece line, StringPiece directive) {
     IncludeAST* ast = new IncludeAST();
-    ast->expr = ParseExpr(line, false);
+    ast->expr = ParseExpr(line);
     ast->should_exist = directive[0] == 'i';
     out_asts_->push_back(ast);
   }
@@ -233,11 +234,11 @@ class Parser {
 
     AssignAST* ast = new AssignAST();
     ast->set_loc(Loc(loc_.filename, define_start_line_));
-    ast->lhs = ParseExpr(define_name_, false);
+    ast->lhs = ParseExpr(define_name_);
     StringPiece rhs;
     if (define_start_)
       rhs = TrimRightSpace(buf_.substr(define_start_, l_ - define_start_));
-    ast->rhs = ParseExpr(rhs, false);
+    ast->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
     ast->op = AssignOp::EQ;
     ast->directive = AssignDirective::NONE;
     out_asts_->push_back(ast);
@@ -257,7 +258,7 @@ class Parser {
     IfAST* ast = new IfAST();
     ast->set_loc(loc_);
     ast->op = directive[2] == 'n' ? CondOp::IFNDEF : CondOp::IFDEF;
-    ast->lhs = ParseExpr(line, false);
+    ast->lhs = ParseExpr(line);
     ast->rhs = NULL;
     out_asts_->push_back(ast);
     EnterIf(ast);
@@ -272,11 +273,11 @@ class Parser {
       s = s.substr(1, s.size() - 2);
       char terms[] = {',', '\0'};
       size_t n;
-      ast->lhs = ParseExprImpl(s, terms, false, &n, true);
+      ast->lhs = ParseExprImpl(s, terms, ParseExprOpt::NORMAL, &n, true);
       if (s[n] != ',')
         return false;
       s = TrimLeftSpace(s.substr(n+1));
-      ast->rhs = ParseExprImpl(s, NULL, false, &n);
+      ast->rhs = ParseExprImpl(s, NULL, ParseExprOpt::NORMAL, &n);
       s = TrimLeftSpace(s.substr(n));
     } else {
       for (int i = 0; i < 2; i++) {
@@ -288,7 +289,7 @@ class Parser {
         size_t end = s.find(quote, 1);
         if (end == string::npos)
           return false;
-        Value* v = ParseExpr(s.substr(1, end - 1), false);
+        Value* v = ParseExpr(s.substr(1, end - 1), ParseExprOpt::NORMAL);
         if (i == 0)
           ast->lhs = v;
         else

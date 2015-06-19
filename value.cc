@@ -250,7 +250,8 @@ Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
     const bool trim_right_space = (f->trim_space() ||
                                    (nargs == 1 && f->trim_right_space_1st()));
     size_t n;
-    Value* v = ParseExprImpl(s.substr(i), terms, false, &n, trim_right_space);
+    Value* v = ParseExprImpl(s.substr(i), terms, ParseExprOpt::NORMAL,
+                             &n, trim_right_space);
     // TODO: concatLine???
     f->AddArg(v);
     i += n;
@@ -288,7 +289,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
   char terms[] = {cp, ':', ' ', 0};
   for (size_t i = 2;;) {
     size_t n;
-    Value* vname = ParseExprImpl(s.substr(i), terms, false, &n);
+    Value* vname = ParseExprImpl(s.substr(i), terms, ParseExprOpt::NORMAL, &n);
     i += n;
     if (s[i] == cp) {
       *index_out = i + 1;
@@ -318,7 +319,8 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       terms[2] = '\0';
       terms[1] = '=';
       size_t n;
-      Value* pat = ParseExprImpl(s.substr(i+1), terms, false, &n);
+      Value* pat = ParseExprImpl(s.substr(i+1), terms, ParseExprOpt::NORMAL,
+                                 &n);
       i += 1 + n;
       if (s[i] == cp) {
         Expr* v = new Expr;
@@ -329,7 +331,8 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       }
 
       terms[1] = '\0';
-      Value* subst = ParseExprImpl(s.substr(i+1), terms, false, &n);
+      Value* subst = ParseExprImpl(s.substr(i+1), terms, ParseExprOpt::NORMAL,
+                                   &n);
       i += 1 + n;
       return new VarSubst(vname->Compact(), pat, subst);
     }
@@ -338,7 +341,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
   }
 }
 
-Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
+Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
                      size_t* index_out, bool trim_right_space) {
   // TODO: A faulty optimization.
 #if 0
@@ -368,7 +371,7 @@ Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
     }
 
     // Handle a comment.
-    if (!terms && c == '#' && !is_command) {
+    if (!terms && c == '#' && opt == ParseExprOpt::NORMAL) {
       if (i > b)
         r->AddValue(new Literal(s.substr(b, i-b)));
       bool was_backslash = false;
@@ -428,7 +431,7 @@ Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
       }
     }
 
-    if (c == '\\' && i + 1 < s.size() && !is_command) {
+    if (c == '\\' && i + 1 < s.size() && opt != ParseExprOpt::COMMAND) {
       char n = s[i+1];
       if (n == '\\') {
         i++;
@@ -458,14 +461,14 @@ Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
   return r->Compact();
 }
 
-Value* ParseExpr(StringPiece s, bool is_command) {
+Value* ParseExpr(StringPiece s, ParseExprOpt opt) {
   size_t n;
-  return ParseExprImpl(s, NULL, is_command, &n);
+  return ParseExprImpl(s, NULL, opt, &n);
 }
 
 Value* ParseExprUntilComma(StringPiece s, size_t* index_out) {
   char terms[] = {',', '\0'};
-  return ParseExprImpl(s, terms, false, index_out);
+  return ParseExprImpl(s, terms, ParseExprOpt::NORMAL, index_out);
 }
 
 string JoinValues(const vector<Value*>& vals, const char* sep) {
