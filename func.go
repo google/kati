@@ -303,12 +303,15 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 
 	// Remove duplicate words.
 	var prev string
-	sw := ssvWriter{w: w}
 	for _, tok := range toks {
-		if prev != tok {
-			sw.WriteString(tok)
-			prev = tok
+		if prev == tok {
+			continue
 		}
+		if prev != "" {
+			writeByte(w, ' ')
+		}
+		io.WriteString(w, tok)
+		prev = tok
 	}
 	addStats("funcbody", "sort", t)
 }
