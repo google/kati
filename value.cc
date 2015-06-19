@@ -353,6 +353,8 @@ Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
     return new Literal(s.substr(0, found));
   }
 #endif
+  if (s.get(s.size() - 1) == '\r')
+    s.remove_suffix(1);
 
   Expr* r = new Expr;
   size_t b = 0;
@@ -433,8 +435,14 @@ Value* ParseExprImpl(StringPiece s, const char* terms, bool is_command,
         continue;
       }
       if (n == '\r' || n == '\n') {
-        // TODO
-        CHECK(false);
+        if (i > b) {
+          r->AddValue(new Literal(s.substr(b, i-b)));
+        }
+        r->AddValue(new Literal(STRING_PIECE(" ")));
+        i++;
+        if (n == '\r' && s.get(i+1) == '\n')
+          i++;
+        b = i + 1;
       }
     }
   }
