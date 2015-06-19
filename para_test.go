@@ -49,12 +49,15 @@ func TestPara(t *testing.T) {
 	for len(started) != numTasks || len(results) != numTasks {
 		select {
 		case r := <-paraChan:
-			fmt.Printf("started=%d finished=%d\n", len(started), len(results))
+			t.Logf("started=%d finished=%d", len(started), len(results))
 			if r.status < 0 && r.signal < 0 {
 				started = append(started, r)
 			} else {
 				results = append(results, r)
 			}
+		}
+		if len(started) < len(results) {
+			t.Errorf("got more results than started. started=%d finished=%d", len(started), len(results))
 		}
 	}
 
