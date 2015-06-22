@@ -34,6 +34,11 @@ class AutoVar : public Var {
   virtual bool IsDefined() const override { CHECK(false); }
   virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }
 
+  virtual StringPiece String() const override {
+    ERROR("$(value %s) is not implemented yet", sym_);
+    return "";
+  }
+
   virtual string DebugString() const override {
     return string("AutoVar(") + sym_ + ")";
   }

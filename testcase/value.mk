@@ -7,6 +7,8 @@ $(FOO_COMMA_BAR):=$PATH
 
 FOOREF := FOO
 
+X=$(X)
+
 test:
 	echo $(FOO)
 	echo $(value FOO)
@@ -14,3 +16,7 @@ test:
 	echo $(value FOO,BAR)
 # TODO: Fix
 #	echo $(value $(FOOREF))
+#	echo $(value @)
+
+# TODO(go): Fix
+# $(info $(value X))

@@ -352,8 +352,10 @@ void OrFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void ValueFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(value)");
+void ValueFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> var_name = args[0]->Eval(ev);
+  Var* var = ev->LookupVar(*var_name);
+  AppendString(var->String().as_string(), s);
 }
 
 void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {

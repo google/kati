@@ -103,7 +103,8 @@ static void SetVar(StringPiece l, const char* origin, Vars* vars) {
   CHECK(found != string::npos);
   StringPiece lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
-  vars->Assign(lhs, new RecursiveVar(NewLiteral(rhs.data()), origin));
+  vars->Assign(lhs,
+               new RecursiveVar(NewLiteral(rhs.data()), origin, rhs.data()));
 }
 
 extern "C" char** environ;

@@ -45,12 +45,12 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
       rhs = new SimpleVar(ast->rhs->Eval(this), origin);
       break;
     case AssignOp::EQ:
-      rhs = new RecursiveVar(ast->rhs, origin);
+      rhs = new RecursiveVar(ast->rhs, origin, ast->orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
       Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        rhs = new RecursiveVar(ast->rhs, origin);
+        rhs = new RecursiveVar(ast->rhs, origin, ast->orig_rhs);
       } else {
         prev->AppendVar(this, ast->rhs);
         rhs = prev;
@@ -61,7 +61,7 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
     case AssignOp::QUESTION_EQ: {
       Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        rhs = new RecursiveVar(ast->rhs, origin);
+        rhs = new RecursiveVar(ast->rhs, origin, ast->orig_rhs);
       } else {
         rhs = prev;
         needs_assign = false;

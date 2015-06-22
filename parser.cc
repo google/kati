@@ -197,6 +197,7 @@ class Parser {
     ast->set_loc(loc_);
     ast->lhs = ParseExpr(lhs);
     ast->rhs = ParseExpr(rhs);
+    ast->orig_rhs = rhs;
     ast->op = op;
     ast->directive = AssignDirective::NONE;
     out_asts_->push_back(ast);
@@ -241,6 +242,7 @@ class Parser {
     if (define_start_)
       rhs = TrimRightSpace(buf_.substr(define_start_, l_ - define_start_));
     ast->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
+    ast->orig_rhs = rhs;
     ast->op = AssignOp::EQ;
     ast->directive = AssignDirective::NONE;
     out_asts_->push_back(ast);
