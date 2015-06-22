@@ -23,6 +23,8 @@ class Var : public Evaluable {
 
   virtual void AppendVar(Evaluator* ev, Value* v);
 
+  virtual StringPiece String() const = 0;
+
   virtual string DebugString() const = 0;
 
  protected:
@@ -47,6 +49,8 @@ class SimpleVar : public Var {
 
   virtual void AppendVar(Evaluator* ev, Value* v);
 
+  virtual StringPiece String() const override;
+
   virtual string DebugString() const override;
 
  private:
@@ -56,7 +60,7 @@ class SimpleVar : public Var {
 
 class RecursiveVar : public Var {
  public:
-  RecursiveVar(Value* v, const char* origin);
+  RecursiveVar(Value* v, const char* origin, StringPiece orig);
 
   virtual const char* Flavor() const {
     return "recursive";
@@ -69,11 +73,14 @@ class RecursiveVar : public Var {
 
   virtual void AppendVar(Evaluator* ev, Value* v);
 
+  virtual StringPiece String() const override;
+
   virtual string DebugString() const override;
 
  private:
   Value* v_;
   const char* origin_;
+  StringPiece orig_;
 };
 
 class UndefinedVar : public Var {
@@ -89,6 +96,8 @@ class UndefinedVar : public Var {
   virtual bool IsDefined() const { return false; }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
+
+  virtual StringPiece String() const override;
 
   virtual string DebugString() const override;
 };

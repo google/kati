@@ -67,6 +67,7 @@ struct RuleAST : public AST {
 struct AssignAST : public AST {
   Value* lhs;
   Value* rhs;
+  StringPiece orig_rhs;
   AssignOp op;
   AssignDirective directive;
 

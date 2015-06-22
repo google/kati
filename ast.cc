@@ -30,9 +30,11 @@ string AssignAST::DebugString() const {
     case AssignDirective::OVERRIDE: dirstr = "override"; break;
     case AssignDirective::EXPORT: dirstr = "export"; break;
   }
-  return StringPrintf("AssignAST(lhs=%s rhs=%s opstr=%s dir=%s loc=%s:%d)",
+  return StringPrintf("AssignAST(lhs=%s rhs=%s (%s) "
+                      "opstr=%s dir=%s loc=%s:%d)",
                       lhs->DebugString().c_str(),
                       rhs->DebugString().c_str(),
+                      orig_rhs.as_string().c_str(),
                       opstr, dirstr, LOCF(loc()));
 }
 

@@ -31,12 +31,16 @@ void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
   v_ = s;
 }
 
+StringPiece SimpleVar::String() const {
+  return *v_;
+}
+
 string SimpleVar::DebugString() const {
   return *v_;
 }
 
-RecursiveVar::RecursiveVar(Value* v, const char* origin)
-    : v_(v), origin_(origin) {
+RecursiveVar::RecursiveVar(Value* v, const char* origin, StringPiece orig)
+    : v_(v), origin_(origin), orig_(orig) {
 }
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
@@ -47,6 +51,10 @@ void RecursiveVar::AppendVar(Evaluator*, Value* v) {
   v_ = NewExpr3(v_, NewLiteral(" "), v);
 }
 
+StringPiece RecursiveVar::String() const {
+  return orig_;
+}
+
 string RecursiveVar::DebugString() const {
   return v_->DebugString();
 }
@@ -55,6 +63,10 @@ UndefinedVar::UndefinedVar() {}
 
 void UndefinedVar::Eval(Evaluator*, string*) const {
   // Nothing to do.
+}
+
+StringPiece UndefinedVar::String() const {
+  return STRING_PIECE("");
 }
 
 string UndefinedVar::DebugString() const {
