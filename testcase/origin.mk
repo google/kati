@@ -13,7 +13,7 @@ test:
 	echo $(origin PATH)
 	echo $(origin MAKEFILE_LIST)
 	echo $(origin CC)
-# TODO: Fix
+# TODO(go): Fix
 #	echo $(origin $(FOOREF))
 
 # TODO: support environment override, command line, and override.

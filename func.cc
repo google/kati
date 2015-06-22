@@ -428,12 +428,16 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
-void OriginFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(origin)");
+void OriginFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> var_name = args[0]->Eval(ev);
+  Var* var = ev->LookupVar(*var_name);
+  *s += var->Origin();
 }
 
-void FlavorFunc(const vector<Value*>&, Evaluator*, string*) {
-  printf("TODO(flavor)");
+void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  shared_ptr<string> var_name = args[0]->Eval(ev);
+  Var* var = ev->LookupVar(*var_name);
+  *s += var->Flavor();
 }
 
 void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
