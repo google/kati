@@ -1,5 +1,7 @@
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "ast.h"
 #include "dep.h"
@@ -12,6 +14,7 @@
 #include "log.h"
 #include "parser.h"
 #include "string_piece.h"
+#include "stringprintf.h"
 #include "strutil.h"
 #include "var.h"
 
@@ -57,13 +60,56 @@ static void Quit() {
   QuitSymtab();
 }
 
+static void ReadBootstrapMakefile(const vector<StringPiece>& targets,
+                                  vector<AST*>* asts) {
+  string bootstrap = (
+      "CC:=cc\n"
+      "CXX:=g++\n"
+      "AR:=ar\n"
+      "MAKE:=kati\n"
+      // Pretend to be GNU make 3.81, for compatibility.
+      "MAKE_VERSION:=3.81\n"
+      "SHELL:=/bin/sh\n"
+      // TODO: Add more builtin vars.
+
+      // http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
+      // The document above is actually not correct. See default.c:
+      // http://git.savannah.gnu.org/cgit/make.git/tree/default.c?id=4.1
+      ".c.o:\n"
+      "\t$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
+      ".cc.o:\n"
+      "\t$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
+      // TODO: Add more builtin rules.
+                      );
+  bootstrap += StringPrintf("MAKECMDGOALS:=%s\n",
+                            JoinStrings(targets, " ").c_str());
+
+  char cwd[PATH_MAX];
+  if (!getcwd(cwd, PATH_MAX)) {
+    fprintf(stderr, "getcwd failed\n");
+    CHECK(false);
+  }
+  bootstrap += StringPrintf("CURDIR:=%s\n", cwd);
+  Parse(Intern(bootstrap), Loc("*bootstrap*", 0), asts);
+}
+
 static int Run(const vector<StringPiece>& targets) {
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
-  Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
 
   // TODO: Fill env, etc.
   Vars* vars = new Vars();
   Evaluator* ev = new Evaluator(vars);
+
+  vector<AST*> bootstrap_asts;
+  ReadBootstrapMakefile(targets, &bootstrap_asts);
+  ev->set_is_bootstrap(true);
+  for (AST* ast : bootstrap_asts) {
+    LOG("%s", ast->DebugString().c_str());
+    ast->Eval(ev);
+  }
+  ev->set_is_bootstrap(false);
+
+  Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
   for (AST* ast : mk->asts()) {
     LOG("%s", ast->DebugString().c_str());
     ast->Eval(ev);
@@ -80,6 +126,8 @@ static int Run(const vector<StringPiece>& targets) {
 
   Exec(nodes, vars);
 
+  for (AST* ast : bootstrap_asts)
+    delete ast;
   delete er;
   delete ev;
   delete vars;
