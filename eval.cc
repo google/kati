@@ -35,7 +35,7 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
 
-  const char* origin = "file";
+  const char* origin = is_bootstrap_ ? "default" : "file";
 
   StringPiece lhs = Intern(*ast->lhs->Eval(this));
   Var* rhs = NULL;

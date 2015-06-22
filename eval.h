@@ -42,7 +42,6 @@ class Evaluator {
   void EvalInclude(const IncludeAST* ast);
   void EvalExport(const ExportAST* ast);
 
-
   Var* LookupVar(StringPiece name);
   // For target specific variables.
   Var* LookupVarInCurrentScope(StringPiece name);
@@ -55,6 +54,8 @@ class Evaluator {
 
   void Error(const string& msg);
 
+  void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
+
  private:
   void DoInclude(const char* fname, bool should_exist);
 
@@ -65,6 +66,7 @@ class Evaluator {
   Rule* last_rule_;
 
   Loc loc_;
+  bool is_bootstrap_;
 };
 
 #endif  // EVAL_H_
