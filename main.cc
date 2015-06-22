@@ -21,7 +21,8 @@
 static const char* g_makefile;
 
 static void ParseCommandLine(int argc, char* argv[],
-                             vector<StringPiece>* targets) {
+                             vector<StringPiece>* targets,
+                             vector<StringPiece>* cl_vars) {
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
     if (!strcmp(arg, "-f")) {
@@ -29,7 +30,11 @@ static void ParseCommandLine(int argc, char* argv[],
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
-      targets->push_back(Intern(arg));
+      if (strchr(arg, '=')) {
+        cl_vars->push_back(arg);
+      } else {
+        targets->push_back(Intern(arg));
+      }
     }
   }
 }
@@ -93,11 +98,30 @@ static void ReadBootstrapMakefile(const vector<StringPiece>& targets,
   Parse(Intern(bootstrap), Loc("*bootstrap*", 0), asts);
 }
 
-static int Run(const vector<StringPiece>& targets) {
+static void SetVar(StringPiece l, const char* origin, Vars* vars) {
+  size_t found = l.find('=');
+  CHECK(found != string::npos);
+  StringPiece lhs = Intern(l.substr(0, found));
+  StringPiece rhs = l.substr(found + 1);
+  vars->Assign(lhs, new RecursiveVar(NewLiteral(rhs.data()), origin));
+}
+
+extern "C" char** environ;
+static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
+  for (char** p = environ; *p; p++) {
+    SetVar(*p, "environment", vars);
+  }
+  for (StringPiece l : cl_vars) {
+    SetVar(l, "command line", vars);
+  }
+}
+
+static int Run(const vector<StringPiece>& targets,
+               const vector<StringPiece>& cl_vars) {
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
-  // TODO: Fill env, etc.
   Vars* vars = new Vars();
+  FillDefaultVars(cl_vars, vars);
   Evaluator* ev = new Evaluator(vars);
 
   vector<AST*> bootstrap_asts;
@@ -133,14 +157,15 @@ static int Run(const vector<StringPiece>& targets) {
   delete vars;
   delete cache_mgr;
 
-  return mk != 0;
+  return mk == 0;
 }
 
 int main(int argc, char* argv[]) {
   Init();
   vector<StringPiece> targets;
-  ParseCommandLine(argc, argv, &targets);
-  int r = Run(targets);
+  vector<StringPiece> cl_vars;
+  ParseCommandLine(argc, argv, &targets, &cl_vars);
+  int r = Run(targets, cl_vars);
   Quit();
   return r;
 }
