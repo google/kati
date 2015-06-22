@@ -487,6 +487,6 @@ Value* NewExpr3(Value* v1, Value* v2, Value* v3) {
   return e;
 }
 
-Value* NewLiteral(const char* s) {
+Value* NewLiteral(StringPiece s) {
   return new Literal(s);
 }

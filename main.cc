@@ -134,6 +134,10 @@ static int Run(const vector<StringPiece>& targets,
   }
   ev->set_is_bootstrap(false);
 
+  vars->Assign("MAKEFILE_LIST",
+               new SimpleVar(make_shared<string>(
+                   StringPrintf(" %s", g_makefile)), "file"));
+
   Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
   for (AST* ast : mk->asts()) {
     LOG("%s", ast->DebugString().c_str());

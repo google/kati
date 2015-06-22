@@ -159,6 +159,8 @@ void Evaluator::DoInclude(const char* fname, bool should_exist) {
     return;
   }
 
+  Var* var_list = LookupVar("MAKEFILE_LIST");
+  var_list->AppendVar(this, NewLiteral(Intern(fname)));
   for (AST* ast : mk->asts()) {
     LOG("%s", ast->DebugString().c_str());
     ast->Eval(this);
