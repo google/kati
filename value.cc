@@ -479,6 +479,13 @@ string JoinValues(const vector<Value*>& vals, const char* sep) {
   return JoinStrings(val_strs, sep);
 }
 
+Value* NewExpr2(Value* v1, Value* v2) {
+  Expr* e = new Expr();
+  e->AddValue(v1);
+  e->AddValue(v2);
+  return e;
+}
+
 Value* NewExpr3(Value* v1, Value* v2, Value* v3) {
   Expr* e = new Expr();
   e->AddValue(v1);

@@ -46,6 +46,7 @@ Value* ParseExpr(StringPiece s, ParseExprOpt opt = ParseExprOpt::NORMAL);
 
 string JoinValues(const vector<Value*>& vals, const char* sep);
 
+Value* NewExpr2(Value* v1, Value* v2);
 Value* NewExpr3(Value* v1, Value* v2, Value* v3);
 
 Value* NewLiteral(StringPiece s);

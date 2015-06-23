@@ -45,6 +45,7 @@ struct RuleVar {
 };
 
 // If |rule| is not NULL, rule_var is filled.
-void ParseRule(Loc& loc, StringPiece line, Rule** rule, RuleVar* rule_var);
+void ParseRule(Loc& loc, StringPiece line, bool is_assign,
+               Rule** rule, RuleVar* rule_var);
 
 #endif  // RULE_H_

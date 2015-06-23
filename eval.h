@@ -5,19 +5,14 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ast.h"
 #include "loc.h"
 #include "string_piece.h"
 
 using namespace std;
 
-class AssignAST;
-class CommandAST;
-class ExportAST;
-class IfAST;
-class IncludeAST;
 class Makefile;
 class Rule;
-class RuleAST;
 class Var;
 class Vars;
 
@@ -57,6 +52,7 @@ class Evaluator {
   void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
 
  private:
+  void DoAssign(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op);
   void DoInclude(const char* fname, bool should_exist);
 
   const Vars* in_vars_;
@@ -64,6 +60,7 @@ class Evaluator {
   unordered_map<StringPiece, Vars*> rule_vars_;
   vector<shared_ptr<Rule>> rules_;
   Rule* last_rule_;
+  Vars* current_scope_;
 
   Loc loc_;
   bool is_bootstrap_;

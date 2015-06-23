@@ -21,7 +21,8 @@ EvalResult::~EvalResult() {
 Evaluator::Evaluator(const Vars* vars)
     : in_vars_(vars),
       vars_(new Vars()),
-      last_rule_(NULL) {
+      last_rule_(NULL),
+      current_scope_(NULL) {
 }
 
 Evaluator::~Evaluator() {
@@ -31,28 +32,25 @@ Evaluator::~Evaluator() {
   // }
 }
 
-void Evaluator::EvalAssign(const AssignAST* ast) {
-  loc_ = ast->loc();
-  last_rule_ = NULL;
-
+void Evaluator::DoAssign(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
+                         AssignOp op) {
   const char* origin = is_bootstrap_ ? "default" : "file";
 
-  StringPiece lhs = Intern(*ast->lhs->Eval(this));
   Var* rhs = NULL;
   bool needs_assign = true;
-  switch (ast->op) {
+  switch (op) {
     case AssignOp::COLON_EQ:
-      rhs = new SimpleVar(ast->rhs->Eval(this), origin);
+      rhs = new SimpleVar(rhs_v->Eval(this), origin);
       break;
     case AssignOp::EQ:
-      rhs = new RecursiveVar(ast->rhs, origin, ast->orig_rhs);
+      rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
       Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        rhs = new RecursiveVar(ast->rhs, origin, ast->orig_rhs);
+        rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else {
-        prev->AppendVar(this, ast->rhs);
+        prev->AppendVar(this, rhs_v);
         rhs = prev;
         needs_assign = false;
       }
@@ -61,7 +59,7 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
     case AssignOp::QUESTION_EQ: {
       Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        rhs = new RecursiveVar(ast->rhs, origin, ast->orig_rhs);
+        rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else {
         rhs = prev;
         needs_assign = false;
@@ -75,6 +73,13 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
     vars_->Assign(lhs, rhs);
 }
 
+void Evaluator::EvalAssign(const AssignAST* ast) {
+  loc_ = ast->loc();
+  last_rule_ = NULL;
+  StringPiece lhs = Intern(*ast->lhs->Eval(this));
+  DoAssign(lhs, ast->rhs, ast->orig_rhs, ast->op);
+}
+
 void Evaluator::EvalRule(const RuleAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
@@ -86,7 +91,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
 
   Rule* rule;
   RuleVar rule_var;
-  ParseRule(loc_, *expr, &rule, &rule_var);
+  ParseRule(loc_, *expr, ast->term == '=', &rule, &rule_var);
 
   if (rule) {
     LOG("Rule: %s", rule->DebugString().c_str());
@@ -95,7 +100,27 @@ void Evaluator::EvalRule(const RuleAST* ast) {
     return;
   }
 
-  CHECK(false);
+  for (StringPiece output : rule_var.outputs) {
+    auto p = rule_vars_.emplace(output, static_cast<Vars*>(NULL));
+    if (p.second) {
+      p.first->second = new Vars;
+    }
+
+    Value* rhs = ast->after_term;
+    if (!rule_var.rhs.empty()) {
+      Value* lit = NewLiteral(rule_var.rhs);
+      if (rhs) {
+        rhs = NewExpr2(lit, rhs);
+      } else {
+        rhs = lit;
+      }
+    }
+
+    current_scope_ = p.first->second;
+    DoAssign(Intern(rule_var.lhs), rhs, STRING_PIECE("*TODO*"),
+             rule_var.op);
+    current_scope_ = NULL;
+  }
 }
 
 void Evaluator::EvalCommand(const CommandAST* ast) {
@@ -195,7 +220,11 @@ void Evaluator::EvalExport(const ExportAST* ast) {
 }
 
 Var* Evaluator::LookupVar(StringPiece name) {
-  // TODO: TSV.
+  if (current_scope_) {
+    Var* v = current_scope_->Lookup(name);
+    if (v->IsDefined())
+      return v;
+  }
   Var* v = vars_->Lookup(name);
   if (v->IsDefined())
     return v;
@@ -203,7 +232,9 @@ Var* Evaluator::LookupVar(StringPiece name) {
 }
 
 Var* Evaluator::LookupVarInCurrentScope(StringPiece name) {
-  // TODO: TSV.
+  if (current_scope_) {
+    return current_scope_->Lookup(name);
+  }
   Var* v = vars_->Lookup(name);
   if (v->IsDefined())
     return v;
