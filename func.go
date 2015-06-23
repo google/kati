@@ -168,7 +168,7 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	Logf("subst from:%q to:%q text:%q", from, to, text)
 	w.Write(bytes.Replace(text, from, to, -1))
 	freeBuf(abuf)
-	addStats("funcbody", "subst", t)
+	stats.add("funcbody", "subst", t)
 }
 
 type funcPatsubst struct{ fclosure }
@@ -196,7 +196,7 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) {
 		space = true
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "patsubst", t)
+	stats.add("funcbody", "patsubst", t)
 }
 
 type funcStrip struct{ fclosure }
@@ -217,7 +217,7 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) {
 		space = true
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "strip", t)
+	stats.add("funcbody", "strip", t)
 }
 
 type funcFindstring struct{ fclosure }
@@ -234,7 +234,7 @@ func (f *funcFindstring) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(find)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "findstring", t)
+	stats.add("funcbody", "findstring", t)
 }
 
 type funcFilter struct{ fclosure }
@@ -261,7 +261,7 @@ func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "filter", t)
+	stats.add("funcbody", "filter", t)
 }
 
 type funcFilterOut struct{ fclosure }
@@ -290,7 +290,7 @@ Loop:
 		sw.Write(text)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "filter-out", t)
+	stats.add("funcbody", "filter-out", t)
 }
 
 type funcSort struct{ fclosure }
@@ -321,7 +321,7 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) {
 		io.WriteString(w, tok)
 		prev = tok
 	}
-	addStats("funcbody", "sort", t)
+	stats.add("funcbody", "sort", t)
 }
 
 type funcWord struct{ fclosure }
@@ -349,7 +349,7 @@ func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "word", t)
+	stats.add("funcbody", "word", t)
 }
 
 type funcWordlist struct{ fclosure }
@@ -384,7 +384,7 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "wordlist", t)
+	stats.add("funcbody", "wordlist", t)
 }
 
 type funcWords struct{ fclosure }
@@ -402,7 +402,7 @@ func (f *funcWords) Eval(w io.Writer, ev *Evaluator) {
 	}
 	freeBuf(abuf)
 	io.WriteString(w, strconv.Itoa(n))
-	addStats("funcbody", "words", t)
+	stats.add("funcbody", "words", t)
 }
 
 type funcFirstword struct{ fclosure }
@@ -418,7 +418,7 @@ func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ws.Bytes())
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "firstword", t)
+	stats.add("funcbody", "firstword", t)
 }
 
 type funcLastword struct{ fclosure }
@@ -438,7 +438,7 @@ func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(lw)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "lastword", t)
+	stats.add("funcbody", "lastword", t)
 }
 
 // https://www.gnu.org/software/make/manual/html_node/File-Name-Functions.html#File-Name-Functions
@@ -463,7 +463,7 @@ func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ws2.Bytes())
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "join", t)
+	stats.add("funcbody", "join", t)
 }
 
 type funcWildcard struct{ fclosure }
@@ -492,7 +492,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	}
 	traceEvent.end(te)
 	freeBuf(abuf)
-	addStats("funcbody", "wildcard", t)
+	stats.add("funcbody", "wildcard", t)
 }
 
 type funcDir struct{ fclosure }
@@ -514,7 +514,7 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(filepath.Dir(string(name)) + string(filepath.Separator))
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "dir", t)
+	stats.add("funcbody", "dir", t)
 }
 
 type funcNotdir struct{ fclosure }
@@ -536,7 +536,7 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(filepath.Base(name))
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "notdir", t)
+	stats.add("funcbody", "notdir", t)
 }
 
 type funcSuffix struct{ fclosure }
@@ -557,7 +557,7 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) {
 		}
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "suffix", t)
+	stats.add("funcbody", "suffix", t)
 }
 
 type funcBasename struct{ fclosure }
@@ -576,7 +576,7 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(e)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "basename", t)
+	stats.add("funcbody", "basename", t)
 }
 
 type funcAddsuffix struct{ fclosure }
@@ -596,7 +596,7 @@ func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(suf)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "addsuffix", t)
+	stats.add("funcbody", "addsuffix", t)
 }
 
 type funcAddprefix struct{ fclosure }
@@ -616,7 +616,7 @@ func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) {
 		w.Write(ws.Bytes())
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "addprefix", t)
+	stats.add("funcbody", "addprefix", t)
 }
 
 type funcRealpath struct{ fclosure }
@@ -649,7 +649,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(name)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "realpath", t)
+	stats.add("funcbody", "realpath", t)
 }
 
 type funcAbspath struct{ fclosure }
@@ -672,7 +672,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 		sw.WriteString(name)
 	}
 	freeBuf(abuf)
-	addStats("funcbody", "abspath", t)
+	stats.add("funcbody", "abspath", t)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Conditional-Functions
@@ -736,11 +736,6 @@ func (f *funcOr) Eval(w io.Writer, ev *Evaluator) {
 // http://www.gnu.org/software/make/manual/make.html#Shell-Function
 type funcShell struct{ fclosure }
 
-var (
-	shellFuncTime  time.Duration
-	shellFuncCount int
-)
-
 func (f *funcShell) Arity() int { return 1 }
 
 // A hack for Android build. We need to evaluate things like $((3+4))
@@ -786,8 +781,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	}
 	te := traceEvent.begin("shell", literal(arg), traceEventMain)
 	out, err := cmd.Output()
-	shellFuncTime += time.Since(te.t)
-	shellFuncCount++
+	shellStats.add(time.Since(te.t))
 	if err != nil {
 		Logf("$(shell %q) failed: %q", arg, err)
 	}

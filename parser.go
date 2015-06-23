@@ -22,10 +22,13 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -681,29 +684,6 @@ func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
 	return parser.parse()
 }
 
-/*
-func ParseMakefile(filename string) (Makefile, error) {
-	Logf("ParseMakefile %q", filename)
-	f, err := os.Open(filename)
-	if err != nil {
-		return Makefile{}, err
-	}
-	defer f.Close()
-	return ParseMakefileFd(filename, f)
-}
-
-func ParseDefaultMakefile() (Makefile, string, error) {
-	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
-	for _, filename := range candidates {
-		if exists(filename) {
-			mk, err := ParseMakefile(filename)
-			return mk, filename, err
-		}
-	}
-	return Makefile{}, "", errors.New("no targets specified and no makefile found.")
-}
-*/
-
 func GetDefaultMakefile() string {
 	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
 	for _, filename := range candidates {
@@ -731,41 +711,70 @@ func ParseMakefileBytes(s []byte, name string, lineno int) (Makefile, error) {
 	return parseMakefileReader(bytes.NewReader(s), name, lineno)
 }
 
-type MakefileCache struct {
-	mk  Makefile
-	err error
-	ts  int64
+type mkCacheEntry struct {
+	mk   Makefile
+	hash [sha1.Size]byte
+	err  error
+	ts   int64
 }
 
-var makefileCache map[string]MakefileCache
-
-func InitMakefileCache() {
-	if makefileCache == nil {
-		makefileCache = make(map[string]MakefileCache)
-	}
+type makefileCacheT struct {
+	mu sync.Mutex
+	mk map[string]mkCacheEntry
 }
 
-func LookupMakefileCache(filename string) (Makefile, bool, error) {
-	c, present := makefileCache[filename]
+var makefileCache = &makefileCacheT{
+	mk: make(map[string]mkCacheEntry),
+}
+
+func (mc *makefileCacheT) lookup(filename string) (Makefile, [sha1.Size]byte, bool, error) {
+	var hash [sha1.Size]byte
+	mc.mu.Lock()
+	c, present := mc.mk[filename]
+	mc.mu.Unlock()
 	if !present {
-		return Makefile{}, false, nil
+		return Makefile{}, hash, false, nil
 	}
 	ts := getTimestamp(filename)
 	if ts < 0 || ts >= c.ts {
-		return Makefile{}, false, nil
+		return Makefile{}, hash, false, nil
 	}
-	Logf("Cache hit for %q", filename)
-	return c.mk, true, c.err
+	return c.mk, c.hash, true, c.err
+}
+
+func (mc *makefileCacheT) parse(filename string) (Makefile, [sha1.Size]byte, error) {
+	Logf("parse Makefile %q", filename)
+	mk, hash, ok, err := makefileCache.lookup(filename)
+	if ok {
+		if katiLogFlag {
+			Logf("makefile cache hit for %q", filename)
+		}
+		return mk, hash, err
+	}
+	if katiLogFlag {
+		Logf("reading makefile %q", filename)
+	}
+	c, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return Makefile{}, hash, err
+	}
+	hash = sha1.Sum(c)
+	mk, err = ParseMakefile(c, filename)
+	if err != nil {
+		return Makefile{}, hash, err
+	}
+	makefileCache.mu.Lock()
+	makefileCache.mk[filename] = mkCacheEntry{
+		mk:   mk,
+		hash: hash,
+		err:  err,
+		ts:   time.Now().Unix(),
+	}
+	makefileCache.mu.Unlock()
+	return mk, hash, err
 }
 
 func ParseMakefile(s []byte, filename string) (Makefile, error) {
-	Logf("ParseMakefile %q", filename)
 	parser := newParser(bytes.NewReader(s), filename)
-	mk, err := parser.parse()
-	makefileCache[filename] = MakefileCache{
-		mk:  mk,
-		err: err,
-		ts:  time.Now().Unix(),
-	}
-	return mk, err
+	return parser.parse()
 }

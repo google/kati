@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -272,21 +272,11 @@ func (ev *Evaluator) EvaluateVar(name string) string {
 	return buf.String()
 }
 
-func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
+func (ev *Evaluator) evalIncludeFile(fname string, mk Makefile) error {
 	te := traceEvent.begin("include", literal(fname), traceEventMain)
 	defer func() {
 		traceEvent.end(te)
 	}()
-	mk, ok, err := LookupMakefileCache(fname)
-	if !ok {
-		if katiLogFlag {
-			Logf("Reading makefile %q", fname)
-		}
-		mk, err = ParseMakefile(c, fname)
-	}
-	if err != nil {
-		return err
-	}
 	makefileList := ev.outVars.Lookup("MAKEFILE_LIST")
 	makefileList = makefileList.Append(ev, mk.filename)
 	ev.outVars.Assign("MAKEFILE_LIST", makefileList)
@@ -297,19 +287,18 @@ func (ev *Evaluator) evalIncludeFile(fname string, c []byte) error {
 	return nil
 }
 
-func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st FileState) {
+func (ev *Evaluator) updateReadMakefile(fn string, hash [sha1.Size]byte, st FileState) {
 	if !useCache {
 		return
 	}
 
-	h := sha1.Sum(c)
 	rm, present := ev.readMks[fn]
 	if present {
 		switch rm.State {
 		case FileExists:
 			if st != FileExists {
 				Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
-			} else if !bytes.Equal(h[:], rm.Hash[:]) {
+			} else if !bytes.Equal(hash[:], rm.Hash[:]) {
 				Warn(ev.filename, ev.lineno, "%s was modified after the previous read", fn)
 				ev.readMks[fn].State = FileInconsistent
 			}
@@ -322,12 +311,12 @@ func (ev *Evaluator) updateReadMakefile(fn string, c []byte, st FileState) {
 		case FileInconsistent:
 			return
 		}
-	} else {
-		ev.readMks[fn] = &ReadMakefile{
-			Filename: fn,
-			Hash:     h,
-			State:    st,
-		}
+		return
+	}
+	ev.readMks[fn] = &ReadMakefile{
+		Filename: fn,
+		Hash:     hash,
+		State:    st,
 	}
 }
 
@@ -363,17 +352,17 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 		if ignoreOptionalInclude != "" && ast.op == "-include" && matchPattern(fn, ignoreOptionalInclude) {
 			continue
 		}
-		c, err := ioutil.ReadFile(fn)
-		if err != nil {
+		mk, hash, err := makefileCache.parse(fn)
+		if os.IsNotExist(err) {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
-				ev.updateReadMakefile(fn, nil, FileNotExists)
+				ev.updateReadMakefile(fn, hash, FileNotExists)
 				continue
 			}
 		}
-		ev.updateReadMakefile(fn, c, FileExists)
-		err = ev.evalIncludeFile(fn, c)
+		ev.updateReadMakefile(fn, hash, FileExists)
+		err = ev.evalIncludeFile(fn, mk)
 		if err != nil {
 			panic(err)
 		}

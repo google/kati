@@ -27,7 +27,14 @@ import (
 	"time"
 )
 
-var wildcardCache = make(map[string][]string)
+type wildcardCacheT struct {
+	mu sync.Mutex
+	m  map[string][]string
+}
+
+var wildcardCache = &wildcardCacheT{
+	m: make(map[string][]string),
+}
 
 func wildcardGlob(pat string) []string {
 	// TODO(ukai): use find cache for glob if exists.
@@ -93,7 +100,10 @@ func wildcardGlob(pat string) []string {
 func wildcard(sw *ssvWriter, pat string) {
 	if useWildcardCache {
 		// TODO(ukai): make sure it didn't chdir?
-		if files, ok := wildcardCache[pat]; ok {
+		wildcardCache.mu.Lock()
+		files, ok := wildcardCache.m[pat]
+		wildcardCache.mu.Unlock()
+		if ok {
 			for _, file := range files {
 				sw.WriteString(file)
 			}
@@ -105,7 +115,9 @@ func wildcard(sw *ssvWriter, pat string) {
 		sw.WriteString(file)
 	}
 	if useWildcardCache {
-		wildcardCache[pat] = files
+		wildcardCache.mu.Lock()
+		wildcardCache.m[pat] = files
+		wildcardCache.mu.Unlock()
 	}
 }
 
