@@ -45,7 +45,7 @@ Rule::Rule()
       cmd_lineno(0) {
 }
 
-void ParseRule(Loc& loc, StringPiece line,
+void ParseRule(Loc& loc, StringPiece line, bool is_assign,
                Rule** out_rule, RuleVar* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {
@@ -77,7 +77,9 @@ void ParseRule(Loc& loc, StringPiece line,
 
   StringPiece rest = line.substr(index);
   size_t equal_index = rest.find('=');
-  if (equal_index != string::npos) {
+  if (equal_index != string::npos || is_assign) {
+    if (equal_index == string::npos)
+      equal_index = rest.size();
     rule_var->outputs.swap(outputs);
     ParseAssignStatement(rest, equal_index,
                          &rule_var->lhs, &rule_var->rhs, &rule_var->op);
