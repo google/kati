@@ -109,9 +109,13 @@ void Evaluator::EvalRule(const RuleAST* ast) {
 
   Rule* rule;
   RuleVarAssignment rule_var;
-  ParseRule(loc_, *expr, ast->term == '=', &rule, &rule_var);
+  ParseRule(loc_, *expr, ast->term, &rule, &rule_var);
 
   if (rule) {
+    if (ast->term == ';') {
+      rule->cmds.push_back(ast->after_term);
+    }
+
     LOG("Rule: %s", rule->DebugString().c_str());
     rules_.push_back(shared_ptr<Rule>(rule));
     last_rule_ = rule;

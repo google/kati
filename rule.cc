@@ -59,7 +59,7 @@ Rule::Rule()
       cmd_lineno(0) {
 }
 
-void ParseRule(Loc& loc, StringPiece line, bool is_assign,
+void ParseRule(Loc& loc, StringPiece line, char term,
                Rule** out_rule, RuleVarAssignment* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {
@@ -90,12 +90,13 @@ void ParseRule(Loc& loc, StringPiece line, bool is_assign,
   }
 
   StringPiece rest = line.substr(index);
-  size_t equal_index = rest.find('=');
-  if (equal_index != string::npos || is_assign) {
-    if (equal_index == string::npos)
-      equal_index = rest.size();
+  size_t term_index = rest.find_first_of("=;");
+  if ((term_index != string::npos && rest[term_index] == '=') ||
+      (term_index == string::npos && term == '=')) {
+    if (term_index == string::npos)
+      term_index = rest.size();
     rule_var->outputs.swap(outputs);
-    ParseAssignStatement(rest, equal_index,
+    ParseAssignStatement(rest, term_index,
                          &rule_var->lhs, &rule_var->rhs, &rule_var->op);
     *out_rule = NULL;
     return;
@@ -109,6 +110,13 @@ void ParseRule(Loc& loc, StringPiece line, bool is_assign,
     rule->output_patterns.swap(outputs);
   } else {
     rule->outputs.swap(outputs);
+  }
+  if (term_index != string::npos && term != ';') {
+    CHECK(rest[term_index] == ';');
+    // TODO: Maybe better to avoid Intern here?
+    rule->cmds.push_back(
+        NewLiteral(Intern(TrimLeftSpace(rest.substr(term_index + 1)))));
+    rest = rest.substr(0, term_index);
   }
 
   index = rest.find(':');
