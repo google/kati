@@ -20,8 +20,8 @@
 using namespace std;
 
 class DepNode;
-class Vars;
+class Evaluator;
 
-void Exec(const vector<DepNode*>& roots, Vars* vars);
+void Exec(const vector<DepNode*>& roots, Evaluator* ev);
 
 #endif  // EXEC_H_

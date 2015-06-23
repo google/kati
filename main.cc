@@ -158,20 +158,13 @@ static int Run(const vector<StringPiece>& targets,
     ast->Eval(ev);
   }
 
-  EvalResult* er = ev->GetEvalResult();
-  for (auto p : *er->vars) {
-    vars->Assign(p.first, p.second);
-  }
-  er->vars->clear();
-
   vector<DepNode*> nodes;
-  MakeDep(er->rules, *vars, er->rule_vars, targets, &nodes);
+  MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
 
-  Exec(nodes, vars);
+  Exec(nodes, ev);
 
   for (AST* ast : bootstrap_asts)
     delete ast;
-  delete er;
   delete ev;
   delete vars;
   delete cache_mgr;

@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "eval.h"
 #include "fileutil.h"
 #include "log.h"
 #include "rule.h"
@@ -40,16 +41,16 @@ DepNode::DepNode(StringPiece o, bool p)
       has_rule(false),
       is_order_only(false),
       is_phony(p),
-      target_specific_vars(NULL) {
+      rule_vars(NULL) {
   g_dep_node_pool->push_back(this);
 }
 
 class DepBuilder {
  public:
-  DepBuilder(const vector<shared_ptr<Rule>>& rules,
-             const Vars& vars,
+  DepBuilder(Evaluator* ev,
+             const vector<shared_ptr<Rule>>& rules,
              const unordered_map<StringPiece, Vars*>& rule_vars)
-      : vars_(vars),
+      : ev_(ev),
         rule_vars_(rule_vars),
         first_rule_(NULL) {
     PopulateRules(rules);
@@ -71,9 +72,12 @@ class DepBuilder {
     // TODO: LogStats?
 
     for (StringPiece target : targets) {
-      unique_ptr<Vars> tsvs(new Vars);
-      DepNode* n = BuildPlan(target, "", tsvs.get());
+      cur_rule_vars_.reset(new Vars);
+      ev_->set_current_scope(cur_rule_vars_.get());
+      DepNode* n = BuildPlan(target, "");
       nodes->push_back(n);
+      ev_->set_current_scope(NULL);
+      cur_rule_vars_.reset(NULL);
     }
   }
 
@@ -275,7 +279,7 @@ class DepBuilder {
     return rule.get();
   }
 
-  DepNode* BuildPlan(StringPiece output, StringPiece needed_by, Vars* tsvs) {
+  DepNode* BuildPlan(StringPiece output, StringPiece needed_by) {
     LOG("BuildPlan: %s for %s",
         output.as_string().c_str(),
         needed_by.as_string().c_str());
@@ -294,7 +298,33 @@ class DepBuilder {
       return n;
     }
 
-    // TODO: Handle TSVs
+    vector<unique_ptr<ScopedVar>> sv;
+    if (vars) {
+      for (const auto& p : *vars) {
+        StringPiece name = p.first;
+        RuleVar* var = reinterpret_cast<RuleVar*>(p.second);
+        CHECK(var);
+        Var* new_var = var->v();
+        if (var->op() == AssignOp::PLUS_EQ) {
+          Var* old_var = ev_->LookupVar(name);
+          if (old_var->IsDefined()) {
+            // TODO: This would be incorrect and has a leak.
+            shared_ptr<string> s = make_shared<string>();
+            old_var->Eval(ev_, s.get());
+            *s += ' ';
+            new_var->Eval(ev_, s.get());
+            new_var = new SimpleVar(s, old_var->Origin());
+          }
+        } else if (var->op() == AssignOp::QUESTION_EQ) {
+          Var* old_var = ev_->LookupVar(name);
+          if (old_var->IsDefined()) {
+            continue;
+          }
+        }
+        sv.push_back(move(unique_ptr<ScopedVar>(
+            new ScopedVar(cur_rule_vars_.get(), name, new_var))));
+      }
+    }
 
     for (StringPiece input : rule->inputs) {
       if (rule->output_patterns.size() > 0) {
@@ -309,20 +339,33 @@ class DepBuilder {
       }
 
       n->actual_inputs.push_back(input);
-      DepNode* c = BuildPlan(input, output, tsvs);
+      DepNode* c = BuildPlan(input, output);
       n->deps.push_back(c);
     }
 
     // TODO: order only
+
     n->has_rule = true;
     n->cmds = rule->cmds;
+    if (cur_rule_vars_->empty()) {
+      n->rule_vars = NULL;
+    } else {
+      n->rule_vars = new Vars;
+      for (auto p : *cur_rule_vars_) {
+        n->rule_vars->insert(p);
+      }
+    }
+    n->loc = rule->loc;
+    if (!rule->cmds.empty() && rule->cmd_lineno)
+      n->loc.lineno = rule->cmd_lineno;
 
     return n;
   }
 
+  Evaluator* ev_;
   unordered_map<StringPiece, shared_ptr<Rule>> rules_;
-  const Vars& vars_;
   const unordered_map<StringPiece, Vars*>& rule_vars_;
+  unique_ptr<Vars> cur_rule_vars_;
 
   vector<shared_ptr<Rule>> implicit_rules_;   // pattern=%. no prefix,suffix.
   //vector<Rule*> iprefix_rules_;   // pattern=prefix%..  may have suffix
@@ -335,12 +378,12 @@ class DepBuilder {
   unordered_set<StringPiece> phony_;
 };
 
-void MakeDep(const vector<shared_ptr<Rule>>& rules,
-             const Vars& vars,
+void MakeDep(Evaluator* ev,
+             const vector<shared_ptr<Rule>>& rules,
              const unordered_map<StringPiece, Vars*>& rule_vars,
              const vector<StringPiece>& targets,
              vector<DepNode*>* nodes) {
-  DepBuilder db(rules, vars, rule_vars);
+  DepBuilder db(ev, rules, rule_vars);
   db.Build(targets, nodes);
 }
 

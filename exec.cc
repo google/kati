@@ -45,7 +45,6 @@ class AutoVar : public Var {
     return "automatic";
   }
 
-  virtual bool IsDefined() const override { CHECK(false); }
   virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }
 
   virtual StringPiece String() const override {
@@ -116,9 +115,9 @@ struct Runner {
 
 class Executor {
  public:
-  explicit Executor(Vars* vars)
-      : vars_(vars),
-        ev_(new Evaluator(vars_)) {
+  explicit Executor(Evaluator* ev)
+      : ev_(ev) {
+    Vars* vars = ev_->mutable_vars();
 #define INSERT_AUTO_VAR(name, sym) do {                                 \
       Var* v = new name(this, sym);                                     \
       (*vars)[STRING_PIECE(sym)] = v;                                   \
@@ -165,9 +164,10 @@ class Executor {
   }
 
   void CreateRunners(DepNode* n, vector<Runner*>* runners) {
+    ev_->set_current_scope(n->rule_vars);
     current_dep_node_ = n;
     for (Value* v : n->cmds) {
-      shared_ptr<string> cmd = v->Eval(ev_.get());
+      shared_ptr<string> cmd = v->Eval(ev_);
       while (true) {
         size_t index = cmd->find('\n');
         if (index == string::npos)
@@ -185,13 +185,14 @@ class Executor {
       runners->push_back(runner);
       continue;
     }
+    ev_->set_current_scope(NULL);
   }
 
   const DepNode* current_dep_node() const { return current_dep_node_; }
 
  private:
   Vars* vars_;
-  unique_ptr<Evaluator> ev_;
+  Evaluator* ev_;
   unordered_map<StringPiece, bool> done_;
   DepNode* current_dep_node_;
 };
@@ -246,8 +247,8 @@ void AutoSuffixFVar::Eval(Evaluator* ev, string* s) const {
 
 }  // namespace
 
-void Exec(const vector<DepNode*>& roots, Vars* vars) {
-  unique_ptr<Executor> executor(new Executor(vars));
+void Exec(const vector<DepNode*>& roots, Evaluator* ev) {
+  unique_ptr<Executor> executor(new Executor(ev));
   for (DepNode* root : roots) {
     executor->ExecNode(root, NULL);
   }
