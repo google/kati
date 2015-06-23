@@ -60,7 +60,7 @@ Rule::Rule()
 }
 
 void ParseRule(Loc& loc, StringPiece line, bool is_assign,
-               Rule** out_rule, RuleVar* rule_var) {
+               Rule** out_rule, RuleVarAssignment* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {
     ERROR("%s:%d: *** missing separator.", LOCF(loc));

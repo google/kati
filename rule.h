@@ -24,7 +24,6 @@
 
 using namespace std;
 
-class Evaluator;
 class Value;
 
 class Rule {
@@ -51,15 +50,15 @@ class Rule {
   }
 };
 
-struct RuleVar {
+struct RuleVarAssignment {
   vector<StringPiece> outputs;
   StringPiece lhs;
   StringPiece rhs;
   AssignOp op;
 };
 
-// If |rule| is not NULL, rule_var is filled.
+// If |rule| is not NULL, |rule_var| is filled.
 void ParseRule(Loc& loc, StringPiece line, bool is_assign,
-               Rule** rule, RuleVar* rule_var);
+               Rule** rule, RuleVarAssignment* rule_var);
 
 #endif  // RULE_H_

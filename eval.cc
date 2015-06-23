@@ -40,14 +40,14 @@ Evaluator::Evaluator(const Vars* vars)
 }
 
 Evaluator::~Evaluator() {
-  delete vars_;
+  // delete vars_;
   // for (auto p : rule_vars) {
   //   delete p.second;
   // }
 }
 
-void Evaluator::DoAssign(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
-                         AssignOp op) {
+Var* Evaluator::EvalRHS(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
+                        AssignOp op) {
   const char* origin = is_bootstrap_ ? "default" : "file";
 
   Var* rhs = NULL;
@@ -83,15 +83,19 @@ void Evaluator::DoAssign(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
   }
 
   LOG("Assign: %.*s=%s", SPF(lhs), rhs->DebugString().c_str());
-  if (needs_assign)
-    vars_->Assign(lhs, rhs);
+  if (needs_assign) {
+    return rhs;
+  }
+  return NULL;
 }
 
 void Evaluator::EvalAssign(const AssignAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
   StringPiece lhs = Intern(*ast->lhs->Eval(this));
-  DoAssign(lhs, ast->rhs, ast->orig_rhs, ast->op);
+  Var* rhs = EvalRHS(lhs, ast->rhs, ast->orig_rhs, ast->op);
+  if (rhs)
+    vars_->Assign(lhs, rhs);
 }
 
 void Evaluator::EvalRule(const RuleAST* ast) {
@@ -104,7 +108,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
     return;
 
   Rule* rule;
-  RuleVar rule_var;
+  RuleVarAssignment rule_var;
   ParseRule(loc_, *expr, ast->term == '=', &rule, &rule_var);
 
   if (rule) {
@@ -131,8 +135,10 @@ void Evaluator::EvalRule(const RuleAST* ast) {
     }
 
     current_scope_ = p.first->second;
-    DoAssign(Intern(rule_var.lhs), rhs, STRING_PIECE("*TODO*"),
-             rule_var.op);
+    StringPiece lhs = Intern(rule_var.lhs);
+    Var* rhs_var = EvalRHS(lhs, rhs, STRING_PIECE("*TODO*"), rule_var.op);
+    if (rhs_var)
+      current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op));
     current_scope_ = NULL;
   }
 }
@@ -253,15 +259,6 @@ Var* Evaluator::LookupVarInCurrentScope(StringPiece name) {
   if (v->IsDefined())
     return v;
   return in_vars_->Lookup(name);
-}
-
-EvalResult* Evaluator::GetEvalResult() {
-  EvalResult* er = new EvalResult;
-  er->rules.swap(rules_);
-  er->vars = vars_;
-  vars_ = NULL;
-  er->rule_vars.swap(rule_vars_);
-  return er;
 }
 
 void Evaluator::Error(const string& msg) {

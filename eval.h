@@ -55,18 +55,22 @@ class Evaluator {
   // For target specific variables.
   Var* LookupVarInCurrentScope(StringPiece name);
 
-  EvalResult* GetEvalResult();
-
   const Loc& loc() const { return loc_; }
 
+  const vector<shared_ptr<Rule>>& rules() const { return rules_; }
+  const unordered_map<StringPiece, Vars*>& rule_vars() const {
+    return rule_vars_;
+  }
   Vars* mutable_vars() { return vars_; }
 
   void Error(const string& msg);
 
   void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
 
+  void set_current_scope(Vars* v) { current_scope_ = v; }
+
  private:
-  void DoAssign(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op);
+  Var* EvalRHS(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op);
   void DoInclude(const char* fname, bool should_exist);
 
   const Vars* in_vars_;

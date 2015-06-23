@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "ast.h"
 #include "string_piece.h"
 #include "value.h"
 
@@ -117,6 +118,44 @@ class UndefinedVar : public Var {
 };
 
 extern UndefinedVar* kUndefined;
+
+class RuleVar : public Var {
+ public:
+  RuleVar(Var* v, AssignOp op)
+      : v_(v), op_(op) {}
+  virtual ~RuleVar() {
+    delete v_;
+  }
+
+  virtual const char* Flavor() const {
+    return v_->Flavor();
+  }
+  virtual const char* Origin() const {
+    return v_->Origin();
+  }
+  virtual bool IsDefined() const {
+    return v_->IsDefined();
+  }
+  virtual void Eval(Evaluator* ev, string* s) const {
+    v_->Eval(ev, s);
+  }
+  virtual void AppendVar(Evaluator* ev, Value* v) {
+    v_->AppendVar(ev, v);
+  }
+  virtual StringPiece String() const override {
+    return v_->String();
+  }
+  virtual string DebugString() const override {
+    return v_->DebugString();
+  }
+
+  Var* v() const { return v_; }
+  AssignOp op() const { return op_; }
+
+ private:
+  Var* v_;
+  AssignOp op_;
+};
 
 class Vars : public unordered_map<StringPiece, Var*> {
  public:

@@ -23,6 +23,7 @@
 #include "loc.h"
 #include "string_piece.h"
 
+class Evaluator;
 class Rule;
 class Value;
 class Vars;
@@ -38,15 +39,15 @@ struct DepNode {
   bool is_order_only;
   bool is_phony;
   vector<StringPiece> actual_inputs;
-  Vars* target_specific_vars;
+  Vars* rule_vars;
   Loc loc;
 };
 
 void InitDepNodePool();
 void QuitDepNodePool();
 
-void MakeDep(const vector<shared_ptr<Rule>>& rules,
-             const Vars& vars,
+void MakeDep(Evaluator* ev,
+             const vector<shared_ptr<Rule>>& rules,
              const unordered_map<StringPiece, Vars*>& rule_vars,
              const vector<StringPiece>& targets,
              vector<DepNode*>* nodes);
