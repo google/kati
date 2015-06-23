@@ -103,7 +103,7 @@ func (t *traceEventT) end(e event) {
 			t.emit("E", e, time.Since(t.t0))
 		}
 	}
-	addStats(e.name, e.v, e.t)
+	stats.add(e.name, e.v, e.t)
 }
 
 type statsData struct {
@@ -113,21 +113,30 @@ type statsData struct {
 	Total   time.Duration
 }
 
-var stats = map[string]statsData{}
+type statsT struct {
+	mu   sync.Mutex
+	data map[string]statsData
+}
 
-func addStats(name, v string, t time.Time) {
+var stats = &statsT{
+	data: make(map[string]statsData),
+}
+
+func (s *statsT) add(name, v string, t time.Time) {
 	if !katiEvalStatsFlag {
 		return
 	}
 	d := time.Since(t)
 	key := fmt.Sprintf("%s:%s", name, v)
-	s := stats[key]
-	if d > s.Longest {
-		s.Longest = d
+	s.mu.Lock()
+	sd := s.data[key]
+	if d > sd.Longest {
+		sd.Longest = d
 	}
-	s.Total += d
-	s.Count++
-	stats[key] = s
+	sd.Total += d
+	sd.Count++
+	s.data[key] = sd
+	s.mu.Unlock()
 }
 
 func dumpStats() {
@@ -135,7 +144,7 @@ func dumpStats() {
 		return
 	}
 	var sv byTotalTime
-	for k, v := range stats {
+	for k, v := range stats.data {
 		v.Name = k
 		sv = append(sv, v)
 	}
@@ -152,4 +161,19 @@ func (b byTotalTime) Len() int      { return len(b) }
 func (b byTotalTime) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func (b byTotalTime) Less(i, j int) bool {
 	return b[i].Total > b[j].Total
+}
+
+type shellStatsT struct {
+	mu       sync.Mutex
+	duration time.Duration
+	count    int
+}
+
+var shellStats = &shellStatsT{}
+
+func (s *shellStatsT) add(d time.Duration) {
+	s.mu.Lock()
+	s.duration += d
+	s.count++
+	s.mu.Unlock()
 }

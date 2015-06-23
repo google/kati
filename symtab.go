@@ -14,13 +14,26 @@
 
 package main
 
-var symtab = make(map[string]string)
+import "sync"
+
+type symtabT struct {
+	mu sync.Mutex
+	m  map[string]string
+}
+
+var symtab = &symtabT{
+	m: make(map[string]string),
+}
 
 func intern(s string) string {
-	if v, ok := symtab[s]; ok {
+	symtab.mu.Lock()
+	v, ok := symtab.m[s]
+	if ok {
+		symtab.mu.Unlock()
 		return v
 	}
-	symtab[s] = s
+	symtab.m[s] = s
+	symtab.mu.Unlock()
 	return s
 }
 

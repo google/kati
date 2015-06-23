@@ -242,7 +242,7 @@ func getDepGraph(clvars []string, targets []string) *DepGraph {
 	vars.Merge(er.vars)
 
 	LogStats("eval time: %q", time.Since(startTime))
-	LogStats("shell func time: %q %d", shellFuncTime, shellFuncCount)
+	LogStats("shell func time: %q %d", shellStats.duration, shellStats.count)
 
 	startTime = time.Now()
 	db := NewDepBuilder(er, vars)
@@ -333,7 +333,6 @@ func main() {
 	}
 
 	clvars, targets := parseCommandLine()
-	InitMakefileCache()
 
 	g := getDepGraph(clvars, targets)
 	nodes := g.nodes
