@@ -311,7 +311,8 @@ class DepBuilder {
             // TODO: This would be incorrect and has a leak.
             shared_ptr<string> s = make_shared<string>();
             old_var->Eval(ev_, s.get());
-            *s += ' ';
+            if (!s->empty())
+              *s += ' ';
             new_var->Eval(ev_, s.get());
             new_var = new SimpleVar(s, old_var->Origin());
           }
