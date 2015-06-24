@@ -354,7 +354,7 @@ class DepBuilder {
           ERROR("TODO: multiple output pattern is not supported yet");
         }
         string o;
-        Pattern(rule->output_patterns[0]).AppendSubst(input, output, &o);
+        Pattern(rule->output_patterns[0]).AppendSubst(output, input, &o);
         input = Intern(o);
       } else if (rule->is_suffix_rule) {
         input = Intern(ReplaceSuffix(output, input));
