@@ -455,13 +455,17 @@ Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
       }
       if (n == '\r' || n == '\n') {
         if (i > b) {
-          r->AddValue(new Literal(s.substr(b, i-b)));
+          r->AddValue(new Literal(TrimRightSpace(s.substr(b, i-b))));
         }
         r->AddValue(new Literal(STRING_PIECE(" ")));
-        i++;
-        if (n == '\r' && s.get(i+1) == '\n')
-          i++;
-        b = i + 1;
+        for (i++; i < s.size(); i++) {
+          if (!isspace(s[i]) &&
+              (s[i] != '\\' || (s.get(i+1) != '\r' && s.get(i+1) != '\n'))) {
+            break;
+          }
+        }
+        b = i;
+        i--;
       }
     }
   }
