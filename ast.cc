@@ -18,6 +18,7 @@
 
 #include "eval.h"
 #include "stringprintf.h"
+#include "strutil.h"
 #include "value.h"
 
 AST::AST() {}
@@ -50,7 +51,7 @@ string AssignAST::DebugString() const {
                       "opstr=%s dir=%s loc=%s:%d)",
                       lhs->DebugString().c_str(),
                       rhs->DebugString().c_str(),
-                      orig_rhs.as_string().c_str(),
+                      NoLineBreak(orig_rhs.as_string()).c_str(),
                       opstr, dirstr, LOCF(loc()));
 }
 
