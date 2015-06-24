@@ -212,6 +212,20 @@ class DepBuilder {
     return true;
   }
 
+  Vars* MergeImplicitRuleVars(StringPiece output, Vars* vars) {
+    auto found = rule_vars_.find(output);
+    if (found == rule_vars_.end())
+      return vars;
+    if (vars == NULL)
+      return found->second;
+    // TODO: leak.
+    Vars* r = new Vars(*found->second);
+    for (auto p : *vars) {
+      (*r)[p.first] = p.second;
+    }
+    return r;
+  }
+
   bool PickRule(StringPiece output,
                 shared_ptr<Rule>* out_rule, Vars** out_var) {
     shared_ptr<Rule> rule = LookupRule(output);
@@ -239,8 +253,9 @@ class DepBuilder {
         return true;
       }
       if (vars) {
-        // TODO: Merge implicit variables...
-        CHECK(false);
+        CHECK(irule->output_patterns.size() == 1);
+        vars = MergeImplicitRuleVars(irule->output_patterns[0], vars);
+        *out_var = vars;
       }
       *out_rule = irule;
       return true;
@@ -271,8 +286,9 @@ class DepBuilder {
         return true;
       }
       if (vars) {
-        // TODO: Merge implicit variables...
-        CHECK(false);
+        CHECK(irule->outputs.size() == 1);
+        vars = MergeImplicitRuleVars(irule->outputs[0], vars);
+        *out_var = vars;
       }
       *out_rule = irule;
       return true;
