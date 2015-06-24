@@ -226,6 +226,7 @@ class Parser {
     ast->expr = ParseExpr(line);
     ast->should_exist = directive[0] == 'i';
     out_asts_->push_back(ast);
+    state_ = ParserState::NOT_AFTER_RULE;
   }
 
   void ParseDefine(StringPiece line, StringPiece) {
@@ -235,6 +236,7 @@ class Parser {
     define_name_ = line;
     define_start_ = 0;
     define_start_line_ = loc_.lineno;
+    state_ = ParserState::NOT_AFTER_RULE;
   }
 
   void ParseInsideDefine(StringPiece line) {
