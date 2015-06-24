@@ -365,7 +365,11 @@ class DepBuilder {
       n->deps.push_back(c);
     }
 
-    // TODO: order only
+    for (StringPiece input : rule->order_only_inputs) {
+      DepNode* c = BuildPlan(input, output);
+      c->is_order_only = true;
+      n->deps.push_back(c);
+    }
 
     n->has_rule = true;
     n->cmds = rule->cmds;
