@@ -209,8 +209,8 @@ string NoLineBreak(const string& s) {
     return s;
   string r = s;
   while (index != string::npos) {
-    r = s.substr(0, index) + "\\n" + s.substr(index + 1);
-    index = s.find('\n', index + 2);
+    r = r.substr(0, index) + "\\n" + r.substr(index + 1);
+    index = r.find('\n', index + 2);
   }
   return r;
 }
