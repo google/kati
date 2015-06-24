@@ -29,6 +29,8 @@ import (
 	"time"
 )
 
+const shellDateTimeformat = time.RFC3339
+
 var (
 	katiLogFlag           bool
 	makefileFlag          string
@@ -55,6 +57,7 @@ var (
 	findCacheLeafNames    string
 	useWildcardCache      bool
 	useShellBuiltins      bool
+	shellDate             string
 	generateNinja         bool
 	ignoreOptionalInclude string
 	gomaDir               string
@@ -104,6 +107,7 @@ func parseFlags() {
 		"space separated leaf names for find cache.")
 	flag.BoolVar(&useWildcardCache, "use_wildcard_cache", true, "Use wildcard cache.")
 	flag.BoolVar(&useShellBuiltins, "use_shell_builtins", true, "Use shell builtins")
+	flag.StringVar(&shellDate, "shell_date", "", "specify $(shell date) time as "+shellDateTimeformat)
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&ignoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
 	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
@@ -322,6 +326,17 @@ func main() {
 		}
 		traceEvent.start(f)
 		defer traceEvent.stop()
+	}
+
+	if shellDate != "" {
+		if shellDate == "ref" {
+			shellDate = shellDateTimeformat[:20] // until Z, drop 07:00
+		}
+		t, err := time.Parse(shellDateTimeformat, shellDate)
+		if err != nil {
+			panic(err)
+		}
+		shellDateTimestamp = t
 	}
 
 	if findCacheLeafNames != "" {
