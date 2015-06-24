@@ -168,31 +168,39 @@ class Executor {
   void CreateRunners(DepNode* n, vector<Runner*>* runners) {
     ev_->set_current_scope(n->rule_vars);
     current_dep_node_ = n;
+    bool echo = true;
+    bool ignore_error = false;
     for (Value* v : n->cmds) {
       shared_ptr<string> cmds_buf = v->Eval(ev_);
-      StringPiece cmds = *cmds_buf;
-      if (TrimSpace(cmds) == "")
+      StringPiece cmds = TrimLeftSpace(*cmds_buf);
+      while (true) {
+        char c = cmds.get(0);
+        if (c == '@')
+          echo = false;
+        else if (c == '-')
+          ignore_error = true;
+        else
+          break;
+        cmds = TrimLeftSpace(cmds.substr(1));
+      }
+
+      if (cmds == "")
         continue;
       while (true) {
         size_t index = cmds.find('\n');
-        if (index == string::npos)
-          break;
-
         StringPiece cmd = TrimLeftSpace(cmds.substr(0, index));
         cmds = cmds.substr(index + 1);
-        if (cmd.empty())
-          continue;
-        Runner* runner = new Runner;
-        runner->output = n->output;
-        runner->cmd = make_shared<string>(cmd.as_string());
-        runners->push_back(runner);
+        if (!cmd.empty()) {
+          Runner* runner = new Runner;
+          runner->output = n->output;
+          runner->cmd = make_shared<string>(cmd.as_string());
+          runner->echo = echo;
+          runner->ignore_error = ignore_error;
+          runners->push_back(runner);
+        }
+        if (index == string::npos)
+          break;
       }
-      if (cmds.empty())
-        continue;
-      Runner* runner = new Runner;
-      runner->output = n->output;
-      runner->cmd = make_shared<string>(cmds.as_string());
-      runners->push_back(runner);
       continue;
     }
     ev_->set_current_scope(NULL);
