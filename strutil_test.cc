@@ -67,9 +67,15 @@ void TestSubstPattern() {
   assert(SubstPattern("x.x.c", "x.c", "XX") == "x.x.c");
 }
 
+void TestNoLineBreak() {
+  assert(NoLineBreak("a\nb") == "a\\nb");
+  assert(NoLineBreak("a\nb\nc") == "a\\nb\\nc");
+}
+
 int main() {
   TestWordScanner();
   TestHasPrefix();
   TestHasSuffix();
   TestSubstPattern();
+  TestNoLineBreak();
 }
