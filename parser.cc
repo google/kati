@@ -75,9 +75,11 @@ class Parser {
       size_t lf_cnt = 0;
       size_t e = FindEndOfLine(&lf_cnt);
       if (!fixed_lineno_)
-        loc_.lineno += lf_cnt;
+        loc_.lineno++;
       StringPiece line(buf_.data() + l_, e - l_);
       ParseLine(line);
+      if (!fixed_lineno_)
+        loc_.lineno += lf_cnt - 1;
       if (e == buf_.size())
         break;
 
