@@ -1,4 +1,5 @@
 kati
+!cmd/kati/
 ckati
 para
 *.o
@@ -12,3 +13,4 @@ bench-old.out
 bench-new.out
 string_piece_test
 strutil_test
+go_src_stamp

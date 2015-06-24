@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
 )
-
-const BootstrapMakefile = "*bootstrap*"
 
 type AST interface {
 	eval(*Evaluator)
@@ -46,7 +44,7 @@ func (ast *AssignAST) eval(ev *Evaluator) {
 
 func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	origin := "file"
-	if ast.filename == BootstrapMakefile {
+	if ast.filename == bootstrapMakefileName {
 		origin = "default"
 	}
 	if ast.opt == "override" {

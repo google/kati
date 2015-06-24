@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"fmt"
@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 )
-
-var androidDefaultLeafNames = []string{"CleanSpec.mk", "Android.mk"}
 
 var shBuiltins = []struct {
 	name    string
@@ -59,7 +57,7 @@ var shBuiltins = []struct {
 			if v[0] != v[1] {
 				return sh
 			}
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindFileInDir{
 				funcShell: sh,
 				dir:       v[0],
@@ -78,7 +76,7 @@ var shBuiltins = []struct {
 			literal(` -name "*.java" -and -not -name ".*"`),
 		},
 		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindExtFilesUnder{
 				funcShell: sh,
 				chdir:     v[0],
@@ -100,7 +98,7 @@ var shBuiltins = []struct {
 			literal(" -name \"*.proto\" -and -not -name \".*\""),
 		},
 		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindExtFilesUnder{
 				funcShell: sh,
 				chdir:     v[0],
@@ -126,7 +124,7 @@ var shBuiltins = []struct {
 			literal(` && find . -type d -a -name ".svn" -prune -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" -a \! -name "*~" -print `),
 		},
 		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindJavaResourceFileGroup{
 				funcShell: sh,
 				dir:       Expr(v),
@@ -146,7 +144,7 @@ var shBuiltins = []struct {
 			if !contains(androidDefaultLeafNames, "CleanSpec.mk") {
 				return sh
 			}
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindleaves{
 				funcShell: sh,
 				prunes: []Value{
@@ -175,7 +173,7 @@ var shBuiltins = []struct {
 			if !contains(androidDefaultLeafNames, "Android.mk") {
 				return sh
 			}
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindleaves{
 				funcShell: sh,
 				prunes: []Value{
@@ -205,7 +203,7 @@ var shBuiltins = []struct {
 			if !contains(androidDefaultLeafNames, "Android.mk") {
 				return sh
 			}
-			androidFindCache.init(nil, androidDefaultLeafNames)
+			androidFindCache.init(nil)
 			return &funcShellAndroidFindleaves{
 				funcShell: sh,
 				prunes: []Value{
@@ -408,7 +406,7 @@ func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) {
 }
 
 var (
-	shellDateTimestamp time.Time
+	ShellDateTimestamp time.Time
 	shellDateFormatRef = map[string]string{
 		"%Y": "2006",
 		"%m": "01",
@@ -427,7 +425,7 @@ type funcShellDate struct {
 }
 
 func compactShellDate(sh *funcShell, v []Value) Value {
-	if shellDateTimestamp.IsZero() {
+	if ShellDateTimestamp.IsZero() {
 		return sh
 	}
 	tf, ok := v[0].(literal)
@@ -445,5 +443,5 @@ func compactShellDate(sh *funcShell, v []Value) Value {
 }
 
 func (f *funcShellDate) Eval(w io.Writer, ev *Evaluator) {
-	fmt.Fprint(w, shellDateTimestamp.Format(f.format))
+	fmt.Fprint(w, ShellDateTimestamp.Format(f.format))
 }

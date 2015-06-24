@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
@@ -53,6 +53,7 @@ type Evaluator struct {
 	vars         Vars
 	lastRule     *Rule
 	currentScope Vars
+	useCache     bool
 	avoidIO      bool
 	hasIO        bool
 	readMks      map[string]*ReadMakefile
@@ -62,7 +63,7 @@ type Evaluator struct {
 	lineno   int
 }
 
-func newEvaluator(vars map[string]Var) *Evaluator {
+func NewEvaluator(vars map[string]Var) *Evaluator {
 	return &Evaluator{
 		outVars:     make(Vars),
 		vars:        vars,
@@ -91,7 +92,7 @@ func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
 func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.lastRule = nil
 	lhs, rhs := ev.evalAssignAST(ast)
-	if katiLogFlag {
+	if LogFlag {
 		Logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
 	}
 	if lhs == "" {
@@ -128,7 +129,7 @@ func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
 	}
 	ev.currentScope = vars
 	lhs, rhs := ev.evalAssignAST(assign)
-	if katiLogFlag {
+	if LogFlag {
 		Logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
 	}
 	vars.Assign(lhs, &TargetSpecificVar{v: rhs, op: assign.op})
@@ -147,7 +148,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.term == '=' {
 		line = append(line, ast.afterTerm...)
 	}
-	if katiLogFlag {
+	if LogFlag {
 		Logf("rule? %q=>%q", ast.expr, line)
 	}
 
@@ -166,7 +167,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 		Error(ast.filename, ast.lineno, "%v", err.Error())
 	}
 	freeBuf(buf)
-	if katiLogFlag {
+	if LogFlag {
 		Logf("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
 	}
 
@@ -201,7 +202,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	if ast.term == ';' {
 		rule.cmds = append(rule.cmds, string(ast.afterTerm[1:]))
 	}
-	if katiLogFlag {
+	if LogFlag {
 		Logf("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
 	}
 	ev.lastRule = rule
@@ -288,7 +289,7 @@ func (ev *Evaluator) evalIncludeFile(fname string, mk Makefile) error {
 }
 
 func (ev *Evaluator) updateReadMakefile(fn string, hash [sha1.Size]byte, st FileState) {
-	if !useCache {
+	if !ev.useCache {
 		return
 	}
 
@@ -349,7 +350,7 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	}
 
 	for _, fn := range files {
-		if ignoreOptionalInclude != "" && ast.op == "-include" && matchPattern(fn, ignoreOptionalInclude) {
+		if IgnoreOptionalInclude != "" && ast.op == "-include" && matchPattern(fn, IgnoreOptionalInclude) {
 			continue
 		}
 		mk, hash, err := makefileCache.parse(fn)
@@ -383,7 +384,7 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		val := buf.Len()
 		freeBuf(buf)
 		isTrue = (val > 0) == (ast.op == "ifdef")
-		if katiLogFlag {
+		if LogFlag {
 			Logf("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
 		}
 	case "ifeq", "ifneq":
@@ -395,7 +396,7 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		rhs := string(params[1])
 		freeBuf(buf)
 		isTrue = (lhs == rhs) == (ast.op == "ifeq")
-		if katiLogFlag {
+		if LogFlag {
 			Logf("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
 		}
 	default:
@@ -441,8 +442,9 @@ func createReadMakefileArray(mp map[string]*ReadMakefile) []*ReadMakefile {
 	return r
 }
 
-func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
-	ev := newEvaluator(vars)
+func Eval(mk Makefile, vars Vars, useCache bool) (er *EvalResult, err error) {
+	ev := NewEvaluator(vars)
+	ev.useCache = useCache
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic in eval %s: %v", mk.filename, r)
@@ -450,6 +452,9 @@ func Eval(mk Makefile, vars Vars) (er *EvalResult, err error) {
 	}()
 
 	makefileList := vars.Lookup("MAKEFILE_LIST")
+	if !makefileList.IsDefined() {
+		makefileList = &SimpleVar{value: "", origin: "file"}
+	}
 	makefileList = makefileList.Append(ev, mk.filename)
 	ev.outVars.Assign("MAKEFILE_LIST", makefileList)
 

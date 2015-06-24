@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"fmt"
@@ -25,8 +25,8 @@ func TestPara(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	katiDir = cwd
-	jobsFlag = 4
+	ParaPath = filepath.Join(cwd, "para")
+	JobsFlag = 4
 
 	paraChan := make(chan *ParaResult)
 	para := NewParaWorker(paraChan)

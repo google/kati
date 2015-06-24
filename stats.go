@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"fmt"
@@ -38,6 +38,14 @@ const (
 )
 
 var traceEvent traceEventT
+
+func TraceEventStart(f io.WriteCloser) {
+	traceEvent.start(f)
+}
+
+func TraceEventStop() {
+	traceEvent.stop()
+}
 
 func (t *traceEventT) start(f io.WriteCloser) {
 	t.f = f
@@ -65,7 +73,7 @@ func (t *traceEventT) begin(name string, v Value, tid int) event {
 	var e event
 	e.tid = tid
 	e.t = time.Now()
-	if t.f != nil || katiEvalStatsFlag {
+	if t.f != nil || EvalStatsFlag {
 		e.name = name
 		e.v = v.String()
 	}
@@ -123,7 +131,7 @@ var stats = &statsT{
 }
 
 func (s *statsT) add(name, v string, t time.Time) {
-	if !katiEvalStatsFlag {
+	if !EvalStatsFlag {
 		return
 	}
 	d := time.Since(t)
@@ -139,8 +147,8 @@ func (s *statsT) add(name, v string, t time.Time) {
 	s.mu.Unlock()
 }
 
-func dumpStats() {
-	if !katiEvalStatsFlag {
+func DumpStats() {
+	if !EvalStatsFlag {
 		return
 	}
 	var sv byTotalTime
@@ -176,4 +184,16 @@ func (s *shellStatsT) add(d time.Duration) {
 	s.duration += d
 	s.count++
 	s.mu.Unlock()
+}
+
+func (s *shellStatsT) Duration() time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.duration
+}
+
+func (s *shellStatsT) Count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.count
 }

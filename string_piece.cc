@@ -17,6 +17,8 @@
 // found in the LICENSE file.
 // Copied from strings/stringpiece.cc with modifications
 
+// +build ignore
+
 #include <ctype.h>
 #include <limits.h>
 
