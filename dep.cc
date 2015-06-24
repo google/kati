@@ -102,6 +102,9 @@ class DepBuilder {
       }
     }
     reverse(implicit_rules_.begin(), implicit_rules_.end());
+    for (auto& p : suffix_rules_) {
+      reverse(p.second.begin(), p.second.end());
+    }
   }
 
   bool PopulateSuffixRule(shared_ptr<Rule> rule, StringPiece output) {
