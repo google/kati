@@ -169,7 +169,6 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
 
 void Evaluator::EvalIf(const IfAST* ast) {
   loc_ = ast->loc();
-  last_rule_ = NULL;
 
   bool is_true;
   switch (ast->op) {
