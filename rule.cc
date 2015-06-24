@@ -74,8 +74,7 @@ void ParseRule(Loc& loc, StringPiece line, char term,
     outputs.push_back(Intern(TrimLeadingCurdir(tok)));
   }
 
-  CHECK(!outputs.empty());
-  const bool is_first_pattern = IsPatternRule(outputs[0]);
+  const bool is_first_pattern = !outputs.empty() && IsPatternRule(outputs[0]);
   if (is_first_pattern) {
     if (outputs.size() > 1) {
       // TODO: Multiple output patterns are not supported yet.
