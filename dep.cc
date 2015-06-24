@@ -140,9 +140,9 @@ class DepBuilder {
     }
     if (!old_rule.cmds.empty() && !rule.cmds.empty() &&
         !is_suffix_rule && !rule.is_double_colon) {
-      WARN("%s:%d: overriding commands for target `%s'",
+      WARN("%s:%d: warning: overriding commands for target `%s'",
            LOCF(rule.cmd_loc()), output.as_string().c_str());
-      WARN("%s:%d: ignoring old commands for target `%s'",
+      WARN("%s:%d: warning: ignoring old commands for target `%s'",
            LOCF(old_rule.cmd_loc()), output.as_string().c_str());
     }
 

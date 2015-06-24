@@ -164,6 +164,8 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
   }
 
   last_rule_->cmds.push_back(ast->expr);
+  if (last_rule_->cmd_lineno == 0)
+    last_rule_->cmd_lineno = ast->loc().lineno;
   LOG("Command: %s", ast->expr->DebugString().c_str());
 }
 
