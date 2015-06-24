@@ -15,8 +15,10 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"strings"
+	"time"
 )
 
 var androidDefaultLeafNames = []string{"CleanSpec.mk", "Android.mk"}
@@ -217,6 +219,20 @@ var shBuiltins = []struct {
 			}
 		},
 	},
+	{
+		name: "shell-date",
+		pattern: Expr{
+			mustLiteralRE(`date \+(\S+)`),
+		},
+		compact: compactShellDate,
+	},
+	{
+		name: "shell-date-quoted",
+		pattern: Expr{
+			mustLiteralRE(`date "\+([^"]+)"`),
+		},
+		compact: compactShellDate,
+	},
 }
 
 type funcShellAndroidRot13 struct {
@@ -389,4 +405,45 @@ func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) {
 	for _, dir := range dirs {
 		androidFindCache.findleaves(&sw, dir, name, prunes, f.mindepth)
 	}
+}
+
+var (
+	shellDateTimestamp time.Time
+	shellDateFormatRef = map[string]string{
+		"%Y": "2006",
+		"%m": "01",
+		"%d": "02",
+		"%H": "15",
+		"%M": "04",
+		"%S": "05",
+		"%b": "Jan",
+		"%k": "15", // XXX
+	}
+)
+
+type funcShellDate struct {
+	*funcShell
+	format string
+}
+
+func compactShellDate(sh *funcShell, v []Value) Value {
+	if shellDateTimestamp.IsZero() {
+		return sh
+	}
+	tf, ok := v[0].(literal)
+	if !ok {
+		return sh
+	}
+	tfstr := string(tf)
+	for k, v := range shellDateFormatRef {
+		tfstr = strings.Replace(tfstr, k, v, -1)
+	}
+	return &funcShellDate{
+		funcShell: sh,
+		format:    tfstr,
+	}
+}
+
+func (f *funcShellDate) Eval(w io.Writer, ev *Evaluator) {
+	fmt.Fprint(w, shellDateTimestamp.Format(f.format))
 }

@@ -14,7 +14,10 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestRot13(t *testing.T) {
 	for _, tc := range []struct {
@@ -34,6 +37,66 @@ func TestRot13(t *testing.T) {
 		rot13(buf)
 		if got, want := string(buf), tc.want; got != want {
 			t.Errorf("rot13(%q) got=%q; want=%q", tc.in, got, want)
+		}
+	}
+}
+
+func TestShellDate(t *testing.T) {
+	ts := shellDateTimestamp
+	shellDateTimestamp = time.Now()
+	defer func() {
+		shellDateTimestamp = ts
+	}()
+	for _, tc := range []struct {
+		sharg  literal
+		format string
+	}{
+		{
+			sharg:  literal("date +%Y-%m-%d"),
+			format: "2006-01-02",
+		},
+		{
+			sharg:  literal("date +%Y%m%d.%H%M%S"),
+			format: "20060102.150405",
+		},
+		{
+			sharg:  literal(`date "+%d %b %Y %k:%M"`),
+			format: "02 Jan 2006 15:04",
+		},
+	} {
+		var matched bool
+		for _, b := range shBuiltins {
+			if b.name != "shell-date" && b.name != "shell-date-quoted" {
+				continue
+			}
+			m, ok := matchExpr(Expr{tc.sharg}, b.pattern)
+			if !ok {
+				t.Logf("%s not match with %s", b.name, tc.sharg)
+				continue
+			}
+			f := &funcShell{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(shell"),
+						tc.sharg,
+					},
+				},
+			}
+			v := b.compact(f, m)
+			sd, ok := v.(*funcShellDate)
+			if !ok {
+				t.Errorf("%s: matched %s but not compacted", tc.sharg, b.name)
+				continue
+			}
+			if got, want := sd.format, tc.format; got != want {
+				t.Errorf("%s: format=%q, want=%q - %s", tc.sharg, got, want, b.name)
+				continue
+			}
+			matched = true
+			break
+		}
+		if !matched {
+			t.Errorf("%s: not matched", tc.sharg)
 		}
 	}
 }

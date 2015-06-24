@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -623,6 +624,21 @@ func (m matchVarref) Eval(w io.Writer, ev *Evaluator) { panic("not implemented")
 func (m matchVarref) Serialize() SerializableVar      { panic("not implemented") }
 func (m matchVarref) Dump(w io.Writer)                { panic("not implemented") }
 
+type literalRE struct {
+	*regexp.Regexp
+}
+
+func mustLiteralRE(s string) literalRE {
+	return literalRE{
+		Regexp: regexp.MustCompile(s),
+	}
+}
+
+func (r literalRE) String() string                  { return r.Regexp.String() }
+func (r literalRE) Eval(w io.Writer, ev *Evaluator) { panic("not implemented") }
+func (r literalRE) Serialize() SerializableVar      { panic("not implemented") }
+func (r literalRE) Dump(w io.Writer)                { panic("not implemented") }
+
 func matchValue(expr, pat Value) bool {
 	switch pat := pat.(type) {
 	case literal:
@@ -646,6 +662,17 @@ func matchExpr(expr, pat Expr) ([]Value, bool) {
 				continue
 			}
 			return nil, false
+		}
+		if patre, ok := pat[i].(literalRE); ok {
+			re := patre.Regexp
+			m := re.FindStringSubmatch(expr[i].String())
+			if m == nil {
+				return nil, false
+			}
+			for _, sm := range m[1:] {
+				matches = append(matches, literal(sm))
+			}
+			continue
 		}
 		if !matchValue(expr[i], pat[i]) {
 			return nil, false

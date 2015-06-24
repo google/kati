@@ -774,6 +774,9 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	shellVar := ev.LookupVar("SHELL")
 	// TODO: Should be Eval, not String.
 	cmdline := []string{shellVar.String(), "-c", arg}
+	if katiLogFlag {
+		Logf("shell %q", cmdline)
+	}
 	cmd := exec.Cmd{
 		Path:   cmdline[0],
 		Args:   cmdline,
@@ -793,13 +796,16 @@ func (f *funcShell) Compact() Value {
 	if len(f.args)-1 < 1 {
 		return f
 	}
-	if !useFindCache {
+	if !useFindCache && !useShellBuiltins {
 		return f
 	}
 
-	expr, ok := f.args[1].(Expr)
-	if !ok {
-		return f
+	var expr Expr
+	switch v := f.args[1].(type) {
+	case Expr:
+		expr = v
+	default:
+		expr = Expr{v}
 	}
 	if useShellBuiltins {
 		// hack for android
