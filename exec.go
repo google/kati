@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
@@ -207,7 +207,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 }
 
 func (ex *Executor) reportStats() {
-	if !katiLogFlag && !katiPeriodicStatsFlag {
+	if !LogFlag && !PeriodicStatsFlag {
 		return
 	}
 
@@ -218,17 +218,28 @@ func (ex *Executor) reportStats() {
 	}
 }
 
-func NewExecutor(vars Vars) *Executor {
+type ExecutorOpt struct {
+	NumJobs  int
+	ParaPath string
+}
+
+func NewExecutor(vars Vars, opt *ExecutorOpt) *Executor {
+	if opt == nil {
+		opt = &ExecutorOpt{NumJobs: 1}
+	}
+	if opt.NumJobs < 1 {
+		opt.NumJobs = 1
+	}
 	ex := &Executor{
 		rules:       make(map[string]*Rule),
 		suffixRules: make(map[string][]*Rule),
 		done:        make(map[string]*Job),
 		vars:        vars,
-		wm:          NewWorkerManager(),
+		wm:          NewWorkerManager(opt.NumJobs, opt.ParaPath),
 	}
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
-	ev := newEvaluator(ex.vars)
+	ev := NewEvaluator(ex.vars)
 	ex.shell = ev.EvaluateVar("SHELL")
 	for k, v := range map[string]Var{
 		"@": AutoAtVar{AutoVar: AutoVar{ex: ex}},
@@ -275,7 +286,7 @@ func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
 		ex.vars[k] = v
 	}
 
-	ev := newEvaluator(ex.vars)
+	ev := NewEvaluator(ex.vars)
 	ev.avoidIO = avoidIO
 	ev.filename = n.Filename
 	ev.lineno = n.Lineno
@@ -297,7 +308,7 @@ func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
 
 func EvalCommands(nodes []*DepNode, vars Vars) {
 	ioCnt := 0
-	ex := NewExecutor(vars)
+	ex := NewExecutor(vars, nil)
 	for i, n := range nodes {
 		runners, hasIO := ex.createRunners(n, true)
 		if hasIO {

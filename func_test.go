@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ func BenchmarkFuncStrip(b *testing.B) {
 			},
 		},
 	}
-	ev := newEvaluator(make(map[string]Var))
+	ev := NewEvaluator(make(map[string]Var))
 	var buf bytes.Buffer
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -47,7 +47,7 @@ func BenchmarkFuncSort(b *testing.B) {
 			},
 		},
 	}
-	ev := newEvaluator(make(map[string]Var))
+	ev := NewEvaluator(make(map[string]Var))
 	var buf bytes.Buffer
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -68,7 +68,7 @@ func BenchmarkFuncPatsubst(b *testing.B) {
 			},
 		},
 	}
-	ev := newEvaluator(make(map[string]Var))
+	ev := NewEvaluator(make(map[string]Var))
 	var buf bytes.Buffer
 	b.ReportAllocs()
 	b.ResetTimer()

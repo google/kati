@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"testing"
@@ -42,10 +42,10 @@ func TestRot13(t *testing.T) {
 }
 
 func TestShellDate(t *testing.T) {
-	ts := shellDateTimestamp
-	shellDateTimestamp = time.Now()
+	ts := ShellDateTimestamp
+	ShellDateTimestamp = time.Now()
 	defer func() {
-		shellDateTimestamp = ts
+		ShellDateTimestamp = ts
 	}()
 	for _, tc := range []struct {
 		sharg  literal

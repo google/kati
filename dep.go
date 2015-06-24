@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"fmt"
@@ -272,7 +272,7 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 				if !present || oldVar.String() == "" {
 					db.vars[name] = tsv
 				} else {
-					v = oldVar.AppendVar(newEvaluator(db.vars), tsv)
+					v = oldVar.AppendVar(NewEvaluator(db.vars), tsv)
 					db.vars[name] = v
 				}
 				tsvs[name] = v
@@ -489,7 +489,7 @@ func (s bySuffix) Less(i, j int) bool {
 }
 
 func (db *DepBuilder) reportStats() {
-	if !katiLogFlag && !katiPeriodicStatsFlag {
+	if !LogFlag && !PeriodicStatsFlag {
 		return
 	}
 

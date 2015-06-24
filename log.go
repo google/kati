@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
 	"fmt"
 	"os"
-	"runtime/pprof"
 	"sync"
 )
 
@@ -35,14 +34,14 @@ func LogAlways(f string, a ...interface{}) {
 }
 
 func LogStats(f string, a ...interface{}) {
-	if !katiLogFlag && !katiStatsFlag {
+	if !LogFlag && !StatsFlag {
 		return
 	}
 	LogAlways(f, a...)
 }
 
 func Logf(f string, a ...interface{}) {
-	if !katiLogFlag {
+	if !LogFlag {
 		return
 	}
 	LogAlways(f, a...)
@@ -58,19 +57,22 @@ func WarnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
 	fmt.Printf(f, a...)
 }
 
+var atErrors []func()
+
+func AtError(f func()) {
+	atErrors = append(atErrors, f)
+}
+
 func Error(filename string, lineno int, f string, a ...interface{}) {
 	f = fmt.Sprintf("%s:%d: %s", filename, lineno, f)
-	maybeWriteHeapProfile()
 	ErrorNoLocation(f, a...)
 }
 
 func ErrorNoLocation(f string, a ...interface{}) {
 	f = fmt.Sprintf("%s\n", f)
 	fmt.Printf(f, a...)
-	if cpuprofile != "" {
-		pprof.StopCPUProfile()
+	for i := len(atErrors) - 1; i >= 0; i-- {
+		atErrors[i]()
 	}
-	maybeWriteHeapProfile()
-	dumpStats()
 	os.Exit(2)
 }

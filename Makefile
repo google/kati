@@ -41,8 +41,18 @@ CXXFLAGS:=-g -W -Wall -MMD # -O
 
 all: kati para ckati $(CXX_TEST_EXES)
 
-kati: $(GO_SRCS)
-	env $(shell go env) go build -o $@ *.go
+kati: go_src_stamp
+	GOPATH=$$(pwd)/out go install github.com/google/kati/cmd/kati
+	cp out/bin/kati $@
+
+go_src_stamp: $(GO_SRCS) cmd/*/*.go
+	-rm -rf out/src/github.com/google/kati
+	mkdir -p out/src/github.com/google/kati
+	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
+	touch $@
+
+go_test: $(GO_SRCS) para
+	go test *.go
 
 ckati: $(CXX_OBJS)
 	$(CXX) -std=c++11 $(CXXFLAGS) -o $@ $(CXX_OBJS)
@@ -53,9 +63,6 @@ $(CXX_ALL_OBJS): %.o: %.cc
 $(CXX_TEST_EXES): $(filter-out main.o,$(CXX_OBJS))
 $(CXX_TEST_EXES): %: %.o
 	$(CXX) $^ -o $@
-
-go_test: $(GO_SRCS) para
-	env $(shell go env) go test *.go
 
 para: para.cc
 	$(CXX) -std=c++11 -g -O -W -Wall -MMD -o $@ $<

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bufio"
@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
 )
 
 func btoi(b bool) int {
@@ -133,9 +132,8 @@ type ParaWorker struct {
 	doneChan chan bool
 }
 
-func NewParaWorker(paraChan chan *ParaResult) *ParaWorker {
-	bin := filepath.Join(katiDir, "para")
-	para := exec.Command(bin, fmt.Sprintf("-j%d", jobsFlag), "--kati")
+func newParaWorker(paraChan chan *ParaResult, numJobs int, paraPath string) *ParaWorker {
+	para := exec.Command(paraPath, fmt.Sprintf("-j%d", numJobs), "--kati")
 	stdin, err := para.StdinPipe()
 	if err != nil {
 		panic(err)

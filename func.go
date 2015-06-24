@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
@@ -474,7 +474,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	te := traceEvent.begin("wildcard", tmpval(abuf.Bytes()), traceEventMain)
-	if ev.avoidIO && !useWildcardCache {
+	if ev.avoidIO && !UseWildcardCache {
 		ev.hasIO = true
 		io.WriteString(w, "$(/bin/ls -d ")
 		w.Write(abuf.Bytes())
@@ -774,7 +774,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	shellVar := ev.LookupVar("SHELL")
 	// TODO: Should be Eval, not String.
 	cmdline := []string{shellVar.String(), "-c", arg}
-	if katiLogFlag {
+	if LogFlag {
 		Logf("shell %q", cmdline)
 	}
 	cmd := exec.Cmd{
@@ -796,7 +796,7 @@ func (f *funcShell) Compact() Value {
 	if len(f.args)-1 < 1 {
 		return f
 	}
-	if !useFindCache && !useShellBuiltins {
+	if !UseFindCache && !UseShellBuiltins {
 		return f
 	}
 
@@ -807,7 +807,7 @@ func (f *funcShell) Compact() Value {
 	default:
 		expr = Expr{v}
 	}
-	if useShellBuiltins {
+	if UseShellBuiltins {
 		// hack for android
 		for _, sb := range shBuiltins {
 			if v, ok := matchExpr(expr, sb.pattern); ok {
@@ -831,7 +831,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	varname := fargs[0]
 	variable := string(varname)
 	te := traceEvent.begin("call", literal(variable), traceEventMain)
-	if katiLogFlag {
+	if LogFlag {
 		Logf("call %q variable %q", f.args[1], variable)
 	}
 	v := ev.LookupVar(variable)
@@ -846,7 +846,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	for i, arg := range fargs[1:] {
 		// f.args[2]=>args[1] will be $1.
 		args = append(args, tmpval(arg))
-		if katiLogFlag {
+		if LogFlag {
 			Logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
 		}
 	}
@@ -854,13 +854,13 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	ev.paramVars = args
 
 	var buf bytes.Buffer
-	if katiLogFlag {
+	if LogFlag {
 		w = io.MultiWriter(w, &buf)
 	}
 	v.Eval(w, ev)
 	ev.paramVars = oldParams
 	traceEvent.end(te)
-	if katiLogFlag {
+	if LogFlag {
 		Logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 	}
 	freeBuf(abuf)
@@ -1040,7 +1040,7 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		}
 		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
-	if katiLogFlag {
+	if LogFlag {
 		Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	}
 	ev.outVars.Assign(f.lhs, rvalue)

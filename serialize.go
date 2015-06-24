@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
@@ -290,7 +290,7 @@ func DumpDepGraphCache(g *DepGraph, roots []string) {
 	cacheFile := GetCacheFilename(g.readMks[0].Filename, roots)
 	for _, mk := range g.readMks {
 		// Inconsistent, do not dump this result.
-		if mk.State == 2 {
+		if mk.State == FileInconsistent {
 			if exists(cacheFile) {
 				os.Remove(cacheFile)
 			}
@@ -551,7 +551,7 @@ func showSerializedGraphStats(g SerializableGraph) {
 }
 
 func DeserializeGraph(g SerializableGraph) *DepGraph {
-	if katiLogFlag || katiStatsFlag {
+	if LogFlag || StatsFlag {
 		showSerializedGraphStats(g)
 	}
 	nodes := DeserializeNodes(g)

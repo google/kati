@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"bytes"
@@ -591,7 +591,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string, alloc boo
 	if compactor, ok := f.(Compactor); ok {
 		fv = compactor.Compact()
 	}
-	if katiEvalStatsFlag || traceEvent.enabled() {
+	if EvalStatsFlag || traceEvent.enabled() {
 		fv = funcstats{
 			Value: fv,
 			str:   fv.String(),

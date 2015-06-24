@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 //go:generate go run testcase/gen_testcase_parse_benchmark.go
 //
@@ -684,7 +684,7 @@ func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
 	return parser.parse()
 }
 
-func GetDefaultMakefile() string {
+func DefaultMakefile() string {
 	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
 	for _, filename := range candidates {
 		if exists(filename) {
@@ -746,12 +746,12 @@ func (mc *makefileCacheT) parse(filename string) (Makefile, [sha1.Size]byte, err
 	Logf("parse Makefile %q", filename)
 	mk, hash, ok, err := makefileCache.lookup(filename)
 	if ok {
-		if katiLogFlag {
+		if LogFlag {
 			Logf("makefile cache hit for %q", filename)
 		}
 		return mk, hash, err
 	}
-	if katiLogFlag {
+	if LogFlag {
 		Logf("reading makefile %q", filename)
 	}
 	c, err := ioutil.ReadFile(filename)

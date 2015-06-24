@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package kati
 
 import (
 	"errors"
@@ -98,7 +98,7 @@ func wildcardGlob(pat string) []string {
 }
 
 func wildcard(sw *ssvWriter, pat string) {
-	if useWildcardCache {
+	if UseWildcardCache {
 		// TODO(ukai): make sure it didn't chdir?
 		wildcardCache.mu.Lock()
 		files, ok := wildcardCache.m[pat]
@@ -114,7 +114,7 @@ func wildcard(sw *ssvWriter, pat string) {
 	for _, file := range files {
 		sw.WriteString(file)
 	}
-	if useWildcardCache {
+	if UseWildcardCache {
 		wildcardCache.mu.Lock()
 		wildcardCache.m[pat] = files
 		wildcardCache.mu.Unlock()
@@ -136,8 +136,16 @@ type androidFindCacheT struct {
 }
 
 var (
-	androidFindCache androidFindCacheT
+	androidFindCache        androidFindCacheT
+	androidDefaultLeafNames = []string{"CleanSpec.mk", "Android.mk"}
 )
+
+func AndroidFindCacheInit(prunes, leafNames []string) {
+	if leafNames != nil {
+		androidDefaultLeafNames = leafNames
+	}
+	androidFindCache.init(prunes)
+}
 
 func (c *androidFindCacheT) ready() bool {
 	if c.files != nil {
@@ -159,11 +167,11 @@ func (c *androidFindCacheT) leavesReady() bool {
 	return c.leaves != nil
 }
 
-func (c *androidFindCacheT) init(prunes, leaves []string) {
+func (c *androidFindCacheT) init(prunes []string) {
 	c.once.Do(func() {
 		c.filesch = make(chan []fileInfo, 1)
 		c.leavesch = make(chan []fileInfo, 1)
-		go c.start(prunes, leaves)
+		go c.start(prunes, androidDefaultLeafNames)
 	})
 }
 
