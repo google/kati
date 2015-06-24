@@ -169,23 +169,29 @@ class Executor {
     ev_->set_current_scope(n->rule_vars);
     current_dep_node_ = n;
     for (Value* v : n->cmds) {
-      shared_ptr<string> cmd = v->Eval(ev_);
-      if (TrimSpace(*cmd) == "")
+      shared_ptr<string> cmds_buf = v->Eval(ev_);
+      StringPiece cmds = *cmds_buf;
+      if (TrimSpace(cmds) == "")
         continue;
       while (true) {
-        size_t index = cmd->find('\n');
+        size_t index = cmds.find('\n');
         if (index == string::npos)
           break;
 
+        StringPiece cmd = TrimLeftSpace(cmds.substr(0, index));
+        cmds = cmds.substr(index + 1);
+        if (cmd.empty())
+          continue;
         Runner* runner = new Runner;
         runner->output = n->output;
-        runner->cmd = make_shared<string>(cmd->substr(0, index));
+        runner->cmd = make_shared<string>(cmd.as_string());
         runners->push_back(runner);
-        cmd = make_shared<string>(cmd->substr(index + 1));
       }
+      if (cmds.empty())
+        continue;
       Runner* runner = new Runner;
       runner->output = n->output;
-      runner->cmd = cmd;
+      runner->cmd = make_shared<string>(cmds.as_string());
       runners->push_back(runner);
       continue;
     }

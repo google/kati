@@ -260,7 +260,7 @@ class Parser {
     ast->lhs = ParseExpr(define_name_);
     StringPiece rhs;
     if (define_start_)
-      rhs = TrimRightSpace(buf_.substr(define_start_, l_ - define_start_));
+      rhs = buf_.substr(define_start_, l_ - define_start_ - 1);
     ast->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
     ast->orig_rhs = rhs;
     ast->op = AssignOp::EQ;
