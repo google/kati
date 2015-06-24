@@ -170,6 +170,8 @@ class Executor {
     current_dep_node_ = n;
     for (Value* v : n->cmds) {
       shared_ptr<string> cmd = v->Eval(ev_);
+      if (TrimSpace(*cmd) == "")
+        continue;
       while (true) {
         size_t index = cmd->find('\n');
         if (index == string::npos)
