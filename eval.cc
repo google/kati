@@ -134,7 +134,13 @@ void Evaluator::EvalRule(const RuleAST* ast) {
     if (!rule_var.rhs.empty()) {
       Value* lit = NewLiteral(rule_var.rhs);
       if (rhs) {
-        rhs = NewExpr2(lit, rhs);
+        // TODO: We always insert two whitespaces around the
+        // terminator. Preserve whitespaces properly.
+        if (ast->term == ';') {
+          rhs = NewExpr3(lit, NewLiteral(STRING_PIECE(" ; ")), rhs);
+        } else {
+          rhs = NewExpr3(lit, NewLiteral(STRING_PIECE(" = ")), rhs);
+        }
       } else {
         rhs = lit;
       }
