@@ -160,7 +160,17 @@ class Executor {
         printf("%s\n", runner->cmd->c_str());
         fflush(stdout);
       }
-      system(runner->cmd->c_str());
+      int result = system(runner->cmd->c_str());
+      if (result != 0) {
+        if (runner->ignore_error) {
+          fprintf(stderr, "[%.*s] Error %d (ignored)\n",
+                  SPF(runner->output), WEXITSTATUS(result));
+        } else {
+          fprintf(stderr, "*** [%.*s] Error %d\n",
+                  SPF(runner->output), WEXITSTATUS(result));
+          exit(1);
+        }
+      }
       delete runner;
     }
   }
