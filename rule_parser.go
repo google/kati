@@ -55,7 +55,7 @@ func (p pattern) subst(repl, str string) string {
 	return rs[0] + trimed + rs[1]
 }
 
-type Rule struct {
+type rule struct {
 	outputs         []string
 	inputs          []string
 	orderOnlyInputs []string
@@ -76,7 +76,7 @@ func isPatternRule(s []byte) (pattern, bool) {
 	return pattern{prefix: string(s[:i]), suffix: string(s[i+1:])}, true
 }
 
-func (r *Rule) parseInputs(s []byte) {
+func (r *rule) parseInputs(s []byte) {
 	ws := newWordScanner(s)
 	isOrderOnly := false
 	for ws.Scan() {
@@ -93,7 +93,7 @@ func (r *Rule) parseInputs(s []byte) {
 	}
 }
 
-func (r *Rule) parseVar(s []byte) *assignAST {
+func (r *rule) parseVar(s []byte) *assignAST {
 	eq := bytes.IndexByte(s, '=')
 	if eq <= 0 {
 		return nil
@@ -122,7 +122,7 @@ func (r *Rule) parseVar(s []byte) *assignAST {
 	return assign
 }
 
-func (r *Rule) parse(line []byte) (*assignAST, error) {
+func (r *rule) parse(line []byte) (*assignAST, error) {
 	index := bytes.IndexByte(line, ':')
 	if index < 0 {
 		return nil, errors.New("*** missing separator.")

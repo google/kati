@@ -99,7 +99,7 @@ func (ac *accessCache) Slice() []*accessedMakefile {
 
 type EvalResult struct {
 	vars        Vars
-	rules       []*Rule
+	rules       []*rule
 	ruleVars    map[string]Vars
 	accessedMks []*accessedMakefile
 	exports     map[string]bool
@@ -108,10 +108,10 @@ type EvalResult struct {
 type Evaluator struct {
 	paramVars    []tmpval // $1 => paramVars[1]
 	outVars      Vars
-	outRules     []*Rule
+	outRules     []*rule
 	outRuleVars  map[string]Vars
 	vars         Vars
-	lastRule     *Rule
+	lastRule     *rule
 	currentScope Vars
 	avoidIO      bool
 	hasIO        bool
@@ -216,17 +216,17 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 		return
 	}
 
-	rule := &Rule{
+	r := &rule{
 		filename: ast.filename,
 		lineno:   ast.lineno,
 	}
-	assign, err := rule.parse(line)
+	assign, err := r.parse(line)
 	if err != nil {
 		Error(ast.filename, ast.lineno, "%v", err.Error())
 	}
 	freeBuf(buf)
 	if LogFlag {
-		Logf("rule %q => outputs:%q, inputs:%q", line, rule.outputs, rule.inputs)
+		Logf("rule %q => outputs:%q, inputs:%q", line, r.outputs, r.inputs)
 	}
 
 	// TODO: Pretty print.
@@ -242,29 +242,29 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 
 			buf = newBuf()
 			lexpr.Eval(buf, ev)
-			assign, err = rule.parse(buf.Bytes())
+			assign, err = r.parse(buf.Bytes())
 			if err != nil {
 				Error(ast.filename, ast.lineno, "%v", err.Error())
 			}
 			freeBuf(buf)
 		}
-		for _, output := range rule.outputs {
+		for _, output := range r.outputs {
 			ev.setTargetSpecificVar(assign, output)
 		}
-		for _, output := range rule.outputPatterns {
+		for _, output := range r.outputPatterns {
 			ev.setTargetSpecificVar(assign, output.String())
 		}
 		return
 	}
 
 	if ast.term == ';' {
-		rule.cmds = append(rule.cmds, string(ast.afterTerm[1:]))
+		r.cmds = append(r.cmds, string(ast.afterTerm[1:]))
 	}
 	if LogFlag {
-		Logf("rule outputs:%q cmds:%q", rule.outputs, rule.cmds)
+		Logf("rule outputs:%q cmds:%q", r.outputs, r.cmds)
 	}
-	ev.lastRule = rule
-	ev.outRules = append(ev.outRules, rule)
+	ev.lastRule = r
+	ev.outRules = append(ev.outRules, r)
 }
 
 func (ev *Evaluator) evalCommand(ast *commandAST) {
