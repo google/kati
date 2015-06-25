@@ -114,7 +114,7 @@ static void ReadBootstrapMakefile(const vector<StringPiece>& targets,
   Parse(Intern(bootstrap), Loc("*bootstrap*", 0), asts);
 }
 
-static void SetVar(StringPiece l, const char* origin, Vars* vars) {
+static void SetVar(StringPiece l, VarOrigin origin, Vars* vars) {
   size_t found = l.find('=');
   CHECK(found != string::npos);
   StringPiece lhs = Intern(l.substr(0, found));
@@ -126,10 +126,10 @@ static void SetVar(StringPiece l, const char* origin, Vars* vars) {
 extern "C" char** environ;
 static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
   for (char** p = environ; *p; p++) {
-    SetVar(*p, "environment", vars);
+    SetVar(*p, VarOrigin::ENVIRONMENT, vars);
   }
   for (StringPiece l : cl_vars) {
-    SetVar(l, "command line", vars);
+    SetVar(l, VarOrigin::COMMAND_LINE, vars);
   }
 }
 
@@ -152,7 +152,7 @@ static int Run(const vector<StringPiece>& targets,
 
   vars->Assign("MAKEFILE_LIST",
                new SimpleVar(make_shared<string>(
-                   StringPrintf(" %s", g_makefile)), "file"));
+                   StringPrintf(" %s", g_makefile)), VarOrigin::FILE));
 
   Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
   for (AST* ast : mk->asts()) {

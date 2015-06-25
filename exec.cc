@@ -43,8 +43,8 @@ class AutoVar : public Var {
   virtual const char* Flavor() const override {
     return "undefined";
   }
-  virtual const char* Origin() const override {
-    return "automatic";
+  virtual VarOrigin Origin() const override {
+    return VarOrigin::AUTOMATIC;
   }
 
   virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }

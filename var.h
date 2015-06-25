@@ -28,12 +28,25 @@ using namespace std;
 class Evaluator;
 class Value;
 
+enum struct VarOrigin {
+  UNDEFINED,
+  DEFAULT,
+  ENVIRONMENT,
+  ENVIRONMENT_OVERRIDE,
+  FILE,
+  COMMAND_LINE,
+  OVERRIDE,
+  AUTOMATIC,
+};
+
+const char* GetOriginStr(VarOrigin origin);
+
 class Var : public Evaluable {
  public:
   virtual ~Var();
 
   virtual const char* Flavor() const = 0;
-  virtual const char* Origin() const = 0;
+  virtual VarOrigin Origin() const = 0;
   virtual bool IsDefined() const { return true; }
 
   virtual void AppendVar(Evaluator* ev, Value* v);
@@ -48,12 +61,12 @@ class Var : public Evaluable {
 
 class SimpleVar : public Var {
  public:
-  SimpleVar(shared_ptr<string> v, const char* origin);
+  SimpleVar(shared_ptr<string> v, VarOrigin origin);
 
   virtual const char* Flavor() const {
     return "simple";
   }
-  virtual const char* Origin() const {
+  virtual VarOrigin Origin() const {
     return origin_;
   }
 
@@ -70,17 +83,17 @@ class SimpleVar : public Var {
 
  private:
   shared_ptr<string> v_;
-  const char* origin_;
+  VarOrigin origin_;
 };
 
 class RecursiveVar : public Var {
  public:
-  RecursiveVar(Value* v, const char* origin, StringPiece orig);
+  RecursiveVar(Value* v, VarOrigin origin, StringPiece orig);
 
   virtual const char* Flavor() const {
     return "recursive";
   }
-  virtual const char* Origin() const {
+  virtual VarOrigin Origin() const {
     return origin_;
   }
 
@@ -94,7 +107,7 @@ class RecursiveVar : public Var {
 
  private:
   Value* v_;
-  const char* origin_;
+  VarOrigin origin_;
   StringPiece orig_;
 };
 
@@ -105,8 +118,8 @@ class UndefinedVar : public Var {
   virtual const char* Flavor() const {
     return "undefined";
   }
-  virtual const char* Origin() const {
-    return "undefined";
+  virtual VarOrigin Origin() const {
+    return VarOrigin::UNDEFINED;
   }
   virtual bool IsDefined() const { return false; }
 
@@ -130,7 +143,7 @@ class RuleVar : public Var {
   virtual const char* Flavor() const {
     return v_->Flavor();
   }
-  virtual const char* Origin() const {
+  virtual VarOrigin Origin() const {
     return v_->Origin();
   }
   virtual bool IsDefined() const {
