@@ -110,7 +110,14 @@ end
 
 run_make_test = proc do |mk|
   c = File.read(mk)
-  expected_failure = c =~ /\A# TODO/
+  expected_failure = c =~ /\A# TODO(?:\((go|c)\))?/
+  if $1
+    if $1 == 'go' && ckati
+      expected_failure = false
+    elsif $1 == 'c' && !ckati
+      expected_failure = false
+    end
+  end
 
   run_in_testdir(mk) do |name|
     # TODO: Fix

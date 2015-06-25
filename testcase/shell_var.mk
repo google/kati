@@ -1,3 +1,5 @@
+# TODO(c): Implement SHELL
+
 $(info $(SHELL))
 
 SHELL:=/bin/echo
