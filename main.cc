@@ -26,6 +26,7 @@
 #include "file.h"
 #include "file_cache.h"
 #include "fileutil.h"
+#include "flags.h"
 #include "func.h"
 #include "log.h"
 #include "parser.h"
@@ -43,6 +44,8 @@ static void ParseCommandLine(int argc, char* argv[],
     const char* arg = argv[i];
     if (!strcmp(arg, "-f")) {
       g_makefile = argv[++i];
+    } else if (!strcmp(arg, "-c")) {
+      g_is_syntax_check_only = true;
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
