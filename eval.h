@@ -70,7 +70,8 @@ class Evaluator {
   void set_current_scope(Vars* v) { current_scope_ = v; }
 
  private:
-  Var* EvalRHS(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op);
+  Var* EvalRHS(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
+               bool is_override = false);
   void DoInclude(const char* fname, bool should_exist);
 
   const Vars* in_vars_;

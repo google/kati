@@ -49,8 +49,9 @@ Evaluator::~Evaluator() {
 }
 
 Var* Evaluator::EvalRHS(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
-                        AssignOp op) {
-  const char* origin = is_bootstrap_ ? "default" : "file";
+                        AssignOp op, bool is_override) {
+  const char* origin = (
+      is_bootstrap_ ? "default" : is_override ? "override" : "file");
 
   Var* rhs = NULL;
   bool needs_assign = true;

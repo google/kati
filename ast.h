@@ -33,10 +33,10 @@ enum struct AssignOp {
   QUESTION_EQ,
 };
 
-enum struct AssignDirective {
-  NONE,
-  OVERRIDE,
-  EXPORT,
+enum struct AssignDirective : int {
+  NONE = 0,
+  OVERRIDE = 1,
+  EXPORT = 2,
 };
 
 enum struct CondOp {
