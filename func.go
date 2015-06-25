@@ -138,18 +138,18 @@ func (c *fclosure) String() string {
 	return fmt.Sprintf("$%s %s%c", arg0, strings.Join(args, ","), cp)
 }
 
-func (c *fclosure) Serialize() SerializableVar {
-	r := SerializableVar{Type: "func"}
+func (c *fclosure) serialize() serializableVar {
+	r := serializableVar{Type: "func"}
 	for _, a := range c.args {
-		r.Children = append(r.Children, a.Serialize())
+		r.Children = append(r.Children, a.serialize())
 	}
 	return r
 }
 
-func (c *fclosure) Dump(w io.Writer) {
+func (c *fclosure) dump(w io.Writer) {
 	dumpByte(w, valueTypeFunc)
 	for _, a := range c.args {
-		a.Dump(w)
+		a.dump(w)
 	}
 }
 
@@ -965,13 +965,13 @@ type funcNop struct{ expr string }
 
 func (f *funcNop) String() string             { return f.expr }
 func (f *funcNop) Eval(io.Writer, *Evaluator) {}
-func (f *funcNop) Serialize() SerializableVar {
-	return SerializableVar{
+func (f *funcNop) serialize() serializableVar {
+	return serializableVar{
 		Type: "funcNop",
 		V:    f.expr,
 	}
 }
-func (f *funcNop) Dump(w io.Writer) {
+func (f *funcNop) dump(w io.Writer) {
 	dumpByte(w, valueTypeNop)
 }
 
@@ -1046,22 +1046,22 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 	ev.outVars.Assign(f.lhs, rvalue)
 }
 
-func (f *funcEvalAssign) Serialize() SerializableVar {
-	return SerializableVar{
+func (f *funcEvalAssign) serialize() serializableVar {
+	return serializableVar{
 		Type: "funcEvalAssign",
-		Children: []SerializableVar{
-			SerializableVar{V: f.lhs},
-			SerializableVar{V: f.op},
-			f.rhs.Serialize(),
+		Children: []serializableVar{
+			serializableVar{V: f.lhs},
+			serializableVar{V: f.op},
+			f.rhs.serialize(),
 		},
 	}
 }
 
-func (f *funcEvalAssign) Dump(w io.Writer) {
+func (f *funcEvalAssign) dump(w io.Writer) {
 	dumpByte(w, valueTypeAssign)
 	dumpString(w, f.lhs)
 	dumpString(w, f.op)
-	f.rhs.Dump(w)
+	f.rhs.dump(w)
 }
 
 // http://www.gnu.org/software/make/manual/make.html#Origin-Function

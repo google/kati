@@ -65,17 +65,17 @@ func (v *targetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
 	v.v.Eval(w, ev)
 }
 
-func (v *targetSpecificVar) Serialize() SerializableVar {
-	return SerializableVar{
+func (v *targetSpecificVar) serialize() serializableVar {
+	return serializableVar{
 		Type:     v.op,
-		Children: []SerializableVar{v.v.Serialize()},
+		Children: []serializableVar{v.v.serialize()},
 	}
 }
 
-func (v *targetSpecificVar) Dump(w io.Writer) {
+func (v *targetSpecificVar) dump(w io.Writer) {
 	dumpByte(w, valueTypeTSV)
 	dumpString(w, v.op)
-	v.v.Dump(w)
+	v.v.dump(w)
 }
 
 type simpleVar struct {
@@ -91,14 +91,14 @@ func (v *simpleVar) String() string { return v.value }
 func (v *simpleVar) Eval(w io.Writer, ev *Evaluator) {
 	io.WriteString(w, v.value)
 }
-func (v *simpleVar) Serialize() SerializableVar {
-	return SerializableVar{
+func (v *simpleVar) serialize() serializableVar {
+	return serializableVar{
 		Type:   "simple",
 		V:      v.value,
 		Origin: v.origin,
 	}
 }
-func (v *simpleVar) Dump(w io.Writer) {
+func (v *simpleVar) dump(w io.Writer) {
 	dumpByte(w, valueTypeSimple)
 	dumpString(w, v.value)
 	dumpString(w, v.origin)
@@ -140,10 +140,10 @@ func (v *automaticVar) String() string { return string(v.value) }
 func (v *automaticVar) Eval(w io.Writer, ev *Evaluator) {
 	w.Write(v.value)
 }
-func (v *automaticVar) Serialize() SerializableVar {
+func (v *automaticVar) serialize() serializableVar {
 	panic(fmt.Sprintf("cannnot serialize automatic var:%s", v.value))
 }
-func (v *automaticVar) Dump(w io.Writer) {
+func (v *automaticVar) dump(w io.Writer) {
 	panic(fmt.Sprintf("cannnot dump automatic var:%s", v.value))
 }
 
@@ -180,16 +180,16 @@ func (v *recursiveVar) String() string { return v.expr.String() }
 func (v *recursiveVar) Eval(w io.Writer, ev *Evaluator) {
 	v.expr.Eval(w, ev)
 }
-func (v *recursiveVar) Serialize() SerializableVar {
-	return SerializableVar{
+func (v *recursiveVar) serialize() serializableVar {
+	return serializableVar{
 		Type:     "recursive",
-		Children: []SerializableVar{v.expr.Serialize()},
+		Children: []serializableVar{v.expr.serialize()},
 		Origin:   v.origin,
 	}
 }
-func (v *recursiveVar) Dump(w io.Writer) {
+func (v *recursiveVar) dump(w io.Writer) {
 	dumpByte(w, valueTypeRecursive)
-	v.expr.Dump(w)
+	v.expr.dump(w)
 	dumpString(w, v.origin)
 }
 
@@ -234,10 +234,10 @@ func (undefinedVar) IsDefined() bool { return false }
 func (undefinedVar) String() string  { return "" }
 func (undefinedVar) Eval(_ io.Writer, _ *Evaluator) {
 }
-func (undefinedVar) Serialize() SerializableVar {
-	return SerializableVar{Type: "undefined"}
+func (undefinedVar) serialize() serializableVar {
+	return serializableVar{Type: "undefined"}
 }
-func (undefinedVar) Dump(w io.Writer) {
+func (undefinedVar) dump(w io.Writer) {
 	dumpByte(w, valueTypeUndefined)
 }
 

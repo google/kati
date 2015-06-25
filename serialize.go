@@ -77,14 +77,14 @@ func dumpByte(w io.Writer, b byte) {
 	}
 }
 
-type SerializableVar struct {
+type serializableVar struct {
 	Type     string
 	V        string
 	Origin   string
-	Children []SerializableVar
+	Children []serializableVar
 }
 
-type SerializableDepNode struct {
+type serializableDepNode struct {
 	Output             int
 	Cmds               []string
 	Deps               []int
@@ -98,15 +98,15 @@ type SerializableDepNode struct {
 	Lineno             int
 }
 
-type SerializableTargetSpecificVar struct {
+type serializableTargetSpecificVar struct {
 	Name  string
-	Value SerializableVar
+	Value serializableVar
 }
 
-type SerializableGraph struct {
-	Nodes   []*SerializableDepNode
-	Vars    map[string]SerializableVar
-	Tsvs    []SerializableTargetSpecificVar
+type serializableGraph struct {
+	Nodes   []*serializableDepNode
+	Vars    map[string]serializableVar
+	Tsvs    []serializableTargetSpecificVar
 	Targets []string
 	Roots   []string
 	ReadMks []*ReadMakefile
@@ -126,28 +126,28 @@ func encGob(v interface{}) string {
 func encVar(k string, v Var) string {
 	var buf bytes.Buffer
 	dumpString(&buf, k)
-	v.Dump(&buf)
+	v.dump(&buf)
 	return buf.String()
 }
 
-type DepNodesSerializer struct {
-	nodes     []*SerializableDepNode
-	tsvs      []SerializableTargetSpecificVar
+type depNodesSerializer struct {
+	nodes     []*serializableDepNode
+	tsvs      []serializableTargetSpecificVar
 	tsvMap    map[string]int
 	targets   []string
 	targetMap map[string]int
 	done      map[string]bool
 }
 
-func NewDepNodesSerializer() *DepNodesSerializer {
-	return &DepNodesSerializer{
+func newDepNodesSerializer() *depNodesSerializer {
+	return &depNodesSerializer{
 		tsvMap:    make(map[string]int),
 		targetMap: make(map[string]int),
 		done:      make(map[string]bool),
 	}
 }
 
-func (ns *DepNodesSerializer) SerializeTarget(t string) int {
+func (ns *depNodesSerializer) serializeTarget(t string) int {
 	id, present := ns.targetMap[t]
 	if present {
 		return id
@@ -158,7 +158,7 @@ func (ns *DepNodesSerializer) SerializeTarget(t string) int {
 	return id
 }
 
-func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
+func (ns *depNodesSerializer) serializeDepNodes(nodes []*DepNode) {
 	for _, n := range nodes {
 		if ns.done[n.Output] {
 			continue
@@ -167,15 +167,15 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 
 		var deps []int
 		for _, d := range n.Deps {
-			deps = append(deps, ns.SerializeTarget(d.Output))
+			deps = append(deps, ns.serializeTarget(d.Output))
 		}
 		var parents []int
 		for _, d := range n.Parents {
-			parents = append(parents, ns.SerializeTarget(d.Output))
+			parents = append(parents, ns.serializeTarget(d.Output))
 		}
 		var actualInputs []int
 		for _, i := range n.ActualInputs {
-			actualInputs = append(actualInputs, ns.SerializeTarget(i))
+			actualInputs = append(actualInputs, ns.serializeTarget(i))
 		}
 
 		// Sort keys for consistent serialization.
@@ -188,7 +188,7 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 		var vars []int
 		for _, k := range tsvKeys {
 			v := n.TargetSpecificVars[k]
-			sv := SerializableTargetSpecificVar{Name: k, Value: v.Serialize()}
+			sv := serializableTargetSpecificVar{Name: k, Value: v.serialize()}
 			//gob := encGob(sv)
 			gob := encVar(k, v)
 			id, present := ns.tsvMap[gob]
@@ -200,8 +200,8 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 			vars = append(vars, id)
 		}
 
-		ns.nodes = append(ns.nodes, &SerializableDepNode{
-			Output:             ns.SerializeTarget(n.Output),
+		ns.nodes = append(ns.nodes, &serializableDepNode{
+			Output:             ns.serializeTarget(n.Output),
 			Cmds:               n.Cmds,
 			Deps:               deps,
 			Parents:            parents,
@@ -213,23 +213,23 @@ func (ns *DepNodesSerializer) SerializeDepNodes(nodes []*DepNode) {
 			Filename:           n.Filename,
 			Lineno:             n.Lineno,
 		})
-		ns.SerializeDepNodes(n.Deps)
+		ns.serializeDepNodes(n.Deps)
 	}
 }
 
-func MakeSerializableVars(vars Vars) (r map[string]SerializableVar) {
-	r = make(map[string]SerializableVar)
+func makeSerializableVars(vars Vars) (r map[string]serializableVar) {
+	r = make(map[string]serializableVar)
 	for k, v := range vars {
-		r[k] = v.Serialize()
+		r[k] = v.serialize()
 	}
 	return r
 }
 
-func MakeSerializableGraph(g *DepGraph, roots []string) SerializableGraph {
-	ns := NewDepNodesSerializer()
-	ns.SerializeDepNodes(g.nodes)
-	v := MakeSerializableVars(g.vars)
-	return SerializableGraph{
+func makeSerializableGraph(g *DepGraph, roots []string) serializableGraph {
+	ns := newDepNodesSerializer()
+	ns.serializeDepNodes(g.nodes)
+	v := makeSerializableVars(g.vars)
+	return serializableGraph{
 		Nodes:   ns.nodes,
 		Vars:    v,
 		Tsvs:    ns.tsvs,
@@ -241,7 +241,7 @@ func MakeSerializableGraph(g *DepGraph, roots []string) SerializableGraph {
 }
 
 func DumpDepGraphAsJSON(g *DepGraph, filename string, roots []string) {
-	sg := MakeSerializableGraph(g, roots)
+	sg := makeSerializableGraph(g, roots)
 	o, err := json.MarshalIndent(sg, " ", " ")
 	if err != nil {
 		panic(err)
@@ -264,7 +264,7 @@ func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	}
 	e := gob.NewEncoder(f)
 	startTime := time.Now()
-	sg := MakeSerializableGraph(g, roots)
+	sg := makeSerializableGraph(g, roots)
 	LogStats("serialize prepare time: %q", time.Since(startTime))
 	startTime = time.Now()
 	e.Encode(sg)
@@ -275,7 +275,7 @@ func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	}
 }
 
-func GetCacheFilename(mk string, roots []string) string {
+func cacheFilename(mk string, roots []string) string {
 	filename := ".kati_cache." + mk
 	for _, r := range roots {
 		filename += "." + r
@@ -287,7 +287,7 @@ func DumpDepGraphCache(g *DepGraph, roots []string) {
 	if len(g.readMks) == 0 {
 		panic("No Makefile is read")
 	}
-	cacheFile := GetCacheFilename(g.readMks[0].Filename, roots)
+	cacheFile := cacheFilename(g.readMks[0].Filename, roots)
 	for _, mk := range g.readMks {
 		// Inconsistent, do not dump this result.
 		if mk.State == FileInconsistent {
@@ -300,14 +300,14 @@ func DumpDepGraphCache(g *DepGraph, roots []string) {
 	DumpDepGraph(g, cacheFile, roots)
 }
 
-func DeserializeSingleChild(sv SerializableVar) Value {
+func deserializeSingleChild(sv serializableVar) Value {
 	if len(sv.Children) != 1 {
 		panic(fmt.Sprintf("unexpected number of children: %q", sv))
 	}
-	return DeserializeVar(sv.Children[0])
+	return deserializeVar(sv.Children[0])
 }
 
-func DeserializeVar(sv SerializableVar) (r Value) {
+func deserializeVar(sv serializableVar) (r Value) {
 	switch sv.Type {
 	case "literal":
 		return literal(sv.V)
@@ -316,11 +316,11 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	case "expr":
 		var e Expr
 		for _, v := range sv.Children {
-			e = append(e, DeserializeVar(v))
+			e = append(e, deserializeVar(v))
 		}
 		return e
 	case "varref":
-		return &varref{varname: DeserializeSingleChild(sv)}
+		return &varref{varname: deserializeSingleChild(sv)}
 	case "paramref":
 		v, err := strconv.Atoi(sv.V)
 		if err != nil {
@@ -329,24 +329,24 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		return paramref(v)
 	case "varsubst":
 		return varsubst{
-			varname: DeserializeVar(sv.Children[0]),
-			pat:     DeserializeVar(sv.Children[1]),
-			subst:   DeserializeVar(sv.Children[2]),
+			varname: deserializeVar(sv.Children[0]),
+			pat:     deserializeVar(sv.Children[1]),
+			subst:   deserializeVar(sv.Children[2]),
 		}
 
 	case "func":
-		name := DeserializeVar(sv.Children[0]).(literal)
+		name := deserializeVar(sv.Children[0]).(literal)
 		f := funcMap[string(name[1:])]()
 		f.AddArg(name)
 		for _, a := range sv.Children[1:] {
-			f.AddArg(DeserializeVar(a))
+			f.AddArg(deserializeVar(a))
 		}
 		return f
 	case "funcEvalAssign":
 		return &funcEvalAssign{
 			lhs: sv.Children[0].V,
 			op:  sv.Children[1].V,
-			rhs: DeserializeVar(sv.Children[2]),
+			rhs: deserializeVar(sv.Children[2]),
 		}
 	case "funcNop":
 		return &funcNop{expr: sv.V}
@@ -358,13 +358,13 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		}
 	case "recursive":
 		return &recursiveVar{
-			expr:   DeserializeSingleChild(sv),
+			expr:   deserializeSingleChild(sv),
 			origin: sv.Origin,
 		}
 
 	case ":=", "=", "+=", "?=":
 		return &targetSpecificVar{
-			v:  DeserializeSingleChild(sv).(Var),
+			v:  deserializeSingleChild(sv).(Var),
 			op: sv.Type,
 		}
 
@@ -373,22 +373,22 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 	}
 }
 
-func DeserializeVars(vars map[string]SerializableVar) Vars {
+func deserializeVars(vars map[string]serializableVar) Vars {
 	r := make(Vars)
 	for k, v := range vars {
-		r[k] = DeserializeVar(v).(Var)
+		r[k] = deserializeVar(v).(Var)
 	}
 	return r
 }
 
-func DeserializeNodes(g SerializableGraph) (r []*DepNode) {
+func deserializeNodes(g serializableGraph) (r []*DepNode) {
 	nodes := g.Nodes
 	tsvs := g.Tsvs
 	targets := g.Targets
 	// Deserialize all TSVs first so that multiple rules can share memory.
 	var tsvValues []Var
 	for _, sv := range tsvs {
-		tsvValues = append(tsvValues, DeserializeVar(sv.Value).(Var))
+		tsvValues = append(tsvValues, deserializeVar(sv.Value).(Var))
 	}
 
 	nodeMap := make(map[string]*DepNode)
@@ -453,7 +453,7 @@ func human(n int) string {
 	return fmt.Sprintf("%dB", n)
 }
 
-func showSerializedNodesStats(nodes []*SerializableDepNode) {
+func showSerializedNodesStats(nodes []*serializableDepNode) {
 	outputSize := 0
 	cmdSize := 0
 	depsSize := 0
@@ -489,7 +489,7 @@ func showSerializedNodesStats(nodes []*SerializableDepNode) {
 	LogStats(" lineno %s", human(linenoSize))
 }
 
-func (v SerializableVar) size() int {
+func (v serializableVar) size() int {
 	size := 0
 	size += len(v.Type)
 	size += len(v.V)
@@ -500,7 +500,7 @@ func (v SerializableVar) size() int {
 	return size
 }
 
-func showSerializedVarsStats(vars map[string]SerializableVar) {
+func showSerializedVarsStats(vars map[string]serializableVar) {
 	nameSize := 0
 	valueSize := 0
 	for k, v := range vars {
@@ -513,7 +513,7 @@ func showSerializedVarsStats(vars map[string]SerializableVar) {
 	LogStats(" value %s", human(valueSize))
 }
 
-func showSerializedTsvsStats(vars []SerializableTargetSpecificVar) {
+func showSerializedTsvsStats(vars []serializableTargetSpecificVar) {
 	nameSize := 0
 	valueSize := 0
 	for _, v := range vars {
@@ -542,7 +542,7 @@ func showSerializedReadMksStats(readMks []*ReadMakefile) {
 	LogStats("%d makefiles %s", len(readMks), human(size))
 }
 
-func showSerializedGraphStats(g SerializableGraph) {
+func showSerializedGraphStats(g serializableGraph) {
 	showSerializedNodesStats(g.Nodes)
 	showSerializedVarsStats(g.Vars)
 	showSerializedTsvsStats(g.Tsvs)
@@ -550,12 +550,12 @@ func showSerializedGraphStats(g SerializableGraph) {
 	showSerializedReadMksStats(g.ReadMks)
 }
 
-func DeserializeGraph(g SerializableGraph) *DepGraph {
+func deserializeGraph(g serializableGraph) *DepGraph {
 	if LogFlag || StatsFlag {
 		showSerializedGraphStats(g)
 	}
-	nodes := DeserializeNodes(g)
-	vars := DeserializeVars(g.Vars)
+	nodes := deserializeNodes(g)
+	vars := deserializeVars(g.Vars)
 	return &DepGraph{
 		nodes:   nodes,
 		vars:    vars,
@@ -572,12 +572,12 @@ func LoadDepGraphFromJSON(filename string) *DepGraph {
 	defer f.Close()
 
 	d := json.NewDecoder(f)
-	g := SerializableGraph{Vars: make(map[string]SerializableVar)}
+	g := serializableGraph{Vars: make(map[string]serializableVar)}
 	err = d.Decode(&g)
 	if err != nil {
 		panic(err)
 	}
-	return DeserializeGraph(g)
+	return deserializeGraph(g)
 }
 
 func LoadDepGraph(filename string) *DepGraph {
@@ -588,12 +588,12 @@ func LoadDepGraph(filename string) *DepGraph {
 	defer f.Close()
 
 	d := gob.NewDecoder(f)
-	g := SerializableGraph{Vars: make(map[string]SerializableVar)}
+	g := serializableGraph{Vars: make(map[string]serializableVar)}
 	err = d.Decode(&g)
 	if err != nil {
 		panic(err)
 	}
-	return DeserializeGraph(g)
+	return deserializeGraph(g)
 }
 
 func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
@@ -602,7 +602,7 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 		LogStats("Cache lookup time: %q", time.Since(startTime))
 	}()
 
-	filename := GetCacheFilename(makefile, roots)
+	filename := cacheFilename(makefile, roots)
 	if !exists(filename) {
 		LogAlways("Cache not found")
 		return nil
