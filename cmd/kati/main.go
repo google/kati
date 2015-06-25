@@ -135,7 +135,7 @@ func findPara() string {
 	}
 }
 
-func load(makefile string, opt kati.LoadOpt) (*kati.DepGraph, error) {
+func load(req kati.LoadReq) (*kati.DepGraph, error) {
 	startTime := time.Now()
 
 	if loadGOB != "" {
@@ -148,7 +148,7 @@ func load(makefile string, opt kati.LoadOpt) (*kati.DepGraph, error) {
 		kati.LogStats("deserialize time: %q", time.Since(startTime))
 		return g, nil
 	}
-	return kati.Load(makefile, opt)
+	return kati.Load(req)
 }
 
 func save(g *kati.DepGraph, targets []string) {
@@ -224,14 +224,14 @@ func main() {
 		kati.AndroidFindCacheInit(strings.Fields(findCachePrunes), leafNames)
 	}
 
-	clvars, targets := kati.ParseCommandLine(flag.Args())
+	req := kati.FromCommandLine(flag.Args())
+	if makefileFlag != "" {
+		req.Makefile = makefileFlag
+	}
+	req.EnvironmentVars = os.Environ()
+	req.UseCache = useCache
 
-	g, err := load(makefileFlag, kati.LoadOpt{
-		Targets:         targets,
-		CommandLineVars: clvars,
-		EnvironmentVars: os.Environ(),
-		UseCache:        useCache,
-	})
+	g, err := load(req)
 	if err != nil {
 		panic(err)
 	}
@@ -244,7 +244,7 @@ func main() {
 		kati.LogStats("eager eval command time: %q", time.Since(startTime))
 	}
 
-	save(g, targets)
+	save(g, req.Targets)
 
 	if generateNinja {
 		startTime := time.Now()

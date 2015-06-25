@@ -16,7 +16,9 @@ package kati
 
 import (
 	"crypto/sha1"
+	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 )
 
@@ -33,33 +35,66 @@ func (g *DepGraph) Vars() Vars               { return g.vars }
 func (g *DepGraph) Exports() map[string]bool { return g.exports }
 func (g *DepGraph) IsCached() bool           { return g.isCached }
 
-type LoadOpt struct {
+type LoadReq struct {
+	Makefile        string
 	Targets         []string
 	CommandLineVars []string
 	EnvironmentVars []string
 	UseCache        bool
 }
 
-func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
+func FromCommandLine(cmdline []string) LoadReq {
+	var vars []string
+	var targets []string
+	for _, arg := range cmdline {
+		if strings.IndexByte(arg, '=') >= 0 {
+			vars = append(vars, arg)
+			continue
+		}
+		targets = append(targets, arg)
+	}
+	return LoadReq{
+		Makefile:        defaultMakefile(),
+		Targets:         targets,
+		CommandLineVars: vars,
+	}
+}
+
+func initVars(vars Vars, kvlist []string, origin string) error {
+	for _, v := range kvlist {
+		kv := strings.SplitN(v, "=", 2)
+		logf("%s var %q", origin, v)
+		if len(kv) < 2 {
+			return fmt.Errorf("A weird %s variable %q", origin, kv)
+		}
+		vars.Assign(kv[0], &recursiveVar{
+			expr:   literal(kv[1]),
+			origin: origin,
+		})
+	}
+	return nil
+}
+
+func Load(req LoadReq) (*DepGraph, error) {
 	startTime := time.Now()
-	if makefile == "" {
-		makefile = defaultMakefile()
+	if req.Makefile == "" {
+		req.Makefile = defaultMakefile()
 	}
 
-	if opt.UseCache {
-		g := LoadDepGraphCache(makefile, opt.Targets)
+	if req.UseCache {
+		g := LoadDepGraphCache(req.Makefile, req.Targets)
 		if g != nil {
 			return g, nil
 		}
 	}
 
-	bmk := bootstrapMakefile(opt.Targets)
+	bmk := bootstrapMakefile(req.Targets)
 
-	content, err := ioutil.ReadFile(makefile)
+	content, err := ioutil.ReadFile(req.Makefile)
 	if err != nil {
 		return nil, err
 	}
-	mk, err := parseMakefile(content, makefile)
+	mk, err := parseMakefile(content, req.Makefile)
 	if err != nil {
 		return nil, err
 	}
@@ -71,15 +106,15 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	mk.stmts = append(bmk.stmts, mk.stmts...)
 
 	vars := make(Vars)
-	err = initVars(vars, opt.EnvironmentVars, "environment")
+	err = initVars(vars, req.EnvironmentVars, "environment")
 	if err != nil {
 		return nil, err
 	}
-	err = initVars(vars, opt.CommandLineVars, "command line")
+	err = initVars(vars, req.CommandLineVars, "command line")
 	if err != nil {
 		return nil, err
 	}
-	er, err := eval(mk, vars, opt.UseCache)
+	er, err := eval(mk, vars, req.UseCache)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +128,7 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	LogStats("dep build prepare time: %q", time.Since(startTime))
 
 	startTime = time.Now()
-	nodes, err := db.Eval(opt.Targets)
+	nodes, err := db.Eval(req.Targets)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +136,7 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	var accessedMks []*accessedMakefile
 	// Always put the root Makefile as the first element.
 	accessedMks = append(accessedMks, &accessedMakefile{
-		Filename: makefile,
+		Filename: req.Makefile,
 		Hash:     sha1.Sum(content),
 		State:    fileExists,
 	})
