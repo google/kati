@@ -97,7 +97,8 @@ void Evaluator::EvalAssign(const AssignAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
   StringPiece lhs = Intern(*ast->lhs->Eval(this));
-  Var* rhs = EvalRHS(lhs, ast->rhs, ast->orig_rhs, ast->op);
+  Var* rhs = EvalRHS(lhs, ast->rhs, ast->orig_rhs, ast->op,
+                     ast->directive == AssignDirective::OVERRIDE);
   if (rhs)
     vars_->Assign(lhs, rhs);
 }
