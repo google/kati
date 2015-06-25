@@ -376,6 +376,7 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
       if (!prev_backslash) {
         return e;
       }
+      prev_backslash = false;
     } else if (c != '\r') {
       prev_backslash = false;
     }
