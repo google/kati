@@ -237,7 +237,7 @@ static char CloseParen(char c) {
 static size_t SkipSpaces(StringPiece s, const char* terms) {
   for (size_t i = 0; i < s.size(); i++) {
     char c = s[i];
-    if ((c != ' ' && c != '\t') || strchr(terms, c))
+    if (!isspace(c) || strchr(terms, c))
       return i;
   }
   return s.size();
@@ -312,7 +312,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       return new VarRef(vname);
     }
 
-    if (s[i] == ' ') {
+    if (s[i] == ' ' || s[i] == '\\') {
       // ${func ...}
       if (Literal* lit = reinterpret_cast<Literal*>(vname)) {
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
@@ -462,6 +462,9 @@ Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
         continue;
       }
       if (n == '\r' || n == '\n') {
+        if (terms && strchr(terms, ' ')) {
+          break;
+        }
         if (i > b) {
           r->AddValue(new Literal(TrimRightSpace(s.substr(b, i-b))));
         }

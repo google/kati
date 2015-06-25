@@ -1,0 +1,4 @@
+$(info\
+ PASS)
+
+test:
