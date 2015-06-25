@@ -604,7 +604,7 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 
 	filename := cacheFilename(makefile, roots)
 	if !exists(filename) {
-		LogAlways("Cache not found")
+		logAlways("Cache not found")
 		return nil
 	}
 
@@ -615,23 +615,23 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 		}
 		if mk.State == fileNotExists {
 			if exists(mk.Filename) {
-				LogAlways("Cache expired: %s", mk.Filename)
+				logAlways("Cache expired: %s", mk.Filename)
 				return nil
 			}
 		} else {
 			c, err := ioutil.ReadFile(mk.Filename)
 			if err != nil {
-				LogAlways("Cache expired: %s", mk.Filename)
+				logAlways("Cache expired: %s", mk.Filename)
 				return nil
 			}
 			h := sha1.Sum(c)
 			if !bytes.Equal(h[:], mk.Hash[:]) {
-				LogAlways("Cache expired: %s", mk.Filename)
+				logAlways("Cache expired: %s", mk.Filename)
 				return nil
 			}
 		}
 	}
 	g.isCached = true
-	LogAlways("Cache found!")
+	logAlways("Cache found!")
 	return g
 }

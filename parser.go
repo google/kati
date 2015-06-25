@@ -193,7 +193,7 @@ func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *assig
 }
 
 func (p *parser) parseAssign(line []byte, sep, esep int) ast {
-	Logf("parseAssign %q op:%q", line, line[sep:esep])
+	logf("parseAssign %q op:%q", line, line[sep:esep])
 	aast := newAssignAST(p, bytes.TrimSpace(line[:sep]), trimLeftSpaceBytes(line[esep:]), string(line[sep:esep]))
 	aast.filename = p.mk.filename
 	aast.lineno = p.lineno
@@ -289,7 +289,7 @@ func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool) {
 		s = s[end+1:]
 	}
 	if len(s) > 0 {
-		Error(p.mk.filename, p.lineno, `extraneous text after %q directive`, op)
+		errorExit(p.mk.filename, p.lineno, `extraneous text after %q directive`, op)
 	}
 	return args, true
 }
@@ -327,7 +327,7 @@ func (p *parser) parseIfeq(line string, oplen int) ast {
 	op := line[:oplen]
 	lhsBytes, rhsBytes, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]), op)
 	if !ok {
-		Error(p.mk.filename, p.lineno, `*** invalid syntax in conditional.`)
+		errorExit(p.mk.filename, p.lineno, `*** invalid syntax in conditional.`)
 	}
 
 	lhs, _, err := parseExpr([]byte(lhsBytes), nil, true)
@@ -354,7 +354,7 @@ func (p *parser) parseIfeq(line string, oplen int) ast {
 
 func (p *parser) checkIfStack(curKeyword string) {
 	if len(p.ifStack) == 0 {
-		Error(p.mk.filename, p.lineno, `*** extraneous %q.`, curKeyword)
+		errorExit(p.mk.filename, p.lineno, `*** extraneous %q.`, curKeyword)
 	}
 }
 
@@ -362,7 +362,7 @@ func (p *parser) parseElse(line []byte) {
 	p.checkIfStack("else")
 	state := &p.ifStack[len(p.ifStack)-1]
 	if state.inElse {
-		Error(p.mk.filename, p.lineno, `*** only one "else" per conditional.`)
+		errorExit(p.mk.filename, p.lineno, `*** only one "else" per conditional.`)
 	}
 	state.inElse = true
 	p.outStmts = &state.ast.falseStmts
@@ -384,7 +384,7 @@ func (p *parser) parseElse(line []byte) {
 		return
 	}
 	p.numIfNest = 0
-	WarnNoPrefix(p.mk.filename, p.lineno, "extraneous text after `else` directive")
+	warnNoPrefix(p.mk.filename, p.lineno, "extraneous text after `else` directive")
 }
 
 func (p *parser) parseEndif(line string) {
@@ -561,7 +561,7 @@ func (p *parser) isEndef(s string) bool {
 	if found >= 0 && s[:found] == "endef" {
 		rest := strings.TrimSpace(s[found+1:])
 		if rest != "" && rest[0] != '#' {
-			WarnNoPrefix(p.mk.filename, p.lineno, "extraneous text after \"endef\" directive")
+			warnNoPrefix(p.mk.filename, p.lineno, "extraneous text after \"endef\" directive")
 		}
 		return true
 	}
@@ -580,7 +580,7 @@ func (p *parser) parse() (mk makefile, err error) {
 		if len(p.inDef) > 0 {
 			lineStr := string(p.processDefineLine(line))
 			if p.isEndef(lineStr) {
-				Logf("multilineAssign %q", p.inDef)
+				logf("multilineAssign %q", p.inDef)
 				aast := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
 				aast.filename = p.mk.filename
 				aast.lineno = p.lineno - len(p.inDef)
@@ -626,7 +626,7 @@ func (p *parser) parse() (mk makefile, err error) {
 				parenStack = append(parenStack, ch)
 			case ')', '}':
 				if len(parenStack) == 0 {
-					Warn(p.mk.filename, p.lineno, "Unmatched parens: %s", line)
+					warn(p.mk.filename, p.lineno, "Unmatched parens: %s", line)
 				} else {
 					cp := closeParen(parenStack[len(parenStack)-1])
 					if cp == ch {
@@ -685,7 +685,7 @@ func defaultMakefile() string {
 			return filename
 		}
 	}
-	ErrorNoLocation("no targets specified and no makefile found.")
+	errorNoLocationExit("no targets specified and no makefile found.")
 	panic("") // Cannot be reached.
 }
 
@@ -737,16 +737,16 @@ func (mc *makefileCacheT) lookup(filename string) (makefile, [sha1.Size]byte, bo
 }
 
 func (mc *makefileCacheT) parse(filename string) (makefile, [sha1.Size]byte, error) {
-	Logf("parse Makefile %q", filename)
+	logf("parse Makefile %q", filename)
 	mk, hash, ok, err := makefileCache.lookup(filename)
 	if ok {
 		if LogFlag {
-			Logf("makefile cache hit for %q", filename)
+			logf("makefile cache hit for %q", filename)
 		}
 		return mk, hash, err
 	}
 	if LogFlag {
-		Logf("reading makefile %q", filename)
+		logf("reading makefile %q", filename)
 	}
 	c, err := ioutil.ReadFile(filename)
 	if err != nil {

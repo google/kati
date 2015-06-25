@@ -215,11 +215,11 @@ func (j *job) build() {
 			return
 		}
 		if len(j.parents) == 0 {
-			ErrorNoLocation("*** No rule to make target %q.", j.n.Output)
+			errorNoLocationExit("*** No rule to make target %q.", j.n.Output)
 		} else {
-			ErrorNoLocation("*** No rule to make target %q, needed by %q.", j.n.Output, j.parents[0].n.Output)
+			errorNoLocationExit("*** No rule to make target %q, needed by %q.", j.n.Output, j.parents[0].n.Output)
 		}
-		ErrorNoLocation("no rule to make target %q", j.n.Output)
+		errorNoLocationExit("no rule to make target %q", j.n.Output)
 	}
 
 	if j.outputTs >= j.depsTs {
@@ -231,7 +231,7 @@ func (j *job) build() {
 		err := r.run(j.n.Output)
 		if err != nil {
 			exit := exitStatus(err)
-			ErrorNoLocation("[%s] Error %d: %v", j.n.Output, exit, err)
+			errorNoLocationExit("[%s] Error %d: %v", j.n.Output, exit, err)
 		}
 	}
 
@@ -254,7 +254,7 @@ func (wm *workerManager) handleJobs() {
 			return
 		}
 		j := heap.Pop(&wm.readyQueue).(*job)
-		Logf("run: %s", j.n.Output)
+		logf("run: %s", j.n.Output)
 
 		if wm.para != nil {
 			j.runners = j.createRunners()
@@ -278,7 +278,7 @@ func (wm *workerManager) handleJobs() {
 func (wm *workerManager) updateParents(j *job) {
 	for _, p := range j.parents {
 		p.numDeps--
-		Logf("child: %s (%d)", p.n.Output, p.numDeps)
+		logf("child: %s (%d)", p.n.Output, p.numDeps)
 		if p.depsTs < j.outputTs {
 			p.depsTs = j.outputTs
 		}
@@ -356,7 +356,7 @@ func (wm *workerManager) maybePushToReadyQueue(j *job) {
 		return
 	}
 	heap.Push(&wm.readyQueue, j)
-	Logf("ready: %s", j.n.Output)
+	logf("ready: %s", j.n.Output)
 }
 
 func (wm *workerManager) handleNewDep(j *job, neededBy *job) {
@@ -375,19 +375,19 @@ func (wm *workerManager) Run() {
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || len(wm.runnings) > 0 || !done {
 		select {
 		case j := <-wm.jobChan:
-			Logf("wait: %s (%d)", j.n.Output, j.numDeps)
+			logf("wait: %s (%d)", j.n.Output, j.numDeps)
 			j.id = len(wm.jobs) + 1
 			wm.jobs = append(wm.jobs, j)
 			wm.maybePushToReadyQueue(j)
 		case jr := <-wm.resultChan:
-			Logf("done: %s", jr.j.n.Output)
+			logf("done: %s", jr.j.n.Output)
 			delete(wm.busyWorkers, jr.w)
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
 			wm.finishCnt++
 		case af := <-wm.newDepChan:
 			wm.handleNewDep(af.j, af.neededBy)
-			Logf("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
+			logf("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
 		case pr := <-wm.paraChan:
 			if pr.status < 0 && pr.signal < 0 {
 				j := wm.runnings[pr.output]
@@ -413,14 +413,14 @@ func (wm *workerManager) Run() {
 			if numBusy > wm.maxJobs {
 				numBusy = wm.maxJobs
 			}
-			Logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), wm.maxJobs-numBusy, numBusy)
+			logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), wm.maxJobs-numBusy, numBusy)
 		} else {
-			Logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
+			logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
 		}
 	}
 
 	if wm.para != nil {
-		Logf("Wait for para to finish")
+		logf("Wait for para to finish")
 		wm.para.Wait()
 	} else {
 		for _, w := range wm.freeWorkers {

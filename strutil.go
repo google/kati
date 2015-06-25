@@ -48,7 +48,7 @@ func splitSpaces(s string) []string {
 	if tokStart >= 0 {
 		r = append(r, s[tokStart:])
 	}
-	Logf("splitSpace(%q)=%q", s, r)
+	logf("splitSpace(%q)=%q", s, r)
 	return r
 }
 
@@ -69,7 +69,7 @@ func splitSpacesBytes(s []byte) (r [][]byte) {
 	if tokStart >= 0 {
 		r = append(r, s[tokStart:])
 	}
-	Logf("splitSpace(%q)=%q", s, r)
+	logf("splitSpace(%q)=%q", s, r)
 	return r
 }
 

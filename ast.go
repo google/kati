@@ -83,7 +83,7 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) Var {
 }
 
 func (ast *assignAST) show() {
-	Logf("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
+	logf("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
 }
 
 // maybeRuleAST is an ast for rule line.
@@ -101,7 +101,7 @@ func (ast *maybeRuleAST) eval(ev *Evaluator) {
 }
 
 func (ast *maybeRuleAST) show() {
-	Logf("%s", ast.expr)
+	logf("%s", ast.expr)
 }
 
 type commandAST struct {
@@ -114,7 +114,7 @@ func (ast *commandAST) eval(ev *Evaluator) {
 }
 
 func (ast *commandAST) show() {
-	Logf("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
+	logf("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
 }
 
 type includeAST struct {
@@ -128,7 +128,7 @@ func (ast *includeAST) eval(ev *Evaluator) {
 }
 
 func (ast *includeAST) show() {
-	Logf("include %s", ast.expr)
+	logf("include %s", ast.expr)
 }
 
 type ifAST struct {
@@ -146,7 +146,7 @@ func (ast *ifAST) eval(ev *Evaluator) {
 
 func (ast *ifAST) show() {
 	// TODO
-	Logf("if")
+	logf("if")
 }
 
 type exportAST struct {
@@ -161,5 +161,5 @@ func (ast *exportAST) eval(ev *Evaluator) {
 
 func (ast *exportAST) show() {
 	// TODO
-	Logf("export")
+	logf("export")
 }
