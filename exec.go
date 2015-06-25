@@ -32,9 +32,9 @@ type Executor struct {
 	vars          Vars
 	varsLock      sync.Mutex
 	// target -> Job, nil means the target is currently being processed.
-	done map[string]*Job
+	done map[string]*job
 
-	wm *WorkerManager
+	wm *workerManager
 
 	currentOutput string
 	currentInputs []string
@@ -138,7 +138,7 @@ func (v autoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
 	}
 }
 
-func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
+func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 	output := n.Output
 	if neededBy != nil {
 		Logf("MakeJob: %s for %s", output, neededBy.n.Output)
@@ -167,7 +167,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *Job) error {
 		return nil
 	}
 
-	j = &Job{
+	j = &job{
 		n:       n,
 		ex:      ex,
 		numDeps: len(n.Deps),
@@ -233,9 +233,9 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) *Executor {
 	ex := &Executor{
 		rules:       make(map[string]*Rule),
 		suffixRules: make(map[string][]*Rule),
-		done:        make(map[string]*Job),
+		done:        make(map[string]*job),
 		vars:        vars,
-		wm:          NewWorkerManager(opt.NumJobs, opt.ParaPath),
+		wm:          newWorkerManager(opt.NumJobs, opt.ParaPath),
 	}
 	// TODO: We should move this to somewhere around evalCmd so that
 	// we can handle SHELL in target specific variables.
