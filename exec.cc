@@ -175,12 +175,30 @@ class Executor {
     }
   }
 
+  void ParseCommandPrefixes(StringPiece* s, bool* echo, bool* ignore_error) {
+    *s = TrimLeftSpace(*s);
+    while (true) {
+      char c = s->get(0);
+      if (c == '@') {
+        *echo = false;
+      } else if (c == '-') {
+        *ignore_error = true;
+      } else {
+        break;
+      }
+      *s = TrimLeftSpace(s->substr(1));
+    }
+  }
+
   void CreateRunners(DepNode* n, vector<Runner*>* runners) {
     ev_->set_current_scope(n->rule_vars);
     current_dep_node_ = n;
     for (Value* v : n->cmds) {
       shared_ptr<string> cmds_buf = v->Eval(ev_);
-      StringPiece cmds = TrimLeftSpace(*cmds_buf);
+      StringPiece cmds = *cmds_buf;
+      bool global_echo = true;
+      bool global_ignore_error = false;
+      ParseCommandPrefixes(&cmds, &global_echo, &global_ignore_error);
       if (cmds == "")
         continue;
       while (true) {
@@ -191,18 +209,9 @@ class Executor {
         StringPiece cmd = TrimLeftSpace(cmds.substr(0, index));
         cmds = cmds.substr(index + 1);
 
-        bool echo = true;
-        bool ignore_error = false;
-        while (true) {
-          char c = cmd.get(0);
-          if (c == '@')
-            echo = false;
-          else if (c == '-')
-            ignore_error = true;
-          else
-            break;
-          cmd = TrimLeftSpace(cmd.substr(1));
-        }
+        bool echo = global_echo;
+        bool ignore_error = global_ignore_error;
+        ParseCommandPrefixes(&cmd, &echo, &ignore_error);
 
         if (!cmd.empty()) {
           Runner* runner = new Runner;
