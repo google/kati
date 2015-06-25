@@ -178,28 +178,32 @@ class Executor {
   void CreateRunners(DepNode* n, vector<Runner*>* runners) {
     ev_->set_current_scope(n->rule_vars);
     current_dep_node_ = n;
-    bool echo = true;
-    bool ignore_error = false;
     for (Value* v : n->cmds) {
       shared_ptr<string> cmds_buf = v->Eval(ev_);
       StringPiece cmds = TrimLeftSpace(*cmds_buf);
-      while (true) {
-        char c = cmds.get(0);
-        if (c == '@')
-          echo = false;
-        else if (c == '-')
-          ignore_error = true;
-        else
-          break;
-        cmds = TrimLeftSpace(cmds.substr(1));
-      }
-
       if (cmds == "")
         continue;
       while (true) {
-        size_t index = cmds.find('\n');
+        size_t lf_cnt;
+        size_t index = FindEndOfLine(cmds, 0, &lf_cnt);
+        if (index == cmds.size())
+          index = string::npos;
         StringPiece cmd = TrimLeftSpace(cmds.substr(0, index));
         cmds = cmds.substr(index + 1);
+
+        bool echo = true;
+        bool ignore_error = false;
+        while (true) {
+          char c = cmd.get(0);
+          if (c == '@')
+            echo = false;
+          else if (c == '-')
+            ignore_error = true;
+          else
+            break;
+          cmd = TrimLeftSpace(cmd.substr(1));
+        }
+
         if (!cmd.empty()) {
           Runner* runner = new Runner;
           runner->output = n->output;

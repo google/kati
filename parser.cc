@@ -123,22 +123,7 @@ class Parser {
   }
 
   size_t FindEndOfLine(size_t* lf_cnt) {
-    size_t e = l_;
-    bool prev_backslash = false;
-    for (; e < buf_.size(); e++) {
-      char c = buf_[e];
-      if (c == '\\') {
-        prev_backslash = !prev_backslash;
-      } else if (c == '\n') {
-        ++*lf_cnt;
-        if (!prev_backslash) {
-          return e;
-        }
-      } else if (c != '\r') {
-        prev_backslash = false;
-      }
-    }
-    return e;
+    return ::FindEndOfLine(buf_, l_, lf_cnt);
   }
 
   void ParseLine(StringPiece line) {
