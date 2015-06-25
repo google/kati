@@ -77,6 +77,7 @@ class Parser {
       if (!fixed_lineno_)
         loc_.lineno++;
       StringPiece line(buf_.data() + l_, e - l_);
+      orig_line_with_directives_ = line;
       ParseLine(line);
       if (!fixed_lineno_)
         loc_.lineno += lf_cnt - 1;
@@ -99,10 +100,18 @@ class Parser {
     (*make_directives_)["ifneq"] = &Parser::ParseIfeq;
     (*make_directives_)["else"] = &Parser::ParseElse;
     (*make_directives_)["endif"] = &Parser::ParseEndif;
+    (*make_directives_)["override"] = &Parser::ParseOverride;
+    (*make_directives_)["export"] = &Parser::ParseExport;
+    (*make_directives_)["unexport"] = &Parser::ParseUnexport;
 
     else_if_directives_ = new DirectiveMap;
     (*else_if_directives_)["ifdef"] = &Parser::ParseIfdef;
     (*else_if_directives_)["ifndef"] = &Parser::ParseIfdef;
+
+    assign_directives_ = new DirectiveMap;
+    (*assign_directives_)["define"] = &Parser::ParseDefine;
+    (*assign_directives_)["export"] = &Parser::ParseExport;
+    (*assign_directives_)["override"] = &Parser::ParseOverride;
 
     shortest_directive_len_ = 9999;
     longest_directive_len_ = 0;
@@ -135,6 +144,8 @@ class Parser {
       return;
     }
 
+    current_directive_ = AssignDirective::NONE;
+
     if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
       CommandAST* ast = new CommandAST();
       ast->set_loc(loc_);
@@ -152,6 +163,10 @@ class Parser {
       return;
     }
 
+    ParseRuleOrAssign(line);
+  }
+
+  void ParseRuleOrAssign(StringPiece line) {
     size_t sep = FindTwoOutsideParen(line, ':', '=');
     if (sep == string::npos) {
       ParseRule(line, sep);
@@ -167,6 +182,13 @@ class Parser {
   }
 
   void ParseRule(StringPiece line, size_t sep) {
+    if (current_directive_ != AssignDirective::NONE) {
+      if (sep != string::npos) {
+        sep += orig_line_with_directives_.size() - line.size();
+      }
+      line = orig_line_with_directives_;
+    }
+
     const bool is_rule = sep != string::npos && line[sep] == ':';
     RuleAST* ast = new RuleAST();
     ast->set_loc(loc_);
@@ -202,7 +224,7 @@ class Parser {
     ast->rhs = ParseExpr(rhs);
     ast->orig_rhs = rhs;
     ast->op = op;
-    ast->directive = AssignDirective::NONE;
+    ast->directive = current_directive_;
     out_asts_->push_back(ast);
     state_ = ParserState::NOT_AFTER_RULE;
   }
@@ -249,7 +271,7 @@ class Parser {
     ast->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
     ast->orig_rhs = rhs;
     ast->op = AssignOp::EQ;
-    ast->directive = AssignDirective::NONE;
+    ast->directive = current_directive_;
     out_asts_->push_back(ast);
     define_name_.clear();
   }
@@ -364,6 +386,23 @@ class Parser {
     }
   }
 
+  void ParseOverride(StringPiece line, StringPiece directive) {
+    current_directive_ =
+        static_cast<AssignDirective>(
+            (static_cast<int>(current_directive_) |
+             static_cast<int>(AssignDirective::OVERRIDE)));
+    if (HandleDirective(line, assign_directives_))
+      return;
+
+    ParseRuleOrAssign(line);
+  }
+
+  void ParseExport(StringPiece line, StringPiece) {
+  }
+
+  void ParseUnexport(StringPiece line, StringPiece) {
+  }
+
   void CheckIfStack(const char* keyword) {
     if (if_stack_.empty()) {
       Error(StringPrintf("*** extraneous `%s'.", keyword));
@@ -408,6 +447,9 @@ class Parser {
   size_t define_start_;
   int define_start_line_;
 
+  StringPiece orig_line_with_directives_;
+  AssignDirective current_directive_;
+
   int num_if_nest_;
   stack<IfState*> if_stack_;
 
@@ -416,6 +458,7 @@ class Parser {
 
   static DirectiveMap* make_directives_;
   static DirectiveMap* else_if_directives_;
+  static DirectiveMap* assign_directives_;
   static size_t shortest_directive_len_;
   static size_t longest_directive_len_;
 };
@@ -442,6 +485,7 @@ void QuitParser() {
 
 Parser::DirectiveMap* Parser::make_directives_;
 Parser::DirectiveMap* Parser::else_if_directives_;
+Parser::DirectiveMap* Parser::assign_directives_;
 size_t Parser::shortest_directive_len_;
 size_t Parser::longest_directive_len_;
 
