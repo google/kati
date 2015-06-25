@@ -60,10 +60,10 @@ func (v autoVar) Append(*Evaluator, string) Var {
 func (v autoVar) AppendVar(*Evaluator, Value) Var {
 	panic("must not be called")
 }
-func (v autoVar) Serialize() SerializableVar {
+func (v autoVar) serialize() serializableVar {
 	panic(fmt.Sprintf("cannot serialize auto var: %q", v))
 }
-func (v autoVar) Dump(w io.Writer) {
+func (v autoVar) dump(w io.Writer) {
 	panic(fmt.Sprintf("cannot dump auto var: %q", v))
 }
 
