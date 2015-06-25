@@ -28,9 +28,9 @@ namespace {
 // and file are considered to be the same file.
 // From http://www.gnu.org/software/make/manual/make.html#Features
 StringPiece TrimLeadingCurdir(StringPiece s) {
-  if (s.substr(0, 2) != "./")
-    return s;
-  return s.substr(2);
+  while (s.substr(0, 2) == "./")
+    s = s.substr(2);
+  return s;
 }
 
 static void ParseInputs(Rule* r, StringPiece s) {
