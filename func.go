@@ -147,7 +147,7 @@ func (c *fclosure) Serialize() SerializableVar {
 }
 
 func (c *fclosure) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeFunc)
+	dumpByte(w, valueTypeFunc)
 	for _, a := range c.args {
 		a.Dump(w)
 	}
@@ -972,7 +972,7 @@ func (f *funcNop) Serialize() SerializableVar {
 	}
 }
 func (f *funcNop) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeNop)
+	dumpByte(w, valueTypeNop)
 }
 
 func parseAssignLiteral(s string) (lhs, op string, rhs Value, ok bool) {
@@ -1058,7 +1058,7 @@ func (f *funcEvalAssign) Serialize() SerializableVar {
 }
 
 func (f *funcEvalAssign) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeAssign)
+	dumpByte(w, valueTypeAssign)
 	dumpString(w, f.lhs)
 	dumpString(w, f.op)
 	f.rhs.Dump(w)

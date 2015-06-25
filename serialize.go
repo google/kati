@@ -31,19 +31,19 @@ import (
 )
 
 const (
-	ValueTypeRecursive = 'R'
-	ValueTypeSimple    = 'S'
-	ValueTypeTSV       = 'T'
-	ValueTypeUndefined = 'U'
-	ValueTypeAssign    = 'a'
-	ValueTypeExpr      = 'e'
-	ValueTypeFunc      = 'f'
-	ValueTypeLiteral   = 'l'
-	ValueTypeNop       = 'n'
-	ValueTypeParamref  = 'p'
-	ValueTypeVarref    = 'r'
-	ValueTypeVarsubst  = 's'
-	ValueTypeTmpval    = 't'
+	valueTypeRecursive = 'R'
+	valueTypeSimple    = 'S'
+	valueTypeTSV       = 'T'
+	valueTypeUndefined = 'U'
+	valueTypeAssign    = 'a'
+	valueTypeExpr      = 'e'
+	valueTypeFunc      = 'f'
+	valueTypeLiteral   = 'l'
+	valueTypeNop       = 'n'
+	valueTypeParamref  = 'p'
+	valueTypeVarref    = 'r'
+	valueTypeVarsubst  = 's'
+	valueTypeTmpval    = 't'
 )
 
 func dumpInt(w io.Writer, i int) {
