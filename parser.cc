@@ -189,6 +189,8 @@ class Parser {
         sep += orig_line_with_directives_.size() - line.size();
       }
       line = orig_line_with_directives_;
+    } else if (orig_line_with_directives_[0] == '\t') {
+      Error("*** commands commence before first target.");
     }
 
     const bool is_rule = sep != string::npos && line[sep] == ':';
