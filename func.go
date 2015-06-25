@@ -27,11 +27,11 @@ import (
 	"time"
 )
 
-// Func is a make function.
+// mkFunc is a make function.
 // http://www.gnu.org/software/make/manual/make.html#Functions
 
-// Func is make builtin function.
-type Func interface {
+// mkFunc is make builtin function.
+type mkFunc interface {
 	// Arity is max function's arity.
 	// ',' will not be handled as argument separator more than arity.
 	// 0 means varargs.
@@ -45,48 +45,48 @@ type Func interface {
 }
 
 var (
-	funcMap = map[string]func() Func{
-		"patsubst":   func() Func { return &funcPatsubst{} },
-		"strip":      func() Func { return &funcStrip{} },
-		"subst":      func() Func { return &funcSubst{} },
-		"findstring": func() Func { return &funcFindstring{} },
-		"filter":     func() Func { return &funcFilter{} },
-		"filter-out": func() Func { return &funcFilterOut{} },
-		"sort":       func() Func { return &funcSort{} },
-		"word":       func() Func { return &funcWord{} },
-		"wordlist":   func() Func { return &funcWordlist{} },
-		"words":      func() Func { return &funcWords{} },
-		"firstword":  func() Func { return &funcFirstword{} },
-		"lastword":   func() Func { return &funcLastword{} },
+	funcMap = map[string]func() mkFunc{
+		"patsubst":   func() mkFunc { return &funcPatsubst{} },
+		"strip":      func() mkFunc { return &funcStrip{} },
+		"subst":      func() mkFunc { return &funcSubst{} },
+		"findstring": func() mkFunc { return &funcFindstring{} },
+		"filter":     func() mkFunc { return &funcFilter{} },
+		"filter-out": func() mkFunc { return &funcFilterOut{} },
+		"sort":       func() mkFunc { return &funcSort{} },
+		"word":       func() mkFunc { return &funcWord{} },
+		"wordlist":   func() mkFunc { return &funcWordlist{} },
+		"words":      func() mkFunc { return &funcWords{} },
+		"firstword":  func() mkFunc { return &funcFirstword{} },
+		"lastword":   func() mkFunc { return &funcLastword{} },
 
-		"join":      func() Func { return &funcJoin{} },
-		"wildcard":  func() Func { return &funcWildcard{} },
-		"dir":       func() Func { return &funcDir{} },
-		"notdir":    func() Func { return &funcNotdir{} },
-		"suffix":    func() Func { return &funcSuffix{} },
-		"basename":  func() Func { return &funcBasename{} },
-		"addsuffix": func() Func { return &funcAddsuffix{} },
-		"addprefix": func() Func { return &funcAddprefix{} },
-		"realpath":  func() Func { return &funcRealpath{} },
-		"abspath":   func() Func { return &funcAbspath{} },
+		"join":      func() mkFunc { return &funcJoin{} },
+		"wildcard":  func() mkFunc { return &funcWildcard{} },
+		"dir":       func() mkFunc { return &funcDir{} },
+		"notdir":    func() mkFunc { return &funcNotdir{} },
+		"suffix":    func() mkFunc { return &funcSuffix{} },
+		"basename":  func() mkFunc { return &funcBasename{} },
+		"addsuffix": func() mkFunc { return &funcAddsuffix{} },
+		"addprefix": func() mkFunc { return &funcAddprefix{} },
+		"realpath":  func() mkFunc { return &funcRealpath{} },
+		"abspath":   func() mkFunc { return &funcAbspath{} },
 
-		"if":  func() Func { return &funcIf{} },
-		"and": func() Func { return &funcAnd{} },
-		"or":  func() Func { return &funcOr{} },
+		"if":  func() mkFunc { return &funcIf{} },
+		"and": func() mkFunc { return &funcAnd{} },
+		"or":  func() mkFunc { return &funcOr{} },
 
-		"value": func() Func { return &funcValue{} },
+		"value": func() mkFunc { return &funcValue{} },
 
-		"eval": func() Func { return &funcEval{} },
+		"eval": func() mkFunc { return &funcEval{} },
 
-		"shell":   func() Func { return &funcShell{} },
-		"call":    func() Func { return &funcCall{} },
-		"foreach": func() Func { return &funcForeach{} },
+		"shell":   func() mkFunc { return &funcShell{} },
+		"call":    func() mkFunc { return &funcCall{} },
+		"foreach": func() mkFunc { return &funcForeach{} },
 
-		"origin":  func() Func { return &funcOrigin{} },
-		"flavor":  func() Func { return &funcFlavor{} },
-		"info":    func() Func { return &funcInfo{} },
-		"warning": func() Func { return &funcWarning{} },
-		"error":   func() Func { return &funcError{} },
+		"origin":  func() mkFunc { return &funcOrigin{} },
+		"flavor":  func() mkFunc { return &funcFlavor{} },
+		"info":    func() mkFunc { return &funcInfo{} },
+		"warning": func() mkFunc { return &funcWarning{} },
+		"error":   func() mkFunc { return &funcError{} },
 	}
 )
 
@@ -800,22 +800,22 @@ func (f *funcShell) Compact() Value {
 		return f
 	}
 
-	var expr Expr
+	var exp expr
 	switch v := f.args[1].(type) {
-	case Expr:
-		expr = v
+	case expr:
+		exp = v
 	default:
-		expr = Expr{v}
+		exp = expr{v}
 	}
 	if UseShellBuiltins {
 		// hack for android
 		for _, sb := range shBuiltins {
-			if v, ok := matchExpr(expr, sb.pattern); ok {
-				Logf("shell compact apply %s for %s", sb.name, expr)
+			if v, ok := matchExpr(exp, sb.pattern); ok {
+				Logf("shell compact apply %s for %s", sb.name, exp)
 				return sb.compact(f, v)
 			}
 		}
-		Logf("shell compact no match: %s", expr)
+		Logf("shell compact no match: %s", exp)
 	}
 	return f
 }
@@ -903,7 +903,7 @@ func (f *funcEval) Compact() Value {
 	}
 	switch arg := f.args[1].(type) {
 	case literal, tmpval:
-	case Expr:
+	case expr:
 		if len(arg) == 1 {
 			return f
 		}
@@ -912,7 +912,7 @@ func (f *funcEval) Compact() Value {
 			lhs, op, rhsprefix, ok := parseAssignLiteral(prefix.String())
 			if ok {
 				// $(eval foo = $(bar))
-				var rhs Expr
+				var rhs expr
 				if rhsprefix != literal("") {
 					rhs = append(rhs, rhsprefix)
 				}
@@ -1016,12 +1016,12 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 	case ":=":
 		// TODO(ukai): compute parsed expr in Compact when f.rhs is
 		// literal? e.g. literal("$(foo)") => varref{literal("foo")}.
-		expr, _, err := parseExpr(rhs, nil, false)
+		exp, _, err := parseExpr(rhs, nil, false)
 		if err != nil {
 			panic(fmt.Sprintf("eval assign error: %q: %v", f.String(), err))
 		}
 		vbuf := newBuf()
-		expr.Eval(vbuf, ev)
+		exp.Eval(vbuf, ev)
 		rvalue = &simpleVar{value: vbuf.String(), origin: "file"}
 		freeBuf(vbuf)
 	case "=":

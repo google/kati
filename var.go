@@ -194,22 +194,22 @@ func (v *recursiveVar) dump(w io.Writer) {
 }
 
 func (v *recursiveVar) Append(_ *Evaluator, s string) Var {
-	var expr Expr
-	if e, ok := v.expr.(Expr); ok {
-		expr = append(e, literal(" "))
+	var exp expr
+	if e, ok := v.expr.(expr); ok {
+		exp = append(e, literal(" "))
 	} else {
-		expr = Expr{v.expr, literal(" ")}
+		exp = expr{v.expr, literal(" ")}
 	}
 	sv, _, err := parseExpr([]byte(s), nil, true)
 	if err != nil {
 		panic(err)
 	}
-	if aexpr, ok := sv.(Expr); ok {
-		expr = append(expr, aexpr...)
+	if aexpr, ok := sv.(expr); ok {
+		exp = append(exp, aexpr...)
 	} else {
-		expr = append(expr, sv)
+		exp = append(exp, sv)
 	}
-	v.expr = expr
+	v.expr = exp
 	return v
 }
 

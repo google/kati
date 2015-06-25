@@ -314,7 +314,7 @@ func deserializeVar(sv serializableVar) (r Value) {
 	case "tmpval":
 		return tmpval([]byte(sv.V))
 	case "expr":
-		var e Expr
+		var e expr
 		for _, v := range sv.Children {
 			e = append(e, deserializeVar(v))
 		}
