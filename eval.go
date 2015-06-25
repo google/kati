@@ -132,7 +132,7 @@ func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
 	if LogFlag {
 		Logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
 	}
-	vars.Assign(lhs, &TargetSpecificVar{v: rhs, op: assign.op})
+	vars.Assign(lhs, &targetSpecificVar{v: rhs, op: assign.op})
 	ev.currentScope = nil
 }
 
@@ -453,7 +453,7 @@ func Eval(mk Makefile, vars Vars, useCache bool) (er *EvalResult, err error) {
 
 	makefileList := vars.Lookup("MAKEFILE_LIST")
 	if !makefileList.IsDefined() {
-		makefileList = &SimpleVar{value: "", origin: "file"}
+		makefileList = &simpleVar{value: "", origin: "file"}
 	}
 	makefileList = makefileList.Append(ev, mk.filename)
 	ev.outVars.Assign("MAKEFILE_LIST", makefileList)

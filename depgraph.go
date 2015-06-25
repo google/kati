@@ -71,11 +71,11 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	mk.stmts = append(bmk.stmts, mk.stmts...)
 
 	vars := make(Vars)
-	err = InitVars(vars, opt.EnvironmentVars, "environment")
+	err = initVars(vars, opt.EnvironmentVars, "environment")
 	if err != nil {
 		return nil, err
 	}
-	err = InitVars(vars, opt.CommandLineVars, "command line")
+	err = initVars(vars, opt.CommandLineVars, "command line")
 	if err != nil {
 		return nil, err
 	}

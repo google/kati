@@ -352,18 +352,18 @@ func DeserializeVar(sv SerializableVar) (r Value) {
 		return &funcNop{expr: sv.V}
 
 	case "simple":
-		return &SimpleVar{
+		return &simpleVar{
 			value:  sv.V,
 			origin: sv.Origin,
 		}
 	case "recursive":
-		return &RecursiveVar{
+		return &recursiveVar{
 			expr:   DeserializeSingleChild(sv),
 			origin: sv.Origin,
 		}
 
 	case ":=", "=", "+=", "?=":
-		return &TargetSpecificVar{
+		return &targetSpecificVar{
 			v:  DeserializeSingleChild(sv).(Var),
 			op: sv.Type,
 		}
