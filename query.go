@@ -69,7 +69,7 @@ func HandleNodeQuery(q string, nodes []*DepNode) {
 
 func HandleQuery(q string, g *DepGraph) {
 	if q == "$MAKEFILE_LIST" {
-		for _, mk := range g.readMks {
+		for _, mk := range g.accessedMks {
 			fmt.Printf("%s: state=%d\n", mk.Filename, mk.State)
 		}
 		return

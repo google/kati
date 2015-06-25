@@ -21,28 +21,88 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
-type FileState int
+type fileState int
 
 const (
-	FileExists FileState = iota
-	FileNotExists
-	FileInconsistent // Modified during kati is running.
+	fileExists fileState = iota
+	fileNotExists
+	fileInconsistent // Modified during kati is running.
 )
 
-type ReadMakefile struct {
+type accessedMakefile struct {
 	Filename string
 	Hash     [sha1.Size]byte
-	State    FileState
+	State    fileState
+}
+
+type accessCache struct {
+	mu sync.Mutex
+	m  map[string]*accessedMakefile
+}
+
+func newAccessCache() *accessCache {
+	return &accessCache{
+		m: make(map[string]*accessedMakefile),
+	}
+}
+
+func (ac *accessCache) update(fn string, hash [sha1.Size]byte, st fileState) string {
+	if ac == nil {
+		return ""
+	}
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	rm, present := ac.m[fn]
+	if present {
+		switch rm.State {
+		case fileExists:
+			if st != fileExists {
+				return fmt.Sprintf("%s was removed after the previous read", fn)
+			} else if !bytes.Equal(hash[:], rm.Hash[:]) {
+				ac.m[fn].State = fileInconsistent
+				return fmt.Sprintf("%s was modified after the previous read", fn)
+			}
+			return ""
+		case fileNotExists:
+			if st != fileNotExists {
+				ac.m[fn].State = fileInconsistent
+				return fmt.Sprintf("%s was created after the previous read", fn)
+			}
+		case fileInconsistent:
+			return ""
+		}
+		return ""
+	}
+	ac.m[fn] = &accessedMakefile{
+		Filename: fn,
+		Hash:     hash,
+		State:    st,
+	}
+	return ""
+}
+
+func (ac *accessCache) Slice() []*accessedMakefile {
+	if ac == nil {
+		return nil
+	}
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	r := []*accessedMakefile{}
+	for _, v := range ac.m {
+		r = append(r, v)
+	}
+	return r
 }
 
 type EvalResult struct {
-	vars     Vars
-	rules    []*Rule
-	ruleVars map[string]Vars
-	readMks  []*ReadMakefile
-	exports  map[string]bool
+	vars        Vars
+	rules       []*Rule
+	ruleVars    map[string]Vars
+	accessedMks []*accessedMakefile
+	exports     map[string]bool
 }
 
 type Evaluator struct {
@@ -53,10 +113,9 @@ type Evaluator struct {
 	vars         Vars
 	lastRule     *Rule
 	currentScope Vars
-	useCache     bool
 	avoidIO      bool
 	hasIO        bool
-	readMks      map[string]*ReadMakefile
+	cache        *accessCache
 	exports      map[string]bool
 
 	filename string
@@ -68,7 +127,6 @@ func NewEvaluator(vars map[string]Var) *Evaluator {
 		outVars:     make(Vars),
 		vars:        vars,
 		outRuleVars: make(map[string]Vars),
-		readMks:     make(map[string]*ReadMakefile),
 		exports:     make(map[string]bool),
 	}
 }
@@ -288,39 +346,6 @@ func (ev *Evaluator) evalIncludeFile(fname string, mk Makefile) error {
 	return nil
 }
 
-func (ev *Evaluator) updateReadMakefile(fn string, hash [sha1.Size]byte, st FileState) {
-	if !ev.useCache {
-		return
-	}
-
-	rm, present := ev.readMks[fn]
-	if present {
-		switch rm.State {
-		case FileExists:
-			if st != FileExists {
-				Warn(ev.filename, ev.lineno, "%s was removed after the previous read", fn)
-			} else if !bytes.Equal(hash[:], rm.Hash[:]) {
-				Warn(ev.filename, ev.lineno, "%s was modified after the previous read", fn)
-				ev.readMks[fn].State = FileInconsistent
-			}
-			return
-		case FileNotExists:
-			if st != FileNotExists {
-				Warn(ev.filename, ev.lineno, "%s was created after the previous read", fn)
-				ev.readMks[fn].State = FileInconsistent
-			}
-		case FileInconsistent:
-			return
-		}
-		return
-	}
-	ev.readMks[fn] = &ReadMakefile{
-		Filename: fn,
-		Hash:     hash,
-		State:    st,
-	}
-}
-
 func (ev *Evaluator) evalInclude(ast *includeAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
@@ -358,11 +383,17 @@ func (ev *Evaluator) evalInclude(ast *includeAST) {
 			if ast.op == "include" {
 				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
 			} else {
-				ev.updateReadMakefile(fn, hash, FileNotExists)
+				msg := ev.cache.update(fn, hash, fileNotExists)
+				if msg != "" {
+					Warn(ev.filename, ev.lineno, "%s", msg)
+				}
 				continue
 			}
 		}
-		ev.updateReadMakefile(fn, hash, FileExists)
+		msg := ev.cache.update(fn, hash, fileExists)
+		if msg != "" {
+			Warn(ev.filename, ev.lineno, "%s", msg)
+		}
 		err = ev.evalIncludeFile(fn, mk)
 		if err != nil {
 			panic(err)
@@ -434,17 +465,11 @@ func (ev *Evaluator) eval(stmt ast) {
 	stmt.eval(ev)
 }
 
-func createReadMakefileArray(mp map[string]*ReadMakefile) []*ReadMakefile {
-	var r []*ReadMakefile
-	for _, v := range mp {
-		r = append(r, v)
-	}
-	return r
-}
-
 func Eval(mk Makefile, vars Vars, useCache bool) (er *EvalResult, err error) {
 	ev := NewEvaluator(vars)
-	ev.useCache = useCache
+	if useCache {
+		ev.cache = newAccessCache()
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic in eval %s: %v", mk.filename, r)
@@ -463,10 +488,10 @@ func Eval(mk Makefile, vars Vars, useCache bool) (er *EvalResult, err error) {
 	}
 
 	return &EvalResult{
-		vars:     ev.outVars,
-		rules:    ev.outRules,
-		ruleVars: ev.outRuleVars,
-		readMks:  createReadMakefileArray(ev.readMks),
-		exports:  ev.exports,
+		vars:        ev.outVars,
+		rules:       ev.outRules,
+		ruleVars:    ev.outRuleVars,
+		accessedMks: ev.cache.Slice(),
+		exports:     ev.exports,
 	}, nil
 }
