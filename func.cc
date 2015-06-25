@@ -423,7 +423,8 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   vector<unique_ptr<SimpleVar>> av;
   vector<unique_ptr<ScopedVar>> sv;
   for (size_t i = 1; i < args.size(); i++) {
-    unique_ptr<SimpleVar> s(new SimpleVar(args[i]->Eval(ev), "automatic"));
+    unique_ptr<SimpleVar> s(
+        new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC));
     sv.push_back(move(unique_ptr<ScopedVar>(
         new ScopedVar(ev->mutable_vars(), tmpvar_names[i], s.get()))));
     av.push_back(move(s));
@@ -437,7 +438,7 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*list)) {
     unique_ptr<SimpleVar> v(new SimpleVar(
-        make_shared<string>(tok.data(), tok.size()), "automatic"));
+        make_shared<string>(tok.data(), tok.size()), VarOrigin::AUTOMATIC));
     ScopedVar sv(ev->mutable_vars(), *varname, v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
@@ -447,7 +448,7 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void OriginFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> var_name = args[0]->Eval(ev);
   Var* var = ev->LookupVar(*var_name);
-  *s += var->Origin();
+  *s += GetOriginStr(var->Origin());
 }
 
 void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {

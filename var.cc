@@ -22,6 +22,21 @@
 UndefinedVar kUndefinedBuf;
 UndefinedVar* kUndefined = &kUndefinedBuf;
 
+const char* GetOriginStr(VarOrigin origin) {
+  switch (origin) {
+    case VarOrigin::UNDEFINED: return "undefined";
+    case VarOrigin::DEFAULT: return "default";
+    case VarOrigin::ENVIRONMENT: return "environment";
+    case VarOrigin::ENVIRONMENT_OVERRIDE: return "environment override";
+    case VarOrigin::FILE: return "file";
+    case VarOrigin::COMMAND_LINE: return "command line";
+    case VarOrigin::OVERRIDE: return "override";
+    case VarOrigin::AUTOMATIC: return "automatic";
+  }
+  CHECK(false);
+  return "*** broken origin ***";
+}
+
 Var::Var() {
 }
 
@@ -32,7 +47,7 @@ void Var::AppendVar(Evaluator*, Value*) {
   CHECK(false);
 }
 
-SimpleVar::SimpleVar(shared_ptr<string> v, const char* origin)
+SimpleVar::SimpleVar(shared_ptr<string> v, VarOrigin origin)
     : v_(v), origin_(origin) {
 }
 
@@ -55,7 +70,7 @@ string SimpleVar::DebugString() const {
   return *v_;
 }
 
-RecursiveVar::RecursiveVar(Value* v, const char* origin, StringPiece orig)
+RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, StringPiece orig)
     : v_(v), origin_(origin), orig_(orig) {
 }
 
