@@ -32,14 +32,14 @@ func ParseCommandLine(cmdline []string) ([]string, []string) {
 	return vars, targets
 }
 
-func InitVars(vars Vars, kvlist []string, origin string) error {
+func initVars(vars Vars, kvlist []string, origin string) error {
 	for _, v := range kvlist {
 		kv := strings.SplitN(v, "=", 2)
 		Logf("%s var %q", origin, v)
 		if len(kv) < 2 {
 			return fmt.Errorf("A weird %s variable %q", origin, kv)
 		}
-		vars.Assign(kv[0], &RecursiveVar{
+		vars.Assign(kv[0], &recursiveVar{
 			expr:   literal(kv[1]),
 			origin: origin,
 		})

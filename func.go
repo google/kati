@@ -1022,23 +1022,23 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		}
 		vbuf := newBuf()
 		expr.Eval(vbuf, ev)
-		rvalue = &SimpleVar{value: vbuf.String(), origin: "file"}
+		rvalue = &simpleVar{value: vbuf.String(), origin: "file"}
 		freeBuf(vbuf)
 	case "=":
-		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
+		rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
 		prev := ev.LookupVar(f.lhs)
 		if prev.IsDefined() {
 			rvalue = prev.Append(ev, string(rhs))
 		} else {
-			rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
+			rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}
 		}
 	case "?=":
 		prev := ev.LookupVar(f.lhs)
 		if prev.IsDefined() {
 			return
 		}
-		rvalue = &RecursiveVar{expr: tmpval(rhs), origin: "file"}
+		rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
 	if LogFlag {
 		Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
@@ -1150,7 +1150,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) {
 	space := false
 	for ws.Scan() {
 		word := ws.Bytes()
-		ev.outVars.Assign(varname, &AutomaticVar{value: word})
+		ev.outVars.Assign(varname, &automaticVar{value: word})
 		if space {
 			writeByte(w, ' ')
 		}
