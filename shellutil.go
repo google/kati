@@ -23,14 +23,14 @@ import (
 
 var shBuiltins = []struct {
 	name    string
-	pattern Expr
+	pattern expr
 	compact func(*funcShell, []Value) Value
 }{
 	{
 		name: "android:rot13",
 		// in repo/android/build/core/definisions.mk
 		// echo $(1) | tr 'a-zA-Z' 'n-za-mN-ZA-M'
-		pattern: Expr{
+		pattern: expr{
 			literal("echo "),
 			matchVarref{},
 			literal(" | tr 'a-zA-Z' 'n-za-mN-ZA-M'"),
@@ -46,7 +46,7 @@ var shBuiltins = []struct {
 		name: "android:find-subdir-assets",
 		// in repo/android/build/core/definitions.mk
 		// if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
-		pattern: Expr{
+		pattern: expr{
 			literal("if [ -d "),
 			matchVarref{},
 			literal(" ] ; then cd "),
@@ -68,7 +68,7 @@ var shBuiltins = []struct {
 		name: "android:all-java-files-under",
 		// in repo/android/build/core/definitions.mk
 		// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
-		pattern: Expr{
+		pattern: expr{
 			literal("cd "),
 			matchVarref{},
 			literal(" ; find -L "),
@@ -90,7 +90,7 @@ var shBuiltins = []struct {
 		// in repo/android/build/core/definitions.mk
 		// cd $(LOCAL_PATH) ; \
 		// find -L $(1) -name "*.proto" -and -not -name ".*"
-		pattern: Expr{
+		pattern: expr{
 			literal("cd "),
 			matchVarref{},
 			literal(" ; find -L "),
@@ -115,7 +115,7 @@ var shBuiltins = []struct {
 		// -a \! -name "package.html" -a \! -name "overview.html" \
 		// -a \! -name ".*.swp" -a \! -name ".DS_Store" \
 		// -a \! -name "*~" -print )
-		pattern: Expr{
+		pattern: expr{
 			literal("cd "),
 			matchVarref{},
 			matchVarref{},
@@ -127,7 +127,7 @@ var shBuiltins = []struct {
 			androidFindCache.init(nil)
 			return &funcShellAndroidFindJavaResourceFileGroup{
 				funcShell: sh,
-				dir:       Expr(v),
+				dir:       expr(v),
 			}
 		},
 	},
@@ -135,7 +135,7 @@ var shBuiltins = []struct {
 		name: "android:subdir_cleanspecs",
 		// in repo/android/build/core/cleanspec.mk
 		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git . CleanSpec.mk)
-		pattern: Expr{
+		pattern: expr{
 			literal("build/tools/findleaves.py --prune="),
 			matchVarref{},
 			literal(" --prune=.repo --prune=.git . CleanSpec.mk"),
@@ -162,7 +162,7 @@ var shBuiltins = []struct {
 		name: "android:subdir_makefiles",
 		// in repo/android/build/core/main.mk
 		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git $(subdirs) Android.mk
-		pattern: Expr{
+		pattern: expr{
 			literal("build/tools/findleaves.py --prune="),
 			matchVarref{},
 			literal(" --prune=.repo --prune=.git "),
@@ -192,7 +192,7 @@ var shBuiltins = []struct {
 		// in repo/android/build/core/definisions.mk
 		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git \
 		// --mindepth=2 $(1) Android.mk
-		pattern: Expr{
+		pattern: expr{
 			literal("build/tools/findleaves.py --prune="),
 			matchVarref{},
 			literal(" --prune=.repo --prune=.git --mindepth=2 "),
@@ -219,14 +219,14 @@ var shBuiltins = []struct {
 	},
 	{
 		name: "shell-date",
-		pattern: Expr{
+		pattern: expr{
 			mustLiteralRE(`date \+(\S+)`),
 		},
 		compact: compactShellDate,
 	},
 	{
 		name: "shell-date-quoted",
-		pattern: Expr{
+		pattern: expr{
 			mustLiteralRE(`date "\+([^"]+)"`),
 		},
 		compact: compactShellDate,

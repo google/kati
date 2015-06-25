@@ -69,7 +69,7 @@ func TestShellDate(t *testing.T) {
 			if b.name != "shell-date" && b.name != "shell-date-quoted" {
 				continue
 			}
-			m, ok := matchExpr(Expr{tc.sharg}, b.pattern)
+			m, ok := matchExpr(expr{tc.sharg}, b.pattern)
 			if !ok {
 				t.Logf("%s not match with %s", b.name, tc.sharg)
 				continue

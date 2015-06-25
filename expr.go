@@ -60,10 +60,6 @@ type Value interface {
 	dump(w io.Writer)
 }
 
-type Valuer interface {
-	Value() []byte
-}
-
 // literal is literal value.
 type literal string
 
@@ -95,10 +91,10 @@ func (t tmpval) dump(w io.Writer) {
 	dumpBytes(w, t)
 }
 
-// Expr is a list of values.
-type Expr []Value
+// expr is a list of values.
+type expr []Value
 
-func (e Expr) String() string {
+func (e expr) String() string {
 	var s []string
 	for _, v := range e {
 		s = append(s, v.String())
@@ -106,20 +102,20 @@ func (e Expr) String() string {
 	return strings.Join(s, "")
 }
 
-func (e Expr) Eval(w io.Writer, ev *Evaluator) {
+func (e expr) Eval(w io.Writer, ev *Evaluator) {
 	for _, v := range e {
 		v.Eval(w, ev)
 	}
 }
 
-func (e Expr) serialize() serializableVar {
+func (e expr) serialize() serializableVar {
 	r := serializableVar{Type: "expr"}
 	for _, v := range e {
 		r.Children = append(r.Children, v.serialize())
 	}
 	return r
 }
-func (e Expr) dump(w io.Writer) {
+func (e expr) dump(w io.Writer) {
 	dumpByte(w, valueTypeExpr)
 	dumpInt(w, len(e))
 	for _, v := range e {
@@ -127,7 +123,7 @@ func (e Expr) dump(w io.Writer) {
 	}
 }
 
-func compactExpr(e Expr) Value {
+func compactExpr(e expr) Value {
 	if len(e) == 1 {
 		return e[0]
 	}
@@ -256,24 +252,24 @@ func str(buf []byte, alloc bool) Value {
 	return tmpval(buf)
 }
 
-func appendStr(expr Expr, buf []byte, alloc bool) Expr {
+func appendStr(exp expr, buf []byte, alloc bool) expr {
 	if len(buf) == 0 {
-		return expr
+		return exp
 	}
-	if len(expr) == 0 {
-		return append(expr, str(buf, alloc))
+	if len(exp) == 0 {
+		return append(exp, str(buf, alloc))
 	}
-	switch v := expr[len(expr)-1].(type) {
+	switch v := exp[len(exp)-1].(type) {
 	case literal:
 		v += literal(string(buf))
-		expr[len(expr)-1] = v
-		return expr
+		exp[len(exp)-1] = v
+		return exp
 	case tmpval:
 		v = append(v, buf...)
-		expr[len(expr)-1] = v
-		return expr
+		exp[len(exp)-1] = v
+		return exp
 	}
-	return append(expr, str(buf, alloc))
+	return append(exp, str(buf, alloc))
 }
 
 func valueNum(v Value) (int, error) {
@@ -293,7 +289,7 @@ func valueNum(v Value) (int, error) {
 // if alloc is true, text will be literal (allocate string).
 // otherwise, text will be tmpval on in.
 func parseExpr(in, term []byte, alloc bool) (Value, int, error) {
-	var expr Expr
+	var exp expr
 	b := 0
 	i := 0
 	var saveParen byte
@@ -310,26 +306,26 @@ Loop:
 				break Loop
 			}
 			if in[i+1] == '$' {
-				expr = appendStr(expr, in[b:i+1], alloc)
+				exp = appendStr(exp, in[b:i+1], alloc)
 				i += 2
 				b = i
 				continue
 			}
 			if bytes.IndexByte(term, in[i+1]) >= 0 {
-				expr = appendStr(expr, in[b:i], alloc)
-				expr = append(expr, &varref{varname: literal("")})
+				exp = appendStr(exp, in[b:i], alloc)
+				exp = append(exp, &varref{varname: literal("")})
 				i++
 				b = i
 				break Loop
 			}
-			expr = appendStr(expr, in[b:i], alloc)
+			exp = appendStr(exp, in[b:i], alloc)
 			v, n, err := parseDollar(in[i:], alloc)
 			if err != nil {
 				return nil, 0, err
 			}
 			i += n
 			b = i
-			expr = append(expr, v)
+			exp = append(exp, v)
 			continue
 		case '(', '{':
 			cp := closeParen(ch)
@@ -350,11 +346,11 @@ Loop:
 		}
 		i++
 	}
-	expr = appendStr(expr, in[b:i], alloc)
+	exp = appendStr(exp, in[b:i], alloc)
 	if i == len(in) && term != nil {
-		return expr, i, errEndOfInput
+		return exp, i, errEndOfInput
 	}
-	return compactExpr(expr), i, nil
+	return compactExpr(exp), i, nil
 }
 
 func closeParen(ch byte) byte {
@@ -392,7 +388,7 @@ func parseDollar(in []byte, alloc bool) (Value, int, error) {
 		return &varref{varname: str(in[1:2], alloc)}, 2, nil
 	}
 	term := []byte{paren, ':', ' '}
-	var varname Expr
+	var varname expr
 	i := 2
 Again:
 	for {
@@ -483,7 +479,7 @@ func trimLiteralSpace(v Value) Value {
 			return literal("")
 		}
 		return tmpval(b)
-	case Expr:
+	case expr:
 		if len(v) == 0 {
 			return v
 		}
@@ -535,7 +531,7 @@ func concatLine(v Value) Value {
 			buf.Write(bytes.TrimLeft(b[i+2:], " \t"))
 			v = tmpval(buf.Bytes())
 		}
-	case Expr:
+	case expr:
 		for i := range v {
 			switch vv := v[i].(type) {
 			case literal, tmpval:
@@ -550,7 +546,7 @@ func concatLine(v Value) Value {
 // parseFunc parses function arguments from in[s:] for f.
 // in[0] is '$' and in[s] is space just after func name.
 // in[:n] will be "${func args...}"
-func parseFunc(f Func, in []byte, s int, term []byte, funcName string, alloc bool) (Value, int, error) {
+func parseFunc(f mkFunc, in []byte, s int, term []byte, funcName string, alloc bool) (Value, int, error) {
 	f.AddArg(str(in[1:s-1], alloc))
 	arity := f.Arity()
 	term = append(term, ',')
@@ -588,7 +584,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string, alloc boo
 	}
 	var fv Value
 	fv = f
-	if compactor, ok := f.(Compactor); ok {
+	if compactor, ok := f.(compactor); ok {
 		fv = compactor.Compact()
 	}
 	if EvalStatsFlag || traceEvent.enabled() {
@@ -601,7 +597,7 @@ func parseFunc(f Func, in []byte, s int, term []byte, funcName string, alloc boo
 	return fv, i, nil
 }
 
-type Compactor interface {
+type compactor interface {
 	Compact() Value
 }
 
@@ -639,33 +635,33 @@ func (r literalRE) Eval(w io.Writer, ev *Evaluator) { panic("not implemented") }
 func (r literalRE) serialize() serializableVar      { panic("not implemented") }
 func (r literalRE) dump(w io.Writer)                { panic("not implemented") }
 
-func matchValue(expr, pat Value) bool {
+func matchValue(exp, pat Value) bool {
 	switch pat := pat.(type) {
 	case literal:
-		return literal(expr.String()) == pat
+		return literal(exp.String()) == pat
 	}
 	// TODO: other type match?
 	return false
 }
 
-func matchExpr(expr, pat Expr) ([]Value, bool) {
-	if len(expr) != len(pat) {
+func matchExpr(exp, pat expr) ([]Value, bool) {
+	if len(exp) != len(pat) {
 		return nil, false
 	}
 	var mv matchVarref
 	var matches []Value
-	for i := range expr {
+	for i := range exp {
 		if pat[i] == mv {
-			switch expr[i].(type) {
+			switch exp[i].(type) {
 			case paramref, *varref:
-				matches = append(matches, expr[i])
+				matches = append(matches, exp[i])
 				continue
 			}
 			return nil, false
 		}
 		if patre, ok := pat[i].(literalRE); ok {
 			re := patre.Regexp
-			m := re.FindStringSubmatch(expr[i].String())
+			m := re.FindStringSubmatch(exp[i].String())
 			if m == nil {
 				return nil, false
 			}
@@ -674,7 +670,7 @@ func matchExpr(expr, pat Expr) ([]Value, bool) {
 			}
 			continue
 		}
-		if !matchValue(expr[i], pat[i]) {
+		if !matchValue(exp[i], pat[i]) {
 			return nil, false
 		}
 	}

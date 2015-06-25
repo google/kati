@@ -47,7 +47,7 @@ func TestParseExpr(t *testing.T) {
 		},
 		{
 			in:  "$foo",
-			val: Expr{&varref{varname: literal("f")}, literal("oo")},
+			val: expr{&varref{varname: literal("f")}, literal("oo")},
 		},
 		{
 			in:  "$(foo)",
@@ -63,7 +63,7 @@ func TestParseExpr(t *testing.T) {
 		},
 		{
 			in: "$(subst $(space),$(,),$(foo))/bar",
-			val: Expr{
+			val: expr{
 				&funcSubst{
 					fclosure: fclosure{
 						args: []Value{
@@ -95,7 +95,7 @@ func TestParseExpr(t *testing.T) {
 						&varref{
 							varname: literal(""),
 						},
-						Expr{
+						expr{
 							literal(","),
 							&varref{
 								varname: literal("foo"),
@@ -129,7 +129,7 @@ func TestParseExpr(t *testing.T) {
 		},
 		{
 			in: `$(shell echo ')')`,
-			val: Expr{
+			val: expr{
 				&funcShell{
 					fclosure: fclosure{
 						args: []Value{
@@ -154,7 +154,7 @@ func TestParseExpr(t *testing.T) {
 		},
 		{
 			in: `${shell echo '}'}`,
-			val: Expr{
+			val: expr{
 				&funcShell{
 					fclosure: fclosure{
 						args: []Value{

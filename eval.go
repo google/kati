@@ -238,7 +238,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 			if err != nil {
 				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
 			}
-			lexpr = Expr{lexpr, nexpr}
+			lexpr = expr{lexpr, nexpr}
 
 			buf = newBuf()
 			lexpr.Eval(buf, ev)
