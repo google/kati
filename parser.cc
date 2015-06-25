@@ -183,6 +183,8 @@ class Parser {
 
   void ParseRule(StringPiece line, size_t sep) {
     if (current_directive_ != AssignDirective::NONE) {
+      if (IsInExport())
+        return;
       if (sep != string::npos) {
         sep += orig_line_with_directives_.size() - line.size();
       }
@@ -386,21 +388,45 @@ class Parser {
     }
   }
 
-  void ParseOverride(StringPiece line, StringPiece directive) {
+  bool IsInExport() const {
+    return (static_cast<int>(current_directive_) &
+            static_cast<int>(AssignDirective::EXPORT));
+  }
+
+  void CreateExport(StringPiece line, bool is_export) {
+    ExportAST* ast = new ExportAST;
+    ast->set_loc(loc_);
+    ast->expr = ParseExpr(line);
+    ast->is_export = is_export;
+    out_asts_->push_back(ast);
+  }
+
+  void ParseOverride(StringPiece line, StringPiece) {
     current_directive_ =
         static_cast<AssignDirective>(
             (static_cast<int>(current_directive_) |
              static_cast<int>(AssignDirective::OVERRIDE)));
     if (HandleDirective(line, assign_directives_))
       return;
-
+    if (IsInExport()) {
+      CreateExport(line, true);
+    }
     ParseRuleOrAssign(line);
   }
 
   void ParseExport(StringPiece line, StringPiece) {
+    current_directive_ =
+        static_cast<AssignDirective>(
+            (static_cast<int>(current_directive_) |
+             static_cast<int>(AssignDirective::EXPORT)));
+    if (HandleDirective(line, assign_directives_))
+      return;
+    CreateExport(line, true);
+    ParseRuleOrAssign(line);
   }
 
   void ParseUnexport(StringPiece line, StringPiece) {
+    CreateExport(line, false);
   }
 
   void CheckIfStack(const char* keyword) {

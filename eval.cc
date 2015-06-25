@@ -23,6 +23,7 @@
 #include "ast.h"
 #include "file.h"
 #include "file_cache.h"
+#include "parser.h"
 #include "rule.h"
 #include "strutil.h"
 #include "value.h"
@@ -252,7 +253,23 @@ void Evaluator::EvalExport(const ExportAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
 
-  ERROR("TODO");
+  shared_ptr<string> exports = ast->expr->Eval(this);
+  for (StringPiece tok : WordScanner(*exports)) {
+    size_t equal_index = tok.find('=');
+    if (equal_index == string::npos) {
+      exports_[Intern(tok)] = ast->is_export;
+    } else if (equal_index == 0 ||
+               (equal_index == 1 &&
+                (tok[0] == ':' || tok[0] == '?' || tok[0] == '+'))) {
+      // Do not export tokens after an assignment.
+      break;
+    } else {
+      StringPiece lhs, rhs;
+      AssignOp op;
+      ParseAssignStatement(tok, equal_index, &lhs, &rhs, &op);
+      exports_[Intern(lhs)] = ast->is_export;
+    }
+  }
 }
 
 Var* Evaluator::LookupVar(StringPiece name) {
