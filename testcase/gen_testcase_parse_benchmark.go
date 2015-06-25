@@ -26,7 +26,7 @@ import (
 	"text/template"
 )
 
-const preamble = `package main
+const preamble = `package kati
 
 import (
 	"io/ioutil"
@@ -45,7 +45,7 @@ func BenchmarkTestcaseParse{{.Name}}(b *testing.B) {
 	mk := string(data)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseMakefileString(mk, {{.Filename | printf "%q"}}, 0)
+		parseMakefileString(mk, {{.Filename | printf "%q"}}, 0)
 	}
 }
 `))

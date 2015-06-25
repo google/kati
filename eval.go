@@ -97,7 +97,7 @@ func (ac *accessCache) Slice() []*accessedMakefile {
 	return r
 }
 
-type EvalResult struct {
+type evalResult struct {
 	vars        Vars
 	rules       []*rule
 	ruleVars    map[string]Vars
@@ -275,7 +275,7 @@ func (ev *Evaluator) evalCommand(ast *commandAST) {
 		// assign_after_tab.mk.
 		if strings.IndexByte(ast.cmd, '=') >= 0 {
 			line := trimLeftSpace(ast.cmd)
-			mk, err := ParseMakefileString(line, ast.filename, ast.lineno)
+			mk, err := parseMakefileString(line, ast.filename, ast.lineno)
 			if err != nil {
 				panic(err)
 			}
@@ -331,7 +331,7 @@ func (ev *Evaluator) EvaluateVar(name string) string {
 	return buf.String()
 }
 
-func (ev *Evaluator) evalIncludeFile(fname string, mk Makefile) error {
+func (ev *Evaluator) evalIncludeFile(fname string, mk makefile) error {
 	te := traceEvent.begin("include", literal(fname), traceEventMain)
 	defer func() {
 		traceEvent.end(te)
@@ -465,7 +465,7 @@ func (ev *Evaluator) eval(stmt ast) {
 	stmt.eval(ev)
 }
 
-func Eval(mk Makefile, vars Vars, useCache bool) (er *EvalResult, err error) {
+func eval(mk makefile, vars Vars, useCache bool) (er *evalResult, err error) {
 	ev := NewEvaluator(vars)
 	if useCache {
 		ev.cache = newAccessCache()
@@ -487,7 +487,7 @@ func Eval(mk Makefile, vars Vars, useCache bool) (er *EvalResult, err error) {
 		ev.eval(stmt)
 	}
 
-	return &EvalResult{
+	return &evalResult{
 		vars:        ev.outVars,
 		rules:       ev.outRules,
 		ruleVars:    ev.outRuleVars,
