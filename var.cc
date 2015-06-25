@@ -120,7 +120,12 @@ Var* Vars::Lookup(StringPiece name) const {
 void Vars::Assign(StringPiece name, Var* v) {
   auto p = insert(make_pair(name, v));
   if (!p.second) {
-    if (p.first->second->IsDefined())
+    Var* orig = p.first->second;
+    if (orig->Origin() == VarOrigin::OVERRIDE ||
+        orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE) {
+      return;
+    }
+    if (orig->IsDefined())
       delete p.first->second;
     p.first->second = v;
   }
