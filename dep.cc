@@ -17,6 +17,7 @@
 #include "dep.h"
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -155,6 +156,24 @@ class DepBuilder {
         r->cmds.push_back(c);
     } else if (!old_rule.cmds.empty() && rule.cmds.empty()) {
       r->cmds = old_rule.cmds;
+    }
+
+    // If the latter rule has a command (regardless of the
+    // commands in oldRule), inputs in the latter rule has a
+    // priority.
+    if (rule.cmds.empty()) {
+      r->inputs = old_rule.inputs;
+      copy(rule.inputs.begin(), rule.inputs.end(),
+           back_inserter(r->inputs));
+      r->order_only_inputs = old_rule.order_only_inputs;
+      copy(rule.order_only_inputs.begin(), rule.order_only_inputs.end(),
+           back_inserter(r->order_only_inputs));
+    } else {
+      copy(old_rule.inputs.begin(), old_rule.inputs.end(),
+           back_inserter(r->inputs));
+      copy(old_rule.order_only_inputs.begin(),
+           old_rule.order_only_inputs.end(),
+           back_inserter(r->inputs));
     }
     for (StringPiece p : old_rule.output_patterns) {
       r->output_patterns.push_back(p);

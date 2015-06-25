@@ -6,4 +6,4 @@ test2: foo
 foo: bar
 foo: baz
 foo:
-	echo $<
+	echo $< $^
