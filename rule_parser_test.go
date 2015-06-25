@@ -22,27 +22,27 @@ import (
 func TestRuleParser(t *testing.T) {
 	for _, tc := range []struct {
 		in     string
-		want   Rule
+		want   rule
 		assign *assignAST
 		err    string
 	}{
 		{
 			in: "foo: bar",
-			want: Rule{
+			want: rule{
 				outputs: []string{"foo"},
 				inputs:  []string{"bar"},
 			},
 		},
 		{
 			in: "foo: bar baz",
-			want: Rule{
+			want: rule{
 				outputs: []string{"foo"},
 				inputs:  []string{"bar", "baz"},
 			},
 		},
 		{
 			in: "foo:: bar",
-			want: Rule{
+			want: rule{
 				outputs:       []string{"foo"},
 				inputs:        []string{"bar"},
 				isDoubleColon: true,
@@ -54,7 +54,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "%.o: %.c",
-			want: Rule{
+			want: rule{
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 				inputs:         []string{"%.c"},
 			},
@@ -65,7 +65,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "foo.o: %.o: %.c %.h",
-			want: Rule{
+			want: rule{
 				outputs:        []string{"foo.o"},
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 				inputs:         []string{"%.c", "%.h"},
@@ -89,7 +89,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "foo: bar | baz",
-			want: Rule{
+			want: rule{
 				outputs:         []string{"foo"},
 				inputs:          []string{"bar"},
 				orderOnlyInputs: []string{"baz"},
@@ -97,7 +97,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "foo: CFLAGS = -g",
-			want: Rule{
+			want: rule{
 				outputs: []string{"foo"},
 			},
 			assign: &assignAST{
@@ -108,7 +108,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "foo: CFLAGS=-g",
-			want: Rule{
+			want: rule{
 				outputs: []string{"foo"},
 			},
 			assign: &assignAST{
@@ -119,7 +119,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "foo: CFLAGS := -g",
-			want: Rule{
+			want: rule{
 				outputs: []string{"foo"},
 			},
 			assign: &assignAST{
@@ -130,7 +130,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		{
 			in: "%.o: CFLAGS := -g",
-			want: Rule{
+			want: rule{
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 			},
 			assign: &assignAST{
@@ -146,7 +146,7 @@ func TestRuleParser(t *testing.T) {
 		},
 		*/
 	} {
-		got := &Rule{}
+		got := &rule{}
 		assign, err := got.parse([]byte(tc.in))
 		if tc.err != "" {
 			if err == nil {

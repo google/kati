@@ -41,15 +41,15 @@ func (n *DepNode) String() string {
 }
 
 type depBuilder struct {
-	rules    map[string]*Rule
+	rules    map[string]*rule
 	ruleVars map[string]Vars
 
-	implicitRules []*Rule // pattern=%. no prefix,suffix.
-	iprefixRules  []*Rule // pattern=prefix%..  may have suffix
-	isuffixRules  []*Rule // pattern=%suffix  no prefix
+	implicitRules []*rule // pattern=%. no prefix,suffix.
+	iprefixRules  []*rule // pattern=prefix%..  may have suffix
+	isuffixRules  []*rule // pattern=%suffix  no prefix
 
-	suffixRules map[string][]*Rule
-	firstRule   *Rule
+	suffixRules map[string][]*rule
+	firstRule   *rule
 	vars        Vars
 	done        map[string]*DepNode
 	phony       map[string]bool
@@ -80,8 +80,8 @@ func (db *depBuilder) exists(target string) bool {
 	return exists(target)
 }
 
-func (db *depBuilder) PickImplicitRules(output string) []*Rule {
-	var rules []*Rule
+func (db *depBuilder) PickImplicitRules(output string) []*rule {
+	var rules []*rule
 	i := sort.Search(len(db.iprefixRules), func(i int) bool {
 		prefix := db.iprefixRules[i].outputPatterns[0].prefix
 		if strings.HasPrefix(output, prefix) {
@@ -129,12 +129,12 @@ func (db *depBuilder) PickImplicitRules(output string) []*Rule {
 	return rules
 }
 
-func (db *depBuilder) canPickImplicitRule(rule *Rule, output string) bool {
-	outputPattern := rule.outputPatterns[0]
+func (db *depBuilder) canPickImplicitRule(r *rule, output string) bool {
+	outputPattern := r.outputPatterns[0]
 	if !outputPattern.match(output) {
 		return false
 	}
-	for _, input := range rule.inputs {
+	for _, input := range r.inputs {
 		input = outputPattern.subst(input, output)
 		if !db.exists(input) {
 			return false
@@ -163,13 +163,13 @@ func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	return v
 }
 
-func (db *depBuilder) pickRule(output string) (*Rule, Vars, bool) {
-	rule, present := db.rules[output]
+func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
+	r, present := db.rules[output]
 	vars := db.ruleVars[output]
 	if present {
 		db.pickExplicitRuleCnt++
-		if len(rule.cmds) > 0 {
-			return rule, vars, true
+		if len(r.cmds) > 0 {
+			return r, vars, true
 		}
 		// If none of the explicit rules for a target has commands,
 		// then `make' searches for an applicable implicit rule to
@@ -179,16 +179,16 @@ func (db *depBuilder) pickRule(output string) (*Rule, Vars, bool) {
 
 	for _, irule := range db.PickImplicitRules(output) {
 		db.pickImplicitRuleCnt++
-		if rule != nil {
-			r := &Rule{}
-			*r = *rule
-			r.outputPatterns = irule.outputPatterns
+		if r != nil {
+			ir := &rule{}
+			*ir = *r
+			ir.outputPatterns = irule.outputPatterns
 			// implicit rule's prerequisites will be used for $<
-			r.inputs = append(irule.inputs, r.inputs...)
-			r.cmds = irule.cmds
+			ir.inputs = append(irule.inputs, ir.inputs...)
+			ir.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
-			r.cmdLineno = irule.cmdLineno
-			return r, vars, true
+			ir.cmdLineno = irule.cmdLineno
+			return ir, vars, true
 		}
 		if vars != nil {
 			var outputs []string
@@ -203,11 +203,11 @@ func (db *depBuilder) pickRule(output string) (*Rule, Vars, bool) {
 
 	outputSuffix := filepath.Ext(output)
 	if !strings.HasPrefix(outputSuffix, ".") {
-		return rule, vars, rule != nil
+		return r, vars, r != nil
 	}
 	rules, present := db.suffixRules[outputSuffix[1:]]
 	if !present {
-		return rule, vars, rule != nil
+		return r, vars, r != nil
 	}
 	for _, irule := range rules {
 		if len(irule.inputs) != 1 {
@@ -217,15 +217,15 @@ func (db *depBuilder) pickRule(output string) (*Rule, Vars, bool) {
 			continue
 		}
 		db.pickSuffixRuleCnt++
-		if rule != nil {
-			r := &Rule{}
-			*r = *rule
+		if r != nil {
+			sr := &rule{}
+			*sr = *r
 			// TODO(ukai): input order is correct?
-			r.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
-			r.cmds = irule.cmds
+			sr.inputs = append([]string{replaceSuffix(output, irule.inputs[0])}, r.inputs...)
+			sr.cmds = irule.cmds
 			// TODO(ukai): filename, lineno?
-			r.cmdLineno = irule.cmdLineno
-			return r, vars, true
+			sr.cmdLineno = irule.cmdLineno
+			return sr, vars, true
 		}
 		if vars != nil {
 			vars = db.mergeImplicitRuleVars(irule.outputs, vars)
@@ -233,7 +233,7 @@ func (db *depBuilder) pickRule(output string) (*Rule, Vars, bool) {
 		// TODO(ukai): check len(irule.cmd) ?
 		return irule, vars, true
 	}
-	return rule, vars, rule != nil
+	return r, vars, r != nil
 }
 
 func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
@@ -350,7 +350,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	return n, nil
 }
 
-func (db *depBuilder) populateSuffixRule(rule *Rule, output string) bool {
+func (db *depBuilder) populateSuffixRule(r *rule, output string) bool {
 	if len(output) == 0 || output[0] != '.' {
 		return false
 	}
@@ -365,93 +365,93 @@ func (db *depBuilder) populateSuffixRule(rule *Rule, output string) bool {
 	// This is a suffix rule.
 	inputSuffix := rest[:dotIndex]
 	outputSuffix := rest[dotIndex+1:]
-	r := &Rule{}
-	*r = *rule
-	r.inputs = []string{inputSuffix}
-	r.isSuffixRule = true
-	db.suffixRules[outputSuffix] = append([]*Rule{r}, db.suffixRules[outputSuffix]...)
+	sr := &rule{}
+	*sr = *r
+	sr.inputs = []string{inputSuffix}
+	sr.isSuffixRule = true
+	db.suffixRules[outputSuffix] = append([]*rule{sr}, db.suffixRules[outputSuffix]...)
 	return true
 }
 
-func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
-	if oldRule.isDoubleColon != rule.isDoubleColon {
-		Error(rule.filename, rule.lineno, "*** target file %q has both : and :: entries.", output)
+func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) *rule {
+	if oldRule.isDoubleColon != r.isDoubleColon {
+		Error(r.filename, r.lineno, "*** target file %q has both : and :: entries.", output)
 	}
-	if len(oldRule.cmds) > 0 && len(rule.cmds) > 0 && !isSuffixRule && !rule.isDoubleColon {
-		Warn(rule.filename, rule.cmdLineno, "overriding commands for target %q", output)
+	if len(oldRule.cmds) > 0 && len(r.cmds) > 0 && !isSuffixRule && !r.isDoubleColon {
+		Warn(r.filename, r.cmdLineno, "overriding commands for target %q", output)
 		Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
 	}
 
-	r := &Rule{}
-	*r = *rule
-	if rule.isDoubleColon {
-		r.cmds = append(oldRule.cmds, r.cmds...)
-	} else if len(oldRule.cmds) > 0 && len(rule.cmds) == 0 {
-		r.cmds = oldRule.cmds
+	mr := &rule{}
+	*mr = *r
+	if r.isDoubleColon {
+		mr.cmds = append(oldRule.cmds, mr.cmds...)
+	} else if len(oldRule.cmds) > 0 && len(r.cmds) == 0 {
+		mr.cmds = oldRule.cmds
 	}
 	// If the latter rule has a command (regardless of the
 	// commands in oldRule), inputs in the latter rule has a
 	// priority.
-	if len(rule.cmds) > 0 {
-		r.inputs = append(r.inputs, oldRule.inputs...)
-		r.orderOnlyInputs = append(r.orderOnlyInputs, oldRule.orderOnlyInputs...)
+	if len(r.cmds) > 0 {
+		mr.inputs = append(mr.inputs, oldRule.inputs...)
+		mr.orderOnlyInputs = append(mr.orderOnlyInputs, oldRule.orderOnlyInputs...)
 	} else {
-		r.inputs = append(oldRule.inputs, r.inputs...)
-		r.orderOnlyInputs = append(oldRule.orderOnlyInputs, r.orderOnlyInputs...)
+		mr.inputs = append(oldRule.inputs, mr.inputs...)
+		mr.orderOnlyInputs = append(oldRule.orderOnlyInputs, mr.orderOnlyInputs...)
 	}
-	r.outputPatterns = append(r.outputPatterns, oldRule.outputPatterns...)
-	return r
+	mr.outputPatterns = append(mr.outputPatterns, oldRule.outputPatterns...)
+	return mr
 }
 
-func (db *depBuilder) populateExplicitRule(rule *Rule) {
+func (db *depBuilder) populateExplicitRule(r *rule) {
 	// It seems rules with no outputs are siliently ignored.
-	if len(rule.outputs) == 0 {
+	if len(r.outputs) == 0 {
 		return
 	}
-	for _, output := range rule.outputs {
+	for _, output := range r.outputs {
 		output = trimLeadingCurdir(output)
 
-		isSuffixRule := db.populateSuffixRule(rule, output)
+		isSuffixRule := db.populateSuffixRule(r, output)
 
 		if oldRule, present := db.rules[output]; present {
-			r := mergeRules(oldRule, rule, output, isSuffixRule)
-			db.rules[output] = r
+			mr := mergeRules(oldRule, r, output, isSuffixRule)
+			db.rules[output] = mr
 		} else {
-			db.rules[output] = rule
+			db.rules[output] = r
 			if db.firstRule == nil && !strings.HasPrefix(output, ".") {
-				db.firstRule = rule
+				db.firstRule = r
 			}
 		}
 	}
 }
 
-func (db *depBuilder) populateImplicitRule(rule *Rule) {
-	for _, outputPattern := range rule.outputPatterns {
-		r := &Rule{}
-		*r = *rule
-		r.outputPatterns = []pattern{outputPattern}
+func (db *depBuilder) populateImplicitRule(r *rule) {
+	for _, outputPattern := range r.outputPatterns {
+		ir := &rule{}
+		*ir = *r
+		ir.outputPatterns = []pattern{outputPattern}
 		if outputPattern.prefix != "" {
-			db.iprefixRules = append(db.iprefixRules, r)
+			db.iprefixRules = append(db.iprefixRules, ir)
 		} else if outputPattern.suffix != "" {
-			db.isuffixRules = append(db.isuffixRules, r)
+			db.isuffixRules = append(db.isuffixRules, ir)
 		} else {
-			db.implicitRules = append(db.implicitRules, r)
+			db.implicitRules = append(db.implicitRules, ir)
 		}
 	}
 }
 
 func (db *depBuilder) populateRules(er *EvalResult) {
-	for _, rule := range er.rules {
-		for i, input := range rule.inputs {
-			rule.inputs[i] = trimLeadingCurdir(input)
+	for _, r := range er.rules {
+		for i, input := range r.inputs {
+			r.inputs[i] = trimLeadingCurdir(input)
 		}
-		for i, orderOnlyInput := range rule.orderOnlyInputs {
-			rule.orderOnlyInputs[i] = trimLeadingCurdir(orderOnlyInput)
+		for i, orderOnlyInput := range r.orderOnlyInputs {
+			r.orderOnlyInputs[i] = trimLeadingCurdir(orderOnlyInput)
 		}
-		db.populateExplicitRule(rule)
+		db.populateExplicitRule(r)
 
-		if len(rule.outputs) == 0 {
-			db.populateImplicitRule(rule)
+		if len(r.outputs) == 0 {
+			db.populateImplicitRule(r)
 		}
 	}
 
@@ -465,14 +465,14 @@ func (db *depBuilder) populateRules(er *EvalResult) {
 	sort.Stable(bySuffix(db.isuffixRules))
 }
 
-func reverseImplicitRules(rules []*Rule) {
+func reverseImplicitRules(rules []*rule) {
 	for i := 0; i < len(rules)/2; i++ {
 		j := len(rules) - i - 1
 		rules[i], rules[j] = rules[j], rules[i]
 	}
 }
 
-type byPrefix []*Rule
+type byPrefix []*rule
 
 func (p byPrefix) Len() int      { return len(p) }
 func (p byPrefix) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
@@ -480,7 +480,7 @@ func (p byPrefix) Less(i, j int) bool {
 	return p[i].outputPatterns[0].prefix < p[j].outputPatterns[0].prefix
 }
 
-type bySuffix []*Rule
+type bySuffix []*rule
 
 func (s bySuffix) Len() int      { return len(s) }
 func (s bySuffix) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
@@ -502,9 +502,9 @@ func (db *depBuilder) reportStats() {
 
 func newDepBuilder(er *EvalResult, vars Vars) *depBuilder {
 	db := &depBuilder{
-		rules:       make(map[string]*Rule),
+		rules:       make(map[string]*rule),
 		ruleVars:    er.ruleVars,
-		suffixRules: make(map[string][]*Rule),
+		suffixRules: make(map[string][]*rule),
 		vars:        vars,
 		done:        make(map[string]*DepNode),
 		phony:       make(map[string]bool),

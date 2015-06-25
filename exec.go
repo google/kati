@@ -24,10 +24,10 @@ import (
 )
 
 type Executor struct {
-	rules         map[string]*Rule
-	implicitRules []*Rule
-	suffixRules   map[string][]*Rule
-	firstRule     *Rule
+	rules         map[string]*rule
+	implicitRules []*rule
+	suffixRules   map[string][]*rule
+	firstRule     *rule
 	shell         string
 	vars          Vars
 	varsLock      sync.Mutex
@@ -231,8 +231,8 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) *Executor {
 		opt.NumJobs = 1
 	}
 	ex := &Executor{
-		rules:       make(map[string]*Rule),
-		suffixRules: make(map[string][]*Rule),
+		rules:       make(map[string]*rule),
+		suffixRules: make(map[string][]*rule),
 		done:        make(map[string]*job),
 		vars:        vars,
 		wm:          newWorkerManager(opt.NumJobs, opt.ParaPath),
