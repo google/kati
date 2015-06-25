@@ -24,6 +24,7 @@
 using namespace std;
 
 class Evaluator;
+class Loc;
 
 class Evaluable {
  public:
@@ -54,9 +55,11 @@ enum struct ParseExprOpt {
   COMMAND,
 };
 
-Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
+Value* ParseExprImpl(const Loc& loc, StringPiece s, const char* terms,
+                     ParseExprOpt opt,
                      size_t* index_out, bool trim_right_space = false);
-Value* ParseExpr(StringPiece s, ParseExprOpt opt = ParseExprOpt::NORMAL);
+Value* ParseExpr(const Loc& loc, StringPiece s,
+                 ParseExprOpt opt = ParseExprOpt::NORMAL);
 
 string JoinValues(const vector<Value*>& vals, const char* sep);
 

@@ -243,7 +243,8 @@ static size_t SkipSpaces(StringPiece s, const char* terms) {
   return s.size();
 }
 
-Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
+Value* ParseFunc(const Loc& loc,
+                 Func* f, StringPiece s, size_t i, char* terms,
                  size_t* index_out) {
   terms[1] = ',';
   terms[2] = '\0';
@@ -266,7 +267,7 @@ Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
     const bool trim_right_space = (f->trim_space() ||
                                    (nargs == 1 && f->trim_right_space_1st()));
     size_t n;
-    Value* v = ParseExprImpl(s.substr(i), terms, ParseExprOpt::NORMAL,
+    Value* v = ParseExprImpl(loc, s.substr(i), terms, ParseExprOpt::NORMAL,
                              &n, trim_right_space);
     // TODO: concatLine???
     f->AddArg(v);
@@ -282,16 +283,15 @@ Value* ParseFunc(Func* f, StringPiece s, size_t i, char* terms,
   }
 
   if (nargs <= f->min_arity()) {
-    // TODO: Show filename and line number.
-    ERROR("*** insufficient number of arguments (%d) to function `%s'.",
-          nargs - 1, f->name());
+    ERROR("%s:%d: *** insufficient number of arguments (%d) to function `%s'.",
+          LOCF(loc), nargs - 1, f->name());
   }
 
   *index_out = i;
   return f;
 }
 
-Value* ParseDollar(StringPiece s, size_t* index_out) {
+Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
   CHECK(s.size() >= 2);
   CHECK(s[0] == '$');
   CHECK(s[1] != '$');
@@ -305,7 +305,8 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
   char terms[] = {cp, ':', ' ', 0};
   for (size_t i = 2;;) {
     size_t n;
-    Value* vname = ParseExprImpl(s.substr(i), terms, ParseExprOpt::NORMAL, &n);
+    Value* vname = ParseExprImpl(loc, s.substr(i), terms,
+                                 ParseExprOpt::NORMAL, &n);
     i += n;
     if (s[i] == cp) {
       *index_out = i + 1;
@@ -318,7 +319,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
           delete lit;
           Func* func = new Func(fi);
-          return ParseFunc(func, s, i+1, terms, index_out);
+          return ParseFunc(loc, func, s, i+1, terms, index_out);
         }
       }
 
@@ -335,8 +336,8 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       terms[2] = '\0';
       terms[1] = '=';
       size_t n;
-      Value* pat = ParseExprImpl(s.substr(i+1), terms, ParseExprOpt::NORMAL,
-                                 &n);
+      Value* pat = ParseExprImpl(loc, s.substr(i+1), terms,
+                                 ParseExprOpt::NORMAL, &n);
       i += 1 + n;
       if (s[i] == cp) {
         Expr* v = new Expr;
@@ -348,18 +349,19 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       }
 
       terms[1] = '\0';
-      Value* subst = ParseExprImpl(s.substr(i+1), terms, ParseExprOpt::NORMAL,
-                                   &n);
+      Value* subst = ParseExprImpl(loc, s.substr(i+1), terms,
+                                   ParseExprOpt::NORMAL, &n);
       i += 1 + n;
       *index_out = i + 1;
       return new VarSubst(vname->Compact(), pat, subst);
     }
 
-    CHECK(false);
+    ERROR("%s:%d: *** unterminated variable reference.", LOCF(loc));
   }
 }
 
-Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
+Value* ParseExprImpl(const Loc& loc,
+                     StringPiece s, const char* terms, ParseExprOpt opt,
                      size_t* index_out, bool trim_right_space) {
   // TODO: A faulty optimization.
 #if 0
@@ -421,7 +423,7 @@ Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
       }
 
       size_t n;
-      Value* v = ParseDollar(s.substr(i), &n);
+      Value* v = ParseDollar(loc, s.substr(i), &n);
       i += n;
       b = i;
       i--;
@@ -492,14 +494,9 @@ Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
   return r->Compact();
 }
 
-Value* ParseExpr(StringPiece s, ParseExprOpt opt) {
+Value* ParseExpr(const Loc& loc, StringPiece s, ParseExprOpt opt) {
   size_t n;
-  return ParseExprImpl(s, NULL, opt, &n);
-}
-
-Value* ParseExprUntilComma(StringPiece s, size_t* index_out) {
-  char terms[] = {',', '\0'};
-  return ParseExprImpl(s, terms, ParseExprOpt::NORMAL, index_out);
+  return ParseExprImpl(loc, s, NULL, opt, &n);
 }
 
 string JoinValues(const vector<Value*>& vals, const char* sep) {
