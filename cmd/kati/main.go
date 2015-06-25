@@ -258,7 +258,7 @@ func main() {
 	}
 
 	if queryFlag != "" {
-		kati.HandleQuery(queryFlag, g)
+		kati.Query(os.Stdout, queryFlag, g)
 		return
 	}
 
