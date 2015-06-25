@@ -265,8 +265,10 @@ class DepBuilder {
       if (rule) {
         shared_ptr<Rule> r = make_shared<Rule>(*rule);
         r->output_patterns = irule->output_patterns;
-        for (StringPiece input : irule->inputs)
-          r->inputs.push_back(input);
+        r->inputs.clear();
+        r->inputs = irule->inputs;
+        copy(rule->inputs.begin(), rule->inputs.end(),
+             back_inserter(r->inputs));
         r->cmds = irule->cmds;
         r->loc = irule->loc;
         r->cmd_lineno = irule->cmd_lineno;
