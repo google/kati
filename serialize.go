@@ -46,6 +46,17 @@ const (
 	valueTypeTmpval    = 't'
 )
 
+var JSON LoadSaver
+var GOB LoadSaver
+
+func init() {
+	JSON = jsonLoadSaver{}
+	GOB = gobLoadSaver{}
+}
+
+type jsonLoadSaver struct{}
+type gobLoadSaver struct{}
+
 func dumpInt(w io.Writer, i int) {
 	v := int32(i)
 	err := binary.Write(w, binary.LittleEndian, &v)
@@ -240,27 +251,24 @@ func makeSerializableGraph(g *DepGraph, roots []string) serializableGraph {
 	}
 }
 
-func DumpDepGraphAsJSON(g *DepGraph, filename string, roots []string) {
+func (jsonLoadSaver) Save(g *DepGraph, filename string, roots []string) error {
 	sg := makeSerializableGraph(g, roots)
 	o, err := json.MarshalIndent(sg, " ", " ")
 	if err != nil {
-		panic(err)
+		return err
 	}
-	f, err2 := os.Create(filename)
-	if err2 != nil {
-		panic(err2)
-	}
-	f.Write(o)
-	err = f.Close()
-	if err != nil {
-		panic(err)
-	}
-}
-
-func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	f, err := os.Create(filename)
 	if err != nil {
-		panic(err)
+		return err
+	}
+	f.Write(o)
+	return f.Close()
+}
+
+func (gobLoadSaver) Save(g *DepGraph, filename string, roots []string) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
 	}
 	e := gob.NewEncoder(f)
 	startTime := time.Now()
@@ -269,10 +277,7 @@ func DumpDepGraph(g *DepGraph, filename string, roots []string) {
 	startTime = time.Now()
 	e.Encode(sg)
 	LogStats("serialize output time: %q", time.Since(startTime))
-	err = f.Close()
-	if err != nil {
-		panic(err)
-	}
+	return f.Close()
 }
 
 func cacheFilename(mk string, roots []string) string {
@@ -297,7 +302,7 @@ func DumpDepGraphCache(g *DepGraph, roots []string) {
 			return
 		}
 	}
-	DumpDepGraph(g, cacheFile, roots)
+	GOB.Save(g, cacheFile, roots)
 }
 
 func deserializeSingleChild(sv serializableVar) Value {
@@ -564,10 +569,10 @@ func deserializeGraph(g serializableGraph) *DepGraph {
 	}
 }
 
-func LoadDepGraphFromJSON(filename string) *DepGraph {
+func (jsonLoadSaver) Load(filename string) (*DepGraph, error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer f.Close()
 
@@ -575,15 +580,16 @@ func LoadDepGraphFromJSON(filename string) *DepGraph {
 	g := serializableGraph{Vars: make(map[string]serializableVar)}
 	err = d.Decode(&g)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deserializeGraph(g)
+	dg := deserializeGraph(g)
+	return dg, nil
 }
 
-func LoadDepGraph(filename string) *DepGraph {
+func (gobLoadSaver) Load(filename string) (*DepGraph, error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer f.Close()
 
@@ -591,12 +597,13 @@ func LoadDepGraph(filename string) *DepGraph {
 	g := serializableGraph{Vars: make(map[string]serializableVar)}
 	err = d.Decode(&g)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return deserializeGraph(g)
+	dg := deserializeGraph(g)
+	return dg, nil
 }
 
-func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
+func loadDepGraphCache(makefile string, roots []string) *DepGraph {
 	startTime := time.Now()
 	defer func() {
 		LogStats("Cache lookup time: %q", time.Since(startTime))
@@ -608,7 +615,11 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 		return nil
 	}
 
-	g := LoadDepGraph(filename)
+	g, err := GOB.Load(filename)
+	if err != nil {
+		logAlways("Cache load error: %v", err)
+		return nil
+	}
 	for _, mk := range g.accessedMks {
 		if mk.State != fileExists && mk.State != fileNotExists {
 			panic(fmt.Sprintf("Internal error: broken state: %d", mk.State))

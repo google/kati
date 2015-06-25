@@ -82,7 +82,7 @@ func Load(req LoadReq) (*DepGraph, error) {
 	}
 
 	if req.UseCache {
-		g := LoadDepGraphCache(req.Makefile, req.Targets)
+		g := loadDepGraphCache(req.Makefile, req.Targets)
 		if g != nil {
 			return g, nil
 		}
@@ -147,4 +147,17 @@ func Load(req LoadReq) (*DepGraph, error) {
 		accessedMks: accessedMks,
 		exports:     er.exports,
 	}, nil
+}
+
+type Loader interface {
+	Load(string) (*DepGraph, error)
+}
+
+type Saver interface {
+	Save(*DepGraph, string, []string) error
+}
+
+type LoadSaver interface {
+	Loader
+	Saver
 }
