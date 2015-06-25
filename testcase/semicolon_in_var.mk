@@ -1,4 +1,4 @@
-# TODO: Fix
+# TODO(go): Fix
 
 test: foo bar baz bazz
 A:=foo: ; echo PASS
