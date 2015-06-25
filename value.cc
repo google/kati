@@ -453,6 +453,12 @@ Value* ParseExprImpl(StringPiece s, const char* terms, ParseExprOpt opt,
         i++;
         continue;
       }
+      if (n == '#' && opt == ParseExprOpt::NORMAL) {
+        r->AddValue(new Literal(s.substr(b, i-b)));
+        i++;
+        b = i;
+        continue;
+      }
       if (n == '\r' || n == '\n') {
         if (i > b) {
           r->AddValue(new Literal(TrimRightSpace(s.substr(b, i-b))));
