@@ -62,6 +62,7 @@ class Evaluator {
     return rule_vars_;
   }
   Vars* mutable_vars() { return vars_; }
+  const unordered_map<StringPiece, bool>& exports() const { return exports_; }
 
   void Error(const string& msg);
 
@@ -78,6 +79,8 @@ class Evaluator {
   Vars* vars_;
   unordered_map<StringPiece, Vars*> rule_vars_;
   vector<shared_ptr<Rule>> rules_;
+  unordered_map<StringPiece, bool> exports_;
+
   Rule* last_rule_;
   Vars* current_scope_;
 

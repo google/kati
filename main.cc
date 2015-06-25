@@ -163,6 +163,19 @@ static int Run(const vector<StringPiece>& targets,
   vector<DepNode*> nodes;
   MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
 
+  for (const auto& p : ev->exports()) {
+    const string& name = p.first.as_string();
+    if (p.second) {
+      Var* v = ev->LookupVar(name);
+      shared_ptr<string> value = v->Eval(ev);
+      LOG("setenv(%s, %s)", name.c_str(), value->c_str());
+      setenv(name.c_str(), value->c_str(), 1);
+    } else {
+      LOG("unsetenv(%s)", name.c_str());
+      unsetenv(name.c_str());
+    }
+  }
+
   Exec(nodes, ev);
 
   for (AST* ast : bootstrap_asts)

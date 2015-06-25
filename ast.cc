@@ -82,6 +82,13 @@ string IncludeAST::DebugString() const {
                       expr->DebugString().c_str(), LOCF(loc()));
 }
 
+string ExportAST::DebugString() const {
+  return StringPrintf("ExportAST(%s, %d, loc=%s:%d)",
+                      expr->DebugString().c_str(),
+                      is_export,
+                      LOCF(loc()));
+}
+
 RuleAST::~RuleAST() {
   delete expr;
   delete after_term;
@@ -123,4 +130,12 @@ IncludeAST::~IncludeAST() {
 
 void IncludeAST::Eval(Evaluator* ev) const {
   ev->EvalInclude(this);
+}
+
+ExportAST::~ExportAST() {
+  delete expr;
+}
+
+void ExportAST::Eval(Evaluator* ev) const {
+  ev->EvalExport(this);
 }
