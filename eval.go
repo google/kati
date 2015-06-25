@@ -89,7 +89,7 @@ func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
 	return buf.args
 }
 
-func (ev *Evaluator) evalAssign(ast *AssignAST) {
+func (ev *Evaluator) evalAssign(ast *assignAST) {
 	ev.lastRule = nil
 	lhs, rhs := ev.evalAssignAST(ast)
 	if LogFlag {
@@ -101,7 +101,7 @@ func (ev *Evaluator) evalAssign(ast *AssignAST) {
 	ev.outVars.Assign(lhs, rhs)
 }
 
-func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
+func (ev *Evaluator) evalAssignAST(ast *assignAST) (string, Var) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
@@ -121,7 +121,7 @@ func (ev *Evaluator) evalAssignAST(ast *AssignAST) (string, Var) {
 	return lhs, rhs
 }
 
-func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
+func (ev *Evaluator) setTargetSpecificVar(assign *assignAST, output string) {
 	vars, present := ev.outRuleVars[output]
 	if !present {
 		vars = make(Vars)
@@ -136,7 +136,7 @@ func (ev *Evaluator) setTargetSpecificVar(assign *AssignAST, output string) {
 	ev.currentScope = nil
 }
 
-func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
+func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
@@ -209,7 +209,7 @@ func (ev *Evaluator) evalMaybeRule(ast *MaybeRuleAST) {
 	ev.outRules = append(ev.outRules, rule)
 }
 
-func (ev *Evaluator) evalCommand(ast *CommandAST) {
+func (ev *Evaluator) evalCommand(ast *commandAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 	if ev.lastRule == nil {
@@ -221,7 +221,7 @@ func (ev *Evaluator) evalCommand(ast *CommandAST) {
 			if err != nil {
 				panic(err)
 			}
-			if len(mk.stmts) == 1 && mk.stmts[0].(*AssignAST) != nil {
+			if len(mk.stmts) == 1 && mk.stmts[0].(*assignAST) != nil {
 				ev.eval(mk.stmts[0])
 			}
 			return
@@ -321,7 +321,7 @@ func (ev *Evaluator) updateReadMakefile(fn string, hash [sha1.Size]byte, st File
 	}
 }
 
-func (ev *Evaluator) evalInclude(ast *IncludeAST) {
+func (ev *Evaluator) evalInclude(ast *includeAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
@@ -370,11 +370,11 @@ func (ev *Evaluator) evalInclude(ast *IncludeAST) {
 	}
 }
 
-func (ev *Evaluator) evalIf(ast *IfAST) {
+func (ev *Evaluator) evalIf(iast *ifAST) {
 	var isTrue bool
-	switch ast.op {
+	switch iast.op {
 	case "ifdef", "ifndef":
-		expr := ast.lhs
+		expr := iast.lhs
 		buf := newBuf()
 		expr.Eval(buf, ev)
 		v := ev.LookupVar(buf.String())
@@ -383,38 +383,38 @@ func (ev *Evaluator) evalIf(ast *IfAST) {
 		value := buf.String()
 		val := buf.Len()
 		freeBuf(buf)
-		isTrue = (val > 0) == (ast.op == "ifdef")
+		isTrue = (val > 0) == (iast.op == "ifdef")
 		if LogFlag {
-			Logf("%s lhs=%q value=%q => %t", ast.op, ast.lhs, value, isTrue)
+			Logf("%s lhs=%q value=%q => %t", iast.op, iast.lhs, value, isTrue)
 		}
 	case "ifeq", "ifneq":
-		lexpr := ast.lhs
-		rexpr := ast.rhs
+		lexpr := iast.lhs
+		rexpr := iast.rhs
 		buf := newBuf()
 		params := ev.args(buf, lexpr, rexpr)
 		lhs := string(params[0])
 		rhs := string(params[1])
 		freeBuf(buf)
-		isTrue = (lhs == rhs) == (ast.op == "ifeq")
+		isTrue = (lhs == rhs) == (iast.op == "ifeq")
 		if LogFlag {
-			Logf("%s lhs=%q %q rhs=%q %q => %t", ast.op, ast.lhs, lhs, ast.rhs, rhs, isTrue)
+			Logf("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
 		}
 	default:
-		panic(fmt.Sprintf("unknown if statement: %q", ast.op))
+		panic(fmt.Sprintf("unknown if statement: %q", iast.op))
 	}
 
-	var stmts []AST
+	var stmts []ast
 	if isTrue {
-		stmts = ast.trueStmts
+		stmts = iast.trueStmts
 	} else {
-		stmts = ast.falseStmts
+		stmts = iast.falseStmts
 	}
 	for _, stmt := range stmts {
 		ev.eval(stmt)
 	}
 }
 
-func (ev *Evaluator) evalExport(ast *ExportAST) {
+func (ev *Evaluator) evalExport(ast *exportAST) {
 	ev.lastRule = nil
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
@@ -430,8 +430,8 @@ func (ev *Evaluator) evalExport(ast *ExportAST) {
 	}
 }
 
-func (ev *Evaluator) eval(ast AST) {
-	ast.eval(ev)
+func (ev *Evaluator) eval(stmt ast) {
+	stmt.eval(ev)
 }
 
 func createReadMakefileArray(mp map[string]*ReadMakefile) []*ReadMakefile {

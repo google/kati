@@ -20,29 +20,29 @@ import (
 	"strings"
 )
 
-type AST interface {
+type ast interface {
 	eval(*Evaluator)
 	show()
 }
 
-type ASTBase struct {
+type astBase struct {
 	filename string
 	lineno   int
 }
 
-type AssignAST struct {
-	ASTBase
+type assignAST struct {
+	astBase
 	lhs Value
 	rhs Value
 	op  string
 	opt string // "override", "export"
 }
 
-func (ast *AssignAST) eval(ev *Evaluator) {
+func (ast *assignAST) eval(ev *Evaluator) {
 	ev.evalAssign(ast)
 }
 
-func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
+func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	origin := "file"
 	if ast.filename == bootstrapMakefileName {
 		origin = "default"
@@ -82,84 +82,84 @@ func (ast *AssignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	}
 }
 
-func (ast *AssignAST) show() {
+func (ast *assignAST) show() {
 	Logf("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
 }
 
-// MaybeRuleAST is an ast for rule line.
+// maybeRuleAST is an ast for rule line.
 // Note we cannot be sure what this is, until all variables in |expr|
 // are expanded.
-type MaybeRuleAST struct {
-	ASTBase
+type maybeRuleAST struct {
+	astBase
 	expr      Value
 	term      byte // Either ':', '=', or 0
 	afterTerm []byte
 }
 
-func (ast *MaybeRuleAST) eval(ev *Evaluator) {
+func (ast *maybeRuleAST) eval(ev *Evaluator) {
 	ev.evalMaybeRule(ast)
 }
 
-func (ast *MaybeRuleAST) show() {
+func (ast *maybeRuleAST) show() {
 	Logf("%s", ast.expr)
 }
 
-type CommandAST struct {
-	ASTBase
+type commandAST struct {
+	astBase
 	cmd string
 }
 
-func (ast *CommandAST) eval(ev *Evaluator) {
+func (ast *commandAST) eval(ev *Evaluator) {
 	ev.evalCommand(ast)
 }
 
-func (ast *CommandAST) show() {
+func (ast *commandAST) show() {
 	Logf("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
 }
 
-type IncludeAST struct {
-	ASTBase
+type includeAST struct {
+	astBase
 	expr string
 	op   string
 }
 
-func (ast *IncludeAST) eval(ev *Evaluator) {
+func (ast *includeAST) eval(ev *Evaluator) {
 	ev.evalInclude(ast)
 }
 
-func (ast *IncludeAST) show() {
+func (ast *includeAST) show() {
 	Logf("include %s", ast.expr)
 }
 
-type IfAST struct {
-	ASTBase
+type ifAST struct {
+	astBase
 	op         string
 	lhs        Value
 	rhs        Value // Empty if |op| is ifdef or ifndef.
-	trueStmts  []AST
-	falseStmts []AST
+	trueStmts  []ast
+	falseStmts []ast
 }
 
-func (ast *IfAST) eval(ev *Evaluator) {
+func (ast *ifAST) eval(ev *Evaluator) {
 	ev.evalIf(ast)
 }
 
-func (ast *IfAST) show() {
+func (ast *ifAST) show() {
 	// TODO
 	Logf("if")
 }
 
-type ExportAST struct {
-	ASTBase
+type exportAST struct {
+	astBase
 	expr   []byte
 	export bool
 }
 
-func (ast *ExportAST) eval(ev *Evaluator) {
+func (ast *exportAST) eval(ev *Evaluator) {
 	ev.evalExport(ast)
 }
 
-func (ast *ExportAST) show() {
+func (ast *exportAST) show() {
 	// TODO
 	Logf("export")
 }
