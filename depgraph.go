@@ -89,7 +89,7 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	LogStats("shell func time: %q %d", shellStats.Duration(), shellStats.Count())
 
 	startTime = time.Now()
-	db := NewDepBuilder(er, vars)
+	db := newDepBuilder(er, vars)
 	LogStats("dep build prepare time: %q", time.Since(startTime))
 
 	startTime = time.Now()
