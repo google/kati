@@ -343,6 +343,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
         v->AddValue(vname);
         v->AddValue(new Literal(":"));
         v->AddValue(pat);
+        *index_out = i + 1;
         return new VarRef(v);
       }
 
@@ -350,6 +351,7 @@ Value* ParseDollar(StringPiece s, size_t* index_out) {
       Value* subst = ParseExprImpl(s.substr(i+1), terms, ParseExprOpt::NORMAL,
                                    &n);
       i += 1 + n;
+      *index_out = i + 1;
       return new VarSubst(vname->Compact(), pat, subst);
     }
 
