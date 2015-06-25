@@ -63,7 +63,7 @@ func sendRunners(w io.Writer, runners []runner) {
 	}
 }
 
-type ParaResult struct {
+type paraResult struct {
 	output string
 	stdout string
 	stderr string
@@ -94,7 +94,7 @@ func recvString(r *bufio.Reader) (string, error) {
 	return string(buf), nil
 }
 
-func recvResult(r *bufio.Reader) (*ParaResult, error) {
+func recvResult(r *bufio.Reader) (*paraResult, error) {
 	output, err := recvString(r)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func recvResult(r *bufio.Reader) (*ParaResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ParaResult{
+	return &paraResult{
 		output: output,
 		stdout: stdout,
 		stderr: stderr,
@@ -124,15 +124,15 @@ func recvResult(r *bufio.Reader) (*ParaResult, error) {
 	}, nil
 }
 
-type ParaWorker struct {
+type paraWorker struct {
 	para     *exec.Cmd
-	paraChan chan *ParaResult
+	paraChan chan *paraResult
 	stdin    io.WriteCloser
 	stdout   *bufio.Reader
 	doneChan chan bool
 }
 
-func newParaWorker(paraChan chan *ParaResult, numJobs int, paraPath string) *ParaWorker {
+func newParaWorker(paraChan chan *paraResult, numJobs int, paraPath string) *paraWorker {
 	para := exec.Command(paraPath, fmt.Sprintf("-j%d", numJobs), "--kati")
 	stdin, err := para.StdinPipe()
 	if err != nil {
@@ -146,7 +146,7 @@ func newParaWorker(paraChan chan *ParaResult, numJobs int, paraPath string) *Par
 	if err != nil {
 		panic(err)
 	}
-	return &ParaWorker{
+	return &paraWorker{
 		para:     para,
 		paraChan: paraChan,
 		stdin:    stdin,
@@ -155,7 +155,7 @@ func newParaWorker(paraChan chan *ParaResult, numJobs int, paraPath string) *Par
 	}
 }
 
-func (para *ParaWorker) Run() {
+func (para *paraWorker) Run() {
 	for {
 		r, err := recvResult(para.stdout)
 		if err == io.EOF {
@@ -171,11 +171,11 @@ func (para *ParaWorker) Run() {
 	para.doneChan <- true
 }
 
-func (para *ParaWorker) Wait() {
+func (para *paraWorker) Wait() {
 	para.stdin.Close()
 	<-para.doneChan
 }
 
-func (para *ParaWorker) RunCommand(runners []runner) {
+func (para *paraWorker) RunCommand(runners []runner) {
 	sendRunners(para.stdin, runners)
 }

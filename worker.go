@@ -301,8 +301,8 @@ type WorkerManager struct {
 	freeWorkers []*Worker
 	busyWorkers map[*Worker]bool
 	ex          *Executor
-	para        *ParaWorker
-	paraChan    chan *ParaResult
+	para        *paraWorker
+	paraChan    chan *paraResult
 	runnings    map[string]*Job
 
 	finishCnt int
@@ -321,7 +321,7 @@ func NewWorkerManager(numJobs int, paraPath string) *WorkerManager {
 
 	if paraPath != "" {
 		wm.runnings = make(map[string]*Job)
-		wm.paraChan = make(chan *ParaResult)
+		wm.paraChan = make(chan *paraResult)
 		wm.para = newParaWorker(wm.paraChan, numJobs, paraPath)
 		go wm.para.Run()
 	} else {

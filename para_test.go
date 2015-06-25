@@ -28,7 +28,7 @@ func TestPara(t *testing.T) {
 	paraPath := filepath.Join(cwd, "para")
 	numJobs := 4
 
-	paraChan := make(chan *ParaResult)
+	paraChan := make(chan *paraResult)
 	para := newParaWorker(paraChan, numJobs, paraPath)
 	go para.Run()
 
@@ -44,8 +44,8 @@ func TestPara(t *testing.T) {
 		para.RunCommand(runners)
 	}
 
-	var started []*ParaResult
-	var results []*ParaResult
+	var started []*paraResult
+	var results []*paraResult
 	for len(started) != numTasks || len(results) != numTasks {
 		select {
 		case r := <-paraChan:
