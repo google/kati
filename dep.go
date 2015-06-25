@@ -40,7 +40,7 @@ func (n *DepNode) String() string {
 		n.Output, len(n.Cmds), len(n.Deps), n.HasRule, n.IsOrderOnly, n.IsPhony, n.Filename, n.Lineno)
 }
 
-type DepBuilder struct {
+type depBuilder struct {
 	rules    map[string]*Rule
 	ruleVars map[string]Vars
 
@@ -69,7 +69,7 @@ func replaceSuffix(s string, newsuf string) string {
 	return fmt.Sprintf("%s.%s", stripExt(s), newsuf)
 }
 
-func (db *DepBuilder) exists(target string) bool {
+func (db *depBuilder) exists(target string) bool {
 	_, present := db.rules[target]
 	if present {
 		return true
@@ -80,7 +80,7 @@ func (db *DepBuilder) exists(target string) bool {
 	return exists(target)
 }
 
-func (db *DepBuilder) PickImplicitRules(output string) []*Rule {
+func (db *depBuilder) PickImplicitRules(output string) []*Rule {
 	var rules []*Rule
 	i := sort.Search(len(db.iprefixRules), func(i int) bool {
 		prefix := db.iprefixRules[i].outputPatterns[0].prefix
@@ -129,7 +129,7 @@ func (db *DepBuilder) PickImplicitRules(output string) []*Rule {
 	return rules
 }
 
-func (db *DepBuilder) canPickImplicitRule(rule *Rule, output string) bool {
+func (db *depBuilder) canPickImplicitRule(rule *Rule, output string) bool {
 	outputPattern := rule.outputPatterns[0]
 	if !outputPattern.match(output) {
 		return false
@@ -143,7 +143,7 @@ func (db *DepBuilder) canPickImplicitRule(rule *Rule, output string) bool {
 	return true
 }
 
-func (db *DepBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
+func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if len(outputs) != 1 {
 		panic(fmt.Sprintf("Implicit rule should have only one output but %q", outputs))
 	}
@@ -163,7 +163,7 @@ func (db *DepBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	return v
 }
 
-func (db *DepBuilder) pickRule(output string) (*Rule, Vars, bool) {
+func (db *depBuilder) pickRule(output string) (*Rule, Vars, bool) {
 	rule, present := db.rules[output]
 	vars := db.ruleVars[output]
 	if present {
@@ -236,7 +236,7 @@ func (db *DepBuilder) pickRule(output string) (*Rule, Vars, bool) {
 	return rule, vars, rule != nil
 }
 
-func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
+func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
 	Logf("Evaluating command: %s", output)
 	db.nodeCnt++
 	if db.nodeCnt%100 == 0 {
@@ -350,7 +350,7 @@ func (db *DepBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	return n, nil
 }
 
-func (db *DepBuilder) populateSuffixRule(rule *Rule, output string) bool {
+func (db *depBuilder) populateSuffixRule(rule *Rule, output string) bool {
 	if len(output) == 0 || output[0] != '.' {
 		return false
 	}
@@ -403,7 +403,7 @@ func mergeRules(oldRule, rule *Rule, output string, isSuffixRule bool) *Rule {
 	return r
 }
 
-func (db *DepBuilder) populateExplicitRule(rule *Rule) {
+func (db *depBuilder) populateExplicitRule(rule *Rule) {
 	// It seems rules with no outputs are siliently ignored.
 	if len(rule.outputs) == 0 {
 		return
@@ -425,7 +425,7 @@ func (db *DepBuilder) populateExplicitRule(rule *Rule) {
 	}
 }
 
-func (db *DepBuilder) populateImplicitRule(rule *Rule) {
+func (db *depBuilder) populateImplicitRule(rule *Rule) {
 	for _, outputPattern := range rule.outputPatterns {
 		r := &Rule{}
 		*r = *rule
@@ -440,7 +440,7 @@ func (db *DepBuilder) populateImplicitRule(rule *Rule) {
 	}
 }
 
-func (db *DepBuilder) populateRules(er *EvalResult) {
+func (db *depBuilder) populateRules(er *EvalResult) {
 	for _, rule := range er.rules {
 		for i, input := range rule.inputs {
 			rule.inputs[i] = trimLeadingCurdir(input)
@@ -488,7 +488,7 @@ func (s bySuffix) Less(i, j int) bool {
 	return reverse(s[i].outputPatterns[0].suffix) < reverse(s[j].outputPatterns[0].suffix)
 }
 
-func (db *DepBuilder) reportStats() {
+func (db *depBuilder) reportStats() {
 	if !LogFlag && !PeriodicStatsFlag {
 		return
 	}
@@ -500,8 +500,8 @@ func (db *DepBuilder) reportStats() {
 	}
 }
 
-func NewDepBuilder(er *EvalResult, vars Vars) *DepBuilder {
-	db := &DepBuilder{
+func newDepBuilder(er *EvalResult, vars Vars) *depBuilder {
+	db := &depBuilder{
 		rules:       make(map[string]*Rule),
 		ruleVars:    er.ruleVars,
 		suffixRules: make(map[string][]*Rule),
@@ -520,7 +520,7 @@ func NewDepBuilder(er *EvalResult, vars Vars) *DepBuilder {
 	return db
 }
 
-func (db *DepBuilder) Eval(targets []string) ([]*DepNode, error) {
+func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 	if len(targets) == 0 {
 		if db.firstRule == nil {
 			ErrorNoLocation("*** No targets.")
