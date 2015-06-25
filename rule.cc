@@ -135,7 +135,7 @@ void ParseRule(Loc& loc, StringPiece line, char term,
   StringPiece third = rest.substr(index+1);
 
   for (StringPiece tok : WordScanner(second)) {
-    rule->output_patterns.push_back(tok);
+    rule->output_patterns.push_back(Intern(tok));
   }
 
   if (rule->output_patterns.empty()) {
@@ -157,6 +157,10 @@ string Rule::DebugString() const {
   if (!order_only_inputs.empty()) {
     v.push_back(StringPrintf("order_only_inputs=[%s]",
                              JoinStrings(order_only_inputs, ",").c_str()));
+  }
+  if (!output_patterns.empty()) {
+    v.push_back(StringPrintf("output_patterns=[%s]",
+                             JoinStrings(output_patterns, ",").c_str()));
   }
   if (is_double_colon)
     v.push_back("is_double_colon");

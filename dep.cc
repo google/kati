@@ -158,9 +158,8 @@ class DepBuilder {
       r->cmds = old_rule.cmds;
     }
 
-    // If the latter rule has a command (regardless of the
-    // commands in oldRule), inputs in the latter rule has a
-    // priority.
+    // If the latter rule has a command (regardless of the commands in
+    // |old_rule|), inputs in the latter rule has a priority.
     if (rule.cmds.empty()) {
       r->inputs = old_rule.inputs;
       copy(rule.inputs.begin(), rule.inputs.end(),
