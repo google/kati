@@ -23,7 +23,7 @@ func TestRuleParser(t *testing.T) {
 	for _, tc := range []struct {
 		in     string
 		want   Rule
-		assign *AssignAST
+		assign *assignAST
 		err    string
 	}{
 		{
@@ -100,7 +100,7 @@ func TestRuleParser(t *testing.T) {
 			want: Rule{
 				outputs: []string{"foo"},
 			},
-			assign: &AssignAST{
+			assign: &assignAST{
 				lhs: literal("CFLAGS"),
 				rhs: literal("-g"),
 				op:  "=",
@@ -111,7 +111,7 @@ func TestRuleParser(t *testing.T) {
 			want: Rule{
 				outputs: []string{"foo"},
 			},
-			assign: &AssignAST{
+			assign: &assignAST{
 				lhs: literal("CFLAGS"),
 				rhs: literal("-g"),
 				op:  "=",
@@ -122,7 +122,7 @@ func TestRuleParser(t *testing.T) {
 			want: Rule{
 				outputs: []string{"foo"},
 			},
-			assign: &AssignAST{
+			assign: &assignAST{
 				lhs: literal("CFLAGS"),
 				rhs: literal("-g"),
 				op:  ":=",
@@ -133,7 +133,7 @@ func TestRuleParser(t *testing.T) {
 			want: Rule{
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 			},
-			assign: &AssignAST{
+			assign: &assignAST{
 				lhs: literal("CFLAGS"),
 				rhs: literal("-g"),
 				op:  ":=",

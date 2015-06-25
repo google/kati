@@ -93,7 +93,7 @@ func (r *Rule) parseInputs(s []byte) {
 	}
 }
 
-func (r *Rule) parseVar(s []byte) *AssignAST {
+func (r *Rule) parseVar(s []byte) *assignAST {
 	eq := bytes.IndexByte(s, '=')
 	if eq <= 0 {
 		return nil
@@ -122,7 +122,7 @@ func (r *Rule) parseVar(s []byte) *AssignAST {
 	return assign
 }
 
-func (r *Rule) parse(line []byte) (*AssignAST, error) {
+func (r *Rule) parse(line []byte) (*assignAST, error) {
 	index := bytes.IndexByte(line, ':')
 	if index < 0 {
 		return nil, errors.New("*** missing separator.")

@@ -34,11 +34,11 @@ import (
 
 type Makefile struct {
 	filename string
-	stmts    []AST
+	stmts    []ast
 }
 
 type ifState struct {
-	ast     *IfAST
+	ast     *ifAST
 	inElse  bool
 	numNest int
 }
@@ -52,7 +52,7 @@ type parser struct {
 	unBuf       []byte
 	hasUnBuf    bool
 	done        bool
-	outStmts    *[]AST
+	outStmts    *[]ast
 	ifStack     []ifState
 	inDef       []string
 	defOpt      string
@@ -68,8 +68,8 @@ func newParser(rd io.Reader, filename string) *parser {
 	return p
 }
 
-func (p *parser) addStatement(ast AST) {
-	*p.outStmts = append(*p.outStmts, ast)
+func (p *parser) addStatement(stmt ast) {
+	*p.outStmts = append(*p.outStmts, stmt)
 }
 
 func (p *parser) readLine() []byte {
@@ -172,7 +172,7 @@ func (p *parser) unreadLine(line []byte) {
 	p.hasUnBuf = true
 }
 
-func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *AssignAST {
+func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *assignAST {
 	lhs, _, err := parseExpr(lhsBytes, nil, true)
 	if err != nil {
 		panic(err)
@@ -185,7 +185,7 @@ func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *Assig
 	if p != nil {
 		opt = p.defOpt
 	}
-	return &AssignAST{
+	return &assignAST{
 		lhs: lhs,
 		rhs: rhs,
 		op:  op,
@@ -193,15 +193,15 @@ func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) *Assig
 	}
 }
 
-func (p *parser) parseAssign(line []byte, sep, esep int) AST {
+func (p *parser) parseAssign(line []byte, sep, esep int) ast {
 	Logf("parseAssign %q op:%q", line, line[sep:esep])
-	ast := newAssignAST(p, bytes.TrimSpace(line[:sep]), trimLeftSpaceBytes(line[esep:]), string(line[sep:esep]))
-	ast.filename = p.mk.filename
-	ast.lineno = p.lineno
-	return ast
+	aast := newAssignAST(p, bytes.TrimSpace(line[:sep]), trimLeftSpaceBytes(line[esep:]), string(line[sep:esep]))
+	aast.filename = p.mk.filename
+	aast.lineno = p.lineno
+	return aast
 }
 
-func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST {
+func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) ast {
 	if len(trimSpaceBytes(line)) == 0 {
 		return nil
 	}
@@ -233,42 +233,42 @@ func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) AST
 		panic(fmt.Errorf("parse %s:%d %v", p.mk.filename, p.lineno, err))
 	}
 
-	ast := &MaybeRuleAST{
+	rast := &maybeRuleAST{
 		expr:      v,
 		term:      term,
 		afterTerm: afterTerm,
 	}
-	ast.filename = p.mk.filename
-	ast.lineno = p.lineno
-	return ast
+	rast.filename = p.mk.filename
+	rast.lineno = p.lineno
+	return rast
 }
 
-func (p *parser) parseInclude(line string, oplen int) AST {
+func (p *parser) parseInclude(line string, oplen int) ast {
 	// TODO(ukai): parse expr here
-	ast := &IncludeAST{
+	iast := &includeAST{
 		expr: line[oplen+1:],
 		op:   line[:oplen],
 	}
-	ast.filename = p.mk.filename
-	ast.lineno = p.lineno
-	return ast
+	iast.filename = p.mk.filename
+	iast.lineno = p.lineno
+	return iast
 }
 
-func (p *parser) parseIfdef(line []byte, oplen int) AST {
+func (p *parser) parseIfdef(line []byte, oplen int) ast {
 	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil, true)
 	if err != nil {
 		panic(fmt.Errorf("ifdef parse %s:%d %v", p.mk.filename, p.lineno, err))
 	}
-	ast := &IfAST{
+	iast := &ifAST{
 		op:  string(line[:oplen]),
 		lhs: lhs,
 	}
-	ast.filename = p.mk.filename
-	ast.lineno = p.lineno
-	p.addStatement(ast)
-	p.ifStack = append(p.ifStack, ifState{ast: ast, numNest: p.numIfNest})
-	p.outStmts = &ast.trueStmts
-	return ast
+	iast.filename = p.mk.filename
+	iast.lineno = p.lineno
+	p.addStatement(iast)
+	p.ifStack = append(p.ifStack, ifState{ast: iast, numNest: p.numIfNest})
+	p.outStmts = &iast.trueStmts
+	return iast
 }
 
 func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool) {
@@ -324,7 +324,7 @@ func (p *parser) parseEq(s string, op string) (string, string, bool) {
 	return args[0], args[1], true
 }
 
-func (p *parser) parseIfeq(line string, oplen int) AST {
+func (p *parser) parseIfeq(line string, oplen int) ast {
 	op := line[:oplen]
 	lhsBytes, rhsBytes, ok := p.parseEq(strings.TrimSpace(line[oplen+1:]), op)
 	if !ok {
@@ -340,17 +340,17 @@ func (p *parser) parseIfeq(line string, oplen int) AST {
 		panic(fmt.Errorf("parse ifeq rhs %s:%d %v", p.mk.filename, p.lineno, err))
 	}
 
-	ast := &IfAST{
+	iast := &ifAST{
 		op:  op,
 		lhs: lhs,
 		rhs: rhs,
 	}
-	ast.filename = p.mk.filename
-	ast.lineno = p.lineno
-	p.addStatement(ast)
-	p.ifStack = append(p.ifStack, ifState{ast: ast, numNest: p.numIfNest})
-	p.outStmts = &ast.trueStmts
-	return ast
+	iast.filename = p.mk.filename
+	iast.lineno = p.lineno
+	p.addStatement(iast)
+	p.ifStack = append(p.ifStack, ifState{ast: iast, numNest: p.numIfNest})
+	p.outStmts = &iast.trueStmts
+	return iast
 }
 
 func (p *parser) checkIfStack(curKeyword string) {
@@ -519,13 +519,13 @@ func handleExport(p *parser, line []byte, export bool) (hasEqual bool) {
 		line = line[:equalIndex]
 	}
 
-	ast := &ExportAST{
+	east := &exportAST{
 		expr:   line,
 		export: export,
 	}
-	ast.filename = p.mk.filename
-	ast.lineno = p.lineno
-	p.addStatement(ast)
+	east.filename = p.mk.filename
+	east.lineno = p.lineno
+	p.addStatement(east)
 	return hasEqual
 }
 
@@ -582,10 +582,10 @@ func (p *parser) parse() (mk Makefile, err error) {
 			lineStr := string(p.processDefineLine(line))
 			if p.isEndef(lineStr) {
 				Logf("multilineAssign %q", p.inDef)
-				ast := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
-				ast.filename = p.mk.filename
-				ast.lineno = p.lineno - len(p.inDef)
-				p.addStatement(ast)
+				aast := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
+				aast.filename = p.mk.filename
+				aast.lineno = p.lineno - len(p.inDef)
+				p.addStatement(aast)
 				p.inDef = nil
 				p.defOpt = ""
 				continue
@@ -607,16 +607,16 @@ func (p *parser) parse() (mk Makefile, err error) {
 			}
 		}
 		if line[0] == '\t' {
-			ast := &CommandAST{cmd: string(p.processRecipeLine(line[1:]))}
-			ast.filename = p.mk.filename
-			ast.lineno = p.lineno
-			p.addStatement(ast)
+			cast := &commandAST{cmd: string(p.processRecipeLine(line[1:]))}
+			cast.filename = p.mk.filename
+			cast.lineno = p.lineno
+			p.addStatement(cast)
 			continue
 		}
 
 		line = p.processMakefileLine(line)
 
-		var ast AST
+		var stmt ast
 		var parenStack []byte
 		equalIndex := -1
 		semicolonIndex := -1
@@ -643,7 +643,7 @@ func (p *parser) parse() (mk Makefile, err error) {
 			case ':':
 				if i+1 < len(line) && line[i+1] == '=' {
 					if !isRule {
-						ast = p.parseAssign(line, i, i+2)
+						stmt = p.parseAssign(line, i, i+2)
 					}
 				} else {
 					isRule = true
@@ -654,25 +654,25 @@ func (p *parser) parse() (mk Makefile, err error) {
 				}
 			case '=':
 				if !isRule {
-					ast = p.parseAssign(line, i, i+1)
+					stmt = p.parseAssign(line, i, i+1)
 				}
 				if equalIndex < 0 {
 					equalIndex = i
 				}
 			case '?', '+':
 				if !isRule && i+1 < len(line) && line[i+1] == '=' {
-					ast = p.parseAssign(line, i, i+2)
+					stmt = p.parseAssign(line, i, i+2)
 				}
 			}
-			if ast != nil {
-				p.addStatement(ast)
+			if stmt != nil {
+				p.addStatement(stmt)
 				break
 			}
 		}
-		if ast == nil {
-			ast = p.parseMaybeRule(line, equalIndex, semicolonIndex)
-			if ast != nil {
-				p.addStatement(ast)
+		if stmt == nil {
+			stmt = p.parseMaybeRule(line, equalIndex, semicolonIndex)
+			if stmt != nil {
+				p.addStatement(stmt)
 			}
 		}
 	}
