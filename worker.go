@@ -24,10 +24,10 @@ import (
 	"time"
 )
 
-type Job struct {
+type job struct {
 	n        *DepNode
 	ex       *Executor
-	parents  []*Job
+	parents  []*job
 	outputTs int64
 	numDeps  int
 	depsTs   int64
@@ -44,42 +44,39 @@ type runner struct {
 	shell       string
 }
 
-type JobResult struct {
-	j *Job
-	w *Worker
+type jobResult struct {
+	j *job
+	w *worker
 }
 
-type NewDep struct {
-	j        *Job
-	neededBy *Job
+type newDep struct {
+	j        *job
+	neededBy *job
 }
 
-type Worker struct {
-	wm       *WorkerManager
-	jobChan  chan *Job
+type worker struct {
+	wm       *workerManager
+	jobChan  chan *job
 	waitChan chan bool
 	doneChan chan bool
 }
 
-type JobQueue []*Job
+type jobQueue []*job
 
-func (jq JobQueue) Len() int { return len(jq) }
+func (jq jobQueue) Len() int      { return len(jq) }
+func (jq jobQueue) Swap(i, j int) { jq[i], jq[j] = jq[j], jq[i] }
 
-func (jq JobQueue) Less(i, j int) bool {
+func (jq jobQueue) Less(i, j int) bool {
 	// First come, first serve, for GNU make compatibility.
 	return jq[i].id < jq[j].id
 }
 
-func (jq JobQueue) Swap(i, j int) {
-	jq[i], jq[j] = jq[j], jq[i]
-}
-
-func (jq *JobQueue) Push(x interface{}) {
-	item := x.(*Job)
+func (jq *jobQueue) Push(x interface{}) {
+	item := x.(*job)
 	*jq = append(*jq, item)
 }
 
-func (jq *JobQueue) Pop() interface{} {
+func (jq *jobQueue) Pop() interface{} {
 	old := *jq
 	n := len(old)
 	item := old[n-1]
@@ -87,17 +84,17 @@ func (jq *JobQueue) Pop() interface{} {
 	return item
 }
 
-func newWorker(wm *WorkerManager) *Worker {
-	w := &Worker{
+func newWorker(wm *workerManager) *worker {
+	w := &worker{
 		wm:       wm,
-		jobChan:  make(chan *Job),
+		jobChan:  make(chan *job),
 		waitChan: make(chan bool),
 		doneChan: make(chan bool),
 	}
 	return w
 }
 
-func (w *Worker) Run() {
+func (w *worker) Run() {
 	done := false
 	for !done {
 		select {
@@ -110,11 +107,11 @@ func (w *Worker) Run() {
 	w.doneChan <- true
 }
 
-func (w *Worker) PostJob(j *Job) {
+func (w *worker) PostJob(j *job) {
 	w.jobChan <- j
 }
 
-func (w *Worker) Wait() {
+func (w *worker) Wait() {
 	w.waitChan <- true
 	<-w.doneChan
 }
@@ -192,7 +189,7 @@ func (r runner) run(output string) error {
 	return err
 }
 
-func (j *Job) createRunners() []runner {
+func (j *job) createRunners() []runner {
 	runners, _ := j.ex.createRunners(j.n, false)
 	return runners
 }
@@ -206,7 +203,7 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-func (j *Job) build() {
+func (j *job) build() {
 	if j.n.IsPhony {
 		j.outputTs = -2 // trigger cmd even if all inputs don't exist.
 	} else {
@@ -248,7 +245,7 @@ func (j *Job) build() {
 	}
 }
 
-func (wm *WorkerManager) handleJobs() {
+func (wm *workerManager) handleJobs() {
 	for {
 		if wm.para == nil && len(wm.freeWorkers) == 0 {
 			return
@@ -256,7 +253,7 @@ func (wm *WorkerManager) handleJobs() {
 		if wm.readyQueue.Len() == 0 {
 			return
 		}
-		j := heap.Pop(&wm.readyQueue).(*Job)
+		j := heap.Pop(&wm.readyQueue).(*job)
 		Logf("run: %s", j.n.Output)
 
 		if wm.para != nil {
@@ -278,7 +275,7 @@ func (wm *WorkerManager) handleJobs() {
 	}
 }
 
-func (wm *WorkerManager) updateParents(j *Job) {
+func (wm *workerManager) updateParents(j *job) {
 	for _, p := range j.parents {
 		p.numDeps--
 		Logf("child: %s (%d)", p.n.Output, p.numDeps)
@@ -289,43 +286,43 @@ func (wm *WorkerManager) updateParents(j *Job) {
 	}
 }
 
-type WorkerManager struct {
+type workerManager struct {
 	maxJobs     int
-	jobs        []*Job
-	readyQueue  JobQueue
-	jobChan     chan *Job
-	resultChan  chan JobResult
-	newDepChan  chan NewDep
+	jobs        []*job
+	readyQueue  jobQueue
+	jobChan     chan *job
+	resultChan  chan jobResult
+	newDepChan  chan newDep
 	waitChan    chan bool
 	doneChan    chan bool
-	freeWorkers []*Worker
-	busyWorkers map[*Worker]bool
+	freeWorkers []*worker
+	busyWorkers map[*worker]bool
 	ex          *Executor
 	para        *paraWorker
 	paraChan    chan *paraResult
-	runnings    map[string]*Job
+	runnings    map[string]*job
 
 	finishCnt int
 }
 
-func NewWorkerManager(numJobs int, paraPath string) *WorkerManager {
-	wm := &WorkerManager{
+func newWorkerManager(numJobs int, paraPath string) *workerManager {
+	wm := &workerManager{
 		maxJobs:     numJobs,
-		jobChan:     make(chan *Job),
-		resultChan:  make(chan JobResult),
-		newDepChan:  make(chan NewDep),
+		jobChan:     make(chan *job),
+		resultChan:  make(chan jobResult),
+		newDepChan:  make(chan newDep),
 		waitChan:    make(chan bool),
 		doneChan:    make(chan bool),
-		busyWorkers: make(map[*Worker]bool),
+		busyWorkers: make(map[*worker]bool),
 	}
 
 	if paraPath != "" {
-		wm.runnings = make(map[string]*Job)
+		wm.runnings = make(map[string]*job)
 		wm.paraChan = make(chan *paraResult)
 		wm.para = newParaWorker(wm.paraChan, numJobs, paraPath)
 		go wm.para.Run()
 	} else {
-		wm.busyWorkers = make(map[*Worker]bool)
+		wm.busyWorkers = make(map[*worker]bool)
 		for i := 0; i < numJobs; i++ {
 			w := newWorker(wm)
 			wm.freeWorkers = append(wm.freeWorkers, w)
@@ -350,11 +347,11 @@ func exitStatus(err error) int {
 	return exit
 }
 
-func (wm *WorkerManager) hasTodo() bool {
+func (wm *workerManager) hasTodo() bool {
 	return wm.finishCnt != len(wm.jobs)
 }
 
-func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
+func (wm *workerManager) maybePushToReadyQueue(j *job) {
 	if j.numDeps != 0 {
 		return
 	}
@@ -362,7 +359,7 @@ func (wm *WorkerManager) maybePushToReadyQueue(j *Job) {
 	Logf("ready: %s", j.n.Output)
 }
 
-func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
+func (wm *workerManager) handleNewDep(j *job, neededBy *job) {
 	if j.numDeps < 0 {
 		neededBy.numDeps--
 		if neededBy.id > 0 {
@@ -373,7 +370,7 @@ func (wm *WorkerManager) handleNewDep(j *Job, neededBy *Job) {
 	}
 }
 
-func (wm *WorkerManager) Run() {
+func (wm *workerManager) Run() {
 	done := false
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || len(wm.runnings) > 0 || !done {
 		select {
@@ -436,19 +433,19 @@ func (wm *WorkerManager) Run() {
 	wm.doneChan <- true
 }
 
-func (wm *WorkerManager) PostJob(j *Job) {
+func (wm *workerManager) PostJob(j *job) {
 	wm.jobChan <- j
 }
 
-func (wm *WorkerManager) ReportResult(w *Worker, j *Job) {
-	wm.resultChan <- JobResult{w: w, j: j}
+func (wm *workerManager) ReportResult(w *worker, j *job) {
+	wm.resultChan <- jobResult{w: w, j: j}
 }
 
-func (wm *WorkerManager) ReportNewDep(j *Job, neededBy *Job) {
-	wm.newDepChan <- NewDep{j: j, neededBy: neededBy}
+func (wm *workerManager) ReportNewDep(j *job, neededBy *job) {
+	wm.newDepChan <- newDep{j: j, neededBy: neededBy}
 }
 
-func (wm *WorkerManager) Wait() {
+func (wm *workerManager) Wait() {
 	wm.waitChan <- true
 	<-wm.doneChan
 }
