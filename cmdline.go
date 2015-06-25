@@ -35,7 +35,7 @@ func ParseCommandLine(cmdline []string) ([]string, []string) {
 func initVars(vars Vars, kvlist []string, origin string) error {
 	for _, v := range kvlist {
 		kv := strings.SplitN(v, "=", 2)
-		Logf("%s var %q", origin, v)
+		logf("%s var %q", origin, v)
 		if len(kv) < 2 {
 			return fmt.Errorf("A weird %s variable %q", origin, kv)
 		}

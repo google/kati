@@ -165,7 +165,7 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) {
 	from := fargs[0]
 	to := fargs[1]
 	text := fargs[2]
-	Logf("subst from:%q to:%q text:%q", from, to, text)
+	logf("subst from:%q to:%q text:%q", from, to, text)
 	w.Write(bytes.Replace(text, from, to, -1))
 	freeBuf(abuf)
 	stats.add("funcbody", "subst", t)
@@ -335,10 +335,10 @@ func (f *funcWord) Eval(w io.Writer, ev *Evaluator) {
 	v := string(trimSpaceBytes(fargs[0]))
 	index, ok := numericValueForFunc(v)
 	if !ok {
-		Error(ev.filename, ev.lineno, `*** non-numeric first argument to "word" function: %q.`, v)
+		errorExit(ev.filename, ev.lineno, `*** non-numeric first argument to "word" function: %q.`, v)
 	}
 	if index == 0 {
-		Error(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
+		errorExit(ev.filename, ev.lineno, `*** first argument to "word" function must be greater than 0.`)
 	}
 	ws := newWordScanner(fargs[1])
 	for ws.Scan() {
@@ -363,15 +363,15 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) {
 	v := string(trimSpaceBytes(fargs[0]))
 	si, ok := numericValueForFunc(v)
 	if !ok {
-		Error(ev.filename, ev.lineno, `*** non-numeric first argument to "wordlist" function: %q.`, v)
+		errorExit(ev.filename, ev.lineno, `*** non-numeric first argument to "wordlist" function: %q.`, v)
 	}
 	if si == 0 {
-		Error(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: %s`, f.args[1])
+		errorExit(ev.filename, ev.lineno, `*** invalid first argument to "wordlist" function: %s`, f.args[1])
 	}
 	v = string(trimSpaceBytes(fargs[1]))
 	ei, ok := numericValueForFunc(v)
 	if !ok {
-		Error(ev.filename, ev.lineno, `*** non-numeric second argument to "wordlist" function: %q.`, v)
+		errorExit(ev.filename, ev.lineno, `*** non-numeric second argument to "wordlist" function: %q.`, v)
 	}
 
 	ws := newWordScanner(fargs[2])
@@ -638,12 +638,12 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) {
 		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
-			Logf("abs: %v", err)
+			logf("abs: %v", err)
 			continue
 		}
 		name, err = filepath.EvalSymlinks(name)
 		if err != nil {
-			Logf("realpath: %v", err)
+			logf("realpath: %v", err)
 			continue
 		}
 		sw.WriteString(name)
@@ -666,7 +666,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) {
 		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
 		if err != nil {
-			Logf("abs: %v", err)
+			logf("abs: %v", err)
 			continue
 		}
 		sw.WriteString(name)
@@ -751,7 +751,7 @@ func hasNoIoInShellScript(s []byte) bool {
 	if !bytes.HasPrefix(s, []byte("echo $((")) || s[len(s)-1] != ')' {
 		return false
 	}
-	Logf("has no IO - evaluate now: %s", s)
+	logf("has no IO - evaluate now: %s", s)
 	return true
 }
 
@@ -775,7 +775,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	// TODO: Should be Eval, not String.
 	cmdline := []string{shellVar.String(), "-c", arg}
 	if LogFlag {
-		Logf("shell %q", cmdline)
+		logf("shell %q", cmdline)
 	}
 	cmd := exec.Cmd{
 		Path:   cmdline[0],
@@ -786,7 +786,7 @@ func (f *funcShell) Eval(w io.Writer, ev *Evaluator) {
 	out, err := cmd.Output()
 	shellStats.add(time.Since(te.t))
 	if err != nil {
-		Logf("$(shell %q) failed: %q", arg, err)
+		logf("$(shell %q) failed: %q", arg, err)
 	}
 	w.Write(formatCommandOutput(out))
 	traceEvent.end(te)
@@ -811,11 +811,11 @@ func (f *funcShell) Compact() Value {
 		// hack for android
 		for _, sb := range shBuiltins {
 			if v, ok := matchExpr(exp, sb.pattern); ok {
-				Logf("shell compact apply %s for %s", sb.name, exp)
+				logf("shell compact apply %s for %s", sb.name, exp)
 				return sb.compact(f, v)
 			}
 		}
-		Logf("shell compact no match: %s", exp)
+		logf("shell compact no match: %s", exp)
 	}
 	return f
 }
@@ -832,7 +832,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	variable := string(varname)
 	te := traceEvent.begin("call", literal(variable), traceEventMain)
 	if LogFlag {
-		Logf("call %q variable %q", f.args[1], variable)
+		logf("call %q variable %q", f.args[1], variable)
 	}
 	v := ev.LookupVar(variable)
 	// Evalualte all arguments first before we modify the table.
@@ -847,7 +847,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 		// f.args[2]=>args[1] will be $1.
 		args = append(args, tmpval(arg))
 		if LogFlag {
-			Logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
+			logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
 		}
 	}
 	oldParams := ev.paramVars
@@ -861,7 +861,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) {
 	ev.paramVars = oldParams
 	traceEvent.end(te)
 	if LogFlag {
-		Logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
+		logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 	}
 	freeBuf(abuf)
 }
@@ -885,7 +885,7 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
 	s := abuf.Bytes()
-	Logf("eval %q at %s:%d", s, ev.filename, ev.lineno)
+	logf("eval %q at %s:%d", s, ev.filename, ev.lineno)
 	mk, err := parseMakefileBytes(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
@@ -917,7 +917,7 @@ func (f *funcEval) Compact() Value {
 					rhs = append(rhs, rhsprefix)
 				}
 				rhs = append(rhs, arg[1:]...)
-				Logf("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
+				logf("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
 				return &funcEvalAssign{
 					lhs: lhs,
 					op:  op,
@@ -1041,7 +1041,7 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) {
 		rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
 	if LogFlag {
-		Logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
+		logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	}
 	ev.outVars.Assign(f.lhs, rvalue)
 }
@@ -1129,7 +1129,7 @@ func (f *funcError) Eval(w io.Writer, ev *Evaluator) {
 	}
 	abuf := newBuf()
 	f.args[1].Eval(abuf, ev)
-	Error(ev.filename, ev.lineno, "*** %s.", abuf.String())
+	errorExit(ev.filename, ev.lineno, "*** %s.", abuf.String())
 	freeBuf(abuf)
 }
 

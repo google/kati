@@ -147,8 +147,8 @@ func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if len(outputs) != 1 {
 		panic(fmt.Sprintf("Implicit rule should have only one output but %q", outputs))
 	}
-	Logf("merge? %q", db.ruleVars)
-	Logf("merge? %q", outputs[0])
+	logf("merge? %q", db.ruleVars)
+	logf("merge? %q", outputs[0])
 	ivars, present := db.ruleVars[outputs[0]]
 	if !present {
 		return vars
@@ -156,7 +156,7 @@ func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if vars == nil {
 		return ivars
 	}
-	Logf("merge!")
+	logf("merge!")
 	v := make(Vars)
 	v.Merge(ivars)
 	v.Merge(vars)
@@ -237,7 +237,7 @@ func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
 }
 
 func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
-	Logf("Evaluating command: %s", output)
+	logf("Evaluating command: %s", output)
 	db.nodeCnt++
 	if db.nodeCnt%100 == 0 {
 		db.reportStats()
@@ -292,7 +292,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 
 	var children []*DepNode
 	var actualInputs []string
-	Logf("Evaluating command: %s inputs:%q", output, rule.inputs)
+	logf("Evaluating command: %s inputs:%q", output, rule.inputs)
 	for _, input := range rule.inputs {
 		if len(rule.outputPatterns) > 0 {
 			if len(rule.outputPatterns) > 1 {
@@ -375,11 +375,11 @@ func (db *depBuilder) populateSuffixRule(r *rule, output string) bool {
 
 func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) *rule {
 	if oldRule.isDoubleColon != r.isDoubleColon {
-		Error(r.filename, r.lineno, "*** target file %q has both : and :: entries.", output)
+		errorExit(r.filename, r.lineno, "*** target file %q has both : and :: entries.", output)
 	}
 	if len(oldRule.cmds) > 0 && len(r.cmds) > 0 && !isSuffixRule && !r.isDoubleColon {
-		Warn(r.filename, r.cmdLineno, "overriding commands for target %q", output)
-		Warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
+		warn(r.filename, r.cmdLineno, "overriding commands for target %q", output)
+		warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
 	}
 
 	mr := &rule{}
@@ -523,7 +523,7 @@ func newDepBuilder(er *evalResult, vars Vars) *depBuilder {
 func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 	if len(targets) == 0 {
 		if db.firstRule == nil {
-			ErrorNoLocation("*** No targets.")
+			errorNoLocationExit("*** No targets.")
 		}
 		targets = append(targets, db.firstRule.outputs[0])
 	}

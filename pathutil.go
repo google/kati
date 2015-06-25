@@ -176,7 +176,7 @@ func (c *androidFindCacheT) init(prunes []string) {
 }
 
 func (c *androidFindCacheT) start(prunes, leafNames []string) {
-	Logf("find cache init: prunes=%q leafNames=%q", prunes, leafNames)
+	logf("find cache init: prunes=%q leafNames=%q", prunes, leafNames)
 	te := traceEvent.begin("findcache", literal("init"), traceEventFindCache)
 	defer func() {
 		traceEvent.end(te)
@@ -198,7 +198,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 					if info.IsDir() {
 						for _, prune := range prunes {
 							if info.Name() == prune {
-								Logf("find cache prune: %s", path)
+								logf("find cache prune: %s", path)
 								return filepath.SkipDir
 							}
 						}
@@ -209,7 +209,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 					}
 					for _, leaf := range leafNames {
 						if info.Name() == leaf {
-							Logf("find cache leaf: %s", path)
+							logf("find cache leaf: %s", path)
 							leafch <- fileInfo{
 								path: path,
 								mode: info.Mode(),
@@ -220,7 +220,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 					return nil
 				})
 				if err != nil && err != filepath.SkipDir {
-					Logf("error in adnroid find cache: %v", err)
+					logf("error in adnroid find cache: %v", err)
 					close(c.filesch)
 					close(c.leavesch)
 					return
@@ -253,7 +253,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		traceEvent.end(leavesTe)
 		LogStats("%d leaves %d dirs in find cache", nfiles, len(dirs))
 		for i, leaf := range leaves {
-			Logf("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
+			logf("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
 		}
 	}()
 
@@ -268,20 +268,20 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		traceEvent.end(filesTe)
 		LogStats("%d files in find cache", len(files))
 		for i, fi := range files {
-			Logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
+			logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
 		}
 	}()
 
 	curdir, err := os.Open(".")
 	if err != nil {
-		Logf("open . failed: %v", err)
+		logf("open . failed: %v", err)
 		close(c.filesch)
 		close(c.leavesch)
 		return
 	}
 	names, err := curdir.Readdirnames(-1)
 	if err != nil {
-		Logf("readdir . failed: %v", err)
+		logf("readdir . failed: %v", err)
 		close(c.filesch)
 		close(c.leavesch)
 		return
@@ -334,7 +334,7 @@ func (c *androidFindCacheT) walk(dir string, walkFn func(int, fileInfo) error) e
 	i := sort.Search(len(c.files), func(i int) bool {
 		return c.files[i].path >= dir
 	})
-	Logf("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
+	logf("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
 	start := i
 	var skipdirs []string
 Loop:
@@ -347,7 +347,7 @@ Loop:
 			continue
 		}
 		if !strings.HasPrefix(c.files[i].path, dir) {
-			Logf("android find in dir cache: %s end=%d/%d", dir, i, len(c.files))
+			logf("android find in dir cache: %s end=%d/%d", dir, i, len(c.files))
 			return nil
 		}
 		if !strings.HasPrefix(c.files[i].path, dir+"/") {
@@ -361,7 +361,7 @@ Loop:
 
 		err := walkFn(i, c.files[i])
 		if err == errSkipDir {
-			Logf("android find in skip dir: %s", c.files[i].path)
+			logf("android find in skip dir: %s", c.files[i].path)
 			skipdirs = append(skipdirs, c.files[i].path)
 			continue
 		}
@@ -377,7 +377,7 @@ Loop:
 // if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
 func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 	dir = filepath.Clean(dir)
-	Logf("android find in dir cache: %s", dir)
+	logf("android find in dir cache: %s", dir)
 	c.walk(dir, func(_ int, fi fileInfo) error {
 		// -not -name '.*'
 		if strings.HasPrefix(filepath.Base(fi.path), ".") {
@@ -391,7 +391,7 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
 		sw.WriteString(name)
-		Logf("android find in dir cache: %s=> %s", dir, name)
+		logf("android find in dir cache: %s=> %s", dir, name)
 		return nil
 	})
 }
@@ -403,12 +403,12 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext string) bool {
 	chdir = filepath.Clean(chdir)
 	dir := filepath.Join(chdir, root)
-	Logf("android find %s in dir cache: %s %s", ext, chdir, root)
+	logf("android find %s in dir cache: %s %s", ext, chdir, root)
 	// check symlinks
 	var matches []int
 	err := c.walk(dir, func(i int, fi fileInfo) error {
 		if fi.mode&os.ModeSymlink == os.ModeSymlink {
-			Logf("android find %s in dir cache: detect symlink %s %v", ext, c.files[i].path, c.files[i].mode)
+			logf("android find %s in dir cache: detect symlink %s %v", ext, c.files[i].path, c.files[i].mode)
 			return fmt.Errorf("symlink %s", fi.path)
 		}
 		matches = append(matches, i)
@@ -431,7 +431,7 @@ func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext st
 		}
 		name := strings.TrimPrefix(fi.path, chdir+"/")
 		sw.WriteString(name)
-		Logf("android find %s in dir cache: %s=> %s", ext, dir, name)
+		logf("android find %s in dir cache: %s=> %s", ext, dir, name)
 	}
 	return true
 }
@@ -443,7 +443,7 @@ func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext st
 // -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
 // -a \! -name "*~" -print )
 func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string) {
-	Logf("android find java resource in dir cache: %s", dir)
+	logf("android find java resource in dir cache: %s", dir)
 	c.walk(filepath.Clean(dir), func(_ int, fi fileInfo) error {
 		// -type d -a -name ".svn" -prune
 		if fi.mode.IsDir() && filepath.Base(fi.path) == ".svn" {
@@ -468,7 +468,7 @@ func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string)
 		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
 		sw.WriteString(name)
-		Logf("android find java resource in dir cache: %s=> %s", dir, name)
+		logf("android find java resource in dir cache: %s=> %s", dir, name)
 		return nil
 	})
 }
@@ -485,7 +485,7 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 			dir = ""
 		}
 		depth := strings.Count(dir, "/")
-		// Logf("android findleaves dir=%q depth=%d dirs=%q", dir, depth, dirs)
+		// logf("android findleaves dir=%q depth=%d dirs=%q", dir, depth, dirs)
 		i := sort.Search(len(c.leaves), func(i int) bool {
 			di := strings.Count(c.leaves[i].path, "/")
 			if di != depth {
@@ -497,7 +497,7 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 			}
 			return c.leaves[i].path >= dir
 		})
-		Logf("android findleaves dir=%q i=%d/%d", dir, i, len(c.leaves))
+		logf("android findleaves dir=%q i=%d/%d", dir, i, len(c.leaves))
 
 	Scandir:
 		for ; i < len(c.leaves); i++ {
@@ -511,7 +511,7 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 				if !c.leaves[i].mode.IsDir() && filepath.Base(c.leaves[i].path) == name {
 					n := "./" + c.leaves[i].path
 					found = append(found, n)
-					Logf("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
+					logf("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
 					break Scandir
 				}
 			}
@@ -519,9 +519,9 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 				dirs = append(dirs, c.leaves[i].path)
 			}
 		}
-		// Logf("android findleaves next dirs=%q", dirs)
+		// logf("android findleaves next dirs=%q", dirs)
 	}
-	Logf("android findleave done")
+	logf("android findleave done")
 	sort.Strings(found)
 	for _, f := range found {
 		sw.WriteString(f)

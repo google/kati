@@ -274,14 +274,14 @@ func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) {
 	fargs := ev.args(abuf, f.dir)
 	dir := string(trimSpaceBytes(fargs[0]))
 	freeBuf(abuf)
-	Logf("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
+	logf("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
 	if strings.Contains(dir, "..") {
-		Logf("shellAndroidFindFileInDir contains ..: call original shell")
+		logf("shellAndroidFindFileInDir contains ..: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
 	if !androidFindCache.ready() {
-		Logf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
+		logf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
@@ -311,14 +311,14 @@ func (f *funcShellAndroidFindExtFilesUnder) Eval(w io.Writer, ev *Evaluator) {
 		roots = append(roots, string(ws.Bytes()))
 	}
 	freeBuf(abuf)
-	Logf("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
+	logf("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
 	if strings.Contains(chdir, "..") || hasDotDot {
-		Logf("shellAndroidFindExtFilesUnder contains ..: call original shell")
+		logf("shellAndroidFindExtFilesUnder contains ..: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
 	if !androidFindCache.ready() {
-		Logf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
+		logf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
@@ -327,7 +327,7 @@ func (f *funcShellAndroidFindExtFilesUnder) Eval(w io.Writer, ev *Evaluator) {
 	for _, root := range roots {
 		if !androidFindCache.findExtFilesUnder(&sw, chdir, root, f.ext) {
 			freeBuf(buf)
-			Logf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
+			logf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
 			f.funcShell.Eval(w, ev)
 			return
 		}
@@ -346,14 +346,14 @@ func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w io.Writer, ev *Evalua
 	fargs := ev.args(abuf, f.dir)
 	dir := string(trimSpaceBytes(fargs[0]))
 	freeBuf(abuf)
-	Logf("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
+	logf("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
 	if strings.Contains(dir, "..") {
-		Logf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
+		logf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
 	if !androidFindCache.ready() {
-		Logf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
+		logf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
@@ -371,7 +371,7 @@ type funcShellAndroidFindleaves struct {
 
 func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) {
 	if !androidFindCache.leavesReady() {
-		Logf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
+		logf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
 		f.funcShell.Eval(w, ev)
 		return
 	}
@@ -387,7 +387,7 @@ func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) {
 	for ws.Scan() {
 		dir := string(ws.Bytes())
 		if strings.Contains(dir, "..") {
-			Logf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
+			logf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
 			f.funcShell.Eval(w, ev)
 			return
 		}

@@ -23,7 +23,7 @@ import (
 
 var logMu sync.Mutex
 
-func LogAlways(f string, a ...interface{}) {
+func logAlways(f string, a ...interface{}) {
 	var buf bytes.Buffer
 	buf.WriteString("*kati*: ")
 	buf.WriteString(f)
@@ -37,22 +37,22 @@ func LogStats(f string, a ...interface{}) {
 	if !LogFlag && !StatsFlag {
 		return
 	}
-	LogAlways(f, a...)
+	logAlways(f, a...)
 }
 
-func Logf(f string, a ...interface{}) {
+func logf(f string, a ...interface{}) {
 	if !LogFlag {
 		return
 	}
-	LogAlways(f, a...)
+	logAlways(f, a...)
 }
 
-func Warn(filename string, lineno int, f string, a ...interface{}) {
+func warn(filename string, lineno int, f string, a ...interface{}) {
 	f = fmt.Sprintf("%s:%d: warning: %s\n", filename, lineno, f)
 	fmt.Printf(f, a...)
 }
 
-func WarnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
+func warnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
 	f = fmt.Sprintf("%s:%d: %s\n", filename, lineno, f)
 	fmt.Printf(f, a...)
 }
@@ -63,12 +63,12 @@ func AtError(f func()) {
 	atErrors = append(atErrors, f)
 }
 
-func Error(filename string, lineno int, f string, a ...interface{}) {
+func errorExit(filename string, lineno int, f string, a ...interface{}) {
 	f = fmt.Sprintf("%s:%d: %s", filename, lineno, f)
-	ErrorNoLocation(f, a...)
+	errorNoLocationExit(f, a...)
 }
 
-func ErrorNoLocation(f string, a ...interface{}) {
+func errorNoLocationExit(f string, a ...interface{}) {
 	f = fmt.Sprintf("%s\n", f)
 	fmt.Printf(f, a...)
 	for i := len(atErrors) - 1; i >= 0; i-- {

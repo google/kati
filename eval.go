@@ -151,10 +151,10 @@ func (ev *Evaluator) evalAssign(ast *assignAST) {
 	ev.lastRule = nil
 	lhs, rhs := ev.evalAssignAST(ast)
 	if LogFlag {
-		Logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+		logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
 	}
 	if lhs == "" {
-		Error(ast.filename, ast.lineno, "*** empty variable name.")
+		errorExit(ast.filename, ast.lineno, "*** empty variable name.")
 	}
 	ev.outVars.Assign(lhs, rhs)
 }
@@ -188,7 +188,7 @@ func (ev *Evaluator) setTargetSpecificVar(assign *assignAST, output string) {
 	ev.currentScope = vars
 	lhs, rhs := ev.evalAssignAST(assign)
 	if LogFlag {
-		Logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
+		logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
 	}
 	vars.Assign(lhs, &targetSpecificVar{v: rhs, op: assign.op})
 	ev.currentScope = nil
@@ -207,7 +207,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 		line = append(line, ast.afterTerm...)
 	}
 	if LogFlag {
-		Logf("rule? %q=>%q", ast.expr, line)
+		logf("rule? %q=>%q", ast.expr, line)
 	}
 
 	// See semicolon.mk.
@@ -222,15 +222,15 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 	}
 	assign, err := r.parse(line)
 	if err != nil {
-		Error(ast.filename, ast.lineno, "%v", err.Error())
+		errorExit(ast.filename, ast.lineno, "%v", err)
 	}
 	freeBuf(buf)
 	if LogFlag {
-		Logf("rule %q => outputs:%q, inputs:%q", line, r.outputs, r.inputs)
+		logf("rule %q => outputs:%q, inputs:%q", line, r.outputs, r.inputs)
 	}
 
 	// TODO: Pretty print.
-	//Logf("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
+	//logf("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
 		if ast.term == ';' {
@@ -244,7 +244,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 			lexpr.Eval(buf, ev)
 			assign, err = r.parse(buf.Bytes())
 			if err != nil {
-				Error(ast.filename, ast.lineno, "%v", err.Error())
+				errorExit(ast.filename, ast.lineno, "%v", err)
 			}
 			freeBuf(buf)
 		}
@@ -261,7 +261,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 		r.cmds = append(r.cmds, string(ast.afterTerm[1:]))
 	}
 	if LogFlag {
-		Logf("rule outputs:%q cmds:%q", r.outputs, r.cmds)
+		logf("rule outputs:%q cmds:%q", r.outputs, r.cmds)
 	}
 	ev.lastRule = r
 	ev.outRules = append(ev.outRules, r)
@@ -288,7 +288,7 @@ func (ev *Evaluator) evalCommand(ast *commandAST) {
 		if strings.TrimSpace(ast.cmd)[0] == '#' {
 			return
 		}
-		Error(ast.filename, ast.lineno, "*** commands commence before first target.")
+		errorExit(ast.filename, ast.lineno, "*** commands commence before first target.")
 	}
 	ev.lastRule.cmds = append(ev.lastRule.cmds, ast.cmd)
 	if ev.lastRule.cmdLineno == 0 {
@@ -351,7 +351,7 @@ func (ev *Evaluator) evalInclude(ast *includeAST) {
 	ev.filename = ast.filename
 	ev.lineno = ast.lineno
 
-	Logf("%s:%d include %q", ev.filename, ev.lineno, ast.expr)
+	logf("%s:%d include %q", ev.filename, ev.lineno, ast.expr)
 	v, _, err := parseExpr([]byte(ast.expr), nil, false)
 	if err != nil {
 		panic(err)
@@ -381,18 +381,18 @@ func (ev *Evaluator) evalInclude(ast *includeAST) {
 		mk, hash, err := makefileCache.parse(fn)
 		if os.IsNotExist(err) {
 			if ast.op == "include" {
-				Error(ev.filename, ev.lineno, fmt.Sprintf("%v\nNOTE: kati does not support generating missing makefiles", err))
+				errorExit(ev.filename, ev.lineno, "%v\nNOTE: kati does not support generating missing makefiles", err)
 			} else {
 				msg := ev.cache.update(fn, hash, fileNotExists)
 				if msg != "" {
-					Warn(ev.filename, ev.lineno, "%s", msg)
+					warn(ev.filename, ev.lineno, "%s", msg)
 				}
 				continue
 			}
 		}
 		msg := ev.cache.update(fn, hash, fileExists)
 		if msg != "" {
-			Warn(ev.filename, ev.lineno, "%s", msg)
+			warn(ev.filename, ev.lineno, "%s", msg)
 		}
 		err = ev.evalIncludeFile(fn, mk)
 		if err != nil {
@@ -416,7 +416,7 @@ func (ev *Evaluator) evalIf(iast *ifAST) {
 		freeBuf(buf)
 		isTrue = (val > 0) == (iast.op == "ifdef")
 		if LogFlag {
-			Logf("%s lhs=%q value=%q => %t", iast.op, iast.lhs, value, isTrue)
+			logf("%s lhs=%q value=%q => %t", iast.op, iast.lhs, value, isTrue)
 		}
 	case "ifeq", "ifneq":
 		lexpr := iast.lhs
@@ -428,7 +428,7 @@ func (ev *Evaluator) evalIf(iast *ifAST) {
 		freeBuf(buf)
 		isTrue = (lhs == rhs) == (iast.op == "ifeq")
 		if LogFlag {
-			Logf("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
+			logf("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
 		}
 	default:
 		panic(fmt.Sprintf("unknown if statement: %q", iast.op))
