@@ -43,7 +43,7 @@ type LoadOpt struct {
 func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	startTime := time.Now()
 	if makefile == "" {
-		makefile = DefaultMakefile()
+		makefile = defaultMakefile()
 	}
 
 	if opt.UseCache {

@@ -684,7 +684,7 @@ func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
 	return parser.parse()
 }
 
-func DefaultMakefile() string {
+func defaultMakefile() string {
 	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
 	for _, filename := range candidates {
 		if exists(filename) {

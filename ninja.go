@@ -24,7 +24,7 @@ import (
 	"strings"
 )
 
-type NinjaGenerator struct {
+type ninjaGenerator struct {
 	f       *os.File
 	nodes   []*DepNode
 	vars    Vars
@@ -36,12 +36,12 @@ type NinjaGenerator struct {
 	gomaDir string
 }
 
-func NewNinjaGenerator(g *DepGraph, gomaDir string) *NinjaGenerator {
+func newNinjaGenerator(g *DepGraph, gomaDir string) *ninjaGenerator {
 	ccRe, err := regexp.Compile(`^prebuilts/(gcc|clang)/.*(gcc|g\+\+|clang|clang\+\+) .* -c `)
 	if err != nil {
 		panic(err)
 	}
-	return &NinjaGenerator{
+	return &ninjaGenerator{
 		nodes:   g.nodes,
 		vars:    g.vars,
 		exports: g.exports,
@@ -154,7 +154,7 @@ func stripShellComment(s string) string {
 	return s
 }
 
-func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
+func (n *ninjaGenerator) genShellScript(runners []runner) (string, bool) {
 	useGomacc := false
 	var buf bytes.Buffer
 	for i, r := range runners {
@@ -198,13 +198,13 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 	return buf.String(), n.gomaDir != "" && !useGomacc
 }
 
-func (n *NinjaGenerator) genRuleName() string {
+func (n *ninjaGenerator) genRuleName() string {
 	ruleName := fmt.Sprintf("rule%d", n.ruleID)
 	n.ruleID++
 	return ruleName
 }
 
-func (n *NinjaGenerator) emitBuild(output, rule, dep string) {
+func (n *ninjaGenerator) emitBuild(output, rule, dep string) {
 	fmt.Fprintf(n.f, "build %s: %s%s\n", output, rule, dep)
 }
 
@@ -228,7 +228,7 @@ func getDepString(node *DepNode) string {
 	return dep
 }
 
-func (n *NinjaGenerator) emitNode(node *DepNode) {
+func (n *ninjaGenerator) emitNode(node *DepNode) {
 	if n.done[node.Output] {
 		return
 	}
@@ -278,7 +278,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) {
 	}
 }
 
-func (n *NinjaGenerator) generateShell() {
+func (n *ninjaGenerator) generateShell() {
 	f, err := os.Create("ninja.sh")
 	if err != nil {
 		panic(err)
@@ -310,7 +310,7 @@ func (n *NinjaGenerator) generateShell() {
 	}
 }
 
-func (n *NinjaGenerator) generateNinja() {
+func (n *ninjaGenerator) generateNinja() {
 	f, err := os.Create("build.ninja")
 	if err != nil {
 		panic(err)
@@ -333,7 +333,7 @@ func (n *NinjaGenerator) generateNinja() {
 }
 
 func GenerateNinja(g *DepGraph, gomaDir string) {
-	n := NewNinjaGenerator(g, gomaDir)
+	n := newNinjaGenerator(g, gomaDir)
 	n.generateShell()
 	n.generateNinja()
 }
