@@ -1,6 +1,6 @@
 # TODO(go): Implement vpath and VPATH and test them. It seems Android
 # actually uses it...
-# TODO(c): Not sure if C++ version passes this test.
+# TODO(c): Not sure why C++ version passes this test.
 
 VPATH=dir
 
