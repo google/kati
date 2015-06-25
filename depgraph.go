@@ -53,13 +53,13 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 		}
 	}
 
-	bmk := BootstrapMakefile(opt.Targets)
+	bmk := bootstrapMakefile(opt.Targets)
 
 	content, err := ioutil.ReadFile(makefile)
 	if err != nil {
 		return nil, err
 	}
-	mk, err := ParseMakefile(content, makefile)
+	mk, err := parseMakefile(content, makefile)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 	if err != nil {
 		return nil, err
 	}
-	er, err := Eval(mk, vars, opt.UseCache)
+	er, err := eval(mk, vars, opt.UseCache)
 	if err != nil {
 		return nil, err
 	}

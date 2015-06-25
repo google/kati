@@ -26,13 +26,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"sync"
 	"time"
 )
 
-type Makefile struct {
+type makefile struct {
 	filename string
 	stmts    []ast
 }
@@ -45,7 +44,7 @@ type ifState struct {
 
 type parser struct {
 	rd          *bufio.Reader
-	mk          Makefile
+	mk          makefile
 	lineno      int
 	elineno     int // lineno == elineno unless there is trailing '\'.
 	linenoFixed bool
@@ -569,7 +568,7 @@ func (p *parser) isEndef(s string) bool {
 	return false
 }
 
-func (p *parser) parse() (mk Makefile, err error) {
+func (p *parser) parse() (mk makefile, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic in parse %s: %v", mk.filename, r)
@@ -679,11 +678,6 @@ func (p *parser) parse() (mk Makefile, err error) {
 	return p.mk, nil
 }
 
-func ParseMakefileFd(filename string, f *os.File) (Makefile, error) {
-	parser := newParser(f, filename)
-	return parser.parse()
-}
-
 func defaultMakefile() string {
 	candidates := []string{"GNUmakefile", "makefile", "Makefile"}
 	for _, filename := range candidates {
@@ -695,7 +689,7 @@ func defaultMakefile() string {
 	panic("") // Cannot be reached.
 }
 
-func parseMakefileReader(rd io.Reader, name string, lineno int) (Makefile, error) {
+func parseMakefileReader(rd io.Reader, name string, lineno int) (makefile, error) {
 	parser := newParser(rd, name)
 	parser.lineno = lineno
 	parser.elineno = lineno
@@ -703,16 +697,16 @@ func parseMakefileReader(rd io.Reader, name string, lineno int) (Makefile, error
 	return parser.parse()
 }
 
-func ParseMakefileString(s string, name string, lineno int) (Makefile, error) {
+func parseMakefileString(s string, name string, lineno int) (makefile, error) {
 	return parseMakefileReader(strings.NewReader(s), name, lineno)
 }
 
-func ParseMakefileBytes(s []byte, name string, lineno int) (Makefile, error) {
+func parseMakefileBytes(s []byte, name string, lineno int) (makefile, error) {
 	return parseMakefileReader(bytes.NewReader(s), name, lineno)
 }
 
 type mkCacheEntry struct {
-	mk   Makefile
+	mk   makefile
 	hash [sha1.Size]byte
 	err  error
 	ts   int64
@@ -727,22 +721,22 @@ var makefileCache = &makefileCacheT{
 	mk: make(map[string]mkCacheEntry),
 }
 
-func (mc *makefileCacheT) lookup(filename string) (Makefile, [sha1.Size]byte, bool, error) {
+func (mc *makefileCacheT) lookup(filename string) (makefile, [sha1.Size]byte, bool, error) {
 	var hash [sha1.Size]byte
 	mc.mu.Lock()
 	c, present := mc.mk[filename]
 	mc.mu.Unlock()
 	if !present {
-		return Makefile{}, hash, false, nil
+		return makefile{}, hash, false, nil
 	}
 	ts := getTimestamp(filename)
 	if ts < 0 || ts >= c.ts {
-		return Makefile{}, hash, false, nil
+		return makefile{}, hash, false, nil
 	}
 	return c.mk, c.hash, true, c.err
 }
 
-func (mc *makefileCacheT) parse(filename string) (Makefile, [sha1.Size]byte, error) {
+func (mc *makefileCacheT) parse(filename string) (makefile, [sha1.Size]byte, error) {
 	Logf("parse Makefile %q", filename)
 	mk, hash, ok, err := makefileCache.lookup(filename)
 	if ok {
@@ -756,12 +750,12 @@ func (mc *makefileCacheT) parse(filename string) (Makefile, [sha1.Size]byte, err
 	}
 	c, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return Makefile{}, hash, err
+		return makefile{}, hash, err
 	}
 	hash = sha1.Sum(c)
-	mk, err = ParseMakefile(c, filename)
+	mk, err = parseMakefile(c, filename)
 	if err != nil {
-		return Makefile{}, hash, err
+		return makefile{}, hash, err
 	}
 	makefileCache.mu.Lock()
 	makefileCache.mk[filename] = mkCacheEntry{
@@ -774,7 +768,7 @@ func (mc *makefileCacheT) parse(filename string) (Makefile, [sha1.Size]byte, err
 	return mk, hash, err
 }
 
-func ParseMakefile(s []byte, filename string) (Makefile, error) {
+func parseMakefile(s []byte, filename string) (makefile, error) {
 	parser := newParser(bytes.NewReader(s), filename)
 	return parser.parse()
 }

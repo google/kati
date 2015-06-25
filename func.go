@@ -886,7 +886,7 @@ func (f *funcEval) Eval(w io.Writer, ev *Evaluator) {
 	f.args[1].Eval(abuf, ev)
 	s := abuf.Bytes()
 	Logf("eval %q at %s:%d", s, ev.filename, ev.lineno)
-	mk, err := ParseMakefileBytes(s, ev.filename, ev.lineno)
+	mk, err := parseMakefileBytes(s, ev.filename, ev.lineno)
 	if err != nil {
 		panic(err)
 	}

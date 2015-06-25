@@ -440,7 +440,7 @@ func (db *depBuilder) populateImplicitRule(r *rule) {
 	}
 }
 
-func (db *depBuilder) populateRules(er *EvalResult) {
+func (db *depBuilder) populateRules(er *evalResult) {
 	for _, r := range er.rules {
 		for i, input := range r.inputs {
 			r.inputs[i] = trimLeadingCurdir(input)
@@ -500,7 +500,7 @@ func (db *depBuilder) reportStats() {
 	}
 }
 
-func newDepBuilder(er *EvalResult, vars Vars) *depBuilder {
+func newDepBuilder(er *evalResult, vars Vars) *depBuilder {
 	db := &depBuilder{
 		rules:       make(map[string]*rule),
 		ruleVars:    er.ruleVars,
