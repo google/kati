@@ -104,13 +104,13 @@ type serializableTargetSpecificVar struct {
 }
 
 type serializableGraph struct {
-	Nodes   []*serializableDepNode
-	Vars    map[string]serializableVar
-	Tsvs    []serializableTargetSpecificVar
-	Targets []string
-	Roots   []string
-	ReadMks []*ReadMakefile
-	Exports map[string]bool
+	Nodes       []*serializableDepNode
+	Vars        map[string]serializableVar
+	Tsvs        []serializableTargetSpecificVar
+	Targets     []string
+	Roots       []string
+	AccessedMks []*accessedMakefile
+	Exports     map[string]bool
 }
 
 func encGob(v interface{}) string {
@@ -230,13 +230,13 @@ func makeSerializableGraph(g *DepGraph, roots []string) serializableGraph {
 	ns.serializeDepNodes(g.nodes)
 	v := makeSerializableVars(g.vars)
 	return serializableGraph{
-		Nodes:   ns.nodes,
-		Vars:    v,
-		Tsvs:    ns.tsvs,
-		Targets: ns.targets,
-		Roots:   roots,
-		ReadMks: g.readMks,
-		Exports: g.exports,
+		Nodes:       ns.nodes,
+		Vars:        v,
+		Tsvs:        ns.tsvs,
+		Targets:     ns.targets,
+		Roots:       roots,
+		AccessedMks: g.accessedMks,
+		Exports:     g.exports,
 	}
 }
 
@@ -284,13 +284,13 @@ func cacheFilename(mk string, roots []string) string {
 }
 
 func DumpDepGraphCache(g *DepGraph, roots []string) {
-	if len(g.readMks) == 0 {
+	if len(g.accessedMks) == 0 {
 		panic("No Makefile is read")
 	}
-	cacheFile := cacheFilename(g.readMks[0].Filename, roots)
-	for _, mk := range g.readMks {
+	cacheFile := cacheFilename(g.accessedMks[0].Filename, roots)
+	for _, mk := range g.accessedMks {
 		// Inconsistent, do not dump this result.
-		if mk.State == FileInconsistent {
+		if mk.State == fileInconsistent {
 			if exists(cacheFile) {
 				os.Remove(cacheFile)
 			}
@@ -534,12 +534,12 @@ func showSerializedTargetsStats(targets []string) {
 	LogStats("%d targets %s", len(targets), human(size))
 }
 
-func showSerializedReadMksStats(readMks []*ReadMakefile) {
+func showSerializedAccessedMksStats(accessedMks []*accessedMakefile) {
 	size := 0
-	for _, rm := range readMks {
+	for _, rm := range accessedMks {
 		size += len(rm.Filename) + len(rm.Hash) + 4
 	}
-	LogStats("%d makefiles %s", len(readMks), human(size))
+	LogStats("%d makefiles %s", len(accessedMks), human(size))
 }
 
 func showSerializedGraphStats(g serializableGraph) {
@@ -547,7 +547,7 @@ func showSerializedGraphStats(g serializableGraph) {
 	showSerializedVarsStats(g.Vars)
 	showSerializedTsvsStats(g.Tsvs)
 	showSerializedTargetsStats(g.Targets)
-	showSerializedReadMksStats(g.ReadMks)
+	showSerializedAccessedMksStats(g.AccessedMks)
 }
 
 func deserializeGraph(g serializableGraph) *DepGraph {
@@ -557,10 +557,10 @@ func deserializeGraph(g serializableGraph) *DepGraph {
 	nodes := deserializeNodes(g)
 	vars := deserializeVars(g.Vars)
 	return &DepGraph{
-		nodes:   nodes,
-		vars:    vars,
-		readMks: g.ReadMks,
-		exports: g.Exports,
+		nodes:       nodes,
+		vars:        vars,
+		accessedMks: g.AccessedMks,
+		exports:     g.Exports,
 	}
 }
 
@@ -609,11 +609,11 @@ func LoadDepGraphCache(makefile string, roots []string) *DepGraph {
 	}
 
 	g := LoadDepGraph(filename)
-	for _, mk := range g.readMks {
-		if mk.State != FileExists && mk.State != FileNotExists {
+	for _, mk := range g.accessedMks {
+		if mk.State != fileExists && mk.State != fileNotExists {
 			panic(fmt.Sprintf("Internal error: broken state: %d", mk.State))
 		}
-		if mk.State == FileNotExists {
+		if mk.State == fileNotExists {
 			if exists(mk.Filename) {
 				LogAlways("Cache expired: %s", mk.Filename)
 				return nil

@@ -21,11 +21,11 @@ import (
 )
 
 type DepGraph struct {
-	nodes    []*DepNode
-	vars     Vars
-	readMks  []*ReadMakefile
-	exports  map[string]bool
-	isCached bool
+	nodes       []*DepNode
+	vars        Vars
+	accessedMks []*accessedMakefile
+	exports     map[string]bool
+	isCached    bool
 }
 
 func (g *DepGraph) Nodes() []*DepNode        { return g.nodes }
@@ -98,18 +98,18 @@ func Load(makefile string, opt LoadOpt) (*DepGraph, error) {
 		return nil, err
 	}
 	LogStats("dep build time: %q", time.Since(startTime))
-	var readMks []*ReadMakefile
+	var accessedMks []*accessedMakefile
 	// Always put the root Makefile as the first element.
-	readMks = append(readMks, &ReadMakefile{
+	accessedMks = append(accessedMks, &accessedMakefile{
 		Filename: makefile,
 		Hash:     sha1.Sum(content),
-		State:    FileExists,
+		State:    fileExists,
 	})
-	readMks = append(readMks, er.readMks...)
+	accessedMks = append(accessedMks, er.accessedMks...)
 	return &DepGraph{
-		nodes:   nodes,
-		vars:    vars,
-		readMks: readMks,
-		exports: er.exports,
+		nodes:       nodes,
+		vars:        vars,
+		accessedMks: accessedMks,
+		exports:     er.exports,
 	}, nil
 }
