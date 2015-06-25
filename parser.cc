@@ -135,6 +135,10 @@ class Parser {
     return ::FindEndOfLine(buf_, l_, lf_cnt);
   }
 
+  Value* ParseExpr(StringPiece s, ParseExprOpt opt = ParseExprOpt::NORMAL) {
+    return ::ParseExpr(loc_, s, opt);
+  }
+
   void ParseLine(StringPiece line) {
     if (line.empty() || (line.size() == 1 && line[0] == '\r'))
       return;
@@ -308,11 +312,11 @@ class Parser {
       s = s.substr(1, s.size() - 2);
       char terms[] = {',', '\0'};
       size_t n;
-      ast->lhs = ParseExprImpl(s, terms, ParseExprOpt::NORMAL, &n, true);
+      ast->lhs = ParseExprImpl(loc_, s, terms, ParseExprOpt::NORMAL, &n, true);
       if (s[n] != ',')
         return false;
       s = TrimLeftSpace(s.substr(n+1));
-      ast->rhs = ParseExprImpl(s, NULL, ParseExprOpt::NORMAL, &n);
+      ast->rhs = ParseExprImpl(loc_, s, NULL, ParseExprOpt::NORMAL, &n);
       s = TrimLeftSpace(s.substr(n));
     } else {
       for (int i = 0; i < 2; i++) {
