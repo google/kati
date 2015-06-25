@@ -25,11 +25,11 @@ func TestPara(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ParaPath = filepath.Join(cwd, "para")
-	JobsFlag = 4
+	paraPath := filepath.Join(cwd, "para")
+	numJobs := 4
 
 	paraChan := make(chan *ParaResult)
-	para := NewParaWorker(paraChan)
+	para := newParaWorker(paraChan, numJobs, paraPath)
 	go para.Run()
 
 	numTasks := 100

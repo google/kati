@@ -73,7 +73,7 @@ func (v *TargetSpecificVar) Serialize() SerializableVar {
 }
 
 func (v *TargetSpecificVar) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeTSV)
+	dumpByte(w, valueTypeTSV)
 	dumpString(w, v.op)
 	v.v.Dump(w)
 }
@@ -99,7 +99,7 @@ func (v *SimpleVar) Serialize() SerializableVar {
 	}
 }
 func (v *SimpleVar) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeSimple)
+	dumpByte(w, valueTypeSimple)
 	dumpString(w, v.value)
 	dumpString(w, v.origin)
 }
@@ -188,7 +188,7 @@ func (v *RecursiveVar) Serialize() SerializableVar {
 	}
 }
 func (v *RecursiveVar) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeRecursive)
+	dumpByte(w, valueTypeRecursive)
 	v.expr.Dump(w)
 	dumpString(w, v.origin)
 }
@@ -238,7 +238,7 @@ func (UndefinedVar) Serialize() SerializableVar {
 	return SerializableVar{Type: "undefined"}
 }
 func (UndefinedVar) Dump(w io.Writer) {
-	dumpByte(w, ValueTypeUndefined)
+	dumpByte(w, valueTypeUndefined)
 }
 
 func (UndefinedVar) Append(*Evaluator, string) Var {
