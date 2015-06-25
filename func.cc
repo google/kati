@@ -421,13 +421,15 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> func_name = args[0]->Eval(ev);
   Var* func = ev->LookupVar(*func_name);
   vector<unique_ptr<SimpleVar>> av;
-  vector<unique_ptr<ScopedVar>> sv;
   for (size_t i = 1; i < args.size(); i++) {
     unique_ptr<SimpleVar> s(
         new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC));
-    sv.push_back(move(unique_ptr<ScopedVar>(
-        new ScopedVar(ev->mutable_vars(), tmpvar_names[i], s.get()))));
     av.push_back(move(s));
+  }
+  vector<unique_ptr<ScopedVar>> sv;
+  for (size_t i = 1; i < args.size(); i++) {
+    sv.push_back(move(unique_ptr<ScopedVar>(
+        new ScopedVar(ev->mutable_vars(), tmpvar_names[i], av[i-1].get()))));
   }
   func->Eval(ev, s);
 }
