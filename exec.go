@@ -48,42 +48,42 @@ type Executor struct {
 	runCommandCnt  int
 }
 
-type AutoVar struct{ ex *Executor }
+type autoVar struct{ ex *Executor }
 
-func (v AutoVar) Flavor() string  { return "undefined" }
-func (v AutoVar) Origin() string  { return "automatic" }
-func (v AutoVar) IsDefined() bool { panic("not implemented") }
-func (v AutoVar) String() string  { panic("not implemented") }
-func (v AutoVar) Append(*Evaluator, string) Var {
+func (v autoVar) Flavor() string  { return "undefined" }
+func (v autoVar) Origin() string  { return "automatic" }
+func (v autoVar) IsDefined() bool { panic("not implemented") }
+func (v autoVar) String() string  { panic("not implemented") }
+func (v autoVar) Append(*Evaluator, string) Var {
 	panic("must not be called")
 }
-func (v AutoVar) AppendVar(*Evaluator, Value) Var {
+func (v autoVar) AppendVar(*Evaluator, Value) Var {
 	panic("must not be called")
 }
-func (v AutoVar) Serialize() SerializableVar {
+func (v autoVar) Serialize() SerializableVar {
 	panic(fmt.Sprintf("cannot serialize auto var: %q", v))
 }
-func (v AutoVar) Dump(w io.Writer) {
+func (v autoVar) Dump(w io.Writer) {
 	panic(fmt.Sprintf("cannot dump auto var: %q", v))
 }
 
-type AutoAtVar struct{ AutoVar }
+type autoAtVar struct{ autoVar }
 
-func (v AutoAtVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoAtVar) Eval(w io.Writer, ev *Evaluator) {
 	fmt.Fprint(w, v.ex.currentOutput)
 }
 
-type AutoLessVar struct{ AutoVar }
+type autoLessVar struct{ autoVar }
 
-func (v AutoLessVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoLessVar) Eval(w io.Writer, ev *Evaluator) {
 	if len(v.ex.currentInputs) > 0 {
 		fmt.Fprint(w, v.ex.currentInputs[0])
 	}
 }
 
-type AutoHatVar struct{ AutoVar }
+type autoHatVar struct{ autoVar }
 
-func (v AutoHatVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoHatVar) Eval(w io.Writer, ev *Evaluator) {
 	var uniqueInputs []string
 	seen := make(map[string]bool)
 	for _, input := range v.ex.currentInputs {
@@ -95,25 +95,25 @@ func (v AutoHatVar) Eval(w io.Writer, ev *Evaluator) {
 	fmt.Fprint(w, strings.Join(uniqueInputs, " "))
 }
 
-type AutoPlusVar struct{ AutoVar }
+type autoPlusVar struct{ autoVar }
 
-func (v AutoPlusVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoPlusVar) Eval(w io.Writer, ev *Evaluator) {
 	fmt.Fprint(w, strings.Join(v.ex.currentInputs, " "))
 }
 
-type AutoStarVar struct{ AutoVar }
+type autoStarVar struct{ autoVar }
 
-func (v AutoStarVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoStarVar) Eval(w io.Writer, ev *Evaluator) {
 	// TODO: Use currentStem. See auto_stem_var.mk
 	fmt.Fprint(w, stripExt(v.ex.currentOutput))
 }
 
-type AutoSuffixDVar struct {
-	AutoVar
+type autoSuffixDVar struct {
+	autoVar
 	v Var
 }
 
-func (v AutoSuffixDVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoSuffixDVar) Eval(w io.Writer, ev *Evaluator) {
 	var buf bytes.Buffer
 	v.v.Eval(&buf, ev)
 	ws := newWordScanner(buf.Bytes())
@@ -123,12 +123,12 @@ func (v AutoSuffixDVar) Eval(w io.Writer, ev *Evaluator) {
 	}
 }
 
-type AutoSuffixFVar struct {
-	AutoVar
+type autoSuffixFVar struct {
+	autoVar
 	v Var
 }
 
-func (v AutoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
+func (v autoSuffixFVar) Eval(w io.Writer, ev *Evaluator) {
 	var buf bytes.Buffer
 	v.v.Eval(&buf, ev)
 	ws := newWordScanner(buf.Bytes())
@@ -242,15 +242,15 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) *Executor {
 	ev := NewEvaluator(ex.vars)
 	ex.shell = ev.EvaluateVar("SHELL")
 	for k, v := range map[string]Var{
-		"@": AutoAtVar{AutoVar: AutoVar{ex: ex}},
-		"<": AutoLessVar{AutoVar: AutoVar{ex: ex}},
-		"^": AutoHatVar{AutoVar: AutoVar{ex: ex}},
-		"+": AutoPlusVar{AutoVar: AutoVar{ex: ex}},
-		"*": AutoStarVar{AutoVar: AutoVar{ex: ex}},
+		"@": autoAtVar{autoVar: autoVar{ex: ex}},
+		"<": autoLessVar{autoVar: autoVar{ex: ex}},
+		"^": autoHatVar{autoVar: autoVar{ex: ex}},
+		"+": autoPlusVar{autoVar: autoVar{ex: ex}},
+		"*": autoStarVar{autoVar: autoVar{ex: ex}},
 	} {
 		ex.vars[k] = v
-		ex.vars[k+"D"] = AutoSuffixDVar{v: v}
-		ex.vars[k+"F"] = AutoSuffixFVar{v: v}
+		ex.vars[k+"D"] = autoSuffixDVar{v: v}
+		ex.vars[k+"F"] = autoSuffixFVar{v: v}
 	}
 	return ex
 }
