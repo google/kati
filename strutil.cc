@@ -364,3 +364,21 @@ size_t FindTwoOutsideParen(StringPiece s, char c1, char c2) {
       return d == c1 || d == c2;
     });
 }
+
+size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
+  bool prev_backslash = false;
+  for (; e < s.size(); e++) {
+    char c = s[e];
+    if (c == '\\') {
+      prev_backslash = !prev_backslash;
+    } else if (c == '\n') {
+      ++*lf_cnt;
+      if (!prev_backslash) {
+        return e;
+      }
+    } else if (c != '\r') {
+      prev_backslash = false;
+    }
+  }
+  return e;
+}

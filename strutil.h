@@ -125,4 +125,6 @@ void AbsPath(StringPiece s, string* o);
 size_t FindOutsideParen(StringPiece s, char c);
 size_t FindTwoOutsideParen(StringPiece s, char c1, char c2);
 
+size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt);
+
 #endif  // STRUTIL_H_
