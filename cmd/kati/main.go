@@ -139,33 +139,38 @@ func load(req kati.LoadReq) (*kati.DepGraph, error) {
 	startTime := time.Now()
 
 	if loadGOB != "" {
-		g := kati.LoadDepGraph(loadGOB)
+		g, err := kati.GOB.Load(loadGOB)
 		kati.LogStats("deserialize time: %q", time.Since(startTime))
-		return g, nil
+		return g, err
 	}
 	if loadJSON != "" {
-		g := kati.LoadDepGraphFromJSON(loadJSON)
+		g, err := kati.JSON.Load(loadJSON)
 		kati.LogStats("deserialize time: %q", time.Since(startTime))
-		return g, nil
+		return g, err
 	}
 	return kati.Load(req)
 }
 
-func save(g *kati.DepGraph, targets []string) {
+func save(g *kati.DepGraph, targets []string) error {
+	var err error
 	startTime := time.Now()
 	if saveGOB != "" {
-		kati.DumpDepGraph(g, saveGOB, targets)
+		err = kati.GOB.Save(g, saveGOB, targets)
 		kati.LogStats("serialize time: %q", time.Since(startTime))
 	}
 	if saveJSON != "" {
-		kati.DumpDepGraphAsJSON(g, saveJSON, targets)
+		serr := kati.JSON.Save(g, saveJSON, targets)
 		kati.LogStats("serialize time: %q", time.Since(startTime))
+		if err == nil {
+			err = serr
+		}
 	}
 
 	if useCache && !g.IsCached() {
 		kati.DumpDepGraphCache(g, targets)
 		kati.LogStats("serialize time: %q", time.Since(startTime))
 	}
+	return err
 }
 
 func main() {
@@ -244,7 +249,10 @@ func main() {
 		kati.LogStats("eager eval command time: %q", time.Since(startTime))
 	}
 
-	save(g, req.Targets)
+	err = save(g, req.Targets)
+	if err != nil {
+		panic(err)
+	}
 
 	if generateNinja {
 		startTime := time.Now()
