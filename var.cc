@@ -125,6 +125,9 @@ void Vars::Assign(StringPiece name, Var* v) {
         orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE) {
       return;
     }
+    if (orig->Origin() == VarOrigin::AUTOMATIC) {
+      ERROR("overriding automatic variable is not implemented yet");
+    }
     if (orig->IsDefined())
       delete p.first->second;
     p.first->second = v;
