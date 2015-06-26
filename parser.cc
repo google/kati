@@ -193,7 +193,13 @@ class Parser {
         sep += orig_line_with_directives_.size() - line.size();
       }
       line = orig_line_with_directives_;
-    } else if (orig_line_with_directives_[0] == '\t') {
+    }
+
+    line = TrimSpace(line);
+    if (line.empty())
+      return;
+
+    if (orig_line_with_directives_[0] == '\t') {
       Error("*** commands commence before first target.");
     }
 
@@ -212,7 +218,7 @@ class Parser {
     } else {
       ast->term = 0;
       ast->after_term = NULL;
-      ast->expr = ParseExpr(TrimSpace(line));
+      ast->expr = ParseExpr(line);
     }
     out_asts_->push_back(ast);
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
