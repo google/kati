@@ -24,15 +24,6 @@
 
 namespace {
 
-// Strip leading sequences of './' from file names, so that ./file
-// and file are considered to be the same file.
-// From http://www.gnu.org/software/make/manual/make.html#Features
-StringPiece TrimLeadingCurdir(StringPiece s) {
-  while (s.substr(0, 2) == "./")
-    s = s.substr(2);
-  return s;
-}
-
 static void ParseInputs(Rule* r, StringPiece s) {
   bool is_order_only = false;
   for (StringPiece input : WordScanner(s)) {

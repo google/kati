@@ -127,4 +127,9 @@ size_t FindTwoOutsideParen(StringPiece s, char c1, char c2);
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt);
 
+// Strip leading sequences of './' from file names, so that ./file
+// and file are considered to be the same file.
+// From http://www.gnu.org/software/make/manual/make.html#Features
+StringPiece TrimLeadingCurdir(StringPiece s);
+
 #endif  // STRUTIL_H_
