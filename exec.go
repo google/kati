@@ -224,9 +224,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 	}
 
 	ex.done[output] = j
-	ex.wm.PostJob(j)
-
-	return nil
+	return ex.wm.PostJob(j)
 }
 
 func (ex *Executor) reportStats() {
@@ -291,7 +289,10 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) (*Executor, error) {
 func (ex *Executor) Exec(roots []*DepNode) error {
 	startTime := time.Now()
 	for _, root := range roots {
-		ex.makeJobs(root, nil)
+		err := ex.makeJobs(root, nil)
+		if err != nil {
+			break
+		}
 	}
 	err := ex.wm.Wait()
 	logStats("exec time: %q", time.Since(startTime))
@@ -380,6 +381,7 @@ func evalCommands(nodes []*DepNode, vars Vars) error {
 		}
 	}
 
+	err = ex.wm.Wait()
 	logStats("%d/%d rules have IO", ioCnt, len(nodes))
-	return nil
+	return err
 }
