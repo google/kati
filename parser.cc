@@ -107,6 +107,8 @@ class Parser {
     else_if_directives_ = new DirectiveMap;
     (*else_if_directives_)["ifdef"] = &Parser::ParseIfdef;
     (*else_if_directives_)["ifndef"] = &Parser::ParseIfdef;
+    (*else_if_directives_)["ifeq"] = &Parser::ParseIfeq;
+    (*else_if_directives_)["ifneq"] = &Parser::ParseIfeq;
 
     assign_directives_ = new DirectiveMap;
     (*assign_directives_)["define"] = &Parser::ParseDefine;
@@ -195,7 +197,7 @@ class Parser {
       line = orig_line_with_directives_;
     }
 
-    line = TrimSpace(line);
+    line = TrimLeftSpace(line);
     if (line.empty())
       return;
 
