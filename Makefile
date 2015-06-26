@@ -38,7 +38,8 @@ CXX_OBJS:=$(CXX_SRCS:.cc=.o)
 CXX_TEST_OBJS:=$(CXX_TEST_SRCS:.cc=.o)
 CXX_ALL_OBJS:=$(CXX_SRCS:.cc=.o) $(CXX_TEST_SRCS:.cc=.o)
 CXX_TEST_EXES:=$(CXX_TEST_OBJS:.o=)
-CXXFLAGS:=-g -W -Wall -MMD # -O
+CXXFLAGS:=-g -W -Wall -MMD
+CXXFLAGS+=-O -DNOLOG
 
 all: kati para ckati $(CXX_TEST_EXES)
 
