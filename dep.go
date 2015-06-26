@@ -312,8 +312,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 		actualInputs = append(actualInputs, input)
 
 		db.trace = append(db.trace, input)
-		var err error
-		n, err = db.buildPlan(input, output, tsvs)
+		n, err := db.buildPlan(input, output, tsvs)
 		db.trace = db.trace[0 : len(db.trace)-1]
 		if err != nil {
 			return nil, err
@@ -325,8 +324,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 
 	for _, input := range rule.orderOnlyInputs {
 		db.trace = append(db.trace, input)
-		var err error
-		n, err = db.buildPlan(input, output, tsvs)
+		n, err := db.buildPlan(input, output, tsvs)
 		db.trace = db.trace[0 : len(db.trace)-1]
 		if err != nil {
 			return nil, err
