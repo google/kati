@@ -16,6 +16,7 @@ package kati
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -304,6 +305,7 @@ type workerManager struct {
 	jobChan     chan *job
 	resultChan  chan jobResult
 	newDepChan  chan newDep
+	stopChan    chan bool
 	waitChan    chan bool
 	doneChan    chan error
 	freeWorkers []*worker
@@ -322,6 +324,7 @@ func newWorkerManager(numJobs int, paraPath string) (*workerManager, error) {
 		jobChan:     make(chan *job),
 		resultChan:  make(chan jobResult),
 		newDepChan:  make(chan newDep),
+		stopChan:    make(chan bool),
 		waitChan:    make(chan bool),
 		doneChan:    make(chan error),
 		busyWorkers: make(map[*worker]bool),
@@ -404,6 +407,7 @@ Loop:
 			wm.finishCnt++
 			if jr.err != nil {
 				err = jr.err
+				close(wm.stopChan)
 				break Loop
 			}
 		case af := <-wm.newDepChan:
@@ -442,6 +446,9 @@ Loop:
 			logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
 		}
 	}
+	if !done {
+		<-wm.waitChan
+	}
 
 	if wm.para != nil {
 		logf("Wait for para to finish")
@@ -460,16 +467,27 @@ Loop:
 	wm.doneChan <- err
 }
 
-func (wm *workerManager) PostJob(j *job) {
-	wm.jobChan <- j
+func (wm *workerManager) PostJob(j *job) error {
+	select {
+	case wm.jobChan <- j:
+		return nil
+	case <-wm.stopChan:
+		return errors.New("worker manager stopped")
+	}
 }
 
 func (wm *workerManager) ReportResult(w *worker, j *job, err error) {
-	wm.resultChan <- jobResult{w: w, j: j, err: err}
+	select {
+	case wm.resultChan <- jobResult{w: w, j: j, err: err}:
+	case <-wm.stopChan:
+	}
 }
 
 func (wm *workerManager) ReportNewDep(j *job, neededBy *job) {
-	wm.newDepChan <- newDep{j: j, neededBy: neededBy}
+	select {
+	case wm.newDepChan <- newDep{j: j, neededBy: neededBy}:
+	case <-wm.stopChan:
+	}
 }
 
 func (wm *workerManager) Wait() error {
