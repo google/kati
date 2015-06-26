@@ -22,9 +22,13 @@
 
 #include "stringprintf.h"
 
+#ifdef NOLOG
+#define LOG(args...)
+#else
 #define LOG(args...) do {                                           \
     fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str());    \
   } while(0)
+#endif
 
 #define PERROR(...) do {                                            \
     fprintf(stderr, "%s: %s\n", StringPrintf(__VA_ARGS__).c_str(),  \
