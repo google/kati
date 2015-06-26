@@ -20,12 +20,8 @@
 set -e
 
 kati_dir=$(cd $(dirname $0) && pwd)
-extra_flags=
-goma_flag=
 
-while [ x"$1" != x"" ]; do
-  case "$1" in
-    --help)
+if [ x"$1" == x--help ]; then
       cat - <<EOF
 Usage:
   m2n         # for full-build
@@ -33,37 +29,8 @@ Usage:
   m2n bionic  # works like mmm
 EOF
       exit 1
-      ;;
-
-    --goma)
-      if [ ! -e $HOME/goma/goma_ctl.py ]; then
-        echo "$HOME/goma/goma_ctl.py should exist to use goma"
-        exit 1
-      fi
-      $HOME/goma/goma_ctl.py ensure_start
-      goma_flag=--goma_dir=$HOME/goma
-      shift
-      ;;
-
-    --*)
-      extra_flags+=" $1"
-      shift
-      ;;
-
-    *)
-      target=$1
-      shift
-      ;;
-  esac
-done
-
-kati=${kati_dir}/kati
-
-if [ x"${target}" != x"" ]; then
-  export ONE_SHOT_MAKEFILE=${target}/Android.mk
-  echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
 fi
-
-${kati} --ninja --ignore_optional_include=out/%.P ${goma_flag} ${extra_flags}
+kati=${kati_dir}/kati
+${kati} --m2n "$@"
 
 echo ninja.sh and build.ninja were generated, please run ./ninja.sh

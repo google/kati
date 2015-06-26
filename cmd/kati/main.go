@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
@@ -40,6 +41,9 @@ var (
 	loadGOB  string
 	saveGOB  string
 	useCache bool
+
+	m2n  bool
+	goma bool
 
 	cpuprofile          string
 	heapprofile         string
@@ -66,6 +70,9 @@ func init() {
 	flag.StringVar(&loadJSON, "load_json", "", "")
 	flag.StringVar(&saveJSON, "save_json", "", "")
 	flag.BoolVar(&useCache, "use_cache", false, "Use cache.")
+
+	flag.BoolVar(&m2n, "m2n", false, "m2n mode")
+	flag.BoolVar(&goma, "goma", false, "ensure goma start")
 
 	flag.StringVar(&cpuprofile, "kati_cpuprofile", "", "write cpu profile to `file`")
 	flag.StringVar(&heapprofile, "kati_heapprofile", "", "write heap profile to `file`")
@@ -159,10 +166,62 @@ func save(g *kati.DepGraph, targets []string) error {
 	return err
 }
 
+func m2nsetup() {
+	fmt.Println("kati: m2n mode")
+	generateNinja = true
+	kati.IgnoreOptionalInclude = "out/%.P"
+	kati.UseFindCache = true
+	if findCachePrunes == "" {
+		findCachePrunes = ".git .repo out"
+	}
+}
+
+func gomasetup() {
+	if gomaDir == "" {
+		gomaDir = os.ExpandEnv("${HOME}/goma")
+	}
+	fmt.Printf("kati: setup goma: %s\n", gomaDir)
+	cmd := exec.Command(filepath.Join(gomaDir, "goma_ctl.py"), "ensure_start")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("goma failed to start: %v", err)
+		os.Exit(1)
+	}
+}
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	m2ncmd := false
+	if filepath.Base(os.Args[0]) == "m2n" {
+		m2nsetup()
+		m2ncmd = true
+	}
 	flag.Parse()
-	err := katiMain()
+	args := flag.Args()
+	if m2n {
+		generateNinja = true
+		if !m2ncmd {
+			m2nsetup()
+		}
+		if len(args) > 1 {
+			fmt.Println("use only first argument as ONE_SHOT_MAKEFILE. ignore rest")
+		}
+		if len(args) > 0 {
+			err := os.Setenv("ONE_SHOT_MAKEFILE", filepath.Join(args[0], "Android.mk"))
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			fmt.Printf("ONE_SHOT_MAKEFILE=%s\n", os.ExpandEnv("${ONE_SHOT_MAKEFILE}"))
+		}
+		args = args[:0]
+	}
+	if goma {
+		gomasetup()
+	}
+	err := katiMain(args)
 	if err != nil {
 		fmt.Println(err)
 		// http://www.gnu.org/software/make/manual/html_node/Running.html
@@ -170,7 +229,7 @@ func main() {
 	}
 }
 
-func katiMain() error {
+func katiMain(args []string) error {
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
 		if err != nil {
@@ -219,7 +278,7 @@ func katiMain() error {
 		kati.AndroidFindCacheInit(strings.Fields(findCachePrunes), leafNames)
 	}
 
-	req := kati.FromCommandLine(flag.Args())
+	req := kati.FromCommandLine(args)
 	if makefileFlag != "" {
 		req.Makefile = makefileFlag
 	}
