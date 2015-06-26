@@ -105,6 +105,46 @@ type evalResult struct {
 	exports     map[string]bool
 }
 
+type srcpos struct {
+	filename string
+	lineno   int
+}
+
+func (p srcpos) String() string {
+	return fmt.Sprintf("%s:%d", p.filename, p.lineno)
+}
+
+// EvalError is an error in kati evaluation.
+type EvalError struct {
+	Filename string
+	Lineno   int
+	Err      error
+}
+
+func (e EvalError) Error() string {
+	return fmt.Sprintf("%s:%d: %v", e.Filename, e.Lineno, e.Err)
+}
+
+func (p srcpos) errorf(f string, args ...interface{}) error {
+	return EvalError{
+		Filename: p.filename,
+		Lineno:   p.lineno,
+		Err:      fmt.Errorf(f, args...),
+	}
+}
+
+func (p srcpos) error(err error) error {
+	if _, ok := err.(EvalError); ok {
+		return err
+	}
+	return EvalError{
+		Filename: p.filename,
+		Lineno:   p.lineno,
+		Err:      err,
+	}
+}
+
+// Evaluator manages makefile evaluation.
 type Evaluator struct {
 	paramVars    []tmpval // $1 => paramVars[1]
 	outVars      Vars
@@ -118,10 +158,10 @@ type Evaluator struct {
 	cache        *accessCache
 	exports      map[string]bool
 
-	filename string
-	lineno   int
+	srcpos
 }
 
+// NewEvaluator creates new Evaluator.
 func NewEvaluator(vars map[string]Var) *Evaluator {
 	return &Evaluator{
 		outVars:     make(Vars),
@@ -131,10 +171,13 @@ func NewEvaluator(vars map[string]Var) *Evaluator {
 	}
 }
 
-func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
+func (ev *Evaluator) args(buf *buffer, args ...Value) ([][]byte, error) {
 	pos := make([]int, 0, len(args))
 	for _, arg := range args {
-		arg.Eval(buf, ev)
+		err := arg.Eval(buf, ev)
+		if err != nil {
+			return nil, err
+		}
 		pos = append(pos, buf.Len())
 	}
 	v := buf.Bytes()
@@ -144,24 +187,27 @@ func (ev *Evaluator) args(buf *buffer, args ...Value) [][]byte {
 		buf.args = append(buf.args, v[s:p])
 		s = p
 	}
-	return buf.args
+	return buf.args, nil
 }
 
-func (ev *Evaluator) evalAssign(ast *assignAST) {
+func (ev *Evaluator) evalAssign(ast *assignAST) error {
 	ev.lastRule = nil
-	lhs, rhs := ev.evalAssignAST(ast)
+	lhs, rhs, err := ev.evalAssignAST(ast)
+	if err != nil {
+		return err
+	}
 	if LogFlag {
 		logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
 	}
 	if lhs == "" {
-		errorExit(ast.filename, ast.lineno, "*** empty variable name.")
+		return ast.errorf("*** empty variable name.")
 	}
 	ev.outVars.Assign(lhs, rhs)
+	return nil
 }
 
-func (ev *Evaluator) evalAssignAST(ast *assignAST) (string, Var) {
-	ev.filename = ast.filename
-	ev.lineno = ast.lineno
+func (ev *Evaluator) evalAssignAST(ast *assignAST) (string, Var, error) {
+	ev.srcpos = ast.srcpos
 
 	var lhs string
 	switch v := ast.lhs.(type) {
@@ -171,37 +217,49 @@ func (ev *Evaluator) evalAssignAST(ast *assignAST) (string, Var) {
 		lhs = string(v)
 	default:
 		buf := newBuf()
-		v.Eval(buf, ev)
+		err := v.Eval(buf, ev)
+		if err != nil {
+			return "", nil, err
+		}
 		lhs = string(trimSpaceBytes(buf.Bytes()))
 		freeBuf(buf)
 	}
-	rhs := ast.evalRHS(ev, lhs)
-	return lhs, rhs
+	rhs, err := ast.evalRHS(ev, lhs)
+	if err != nil {
+		return "", nil, err
+	}
+	return lhs, rhs, nil
 }
 
-func (ev *Evaluator) setTargetSpecificVar(assign *assignAST, output string) {
+func (ev *Evaluator) setTargetSpecificVar(assign *assignAST, output string) error {
 	vars, present := ev.outRuleVars[output]
 	if !present {
 		vars = make(Vars)
 		ev.outRuleVars[output] = vars
 	}
 	ev.currentScope = vars
-	lhs, rhs := ev.evalAssignAST(assign)
+	lhs, rhs, err := ev.evalAssignAST(assign)
+	if err != nil {
+		return err
+	}
 	if LogFlag {
-		logf("rule outputs:%q assign:%q=%q (flavor:%q)", output, lhs, rhs, rhs.Flavor())
+		logf("rule outputs:%q assign:%q%s%q (flavor:%q)", output, lhs, assign.op, rhs, rhs.Flavor())
 	}
 	vars.Assign(lhs, &targetSpecificVar{v: rhs, op: assign.op})
 	ev.currentScope = nil
+	return nil
 }
 
-func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
+func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	ev.lastRule = nil
-	ev.filename = ast.filename
-	ev.lineno = ast.lineno
+	ev.srcpos = ast.srcpos
 
 	lexpr := ast.expr
 	buf := newBuf()
-	lexpr.Eval(buf, ev)
+	err := lexpr.Eval(buf, ev)
+	if err != nil {
+		return err
+	}
 	line := buf.Bytes()
 	if ast.term == '=' {
 		line = append(line, ast.afterTerm...)
@@ -213,16 +271,13 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 	// See semicolon.mk.
 	if len(bytes.TrimRight(line, " \t\n;")) == 0 {
 		freeBuf(buf)
-		return
+		return nil
 	}
 
-	r := &rule{
-		filename: ast.filename,
-		lineno:   ast.lineno,
-	}
+	r := &rule{srcpos: ast.srcpos}
 	assign, err := r.parse(line)
 	if err != nil {
-		errorExit(ast.filename, ast.lineno, "%v", err)
+		return ast.error(err)
 	}
 	freeBuf(buf)
 	if LogFlag {
@@ -236,15 +291,18 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 		if ast.term == ';' {
 			nexpr, _, err := parseExpr(ast.afterTerm, nil, false)
 			if err != nil {
-				panic(fmt.Errorf("parse %s:%d %v", ev.filename, ev.lineno, err))
+				return ast.errorf("parse error: %q: %v", string(ast.afterTerm), err)
 			}
 			lexpr = expr{lexpr, nexpr}
 
 			buf = newBuf()
-			lexpr.Eval(buf, ev)
+			err = lexpr.Eval(buf, ev)
+			if err != nil {
+				return err
+			}
 			assign, err = r.parse(buf.Bytes())
 			if err != nil {
-				errorExit(ast.filename, ast.lineno, "%v", err)
+				return ast.error(err)
 			}
 			freeBuf(buf)
 		}
@@ -254,7 +312,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 		for _, output := range r.outputPatterns {
 			ev.setTargetSpecificVar(assign, output.String())
 		}
-		return
+		return nil
 	}
 
 	if ast.term == ';' {
@@ -265,37 +323,42 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) {
 	}
 	ev.lastRule = r
 	ev.outRules = append(ev.outRules, r)
+	return nil
 }
 
-func (ev *Evaluator) evalCommand(ast *commandAST) {
-	ev.filename = ast.filename
-	ev.lineno = ast.lineno
+func (ev *Evaluator) evalCommand(ast *commandAST) error {
+	ev.srcpos = ast.srcpos
 	if ev.lastRule == nil {
 		// This could still be an assignment statement. See
 		// assign_after_tab.mk.
 		if strings.IndexByte(ast.cmd, '=') >= 0 {
 			line := trimLeftSpace(ast.cmd)
-			mk, err := parseMakefileString(line, ast.filename, ast.lineno)
+			mk, err := parseMakefileString(line, ast.srcpos)
 			if err != nil {
-				panic(err)
+				return ast.errorf("parse failed: %q: %v", line, err)
 			}
 			if len(mk.stmts) == 1 && mk.stmts[0].(*assignAST) != nil {
-				ev.eval(mk.stmts[0])
+				err = ev.eval(mk.stmts[0])
+				if err != nil {
+					return err
+				}
 			}
-			return
+			return nil
 		}
 		// Or, a comment is OK.
 		if strings.TrimSpace(ast.cmd)[0] == '#' {
-			return
+			return nil
 		}
-		errorExit(ast.filename, ast.lineno, "*** commands commence before first target.")
+		return ast.errorf("*** commands commence before first target.")
 	}
 	ev.lastRule.cmds = append(ev.lastRule.cmds, ast.cmd)
 	if ev.lastRule.cmdLineno == 0 {
 		ev.lastRule.cmdLineno = ast.lineno
 	}
+	return nil
 }
 
+// LookupVar looks up named variable.
 func (ev *Evaluator) LookupVar(name string) Var {
 	if ev.currentScope != nil {
 		v := ev.currentScope.Lookup(name)
@@ -325,10 +388,13 @@ func (ev *Evaluator) lookupVarInCurrentScope(name string) Var {
 // EvaluateVar evaluates variable named name.
 // Only for a few special uses such as getting SHELL and handling
 // export/unexport.
-func (ev *Evaluator) EvaluateVar(name string) string {
+func (ev *Evaluator) EvaluateVar(name string) (string, error) {
 	var buf bytes.Buffer
-	ev.LookupVar(name).Eval(&buf, ev)
-	return buf.String()
+	err := ev.LookupVar(name).Eval(&buf, ev)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func (ev *Evaluator) evalIncludeFile(fname string, mk makefile) error {
@@ -336,28 +402,37 @@ func (ev *Evaluator) evalIncludeFile(fname string, mk makefile) error {
 	defer func() {
 		traceEvent.end(te)
 	}()
+	var err error
 	makefileList := ev.outVars.Lookup("MAKEFILE_LIST")
-	makefileList = makefileList.Append(ev, mk.filename)
+	makefileList, err = makefileList.Append(ev, mk.filename)
+	if err != nil {
+		return err
+	}
 	ev.outVars.Assign("MAKEFILE_LIST", makefileList)
 
 	for _, stmt := range mk.stmts {
-		ev.eval(stmt)
+		err = ev.eval(stmt)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (ev *Evaluator) evalInclude(ast *includeAST) {
+func (ev *Evaluator) evalInclude(ast *includeAST) error {
 	ev.lastRule = nil
-	ev.filename = ast.filename
-	ev.lineno = ast.lineno
+	ev.srcpos = ast.srcpos
 
-	logf("%s:%d include %q", ev.filename, ev.lineno, ast.expr)
+	logf("%s include %q", ev.srcpos, ast.expr)
 	v, _, err := parseExpr([]byte(ast.expr), nil, false)
 	if err != nil {
-		panic(err)
+		return ast.errorf("parse failed: %q: %v", ast.expr, err)
 	}
 	var buf bytes.Buffer
-	v.Eval(&buf, ev)
+	err = v.Eval(&buf, ev)
+	if err != nil {
+		return ast.errorf("%v", err)
+	}
 	pats := splitSpaces(buf.String())
 	buf.Reset()
 
@@ -366,7 +441,7 @@ func (ev *Evaluator) evalInclude(ast *includeAST) {
 		if strings.Contains(pat, "*") || strings.Contains(pat, "?") {
 			matched, err := filepath.Glob(pat)
 			if err != nil {
-				panic(err)
+				return ast.errorf("glob error: %s: %v", pat, err)
 			}
 			files = append(files, matched...)
 		} else {
@@ -381,36 +456,42 @@ func (ev *Evaluator) evalInclude(ast *includeAST) {
 		mk, hash, err := makefileCache.parse(fn)
 		if os.IsNotExist(err) {
 			if ast.op == "include" {
-				errorExit(ev.filename, ev.lineno, "%v\nNOTE: kati does not support generating missing makefiles", err)
-			} else {
-				msg := ev.cache.update(fn, hash, fileNotExists)
-				if msg != "" {
-					warn(ev.filename, ev.lineno, "%s", msg)
-				}
-				continue
+				return ev.errorf("%v\nNOTE: kati does not support generating missing makefiles", err)
 			}
+			msg := ev.cache.update(fn, hash, fileNotExists)
+			if msg != "" {
+				warn(ev.srcpos, "%s", msg)
+			}
+			continue
 		}
 		msg := ev.cache.update(fn, hash, fileExists)
 		if msg != "" {
-			warn(ev.filename, ev.lineno, "%s", msg)
+			warn(ev.srcpos, "%s", msg)
 		}
 		err = ev.evalIncludeFile(fn, mk)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
+	return nil
 }
 
-func (ev *Evaluator) evalIf(iast *ifAST) {
+func (ev *Evaluator) evalIf(iast *ifAST) error {
 	var isTrue bool
 	switch iast.op {
 	case "ifdef", "ifndef":
 		expr := iast.lhs
 		buf := newBuf()
-		expr.Eval(buf, ev)
+		err := expr.Eval(buf, ev)
+		if err != nil {
+			return iast.errorf("%v\n expr:%s", err, expr)
+		}
 		v := ev.LookupVar(buf.String())
 		buf.Reset()
-		v.Eval(buf, ev)
+		err = v.Eval(buf, ev)
+		if err != nil {
+			return iast.errorf("%v\n expr:%s=>%s", err, expr, v)
+		}
 		value := buf.String()
 		val := buf.Len()
 		freeBuf(buf)
@@ -422,7 +503,10 @@ func (ev *Evaluator) evalIf(iast *ifAST) {
 		lexpr := iast.lhs
 		rexpr := iast.rhs
 		buf := newBuf()
-		params := ev.args(buf, lexpr, rexpr)
+		params, err := ev.args(buf, lexpr, rexpr)
+		if err != nil {
+			return iast.errorf("%v\n (%s,%s)", err, lexpr, rexpr)
+		}
 		lhs := string(params[0])
 		rhs := string(params[1])
 		freeBuf(buf)
@@ -431,7 +515,7 @@ func (ev *Evaluator) evalIf(iast *ifAST) {
 			logf("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
 		}
 	default:
-		panic(fmt.Sprintf("unknown if statement: %q", iast.op))
+		return iast.errorf("unknown if statement: %q", iast.op)
 	}
 
 	var stmts []ast
@@ -441,28 +525,35 @@ func (ev *Evaluator) evalIf(iast *ifAST) {
 		stmts = iast.falseStmts
 	}
 	for _, stmt := range stmts {
-		ev.eval(stmt)
+		err := ev.eval(stmt)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (ev *Evaluator) evalExport(ast *exportAST) {
+func (ev *Evaluator) evalExport(ast *exportAST) error {
 	ev.lastRule = nil
-	ev.filename = ast.filename
-	ev.lineno = ast.lineno
+	ev.srcpos = ast.srcpos
 
 	v, _, err := parseExpr(ast.expr, nil, false)
 	if err != nil {
-		panic(err)
+		return ast.errorf("failed to parse: %q: %v", string(ast.expr), err)
 	}
 	var buf bytes.Buffer
-	v.Eval(&buf, ev)
+	err = v.Eval(&buf, ev)
+	if err != nil {
+		return ast.errorf("%v\n expr:%s", err, v)
+	}
 	for _, n := range splitSpacesBytes(buf.Bytes()) {
 		ev.exports[string(n)] = ast.export
 	}
+	return nil
 }
 
-func (ev *Evaluator) eval(stmt ast) {
-	stmt.eval(ev)
+func (ev *Evaluator) eval(stmt ast) error {
+	return stmt.eval(ev)
 }
 
 func eval(mk makefile, vars Vars, useCache bool) (er *evalResult, err error) {
@@ -470,21 +561,22 @@ func eval(mk makefile, vars Vars, useCache bool) (er *evalResult, err error) {
 	if useCache {
 		ev.cache = newAccessCache()
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic in eval %s: %v", mk.filename, r)
-		}
-	}()
 
 	makefileList := vars.Lookup("MAKEFILE_LIST")
 	if !makefileList.IsDefined() {
 		makefileList = &simpleVar{value: "", origin: "file"}
 	}
-	makefileList = makefileList.Append(ev, mk.filename)
+	makefileList, err = makefileList.Append(ev, mk.filename)
+	if err != nil {
+		return nil, err
+	}
 	ev.outVars.Assign("MAKEFILE_LIST", makefileList)
 
 	for _, stmt := range mk.stmts {
-		ev.eval(stmt)
+		err = ev.eval(stmt)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &evalResult{

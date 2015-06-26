@@ -53,42 +53,45 @@ func freeBuf(buf *buffer) {
 	bufFree.Put(buf)
 }
 
+// Value is an interface for value.
 type Value interface {
 	String() string
-	Eval(w io.Writer, ev *Evaluator)
+	Eval(w io.Writer, ev *Evaluator) error
 	serialize() serializableVar
-	dump(w io.Writer)
+	dump(d *dumpbuf)
 }
 
 // literal is literal value.
 type literal string
 
 func (s literal) String() string { return string(s) }
-func (s literal) Eval(w io.Writer, ev *Evaluator) {
+func (s literal) Eval(w io.Writer, ev *Evaluator) error {
 	io.WriteString(w, string(s))
+	return nil
 }
 func (s literal) serialize() serializableVar {
 	return serializableVar{Type: "literal", V: string(s)}
 }
-func (s literal) dump(w io.Writer) {
-	dumpByte(w, valueTypeLiteral)
-	dumpBytes(w, []byte(s))
+func (s literal) dump(d *dumpbuf) {
+	d.Byte(valueTypeLiteral)
+	d.Bytes([]byte(s))
 }
 
 // tmpval is temporary value.
 type tmpval []byte
 
 func (t tmpval) String() string { return string(t) }
-func (t tmpval) Eval(w io.Writer, ev *Evaluator) {
+func (t tmpval) Eval(w io.Writer, ev *Evaluator) error {
 	w.Write(t)
+	return nil
 }
 func (t tmpval) Value() []byte { return []byte(t) }
 func (t tmpval) serialize() serializableVar {
 	return serializableVar{Type: "tmpval", V: string(t)}
 }
-func (t tmpval) dump(w io.Writer) {
-	dumpByte(w, valueTypeTmpval)
-	dumpBytes(w, t)
+func (t tmpval) dump(d *dumpbuf) {
+	d.Byte(valueTypeTmpval)
+	d.Bytes(t)
 }
 
 // expr is a list of values.
@@ -102,10 +105,14 @@ func (e expr) String() string {
 	return strings.Join(s, "")
 }
 
-func (e expr) Eval(w io.Writer, ev *Evaluator) {
+func (e expr) Eval(w io.Writer, ev *Evaluator) error {
 	for _, v := range e {
-		v.Eval(w, ev)
+		err := v.Eval(w, ev)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (e expr) serialize() serializableVar {
@@ -115,11 +122,11 @@ func (e expr) serialize() serializableVar {
 	}
 	return r
 }
-func (e expr) dump(w io.Writer) {
-	dumpByte(w, valueTypeExpr)
-	dumpInt(w, len(e))
+func (e expr) dump(d *dumpbuf) {
+	d.Byte(valueTypeExpr)
+	d.Int(len(e))
 	for _, v := range e {
-		v.dump(w)
+		v.dump(d)
 	}
 }
 
@@ -144,14 +151,21 @@ func (v *varref) String() string {
 	return fmt.Sprintf("${%s}", varname)
 }
 
-func (v *varref) Eval(w io.Writer, ev *Evaluator) {
+func (v *varref) Eval(w io.Writer, ev *Evaluator) error {
 	te := traceEvent.begin("var", v, traceEventMain)
 	buf := newBuf()
-	v.varname.Eval(buf, ev)
+	err := v.varname.Eval(buf, ev)
+	if err != nil {
+		return err
+	}
 	vv := ev.LookupVar(buf.String())
 	freeBuf(buf)
-	vv.Eval(w, ev)
+	err = vv.Eval(w, ev)
+	if err != nil {
+		return err
+	}
 	traceEvent.end(te)
+	return nil
 }
 
 func (v *varref) serialize() serializableVar {
@@ -160,9 +174,9 @@ func (v *varref) serialize() serializableVar {
 		Children: []serializableVar{v.varname.serialize()},
 	}
 }
-func (v *varref) dump(w io.Writer) {
-	dumpByte(w, valueTypeVarref)
-	v.varname.dump(w)
+func (v *varref) dump(d *dumpbuf) {
+	d.Byte(valueTypeVarref)
+	v.varname.dump(d)
 }
 
 // paramref is parameter reference e.g. $1.
@@ -172,25 +186,32 @@ func (p paramref) String() string {
 	return fmt.Sprintf("$%d", int(p))
 }
 
-func (p paramref) Eval(w io.Writer, ev *Evaluator) {
+func (p paramref) Eval(w io.Writer, ev *Evaluator) error {
 	te := traceEvent.begin("param", p, traceEventMain)
 	n := int(p)
 	if n < len(ev.paramVars) {
-		ev.paramVars[n].Eval(w, ev)
+		err := ev.paramVars[n].Eval(w, ev)
+		if err != nil {
+			return err
+		}
 	} else {
 		vv := ev.LookupVar(fmt.Sprintf("%d", n))
-		vv.Eval(w, ev)
+		err := vv.Eval(w, ev)
+		if err != nil {
+			return err
+		}
 	}
 	traceEvent.end(te)
+	return nil
 }
 
 func (p paramref) serialize() serializableVar {
 	return serializableVar{Type: "paramref", V: strconv.Itoa(int(p))}
 }
 
-func (p paramref) dump(w io.Writer) {
-	dumpByte(w, valueTypeParamref)
-	dumpInt(w, int(p))
+func (p paramref) dump(d *dumpbuf) {
+	d.Byte(valueTypeParamref)
+	d.Int(int(p))
 }
 
 // varsubst is variable substitutaion. e.g. ${var:pat=subst}.
@@ -204,16 +225,22 @@ func (v varsubst) String() string {
 	return fmt.Sprintf("${%s:%s=%s}", v.varname, v.pat, v.subst)
 }
 
-func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
+func (v varsubst) Eval(w io.Writer, ev *Evaluator) error {
 	te := traceEvent.begin("varsubst", v, traceEventMain)
 	buf := newBuf()
-	params := ev.args(buf, v.varname, v.pat, v.subst)
+	params, err := ev.args(buf, v.varname, v.pat, v.subst)
+	if err != nil {
+		return err
+	}
 	vname := string(params[0])
 	pat := string(params[1])
 	subst := string(params[2])
 	buf.Reset()
 	vv := ev.LookupVar(vname)
-	vv.Eval(buf, ev)
+	err = vv.Eval(buf, ev)
+	if err != nil {
+		return err
+	}
 	vals := splitSpaces(buf.String())
 	freeBuf(buf)
 	space := false
@@ -225,6 +252,7 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) {
 		space = true
 	}
 	traceEvent.end(te)
+	return nil
 }
 
 func (v varsubst) serialize() serializableVar {
@@ -238,11 +266,11 @@ func (v varsubst) serialize() serializableVar {
 	}
 }
 
-func (v varsubst) dump(w io.Writer) {
-	dumpByte(w, valueTypeVarsubst)
-	v.varname.dump(w)
-	v.pat.dump(w)
-	v.subst.dump(w)
+func (v varsubst) dump(d *dumpbuf) {
+	d.Byte(valueTypeVarsubst)
+	v.varname.dump(d)
+	v.pat.dump(d)
+	v.subst.dump(d)
 }
 
 func str(buf []byte, alloc bool) Value {
@@ -447,7 +475,7 @@ Again:
 				subst:   subst,
 			}, i + 1, nil
 		default:
-			panic(fmt.Sprintf("unexpected char"))
+			return nil, 0, fmt.Errorf("unexpected char %c at %d in %q", in[i], i, string(in))
 		}
 	}
 }
@@ -606,21 +634,36 @@ type funcstats struct {
 	str string
 }
 
-func (f funcstats) Eval(w io.Writer, ev *Evaluator) {
+func (f funcstats) Eval(w io.Writer, ev *Evaluator) error {
 	te := traceEvent.begin("func", literal(f.str), traceEventMain)
-	f.Value.Eval(w, ev)
+	err := f.Value.Eval(w, ev)
+	if err != nil {
+		return err
+	}
 	// TODO(ukai): per functype?
 	traceEvent.end(te)
+	return nil
 }
 
-type matchVarref struct{}
+type matcherValue struct{}
 
-func (m matchVarref) String() string                  { return "$(match-any)" }
-func (m matchVarref) Eval(w io.Writer, ev *Evaluator) { panic("not implemented") }
-func (m matchVarref) serialize() serializableVar      { panic("not implemented") }
-func (m matchVarref) dump(w io.Writer)                { panic("not implemented") }
+func (m matcherValue) Eval(w io.Writer, ev *Evaluator) error {
+	return fmt.Errorf("couldn't eval matcher")
+}
+func (m matcherValue) serialize() serializableVar {
+	return serializableVar{Type: ""}
+}
+
+func (m matcherValue) dump(d *dumpbuf) {
+	d.err = fmt.Errorf("couldn't dump matcher")
+}
+
+type matchVarref struct{ matcherValue }
+
+func (m matchVarref) String() string { return "$(match-any)" }
 
 type literalRE struct {
+	matcherValue
 	*regexp.Regexp
 }
 
@@ -630,10 +673,7 @@ func mustLiteralRE(s string) literalRE {
 	}
 }
 
-func (r literalRE) String() string                  { return r.Regexp.String() }
-func (r literalRE) Eval(w io.Writer, ev *Evaluator) { panic("not implemented") }
-func (r literalRE) serialize() serializableVar      { panic("not implemented") }
-func (r literalRE) dump(w io.Writer)                { panic("not implemented") }
+func (r literalRE) String() string { return r.Regexp.String() }
 
 func matchValue(exp, pat Value) bool {
 	switch pat := pat.(type) {

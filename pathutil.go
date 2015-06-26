@@ -36,7 +36,7 @@ var wildcardCache = &wildcardCacheT{
 	m: make(map[string][]string),
 }
 
-func wildcardGlob(pat string) []string {
+func wildcardGlob(pat string) ([]string, error) {
 	// TODO(ukai): use find cache for glob if exists.
 	pattern := filepath.Clean(pat)
 	if pattern != pat {
@@ -48,9 +48,9 @@ func wildcardGlob(pat string) []string {
 			// return pat.
 			_, err := os.Stat(pat)
 			if err != nil {
-				return nil
+				return nil, nil
 			}
-			return []string{pat}
+			return []string{pat}, nil
 		}
 		if strings.Contains(pattern[i+1:], "..") {
 			// We ask shell to expand a glob to avoid this.
@@ -66,18 +66,18 @@ func wildcardGlob(pat string) []string {
 			for ws.Scan() {
 				files = append(files, string(ws.Bytes()))
 			}
-			return files
+			return files, nil
 		}
 		// prefix + meta + suffix, and suffix doesn't have '..'
 		prefix := pattern[:i]
 		i = strings.IndexAny(pat, "*?[")
 		if i < 0 {
-			panic(fmt.Sprintf("wildcard metachar mismatch? pattern=%q pat=%q", pattern, pat))
+			return nil, fmt.Errorf("wildcard metachar mismatch? pattern=%q pat=%q", pattern, pat)
 		}
 		oprefix := pat[:i]
 		matched, err := filepath.Glob(pattern)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		var files []string
 		for _, m := range matched {
@@ -88,16 +88,12 @@ func wildcardGlob(pat string) []string {
 			}
 			files = append(files, file)
 		}
-		return files
+		return files, nil
 	}
-	files, err := filepath.Glob(pat)
-	if err != nil {
-		panic(err)
-	}
-	return files
+	return filepath.Glob(pat)
 }
 
-func wildcard(sw *ssvWriter, pat string) {
+func wildcard(sw *ssvWriter, pat string) error {
 	if UseWildcardCache {
 		// TODO(ukai): make sure it didn't chdir?
 		wildcardCache.mu.Lock()
@@ -107,10 +103,13 @@ func wildcard(sw *ssvWriter, pat string) {
 			for _, file := range files {
 				sw.WriteString(file)
 			}
-			return
+			return nil
 		}
 	}
-	files := wildcardGlob(pat)
+	files, err := wildcardGlob(pat)
+	if err != nil {
+		return err
+	}
 	for _, file := range files {
 		sw.WriteString(file)
 	}
@@ -119,6 +118,7 @@ func wildcard(sw *ssvWriter, pat string) {
 		wildcardCache.m[pat] = files
 		wildcardCache.mu.Unlock()
 	}
+	return nil
 }
 
 type fileInfo struct {
@@ -140,6 +140,7 @@ var (
 	androidDefaultLeafNames = []string{"CleanSpec.mk", "Android.mk"}
 )
 
+// AndroidFindCacheInit initializes find cache for android build.
 func AndroidFindCacheInit(prunes, leafNames []string) {
 	if leafNames != nil {
 		androidDefaultLeafNames = leafNames

@@ -45,7 +45,10 @@ func BenchmarkTestcaseParse{{.Name}}(b *testing.B) {
 	mk := string(data)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		parseMakefileString(mk, {{.Filename | printf "%q"}}, 0)
+		parseMakefileString(mk, srcpos{
+			filename: {{.Filename | printf "%q"}},
+			lineno: 0,
+		})
 	}
 }
 `))

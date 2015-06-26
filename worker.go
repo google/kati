@@ -45,8 +45,9 @@ type runner struct {
 }
 
 type jobResult struct {
-	j *job
-	w *worker
+	j   *job
+	w   *worker
+	err error
 }
 
 type newDep struct {
@@ -99,8 +100,8 @@ func (w *worker) Run() {
 	for !done {
 		select {
 		case j := <-w.jobChan:
-			j.build()
-			w.wm.ReportResult(w, j)
+			err := j.build()
+			w.wm.ReportResult(w, j, err)
 		case done = <-w.waitChan:
 		}
 	}
@@ -116,19 +117,22 @@ func (w *worker) Wait() {
 	<-w.doneChan
 }
 
-func evalCmd(ev *Evaluator, r runner, s string) []runner {
+func evalCmd(ev *Evaluator, r runner, s string) ([]runner, error) {
 	r = newRunner(r, s)
 	if strings.IndexByte(r.cmd, '$') < 0 {
 		// fast path
-		return []runner{r}
+		return []runner{r}, nil
 	}
 	// TODO(ukai): parse once more earlier?
 	expr, _, err := parseExpr([]byte(r.cmd), nil, false)
 	if err != nil {
-		panic(fmt.Errorf("parse cmd %q: %v", r.cmd, err))
+		return nil, ev.errorf("parse cmd %q: %v", r.cmd, err)
 	}
 	buf := newBuf()
-	expr.Eval(buf, ev)
+	err = expr.Eval(buf, ev)
+	if err != nil {
+		return nil, err
+	}
 	cmds := buf.String()
 	freeBuf(buf)
 	var runners []runner
@@ -140,7 +144,7 @@ func evalCmd(ev *Evaluator, r runner, s string) []runner {
 			runners = append(runners, newRunner(r, cmd))
 		}
 	}
-	return runners
+	return runners, nil
 }
 
 func newRunner(r runner, s string) runner {
@@ -189,9 +193,9 @@ func (r runner) run(output string) error {
 	return err
 }
 
-func (j *job) createRunners() []runner {
-	runners, _ := j.ex.createRunners(j.n, false)
-	return runners
+func (j *job) createRunners() ([]runner, error) {
+	runners, _, err := j.ex.createRunners(j.n, false)
+	return runners, err
 }
 
 // TODO(ukai): use time.Time?
@@ -203,7 +207,7 @@ func getTimestamp(filename string) int64 {
 	return st.ModTime().Unix()
 }
 
-func (j *job) build() {
+func (j *job) build() error {
 	if j.n.IsPhony {
 		j.outputTs = -2 // trigger cmd even if all inputs don't exist.
 	} else {
@@ -212,26 +216,28 @@ func (j *job) build() {
 
 	if !j.n.HasRule {
 		if j.outputTs >= 0 || j.n.IsPhony {
-			return
+			return nil
 		}
 		if len(j.parents) == 0 {
-			errorNoLocationExit("*** No rule to make target %q.", j.n.Output)
-		} else {
-			errorNoLocationExit("*** No rule to make target %q, needed by %q.", j.n.Output, j.parents[0].n.Output)
+			return fmt.Errorf("*** No rule to make target %q.", j.n.Output)
 		}
-		errorNoLocationExit("no rule to make target %q", j.n.Output)
+		return fmt.Errorf("*** No rule to make target %q, needed by %q.", j.n.Output, j.parents[0].n.Output)
 	}
 
 	if j.outputTs >= j.depsTs {
 		// TODO: stats.
-		return
+		return nil
 	}
 
-	for _, r := range j.createRunners() {
+	rr, err := j.createRunners()
+	if err != nil {
+		return err
+	}
+	for _, r := range rr {
 		err := r.run(j.n.Output)
 		if err != nil {
 			exit := exitStatus(err)
-			errorNoLocationExit("[%s] Error %d: %v", j.n.Output, exit, err)
+			return fmt.Errorf("[%s] Error %d: %v", j.n.Output, exit, err)
 		}
 	}
 
@@ -243,21 +249,26 @@ func (j *job) build() {
 			j.outputTs = time.Now().Unix()
 		}
 	}
+	return nil
 }
 
-func (wm *workerManager) handleJobs() {
+func (wm *workerManager) handleJobs() error {
 	for {
 		if wm.para == nil && len(wm.freeWorkers) == 0 {
-			return
+			return nil
 		}
 		if wm.readyQueue.Len() == 0 {
-			return
+			return nil
 		}
 		j := heap.Pop(&wm.readyQueue).(*job)
 		logf("run: %s", j.n.Output)
 
 		if wm.para != nil {
-			j.runners = j.createRunners()
+			var err error
+			j.runners, err = j.createRunners()
+			if err != nil {
+				return err
+			}
 			if len(j.runners) == 0 {
 				wm.updateParents(j)
 				wm.finishCnt++
@@ -294,7 +305,7 @@ type workerManager struct {
 	resultChan  chan jobResult
 	newDepChan  chan newDep
 	waitChan    chan bool
-	doneChan    chan bool
+	doneChan    chan error
 	freeWorkers []*worker
 	busyWorkers map[*worker]bool
 	ex          *Executor
@@ -305,21 +316,25 @@ type workerManager struct {
 	finishCnt int
 }
 
-func newWorkerManager(numJobs int, paraPath string) *workerManager {
+func newWorkerManager(numJobs int, paraPath string) (*workerManager, error) {
 	wm := &workerManager{
 		maxJobs:     numJobs,
 		jobChan:     make(chan *job),
 		resultChan:  make(chan jobResult),
 		newDepChan:  make(chan newDep),
 		waitChan:    make(chan bool),
-		doneChan:    make(chan bool),
+		doneChan:    make(chan error),
 		busyWorkers: make(map[*worker]bool),
 	}
 
 	if paraPath != "" {
 		wm.runnings = make(map[string]*job)
 		wm.paraChan = make(chan *paraResult)
-		wm.para = newParaWorker(wm.paraChan, numJobs, paraPath)
+		var err error
+		wm.para, err = newParaWorker(wm.paraChan, numJobs, paraPath)
+		if err != nil {
+			return nil, err
+		}
 		go wm.para.Run()
 	} else {
 		wm.busyWorkers = make(map[*worker]bool)
@@ -331,7 +346,7 @@ func newWorkerManager(numJobs int, paraPath string) *workerManager {
 	}
 	heap.Init(&wm.readyQueue)
 	go wm.Run()
-	return wm
+	return wm, nil
 }
 
 func exitStatus(err error) int {
@@ -363,7 +378,7 @@ func (wm *workerManager) handleNewDep(j *job, neededBy *job) {
 	if j.numDeps < 0 {
 		neededBy.numDeps--
 		if neededBy.id > 0 {
-			panic("already in WM... can this happen?")
+			panic("FIXME: already in WM... can this happen?")
 		}
 	} else {
 		j.parents = append(j.parents, neededBy)
@@ -372,6 +387,8 @@ func (wm *workerManager) handleNewDep(j *job, neededBy *job) {
 
 func (wm *workerManager) Run() {
 	done := false
+	var err error
+Loop:
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || len(wm.runnings) > 0 || !done {
 		select {
 		case j := <-wm.jobChan:
@@ -385,6 +402,10 @@ func (wm *workerManager) Run() {
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
 			wm.finishCnt++
+			if jr.err != nil {
+				err = jr.err
+				break Loop
+			}
 		case af := <-wm.newDepChan:
 			wm.handleNewDep(af.j, af.neededBy)
 			logf("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
@@ -406,7 +427,10 @@ func (wm *workerManager) Run() {
 			}
 		case done = <-wm.waitChan:
 		}
-		wm.handleJobs()
+		err = wm.handleJobs()
+		if err != nil {
+			break Loop
+		}
 
 		if wm.para != nil {
 			numBusy := len(wm.runnings)
@@ -421,7 +445,10 @@ func (wm *workerManager) Run() {
 
 	if wm.para != nil {
 		logf("Wait for para to finish")
-		wm.para.Wait()
+		err := wm.para.Wait()
+		if err != nil {
+			logf("para failed: %v", err)
+		}
 	} else {
 		for _, w := range wm.freeWorkers {
 			w.Wait()
@@ -430,22 +457,22 @@ func (wm *workerManager) Run() {
 			w.Wait()
 		}
 	}
-	wm.doneChan <- true
+	wm.doneChan <- err
 }
 
 func (wm *workerManager) PostJob(j *job) {
 	wm.jobChan <- j
 }
 
-func (wm *workerManager) ReportResult(w *worker, j *job) {
-	wm.resultChan <- jobResult{w: w, j: j}
+func (wm *workerManager) ReportResult(w *worker, j *job, err error) {
+	wm.resultChan <- jobResult{w: w, j: j, err: err}
 }
 
 func (wm *workerManager) ReportNewDep(j *job, neededBy *job) {
 	wm.newDepChan <- newDep{j: j, neededBy: neededBy}
 }
 
-func (wm *workerManager) Wait() {
+func (wm *workerManager) Wait() error {
 	wm.waitChan <- true
-	<-wm.doneChan
+	return <-wm.doneChan
 }

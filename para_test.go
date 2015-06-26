@@ -23,13 +23,16 @@ import (
 func TestPara(t *testing.T) {
 	cwd, err := filepath.Abs(".")
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	paraPath := filepath.Join(cwd, "para")
 	numJobs := 4
 
 	paraChan := make(chan *paraResult)
-	para := newParaWorker(paraChan, numJobs, paraPath)
+	para, err := newParaWorker(paraChan, numJobs, paraPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	go para.Run()
 
 	numTasks := 100
@@ -61,5 +64,8 @@ func TestPara(t *testing.T) {
 		}
 	}
 
-	para.Wait()
+	err = para.Wait()
+	if err != nil {
+		t.Errorf("para.Wait()=%v; want=<nil>", err)
+	}
 }

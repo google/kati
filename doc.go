@@ -5,4 +5,4 @@ to speed up the continuous build of Android.
 */
 package kati
 
-// TODO(ukai): cleanup API. make more symbol unexported.
+// TODO(ukai): add more doc comments.

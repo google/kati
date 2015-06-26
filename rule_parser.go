@@ -56,6 +56,7 @@ func (p pattern) subst(repl, str string) string {
 }
 
 type rule struct {
+	srcpos
 	outputs         []string
 	inputs          []string
 	orderOnlyInputs []string
@@ -63,9 +64,11 @@ type rule struct {
 	isDoubleColon   bool
 	isSuffixRule    bool
 	cmds            []string
-	filename        string
-	lineno          int
 	cmdLineno       int
+}
+
+func (r *rule) cmdpos() srcpos {
+	return srcpos{filename: r.filename, lineno: r.cmdLineno}
 }
 
 func isPatternRule(s []byte) (pattern, bool) {
@@ -93,10 +96,10 @@ func (r *rule) parseInputs(s []byte) {
 	}
 }
 
-func (r *rule) parseVar(s []byte) *assignAST {
+func (r *rule) parseVar(s []byte) (*assignAST, error) {
 	eq := bytes.IndexByte(s, '=')
 	if eq <= 0 {
-		return nil
+		return nil, nil
 	}
 	rhs := trimLeftSpaceBytes(s[eq+1:])
 	var lhs []byte
@@ -116,10 +119,12 @@ func (r *rule) parseVar(s []byte) *assignAST {
 		lhs = trimSpaceBytes(s[:eq])
 		op = "="
 	}
-	assign := newAssignAST(nil, lhs, rhs, op)
-	assign.filename = r.filename
-	assign.lineno = r.lineno
-	return assign
+	assign, err := newAssignAST(nil, lhs, rhs, op)
+	if err != nil {
+		return nil, err
+	}
+	assign.srcpos = r.srcpos
+	return assign, nil
 }
 
 func (r *rule) parse(line []byte) (*assignAST, error) {
@@ -153,7 +158,11 @@ func (r *rule) parse(line []byte) (*assignAST, error) {
 	}
 
 	rest := line[index:]
-	if assign := r.parseVar(rest); assign != nil {
+	assign, err := r.parseVar(rest)
+	if err != nil {
+		return nil, err
+	}
+	if assign != nil {
 		return assign, nil
 	}
 	index = bytes.IndexByte(rest, ':')

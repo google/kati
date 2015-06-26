@@ -22,7 +22,7 @@ import (
 
 const bootstrapMakefileName = "*bootstrap*"
 
-func bootstrapMakefile(targets []string) makefile {
+func bootstrapMakefile(targets []string) (makefile, error) {
 	bootstrap := `
 CC:=cc
 CXX:=g++
@@ -45,12 +45,8 @@ SHELL:=/bin/sh
 	bootstrap += fmt.Sprintf("MAKECMDGOALS:=%s\n", strings.Join(targets, " "))
 	cwd, err := filepath.Abs(".")
 	if err != nil {
-		panic(err)
+		return makefile{}, err
 	}
 	bootstrap += fmt.Sprintf("CURDIR:=%s\n", cwd)
-	mk, err := parseMakefileString(bootstrap, bootstrapMakefileName, 0)
-	if err != nil {
-		panic(err)
-	}
-	return mk
+	return parseMakefileString(bootstrap, srcpos{bootstrapMakefileName, 0})
 }

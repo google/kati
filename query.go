@@ -70,6 +70,7 @@ func handleNodeQuery(w io.Writer, q string, nodes []*DepNode) {
 	}
 }
 
+// Query queries q in g.
 func Query(w io.Writer, q string, g *DepGraph) {
 	if q == "$MAKEFILE_LIST" {
 		for _, mk := range g.accessedMks {

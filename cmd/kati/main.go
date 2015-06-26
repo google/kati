@@ -162,28 +162,33 @@ func save(g *kati.DepGraph, targets []string) error {
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
+	err := katiMain()
+	if err != nil {
+		fmt.Println(err)
+		// http://www.gnu.org/software/make/manual/html_node/Running.html
+		os.Exit(2)
+	}
+}
+
+func katiMain() error {
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
-		kati.AtError(pprof.StopCPUProfile)
 	}
 	if heapprofile != "" {
 		defer writeHeapProfile()
-		kati.AtError(writeHeapProfile)
 	}
 	defer kati.DumpStats()
-	kati.AtError(kati.DumpStats)
 	if memstats != "" {
 		ms := memStatsDumper{
 			Template: template.Must(template.New("memstats").Parse(memstats)),
 		}
 		ms.dump()
 		defer ms.dump()
-		kati.AtError(ms.dump)
 	}
 	if traceEventFile != "" {
 		f, err := os.Create(traceEventFile)
@@ -192,7 +197,6 @@ func main() {
 		}
 		kati.TraceEventStart(f)
 		defer kati.TraceEventStop()
-		kati.AtError(kati.TraceEventStop)
 	}
 
 	if shellDate != "" {
@@ -225,35 +229,41 @@ func main() {
 
 	g, err := load(req)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	nodes := g.Nodes()
 	vars := g.Vars()
 
 	err = save(g, req.Targets)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	if generateNinja {
-		kati.GenerateNinja(g, gomaDir)
-		return
+		err = kati.GenerateNinja(g, gomaDir)
+		if err != nil {
+			return err
+		}
 	}
 
 	if syntaxCheckOnlyFlag {
-		return
+		return nil
 	}
 
 	if queryFlag != "" {
 		kati.Query(os.Stdout, queryFlag, g)
-		return
+		return nil
 	}
 
 	// TODO: Handle target specific variables.
 	ev := kati.NewEvaluator(vars)
 	for name, export := range g.Exports() {
 		if export {
-			os.Setenv(name, ev.EvaluateVar(name))
+			v, err := ev.EvaluateVar(name)
+			if err != nil {
+				return err
+			}
+			os.Setenv(name, v)
 		} else {
 			os.Unsetenv(name)
 		}
@@ -265,9 +275,13 @@ func main() {
 	if usePara {
 		execOpt.ParaPath = findPara()
 	}
-	ex := kati.NewExecutor(vars, execOpt)
+	ex, err := kati.NewExecutor(vars, execOpt)
+	if err != nil {
+		return err
+	}
 	err = ex.Exec(nodes)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
