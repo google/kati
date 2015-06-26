@@ -136,31 +136,22 @@ func findPara() string {
 }
 
 func load(req kati.LoadReq) (*kati.DepGraph, error) {
-	startTime := time.Now()
-
 	if loadGOB != "" {
-		g, err := kati.GOB.Load(loadGOB)
-		kati.LogStats("deserialize time: %q", time.Since(startTime))
-		return g, err
+		return kati.GOB.Load(loadGOB)
 	}
 	if loadJSON != "" {
-		g, err := kati.JSON.Load(loadJSON)
-		kati.LogStats("deserialize time: %q", time.Since(startTime))
-		return g, err
+		return kati.JSON.Load(loadJSON)
 	}
 	return kati.Load(req)
 }
 
 func save(g *kati.DepGraph, targets []string) error {
 	var err error
-	startTime := time.Now()
 	if saveGOB != "" {
 		err = kati.GOB.Save(g, saveGOB, targets)
-		kati.LogStats("serialize time: %q", time.Since(startTime))
 	}
 	if saveJSON != "" {
 		serr := kati.JSON.Save(g, saveJSON, targets)
-		kati.LogStats("serialize time: %q", time.Since(startTime))
 		if err == nil {
 			err = serr
 		}
@@ -245,9 +236,7 @@ func main() {
 	}
 
 	if generateNinja {
-		startTime := time.Now()
 		kati.GenerateNinja(g, gomaDir)
-		kati.LogStats("generate ninja time: %q", time.Since(startTime))
 		return
 	}
 
@@ -270,7 +259,6 @@ func main() {
 		}
 	}
 
-	startTime := time.Now()
 	execOpt := &kati.ExecutorOpt{
 		NumJobs: jobsFlag,
 	}
@@ -282,6 +270,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	kati.LogStats("exec time: %q", time.Since(startTime))
-
 }

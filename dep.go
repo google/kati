@@ -493,10 +493,10 @@ func (db *depBuilder) reportStats() {
 		return
 	}
 
-	LogStats("node=%d explicit=%d implicit=%d suffix=%d explicitWOCmd=%d",
+	logStats("node=%d explicit=%d implicit=%d suffix=%d explicitWOCmd=%d",
 		db.nodeCnt, db.pickExplicitRuleCnt, db.pickImplicitRuleCnt, db.pickSuffixRuleCnt, db.pickExplicitRuleWithoutCmdCnt)
 	if len(db.trace) > 1 {
-		LogStats("trace=%q", db.trace)
+		logStats("trace=%q", db.trace)
 	}
 }
 
@@ -528,10 +528,10 @@ func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 		targets = append(targets, db.firstRule.outputs[0])
 	}
 
-	LogStats("%d variables", len(db.vars))
-	LogStats("%d explicit rules", len(db.rules))
-	LogStats("%d implicit rules", len(db.implicitRules))
-	LogStats("%d suffix rules", len(db.suffixRules))
+	logStats("%d variables", len(db.vars))
+	logStats("%d explicit rules", len(db.rules))
+	logStats("%d implicit rules", len(db.implicitRules))
+	logStats("%d suffix rules", len(db.suffixRules))
 
 	var nodes []*DepNode
 	for _, target := range targets {

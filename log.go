@@ -33,7 +33,7 @@ func logAlways(f string, a ...interface{}) {
 	logMu.Unlock()
 }
 
-func LogStats(f string, a ...interface{}) {
+func logStats(f string, a ...interface{}) {
 	if !LogFlag && !StatsFlag {
 		return
 	}

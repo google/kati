@@ -252,6 +252,7 @@ func makeSerializableGraph(g *DepGraph, roots []string) serializableGraph {
 }
 
 func (jsonLoadSaver) Save(g *DepGraph, filename string, roots []string) error {
+	startTime := time.Now()
 	sg := makeSerializableGraph(g, roots)
 	o, err := json.MarshalIndent(sg, " ", " ")
 	if err != nil {
@@ -261,23 +262,43 @@ func (jsonLoadSaver) Save(g *DepGraph, filename string, roots []string) error {
 	if err != nil {
 		return err
 	}
-	f.Write(o)
-	return f.Close()
+	_, err = f.Write(o)
+	if err != nil {
+		f.Close()
+		return err
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	logStats("json serialize time: %q", time.Since(startTime))
+	return nil
 }
 
 func (gobLoadSaver) Save(g *DepGraph, filename string, roots []string) error {
+	startTime := time.Now()
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	e := gob.NewEncoder(f)
-	startTime := time.Now()
-	sg := makeSerializableGraph(g, roots)
-	LogStats("serialize prepare time: %q", time.Since(startTime))
-	startTime = time.Now()
-	e.Encode(sg)
-	LogStats("serialize output time: %q", time.Since(startTime))
-	return f.Close()
+	var sg serializableGraph
+	{
+		startTime := time.Now()
+		sg = makeSerializableGraph(g, roots)
+		logStats("gob serialize prepare time: %q", time.Since(startTime))
+	}
+	{
+		startTime := time.Now()
+		e.Encode(sg)
+		logStats("gob serialize output time: %q", time.Since(startTime))
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+	logStats("gob serialize time: %q", time.Since(startTime))
+	return nil
 }
 
 func cacheFilename(mk string, roots []string) string {
@@ -484,14 +505,14 @@ func showSerializedNodesStats(nodes []*serializableDepNode) {
 		linenoSize += 4
 	}
 	size := outputSize + cmdSize + depsSize + actualInputSize + tsvSize + filenameSize + linenoSize
-	LogStats("%d nodes %s", len(nodes), human(size))
-	LogStats(" output %s", human(outputSize))
-	LogStats(" command %s", human(cmdSize))
-	LogStats(" deps %s", human(depsSize))
-	LogStats(" inputs %s", human(actualInputSize))
-	LogStats(" tsv %s", human(tsvSize))
-	LogStats(" filename %s", human(filenameSize))
-	LogStats(" lineno %s", human(linenoSize))
+	logStats("%d nodes %s", len(nodes), human(size))
+	logStats(" output %s", human(outputSize))
+	logStats(" command %s", human(cmdSize))
+	logStats(" deps %s", human(depsSize))
+	logStats(" inputs %s", human(actualInputSize))
+	logStats(" tsv %s", human(tsvSize))
+	logStats(" filename %s", human(filenameSize))
+	logStats(" lineno %s", human(linenoSize))
 }
 
 func (v serializableVar) size() int {
@@ -513,9 +534,9 @@ func showSerializedVarsStats(vars map[string]serializableVar) {
 		valueSize += v.size()
 	}
 	size := nameSize + valueSize
-	LogStats("%d vars %s", len(vars), human(size))
-	LogStats(" name %s", human(nameSize))
-	LogStats(" value %s", human(valueSize))
+	logStats("%d vars %s", len(vars), human(size))
+	logStats(" name %s", human(nameSize))
+	logStats(" value %s", human(valueSize))
 }
 
 func showSerializedTsvsStats(vars []serializableTargetSpecificVar) {
@@ -526,9 +547,9 @@ func showSerializedTsvsStats(vars []serializableTargetSpecificVar) {
 		valueSize += v.Value.size()
 	}
 	size := nameSize + valueSize
-	LogStats("%d tsvs %s", len(vars), human(size))
-	LogStats(" name %s", human(nameSize))
-	LogStats(" value %s", human(valueSize))
+	logStats("%d tsvs %s", len(vars), human(size))
+	logStats(" name %s", human(nameSize))
+	logStats(" value %s", human(valueSize))
 }
 
 func showSerializedTargetsStats(targets []string) {
@@ -536,7 +557,7 @@ func showSerializedTargetsStats(targets []string) {
 	for _, t := range targets {
 		size += len(t)
 	}
-	LogStats("%d targets %s", len(targets), human(size))
+	logStats("%d targets %s", len(targets), human(size))
 }
 
 func showSerializedAccessedMksStats(accessedMks []*accessedMakefile) {
@@ -544,7 +565,7 @@ func showSerializedAccessedMksStats(accessedMks []*accessedMakefile) {
 	for _, rm := range accessedMks {
 		size += len(rm.Filename) + len(rm.Hash) + 4
 	}
-	LogStats("%d makefiles %s", len(accessedMks), human(size))
+	logStats("%d makefiles %s", len(accessedMks), human(size))
 }
 
 func showSerializedGraphStats(g serializableGraph) {
@@ -570,6 +591,7 @@ func deserializeGraph(g serializableGraph) *DepGraph {
 }
 
 func (jsonLoadSaver) Load(filename string) (*DepGraph, error) {
+	startTime := time.Now()
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -583,10 +605,12 @@ func (jsonLoadSaver) Load(filename string) (*DepGraph, error) {
 		return nil, err
 	}
 	dg := deserializeGraph(g)
+	logStats("gob deserialize time: %q", time.Since(startTime))
 	return dg, nil
 }
 
 func (gobLoadSaver) Load(filename string) (*DepGraph, error) {
+	startTime := time.Now()
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -600,13 +624,14 @@ func (gobLoadSaver) Load(filename string) (*DepGraph, error) {
 		return nil, err
 	}
 	dg := deserializeGraph(g)
+	logStats("json deserialize time: %q", time.Since(startTime))
 	return dg, nil
 }
 
 func loadCache(makefile string, roots []string) *DepGraph {
 	startTime := time.Now()
 	defer func() {
-		LogStats("Cache lookup time: %q", time.Since(startTime))
+		logStats("Cache lookup time: %q", time.Since(startTime))
 	}()
 
 	filename := cacheFilename(makefile, roots)

@@ -121,19 +121,19 @@ func Load(req LoadReq) (*DepGraph, error) {
 	}
 	vars.Merge(er.vars)
 
-	LogStats("eval time: %q", time.Since(startTime))
-	LogStats("shell func time: %q %d", shellStats.Duration(), shellStats.Count())
+	logStats("eval time: %q", time.Since(startTime))
+	logStats("shell func time: %q %d", shellStats.Duration(), shellStats.Count())
 
 	startTime = time.Now()
 	db := newDepBuilder(er, vars)
-	LogStats("dep build prepare time: %q", time.Since(startTime))
+	logStats("dep build prepare time: %q", time.Since(startTime))
 
 	startTime = time.Now()
 	nodes, err := db.Eval(req.Targets)
 	if err != nil {
 		return nil, err
 	}
-	LogStats("dep build time: %q", time.Since(startTime))
+	logStats("dep build time: %q", time.Since(startTime))
 	var accessedMks []*accessedMakefile
 	// Always put the root Makefile as the first element.
 	accessedMks = append(accessedMks, &accessedMakefile{
@@ -151,12 +151,12 @@ func Load(req LoadReq) (*DepGraph, error) {
 	if req.EagerEvalCommand {
 		startTime := time.Now()
 		evalCommands(nodes, vars)
-		LogStats("eager eval command time: %q", time.Since(startTime))
+		logStats("eager eval command time: %q", time.Since(startTime))
 	}
 	if req.UseCache {
 		startTime := time.Now()
 		saveCache(gd, req.Targets)
-		LogStats("serialize time: %q", time.Since(startTime))
+		logStats("serialize time: %q", time.Since(startTime))
 	}
 	return gd, nil
 }
