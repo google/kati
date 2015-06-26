@@ -299,10 +299,7 @@ func katiMain(args []string) error {
 	}
 
 	if generateNinja {
-		err = kati.GenerateNinja(g, gomaDir)
-		if err != nil {
-			return err
-		}
+		return kati.GenerateNinja(g, gomaDir)
 	}
 
 	if syntaxCheckOnlyFlag {
