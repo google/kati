@@ -36,11 +36,12 @@ func (g *DepGraph) Exports() map[string]bool { return g.exports }
 func (g *DepGraph) IsCached() bool           { return g.isCached }
 
 type LoadReq struct {
-	Makefile        string
-	Targets         []string
-	CommandLineVars []string
-	EnvironmentVars []string
-	UseCache        bool
+	Makefile         string
+	Targets          []string
+	CommandLineVars  []string
+	EnvironmentVars  []string
+	UseCache         bool
+	EagerEvalCommand bool
 }
 
 func FromCommandLine(cmdline []string) LoadReq {
@@ -82,7 +83,7 @@ func Load(req LoadReq) (*DepGraph, error) {
 	}
 
 	if req.UseCache {
-		g := loadDepGraphCache(req.Makefile, req.Targets)
+		g := loadCache(req.Makefile, req.Targets)
 		if g != nil {
 			return g, nil
 		}
@@ -141,12 +142,23 @@ func Load(req LoadReq) (*DepGraph, error) {
 		State:    fileExists,
 	})
 	accessedMks = append(accessedMks, er.accessedMks...)
-	return &DepGraph{
+	gd := &DepGraph{
 		nodes:       nodes,
 		vars:        vars,
 		accessedMks: accessedMks,
 		exports:     er.exports,
-	}, nil
+	}
+	if req.EagerEvalCommand {
+		startTime := time.Now()
+		evalCommands(nodes, vars)
+		LogStats("eager eval command time: %q", time.Since(startTime))
+	}
+	if req.UseCache {
+		startTime := time.Now()
+		saveCache(gd, req.Targets)
+		LogStats("serialize time: %q", time.Since(startTime))
+	}
+	return gd, nil
 }
 
 type Loader interface {

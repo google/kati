@@ -288,7 +288,7 @@ func cacheFilename(mk string, roots []string) string {
 	return url.QueryEscape(filename)
 }
 
-func DumpDepGraphCache(g *DepGraph, roots []string) {
+func saveCache(g *DepGraph, roots []string) {
 	if len(g.accessedMks) == 0 {
 		panic("No Makefile is read")
 	}
@@ -603,7 +603,7 @@ func (gobLoadSaver) Load(filename string) (*DepGraph, error) {
 	return dg, nil
 }
 
-func loadDepGraphCache(makefile string, roots []string) *DepGraph {
+func loadCache(makefile string, roots []string) *DepGraph {
 	startTime := time.Now()
 	defer func() {
 		LogStats("Cache lookup time: %q", time.Since(startTime))

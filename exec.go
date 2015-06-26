@@ -306,7 +306,7 @@ func (ex *Executor) createRunners(n *DepNode, avoidIO bool) ([]runner, bool) {
 	return runners, ev.hasIO
 }
 
-func EvalCommands(nodes []*DepNode, vars Vars) {
+func evalCommands(nodes []*DepNode, vars Vars) {
 	ioCnt := 0
 	ex := NewExecutor(vars, nil)
 	for i, n := range nodes {
