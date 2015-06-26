@@ -310,7 +310,7 @@ func (ev *Evaluator) LookupVar(name string) Var {
 	return ev.vars.Lookup(name)
 }
 
-func (ev *Evaluator) LookupVarInCurrentScope(name string) Var {
+func (ev *Evaluator) lookupVarInCurrentScope(name string) Var {
 	if ev.currentScope != nil {
 		v := ev.currentScope.Lookup(name)
 		return v

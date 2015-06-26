@@ -66,13 +66,13 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	case "=":
 		return &recursiveVar{expr: ast.rhs, origin: origin}
 	case "+=":
-		prev := ev.LookupVarInCurrentScope(lhs)
+		prev := ev.lookupVarInCurrentScope(lhs)
 		if !prev.IsDefined() {
 			return &recursiveVar{expr: ast.rhs, origin: origin}
 		}
 		return prev.AppendVar(ev, ast.rhs)
 	case "?=":
-		prev := ev.LookupVarInCurrentScope(lhs)
+		prev := ev.lookupVarInCurrentScope(lhs)
 		if prev.IsDefined() {
 			return prev
 		}
