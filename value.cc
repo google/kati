@@ -412,8 +412,8 @@ Value* ParseExprImpl(const Loc& loc,
 
       if (s[i+1] == '$') {
         r->AddValue(new Literal(STRING_PIECE("$")));
-        i += 2;
-        b = i;
+        i += 1;
+        b = i + 1;
         continue;
       }
 
