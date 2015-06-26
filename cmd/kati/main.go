@@ -165,11 +165,6 @@ func save(g *kati.DepGraph, targets []string) error {
 			err = serr
 		}
 	}
-
-	if useCache && !g.IsCached() {
-		kati.DumpDepGraphCache(g, targets)
-		kati.LogStats("serialize time: %q", time.Since(startTime))
-	}
 	return err
 }
 
@@ -235,6 +230,7 @@ func main() {
 	}
 	req.EnvironmentVars = os.Environ()
 	req.UseCache = useCache
+	req.EagerEvalCommand = eagerCmdEvalFlag
 
 	g, err := load(req)
 	if err != nil {
@@ -242,12 +238,6 @@ func main() {
 	}
 	nodes := g.Nodes()
 	vars := g.Vars()
-
-	if eagerCmdEvalFlag {
-		startTime := time.Now()
-		kati.EvalCommands(nodes, vars)
-		kati.LogStats("eager eval command time: %q", time.Since(startTime))
-	}
 
 	err = save(g, req.Targets)
 	if err != nil {
