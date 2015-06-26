@@ -53,6 +53,7 @@ enum struct ParseExprOpt {
   NORMAL = 0,
   DEFINE,
   COMMAND,
+  FUNC,
 };
 
 Value* ParseExprImpl(const Loc& loc, StringPiece s, const char* terms,
