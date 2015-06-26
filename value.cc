@@ -250,6 +250,10 @@ static size_t SkipSpaces(StringPiece s, const char* terms) {
   return s.size();
 }
 
+bool ShouldHandleComments(ParseExprOpt opt) {
+  return opt != ParseExprOpt::DEFINE && opt != ParseExprOpt::COMMAND;
+}
+
 Value* ParseFunc(const Loc& loc,
                  Func* f, StringPiece s, size_t i, char* terms,
                  size_t* index_out) {
@@ -274,7 +278,7 @@ Value* ParseFunc(const Loc& loc,
     const bool trim_right_space = (f->trim_space() ||
                                    (nargs == 1 && f->trim_right_space_1st()));
     size_t n;
-    Value* v = ParseExprImpl(loc, s.substr(i), terms, ParseExprOpt::NORMAL,
+    Value* v = ParseExprImpl(loc, s.substr(i), terms, ParseExprOpt::FUNC,
                              &n, trim_right_space);
     // TODO: concatLine???
     f->AddArg(v);
@@ -398,7 +402,7 @@ Value* ParseExprImpl(const Loc& loc,
     }
 
     // Handle a comment.
-    if (!terms && c == '#' && opt == ParseExprOpt::NORMAL) {
+    if (!terms && c == '#' && ShouldHandleComments(opt)) {
       if (i > b)
         r->AddValue(new Literal(s.substr(b, i-b)));
       bool was_backslash = false;
@@ -438,7 +442,7 @@ Value* ParseExprImpl(const Loc& loc,
       continue;
     }
 
-    if (c == '(' || c == '{') {
+    if ((c == '(' || c == '{') && opt == ParseExprOpt::FUNC) {
       char cp = CloseParen(c);
       if (terms && terms[0] == cp) {
         paren_depth++;
@@ -464,7 +468,7 @@ Value* ParseExprImpl(const Loc& loc,
         i++;
         continue;
       }
-      if (n == '#' && opt == ParseExprOpt::NORMAL) {
+      if (n == '#' && ShouldHandleComments(opt)) {
         r->AddValue(new Literal(s.substr(b, i-b)));
         i++;
         b = i;
