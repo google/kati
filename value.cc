@@ -237,8 +237,15 @@ static char CloseParen(char c) {
 static size_t SkipSpaces(StringPiece s, const char* terms) {
   for (size_t i = 0; i < s.size(); i++) {
     char c = s[i];
-    if (!isspace(c) || strchr(terms, c))
+    if (strchr(terms, c))
       return i;
+    if (!isspace(c)) {
+      if (c != '\\')
+        return i;
+      char n = s.get(i + 1);
+      if (n != '\r' && n != '\n')
+        return i;
+    }
   }
   return s.size();
 }
