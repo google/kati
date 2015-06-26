@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Executor struct {
@@ -211,10 +212,10 @@ func (ex *Executor) reportStats() {
 		return
 	}
 
-	LogStats("build=%d alreadyDone=%d noRule=%d, upToDate=%d runCommand=%d",
+	logStats("build=%d alreadyDone=%d noRule=%d, upToDate=%d runCommand=%d",
 		ex.buildCnt, ex.alreadyDoneCnt, ex.noRuleCnt, ex.upToDateCnt, ex.runCommandCnt)
 	if len(ex.trace) > 1 {
-		LogStats("trace=%q", ex.trace)
+		logStats("trace=%q", ex.trace)
 	}
 }
 
@@ -256,10 +257,12 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) *Executor {
 }
 
 func (ex *Executor) Exec(roots []*DepNode) error {
+	startTime := time.Now()
 	for _, root := range roots {
 		ex.makeJobs(root, nil)
 	}
 	ex.wm.Wait()
+	logStats("exec time: %q", time.Since(startTime))
 	return nil
 }
 
@@ -314,7 +317,7 @@ func evalCommands(nodes []*DepNode, vars Vars) {
 		if hasIO {
 			ioCnt++
 			if ioCnt%100 == 0 {
-				LogStats("%d/%d rules have IO", ioCnt, i+1)
+				logStats("%d/%d rules have IO", ioCnt, i+1)
 			}
 			continue
 		}
@@ -334,5 +337,5 @@ func evalCommands(nodes []*DepNode, vars Vars) {
 		}
 	}
 
-	LogStats("%d/%d rules have IO", ioCnt, len(nodes))
+	logStats("%d/%d rules have IO", ioCnt, len(nodes))
 }

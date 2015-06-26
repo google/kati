@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type ninjaGenerator struct {
@@ -333,7 +334,9 @@ func (n *ninjaGenerator) generateNinja() {
 }
 
 func GenerateNinja(g *DepGraph, gomaDir string) {
+	startTime := time.Now()
 	n := newNinjaGenerator(g, gomaDir)
 	n.generateShell()
 	n.generateNinja()
+	logStats("generate ninja time: %q", time.Since(startTime))
 }

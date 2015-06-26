@@ -181,7 +181,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 	defer func() {
 		traceEvent.end(te)
 		c.scanTime = time.Since(te.t)
-		LogStats("android find cache scan: %v", c.scanTime)
+		logStats("android find cache scan: %v", c.scanTime)
 	}()
 
 	dirs := make(chan string, 32)
@@ -251,7 +251,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		sort.Sort(fileInfoByLeaf(leaves))
 		c.leavesch <- leaves
 		traceEvent.end(leavesTe)
-		LogStats("%d leaves %d dirs in find cache", nfiles, len(dirs))
+		logStats("%d leaves %d dirs in find cache", nfiles, len(dirs))
 		for i, leaf := range leaves {
 			logf("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
 		}
@@ -266,7 +266,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		sort.Sort(fileInfoByName(files))
 		c.filesch <- files
 		traceEvent.end(filesTe)
-		LogStats("%d files in find cache", len(files))
+		logStats("%d files in find cache", len(files))
 		for i, fi := range files {
 			logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
 		}
