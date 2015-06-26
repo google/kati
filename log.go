@@ -17,7 +17,6 @@ package kati
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"sync"
 )
 
@@ -47,32 +46,12 @@ func logf(f string, a ...interface{}) {
 	logAlways(f, a...)
 }
 
-func warn(filename string, lineno int, f string, a ...interface{}) {
-	f = fmt.Sprintf("%s:%d: warning: %s\n", filename, lineno, f)
+func warn(loc srcpos, f string, a ...interface{}) {
+	f = fmt.Sprintf("%s: warning: %s\n", loc, f)
 	fmt.Printf(f, a...)
 }
 
-func warnNoPrefix(filename string, lineno int, f string, a ...interface{}) {
-	f = fmt.Sprintf("%s:%d: %s\n", filename, lineno, f)
+func warnNoPrefix(loc srcpos, f string, a ...interface{}) {
+	f = fmt.Sprintf("%s: %s\n", loc, f)
 	fmt.Printf(f, a...)
-}
-
-var atErrors []func()
-
-func AtError(f func()) {
-	atErrors = append(atErrors, f)
-}
-
-func errorExit(filename string, lineno int, f string, a ...interface{}) {
-	f = fmt.Sprintf("%s:%d: %s", filename, lineno, f)
-	errorNoLocationExit(f, a...)
-}
-
-func errorNoLocationExit(f string, a ...interface{}) {
-	f = fmt.Sprintf("%s\n", f)
-	fmt.Printf(f, a...)
-	for i := len(atErrors) - 1; i >= 0; i-- {
-		atErrors[i]()
-	}
-	os.Exit(2)
 }

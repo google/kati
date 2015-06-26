@@ -39,10 +39,12 @@ const (
 
 var traceEvent traceEventT
 
+// TraceEventStart starts trace event.
 func TraceEventStart(f io.WriteCloser) {
 	traceEvent.start(f)
 }
 
+// TraceEventStop stops trace event.
 func TraceEventStop() {
 	traceEvent.stop()
 }
@@ -147,6 +149,7 @@ func (s *statsT) add(name, v string, t time.Time) {
 	s.mu.Unlock()
 }
 
+// DumpStats dumps statistics collected if EvalStatsFlag is set.
 func DumpStats() {
 	if !EvalStatsFlag {
 		return

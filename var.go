@@ -20,10 +20,11 @@ import (
 	"io"
 )
 
+// Var is an interface of make variable.
 type Var interface {
 	Value
-	Append(*Evaluator, string) Var
-	AppendVar(*Evaluator, Value) Var
+	Append(*Evaluator, string) (Var, error)
+	AppendVar(*Evaluator, Value) (Var, error)
 	Flavor() string
 	Origin() string
 	IsDefined() bool
@@ -34,17 +35,25 @@ type targetSpecificVar struct {
 	op string
 }
 
-func (v *targetSpecificVar) Append(ev *Evaluator, s string) Var {
-	return &targetSpecificVar{
-		v:  v.v.Append(ev, s),
-		op: v.op,
+func (v *targetSpecificVar) Append(ev *Evaluator, s string) (Var, error) {
+	nv, err := v.v.Append(ev, s)
+	if err != nil {
+		return nil, err
 	}
+	return &targetSpecificVar{
+		v:  nv,
+		op: v.op,
+	}, nil
 }
-func (v *targetSpecificVar) AppendVar(ev *Evaluator, v2 Value) Var {
-	return &targetSpecificVar{
-		v:  v.v.AppendVar(ev, v2),
-		op: v.op,
+func (v *targetSpecificVar) AppendVar(ev *Evaluator, v2 Value) (Var, error) {
+	nv, err := v.v.AppendVar(ev, v2)
+	if err != nil {
+		return nil, err
 	}
+	return &targetSpecificVar{
+		v:  nv,
+		op: v.op,
+	}, nil
 }
 func (v *targetSpecificVar) Flavor() string {
 	return v.v.Flavor()
@@ -61,8 +70,8 @@ func (v *targetSpecificVar) String() string {
 	return v.v.String()
 	// return v.v.String() + " (op=" + v.op + ")"
 }
-func (v *targetSpecificVar) Eval(w io.Writer, ev *Evaluator) {
-	v.v.Eval(w, ev)
+func (v *targetSpecificVar) Eval(w io.Writer, ev *Evaluator) error {
+	return v.v.Eval(w, ev)
 }
 
 func (v *targetSpecificVar) serialize() serializableVar {
@@ -72,10 +81,10 @@ func (v *targetSpecificVar) serialize() serializableVar {
 	}
 }
 
-func (v *targetSpecificVar) dump(w io.Writer) {
-	dumpByte(w, valueTypeTSV)
-	dumpString(w, v.op)
-	v.v.dump(w)
+func (v *targetSpecificVar) dump(d *dumpbuf) {
+	d.Byte(valueTypeTSV)
+	d.Str(v.op)
+	v.v.dump(d)
 }
 
 type simpleVar struct {
@@ -88,8 +97,9 @@ func (v *simpleVar) Origin() string  { return v.origin }
 func (v *simpleVar) IsDefined() bool { return true }
 
 func (v *simpleVar) String() string { return v.value }
-func (v *simpleVar) Eval(w io.Writer, ev *Evaluator) {
+func (v *simpleVar) Eval(w io.Writer, ev *Evaluator) error {
 	io.WriteString(w, v.value)
+	return nil
 }
 func (v *simpleVar) serialize() serializableVar {
 	return serializableVar{
@@ -98,34 +108,40 @@ func (v *simpleVar) serialize() serializableVar {
 		Origin: v.origin,
 	}
 }
-func (v *simpleVar) dump(w io.Writer) {
-	dumpByte(w, valueTypeSimple)
-	dumpString(w, v.value)
-	dumpString(w, v.origin)
+func (v *simpleVar) dump(d *dumpbuf) {
+	d.Byte(valueTypeSimple)
+	d.Str(v.value)
+	d.Str(v.origin)
 }
 
-func (v *simpleVar) Append(ev *Evaluator, s string) Var {
+func (v *simpleVar) Append(ev *Evaluator, s string) (Var, error) {
 	val, _, err := parseExpr([]byte(s), nil, false)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	abuf := newBuf()
 	io.WriteString(abuf, v.value)
 	writeByte(abuf, ' ')
-	val.Eval(abuf, ev)
+	err = val.Eval(abuf, ev)
+	if err != nil {
+		return nil, err
+	}
 	v.value = abuf.String()
 	freeBuf(abuf)
-	return v
+	return v, nil
 }
 
-func (v *simpleVar) AppendVar(ev *Evaluator, val Value) Var {
+func (v *simpleVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
 	abuf := newBuf()
 	io.WriteString(abuf, v.value)
 	writeByte(abuf, ' ')
-	val.Eval(abuf, ev)
+	err := val.Eval(abuf, ev)
+	if err != nil {
+		return nil, err
+	}
 	v.value = abuf.String()
 	freeBuf(abuf)
-	return v
+	return v, nil
 }
 
 type automaticVar struct {
@@ -137,34 +153,41 @@ func (v *automaticVar) Origin() string  { return "automatic" }
 func (v *automaticVar) IsDefined() bool { return true }
 
 func (v *automaticVar) String() string { return string(v.value) }
-func (v *automaticVar) Eval(w io.Writer, ev *Evaluator) {
+func (v *automaticVar) Eval(w io.Writer, ev *Evaluator) error {
 	w.Write(v.value)
+	return nil
 }
 func (v *automaticVar) serialize() serializableVar {
-	panic(fmt.Sprintf("cannnot serialize automatic var:%s", v.value))
+	return serializableVar{Type: ""}
 }
-func (v *automaticVar) dump(w io.Writer) {
-	panic(fmt.Sprintf("cannnot dump automatic var:%s", v.value))
+func (v *automaticVar) dump(d *dumpbuf) {
+	d.err = fmt.Errorf("cannnot dump automatic var:%s", v.value)
 }
 
-func (v *automaticVar) Append(ev *Evaluator, s string) Var {
+func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 	val, _, err := parseExpr([]byte(s), nil, false)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
-	val.Eval(buf, ev)
+	err = val.Eval(buf, ev)
+	if err != nil {
+		return nil, err
+	}
 	v.value = buf.Bytes()
-	return v
+	return v, nil
 }
 
-func (v *automaticVar) AppendVar(ev *Evaluator, val Value) Var {
+func (v *automaticVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
 	buf := bytes.NewBuffer(v.value)
 	buf.WriteByte(' ')
-	val.Eval(buf, ev)
+	err := val.Eval(buf, ev)
+	if err != nil {
+		return nil, err
+	}
 	v.value = buf.Bytes()
-	return v
+	return v, nil
 }
 
 type recursiveVar struct {
@@ -177,8 +200,9 @@ func (v *recursiveVar) Origin() string  { return v.origin }
 func (v *recursiveVar) IsDefined() bool { return true }
 
 func (v *recursiveVar) String() string { return v.expr.String() }
-func (v *recursiveVar) Eval(w io.Writer, ev *Evaluator) {
+func (v *recursiveVar) Eval(w io.Writer, ev *Evaluator) error {
 	v.expr.Eval(w, ev)
+	return nil
 }
 func (v *recursiveVar) serialize() serializableVar {
 	return serializableVar{
@@ -187,13 +211,13 @@ func (v *recursiveVar) serialize() serializableVar {
 		Origin:   v.origin,
 	}
 }
-func (v *recursiveVar) dump(w io.Writer) {
-	dumpByte(w, valueTypeRecursive)
-	v.expr.dump(w)
-	dumpString(w, v.origin)
+func (v *recursiveVar) dump(d *dumpbuf) {
+	d.Byte(valueTypeRecursive)
+	v.expr.dump(d)
+	d.Str(v.origin)
 }
 
-func (v *recursiveVar) Append(_ *Evaluator, s string) Var {
+func (v *recursiveVar) Append(_ *Evaluator, s string) (Var, error) {
 	var exp expr
 	if e, ok := v.expr.(expr); ok {
 		exp = append(e, literal(" "))
@@ -202,7 +226,7 @@ func (v *recursiveVar) Append(_ *Evaluator, s string) Var {
 	}
 	sv, _, err := parseExpr([]byte(s), nil, true)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if aexpr, ok := sv.(expr); ok {
 		exp = append(exp, aexpr...)
@@ -210,20 +234,20 @@ func (v *recursiveVar) Append(_ *Evaluator, s string) Var {
 		exp = append(exp, sv)
 	}
 	v.expr = exp
-	return v
+	return v, nil
 }
 
-func (v *recursiveVar) AppendVar(ev *Evaluator, val Value) Var {
+func (v *recursiveVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
 	var buf bytes.Buffer
 	buf.WriteString(v.expr.String())
 	buf.WriteByte(' ')
 	buf.WriteString(val.String())
 	e, _, err := parseExpr(buf.Bytes(), nil, true)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	v.expr = e
-	return v
+	return v, nil
 }
 
 type undefinedVar struct{}
@@ -232,25 +256,28 @@ func (undefinedVar) Flavor() string  { return "undefined" }
 func (undefinedVar) Origin() string  { return "undefined" }
 func (undefinedVar) IsDefined() bool { return false }
 func (undefinedVar) String() string  { return "" }
-func (undefinedVar) Eval(_ io.Writer, _ *Evaluator) {
+func (undefinedVar) Eval(_ io.Writer, _ *Evaluator) error {
+	return nil
 }
 func (undefinedVar) serialize() serializableVar {
 	return serializableVar{Type: "undefined"}
 }
-func (undefinedVar) dump(w io.Writer) {
-	dumpByte(w, valueTypeUndefined)
+func (undefinedVar) dump(d *dumpbuf) {
+	d.Byte(valueTypeUndefined)
 }
 
-func (undefinedVar) Append(*Evaluator, string) Var {
-	return undefinedVar{}
+func (undefinedVar) Append(*Evaluator, string) (Var, error) {
+	return undefinedVar{}, nil
 }
 
-func (undefinedVar) AppendVar(_ *Evaluator, val Value) Var {
-	return undefinedVar{}
+func (undefinedVar) AppendVar(_ *Evaluator, val Value) (Var, error) {
+	return undefinedVar{}, nil
 }
 
+// Vars is a map for make variables.
 type Vars map[string]Var
 
+// Lookup looks up named make variable.
 func (vt Vars) Lookup(name string) Var {
 	if v, ok := vt[name]; ok {
 		return v
@@ -258,6 +285,7 @@ func (vt Vars) Lookup(name string) Var {
 	return undefinedVar{}
 }
 
+// Assign assigns v to name.
 func (vt Vars) Assign(name string, v Var) {
 	switch v.Origin() {
 	case "override", "environment override":
@@ -271,12 +299,14 @@ func (vt Vars) Assign(name string, v Var) {
 	vt[name] = v
 }
 
+// NewVars creates new Vars.
 func NewVars(vt Vars) Vars {
 	r := make(Vars)
 	r.Merge(vt)
 	return r
 }
 
+// Merge merges vt2 into vt.
 func (vt Vars) Merge(vt2 Vars) {
 	for k, v := range vt2 {
 		vt[k] = v

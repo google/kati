@@ -16,33 +16,27 @@ package kati
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 )
 
 type ast interface {
-	eval(*Evaluator)
+	eval(*Evaluator) error
 	show()
 }
 
-type astBase struct {
-	filename string
-	lineno   int
-}
-
 type assignAST struct {
-	astBase
+	srcpos
 	lhs Value
 	rhs Value
 	op  string
 	opt string // "override", "export"
 }
 
-func (ast *assignAST) eval(ev *Evaluator) {
-	ev.evalAssign(ast)
+func (ast *assignAST) eval(ev *Evaluator) error {
+	return ev.evalAssign(ast)
 }
 
-func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) Var {
+func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) (Var, error) {
 	origin := "file"
 	if ast.filename == bootstrapMakefileName {
 		origin = "default"
@@ -55,31 +49,33 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) Var {
 	case ":=":
 		switch v := ast.rhs.(type) {
 		case literal:
-			return &simpleVar{value: v.String(), origin: origin}
+			return &simpleVar{value: v.String(), origin: origin}, nil
 		case tmpval:
-			return &simpleVar{value: v.String(), origin: origin}
+			return &simpleVar{value: v.String(), origin: origin}, nil
 		default:
 			var buf bytes.Buffer
-			v.Eval(&buf, ev)
-			return &simpleVar{value: buf.String(), origin: origin}
+			err := v.Eval(&buf, ev)
+			if err != nil {
+				return nil, err
+			}
+			return &simpleVar{value: buf.String(), origin: origin}, nil
 		}
 	case "=":
-		return &recursiveVar{expr: ast.rhs, origin: origin}
+		return &recursiveVar{expr: ast.rhs, origin: origin}, nil
 	case "+=":
 		prev := ev.lookupVarInCurrentScope(lhs)
 		if !prev.IsDefined() {
-			return &recursiveVar{expr: ast.rhs, origin: origin}
+			return &recursiveVar{expr: ast.rhs, origin: origin}, nil
 		}
 		return prev.AppendVar(ev, ast.rhs)
 	case "?=":
 		prev := ev.lookupVarInCurrentScope(lhs)
 		if prev.IsDefined() {
-			return prev
+			return prev, nil
 		}
-		return &recursiveVar{expr: ast.rhs, origin: origin}
-	default:
-		panic(fmt.Sprintf("unknown assign op: %q", ast.op))
+		return &recursiveVar{expr: ast.rhs, origin: origin}, nil
 	}
+	return nil, ast.errorf("unknown assign op: %q", ast.op)
 }
 
 func (ast *assignAST) show() {
@@ -90,14 +86,14 @@ func (ast *assignAST) show() {
 // Note we cannot be sure what this is, until all variables in |expr|
 // are expanded.
 type maybeRuleAST struct {
-	astBase
+	srcpos
 	expr      Value
 	term      byte // Either ':', '=', or 0
 	afterTerm []byte
 }
 
-func (ast *maybeRuleAST) eval(ev *Evaluator) {
-	ev.evalMaybeRule(ast)
+func (ast *maybeRuleAST) eval(ev *Evaluator) error {
+	return ev.evalMaybeRule(ast)
 }
 
 func (ast *maybeRuleAST) show() {
@@ -105,12 +101,12 @@ func (ast *maybeRuleAST) show() {
 }
 
 type commandAST struct {
-	astBase
+	srcpos
 	cmd string
 }
 
-func (ast *commandAST) eval(ev *Evaluator) {
-	ev.evalCommand(ast)
+func (ast *commandAST) eval(ev *Evaluator) error {
+	return ev.evalCommand(ast)
 }
 
 func (ast *commandAST) show() {
@@ -118,13 +114,13 @@ func (ast *commandAST) show() {
 }
 
 type includeAST struct {
-	astBase
+	srcpos
 	expr string
 	op   string
 }
 
-func (ast *includeAST) eval(ev *Evaluator) {
-	ev.evalInclude(ast)
+func (ast *includeAST) eval(ev *Evaluator) error {
+	return ev.evalInclude(ast)
 }
 
 func (ast *includeAST) show() {
@@ -132,7 +128,7 @@ func (ast *includeAST) show() {
 }
 
 type ifAST struct {
-	astBase
+	srcpos
 	op         string
 	lhs        Value
 	rhs        Value // Empty if |op| is ifdef or ifndef.
@@ -140,8 +136,8 @@ type ifAST struct {
 	falseStmts []ast
 }
 
-func (ast *ifAST) eval(ev *Evaluator) {
-	ev.evalIf(ast)
+func (ast *ifAST) eval(ev *Evaluator) error {
+	return ev.evalIf(ast)
 }
 
 func (ast *ifAST) show() {
@@ -150,13 +146,13 @@ func (ast *ifAST) show() {
 }
 
 type exportAST struct {
-	astBase
+	srcpos
 	expr   []byte
 	export bool
 }
 
-func (ast *exportAST) eval(ev *Evaluator) {
-	ev.evalExport(ast)
+func (ast *exportAST) eval(ev *Evaluator) error {
+	return ev.evalExport(ast)
 }
 
 func (ast *exportAST) show() {

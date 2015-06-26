@@ -21,6 +21,7 @@ import (
 	"strings"
 )
 
+// DepNode represents a makefile rule for an output.
 type DepNode struct {
 	Output             string
 	Cmds               []string
@@ -145,7 +146,8 @@ func (db *depBuilder) canPickImplicitRule(r *rule, output string) bool {
 
 func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if len(outputs) != 1 {
-		panic(fmt.Sprintf("Implicit rule should have only one output but %q", outputs))
+		// TODO(ukai): should return error?
+		panic(fmt.Sprintf("FIXME: Implicit rule should have only one output but %q", outputs))
 	}
 	logf("merge? %q", db.ruleVars)
 	logf("merge? %q", outputs[0])
@@ -211,7 +213,8 @@ func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
 	}
 	for _, irule := range rules {
 		if len(irule.inputs) != 1 {
-			panic(fmt.Sprintf("unexpected number of input for a suffix rule (%d)", len(irule.inputs)))
+			// TODO(ukai): should return error?
+			panic(fmt.Sprintf("FIXME: unexpected number of input for a suffix rule (%d)", len(irule.inputs)))
 		}
 		if !db.exists(replaceSuffix(output, irule.inputs[0])) {
 			continue
@@ -272,7 +275,11 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 				if !present || oldVar.String() == "" {
 					db.vars[name] = tsv
 				} else {
-					v = oldVar.AppendVar(NewEvaluator(db.vars), tsv)
+					var err error
+					v, err = oldVar.AppendVar(NewEvaluator(db.vars), tsv)
+					if err != nil {
+						return nil, err
+					}
 					db.vars[name] = v
 				}
 				tsvs[name] = v
@@ -296,7 +303,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	for _, input := range rule.inputs {
 		if len(rule.outputPatterns) > 0 {
 			if len(rule.outputPatterns) > 1 {
-				panic("TODO: multiple output pattern is not supported yet")
+				panic(fmt.Sprintf("FIXME: multiple output pattern is not supported yet"))
 			}
 			input = intern(rule.outputPatterns[0].subst(input, output))
 		} else if rule.isSuffixRule {
@@ -337,6 +344,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	n.ActualInputs = actualInputs
 	n.TargetSpecificVars = make(Vars)
 	for k, v := range tsvs {
+		logf("output=%s tsv %s=%s", output, k, v)
 		n.TargetSpecificVars[k] = v
 	}
 	n.Filename = rule.filename
@@ -373,13 +381,13 @@ func (db *depBuilder) populateSuffixRule(r *rule, output string) bool {
 	return true
 }
 
-func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) *rule {
+func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) (*rule, error) {
 	if oldRule.isDoubleColon != r.isDoubleColon {
-		errorExit(r.filename, r.lineno, "*** target file %q has both : and :: entries.", output)
+		return nil, r.errorf("*** target file %q has both : and :: entries.", output)
 	}
 	if len(oldRule.cmds) > 0 && len(r.cmds) > 0 && !isSuffixRule && !r.isDoubleColon {
-		warn(r.filename, r.cmdLineno, "overriding commands for target %q", output)
-		warn(oldRule.filename, oldRule.cmdLineno, "ignoring old commands for target %q", output)
+		warn(r.cmdpos(), "overriding commands for target %q", output)
+		warn(oldRule.cmdpos(), "ignoring old commands for target %q", output)
 	}
 
 	mr := &rule{}
@@ -400,13 +408,13 @@ func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) *rule {
 		mr.orderOnlyInputs = append(oldRule.orderOnlyInputs, mr.orderOnlyInputs...)
 	}
 	mr.outputPatterns = append(mr.outputPatterns, oldRule.outputPatterns...)
-	return mr
+	return mr, nil
 }
 
-func (db *depBuilder) populateExplicitRule(r *rule) {
+func (db *depBuilder) populateExplicitRule(r *rule) error {
 	// It seems rules with no outputs are siliently ignored.
 	if len(r.outputs) == 0 {
-		return
+		return nil
 	}
 	for _, output := range r.outputs {
 		output = trimLeadingCurdir(output)
@@ -414,7 +422,10 @@ func (db *depBuilder) populateExplicitRule(r *rule) {
 		isSuffixRule := db.populateSuffixRule(r, output)
 
 		if oldRule, present := db.rules[output]; present {
-			mr := mergeRules(oldRule, r, output, isSuffixRule)
+			mr, err := mergeRules(oldRule, r, output, isSuffixRule)
+			if err != nil {
+				return err
+			}
 			db.rules[output] = mr
 		} else {
 			db.rules[output] = r
@@ -423,6 +434,7 @@ func (db *depBuilder) populateExplicitRule(r *rule) {
 			}
 		}
 	}
+	return nil
 }
 
 func (db *depBuilder) populateImplicitRule(r *rule) {
@@ -440,7 +452,7 @@ func (db *depBuilder) populateImplicitRule(r *rule) {
 	}
 }
 
-func (db *depBuilder) populateRules(er *evalResult) {
+func (db *depBuilder) populateRules(er *evalResult) error {
 	for _, r := range er.rules {
 		for i, input := range r.inputs {
 			r.inputs[i] = trimLeadingCurdir(input)
@@ -448,8 +460,10 @@ func (db *depBuilder) populateRules(er *evalResult) {
 		for i, orderOnlyInput := range r.orderOnlyInputs {
 			r.orderOnlyInputs[i] = trimLeadingCurdir(orderOnlyInput)
 		}
-		db.populateExplicitRule(r)
-
+		err := db.populateExplicitRule(r)
+		if err != nil {
+			return err
+		}
 		if len(r.outputs) == 0 {
 			db.populateImplicitRule(r)
 		}
@@ -463,6 +477,7 @@ func (db *depBuilder) populateRules(er *evalResult) {
 
 	sort.Stable(byPrefix(db.iprefixRules))
 	sort.Stable(bySuffix(db.isuffixRules))
+	return nil
 }
 
 func reverseImplicitRules(rules []*rule) {
@@ -500,7 +515,7 @@ func (db *depBuilder) reportStats() {
 	}
 }
 
-func newDepBuilder(er *evalResult, vars Vars) *depBuilder {
+func newDepBuilder(er *evalResult, vars Vars) (*depBuilder, error) {
 	db := &depBuilder{
 		rules:       make(map[string]*rule),
 		ruleVars:    er.ruleVars,
@@ -510,20 +525,23 @@ func newDepBuilder(er *evalResult, vars Vars) *depBuilder {
 		phony:       make(map[string]bool),
 	}
 
-	db.populateRules(er)
+	err := db.populateRules(er)
+	if err != nil {
+		return nil, err
+	}
 	rule, present := db.rules[".PHONY"]
 	if present {
 		for _, input := range rule.inputs {
 			db.phony[input] = true
 		}
 	}
-	return db
+	return db, nil
 }
 
 func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 	if len(targets) == 0 {
 		if db.firstRule == nil {
-			errorNoLocationExit("*** No targets.")
+			return nil, fmt.Errorf("*** No targets.")
 		}
 		targets = append(targets, db.firstRule.outputs[0])
 	}

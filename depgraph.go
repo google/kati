@@ -22,6 +22,7 @@ import (
 	"time"
 )
 
+// DepGraph represents rules defined in makefiles.
 type DepGraph struct {
 	nodes       []*DepNode
 	vars        Vars
@@ -30,11 +31,19 @@ type DepGraph struct {
 	isCached    bool
 }
 
-func (g *DepGraph) Nodes() []*DepNode        { return g.nodes }
-func (g *DepGraph) Vars() Vars               { return g.vars }
-func (g *DepGraph) Exports() map[string]bool { return g.exports }
-func (g *DepGraph) IsCached() bool           { return g.isCached }
+// Nodes returns all rules.
+func (g *DepGraph) Nodes() []*DepNode { return g.nodes }
 
+// Vars returns all variables.
+func (g *DepGraph) Vars() Vars { return g.vars }
+
+// Exports returns map for export variables.
+func (g *DepGraph) Exports() map[string]bool { return g.exports }
+
+// IsCached indicates the DepGraph is loaded from cache.
+func (g *DepGraph) IsCached() bool { return g.isCached }
+
+// LoadReq is a request to load makefile.
 type LoadReq struct {
 	Makefile         string
 	Targets          []string
@@ -44,6 +53,7 @@ type LoadReq struct {
 	EagerEvalCommand bool
 }
 
+// FromCommandLine creates LoadReq from given command line.
 func FromCommandLine(cmdline []string) LoadReq {
 	var vars []string
 	var targets []string
@@ -54,8 +64,12 @@ func FromCommandLine(cmdline []string) LoadReq {
 		}
 		targets = append(targets, arg)
 	}
+	mk, err := defaultMakefile()
+	if err != nil {
+		logf("default makefile: %v", err)
+	}
 	return LoadReq{
-		Makefile:        defaultMakefile(),
+		Makefile:        mk,
 		Targets:         targets,
 		CommandLineVars: vars,
 	}
@@ -76,20 +90,28 @@ func initVars(vars Vars, kvlist []string, origin string) error {
 	return nil
 }
 
+// Load loads makefile.
 func Load(req LoadReq) (*DepGraph, error) {
 	startTime := time.Now()
+	var err error
 	if req.Makefile == "" {
-		req.Makefile = defaultMakefile()
+		req.Makefile, err = defaultMakefile()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if req.UseCache {
-		g := loadCache(req.Makefile, req.Targets)
-		if g != nil {
+		g, err := loadCache(req.Makefile, req.Targets)
+		if err == nil {
 			return g, nil
 		}
 	}
 
-	bmk := bootstrapMakefile(req.Targets)
+	bmk, err := bootstrapMakefile(req.Targets)
+	if err != nil {
+		return nil, err
+	}
 
 	content, err := ioutil.ReadFile(req.Makefile)
 	if err != nil {
@@ -125,7 +147,10 @@ func Load(req LoadReq) (*DepGraph, error) {
 	logStats("shell func time: %q %d", shellStats.Duration(), shellStats.Count())
 
 	startTime = time.Now()
-	db := newDepBuilder(er, vars)
+	db, err := newDepBuilder(er, vars)
+	if err != nil {
+		return nil, err
+	}
 	logStats("dep build prepare time: %q", time.Since(startTime))
 
 	startTime = time.Now()
@@ -150,7 +175,10 @@ func Load(req LoadReq) (*DepGraph, error) {
 	}
 	if req.EagerEvalCommand {
 		startTime := time.Now()
-		evalCommands(nodes, vars)
+		err = evalCommands(nodes, vars)
+		if err != nil {
+			return nil, err
+		}
 		logStats("eager eval command time: %q", time.Since(startTime))
 	}
 	if req.UseCache {
@@ -161,14 +189,17 @@ func Load(req LoadReq) (*DepGraph, error) {
 	return gd, nil
 }
 
+// Loader is the interface that loads DepGraph.
 type Loader interface {
 	Load(string) (*DepGraph, error)
 }
 
+// Saver is the interface that saves DepGraph.
 type Saver interface {
 	Save(*DepGraph, string, []string) error
 }
 
+// LoadSaver is the interface that groups Load and Save methods.
 type LoadSaver interface {
 	Loader
 	Saver
