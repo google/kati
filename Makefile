@@ -72,7 +72,7 @@ test: all go_test
 	ruby runtest.rb
 
 clean:
-	rm -rf out kati ckati *.o *.d
+	rm -rf out kati ckati *.o *.d go_src_stamp
 
 .PHONY: test
 
