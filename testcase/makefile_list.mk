@@ -16,4 +16,4 @@ test4:
 -include foo.mk bar.mk
 -include bar.mk
 -include foo.mk
--include foo.mk
+-include ./././foo.mk

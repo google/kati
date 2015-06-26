@@ -450,6 +450,7 @@ func (ev *Evaluator) evalInclude(ast *includeAST) error {
 	}
 
 	for _, fn := range files {
+		fn = trimLeadingCurdir(fn)
 		if IgnoreOptionalInclude != "" && ast.op == "-include" && matchPattern(fn, IgnoreOptionalInclude) {
 			continue
 		}

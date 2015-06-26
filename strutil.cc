@@ -383,3 +383,9 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   }
   return e;
 }
+
+StringPiece TrimLeadingCurdir(StringPiece s) {
+  while (s.substr(0, 2) == "./")
+    s = s.substr(2);
+  return s;
+}
