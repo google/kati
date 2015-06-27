@@ -183,6 +183,10 @@ class DepBuilder {
   void PopulateExplicitRule(shared_ptr<Rule> rule) {
     for (StringPiece output : rule->outputs) {
       const bool is_suffix_rule = PopulateSuffixRule(rule, output);
+
+      rule = make_shared<Rule>(*rule);
+      rule->outputs.clear();
+      rule->outputs.push_back(output);
       auto p = rules_.insert(make_pair(output, rule));
       if (p.second) {
         if (!first_rule_ && output.get(0) != '.') {
