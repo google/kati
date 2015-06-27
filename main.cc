@@ -33,6 +33,7 @@
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
+#include "time.h"
 #include "var.h"
 
 static const char* g_makefile;
@@ -49,6 +50,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_is_syntax_check_only = true;
     } else if (!strcmp(arg, "-i")) {
       g_is_dry_run = true;
+    } else if (!strcmp(arg, "--kati_stats")) {
+      g_enable_stat_logs = true;
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
@@ -160,14 +163,20 @@ static int Run(const vector<StringPiece>& targets,
                new SimpleVar(make_shared<string>(
                    StringPrintf(" %s", g_makefile)), VarOrigin::FILE));
 
-  Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
-  for (AST* ast : mk->asts()) {
-    LOG("%s", ast->DebugString().c_str());
-    ast->Eval(ev);
+  {
+    ScopedTimeReporter tr("eval time");
+    Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
+    for (AST* ast : mk->asts()) {
+      LOG("%s", ast->DebugString().c_str());
+      ast->Eval(ev);
+    }
   }
 
   vector<DepNode*> nodes;
-  MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
+  {
+    ScopedTimeReporter tr("make dep time");
+    MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
+  }
 
   for (const auto& p : ev->exports()) {
     const string& name = p.first.as_string();
@@ -185,7 +194,10 @@ static int Run(const vector<StringPiece>& targets,
   if (g_is_syntax_check_only)
     return 0;
 
-  Exec(nodes, ev);
+  {
+    ScopedTimeReporter tr("exec time");
+    Exec(nodes, ev);
+  }
 
   for (AST* ast : bootstrap_asts)
     delete ast;

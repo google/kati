@@ -16,5 +16,6 @@
 #define FLAGS_H_
 
 extern bool g_is_dry_run;
+extern bool g_enable_stat_logs;
 
 #endif  // FLAGS_H_

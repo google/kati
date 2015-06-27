@@ -12,9 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build ignore
+#ifndef TIME_H_
+#define TIME_H_
 
-#include "flags.h"
+double GetTime();
 
-bool g_enable_stat_logs;
-bool g_is_dry_run;
+struct ScopedTimeReporter {
+ public:
+  explicit ScopedTimeReporter(const char* name);
+  ~ScopedTimeReporter();
+
+ private:
+  const char* name_;
+  double start_;
+};
+
+#endif  // TIME_H_

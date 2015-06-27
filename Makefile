@@ -30,6 +30,7 @@ CXX_SRCS:= \
 	string_pool.cc \
 	stringprintf.cc \
 	strutil.cc \
+	time.cc \
 	value.cc \
 	var.cc
 CXX_TEST_SRCS:= \

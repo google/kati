@@ -14,7 +14,24 @@
 
 // +build ignore
 
-#include "flags.h"
+#include "time.h"
 
-bool g_enable_stat_logs;
-bool g_is_dry_run;
+#include <sys/time.h>
+
+#include "log.h"
+
+double GetTime() {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) < 0)
+    PERROR("gettimeofday");
+  return tv.tv_sec + tv.tv_usec * 0.001 * 0.001;
+}
+
+ScopedTimeReporter::ScopedTimeReporter(const char* name)
+    : name_(name), start_(GetTime()) {
+}
+
+ScopedTimeReporter::~ScopedTimeReporter() {
+  double elapsed = GetTime() - start_;
+  LOG_STAT("%s: %f", name_, elapsed);
+}
