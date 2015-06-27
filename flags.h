@@ -15,6 +15,6 @@
 #ifndef FLAGS_H_
 #define FLAGS_H_
 
-extern bool g_is_syntax_check_only;
+extern bool g_is_dry_run;
 
 #endif  // FLAGS_H_

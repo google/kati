@@ -36,6 +36,7 @@
 #include "var.h"
 
 static const char* g_makefile;
+static bool g_is_syntax_check_only;
 
 static void ParseCommandLine(int argc, char* argv[],
                              vector<StringPiece>* targets,
@@ -46,6 +47,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_makefile = argv[++i];
     } else if (!strcmp(arg, "-c")) {
       g_is_syntax_check_only = true;
+    } else if (!strcmp(arg, "-i")) {
+      g_is_dry_run = true;
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
@@ -179,6 +182,9 @@ static int Run(const vector<StringPiece>& targets,
     }
   }
 
+  if (g_is_syntax_check_only)
+    return 0;
+
   Exec(nodes, ev);
 
   for (AST* ast : bootstrap_asts)
@@ -187,7 +193,7 @@ static int Run(const vector<StringPiece>& targets,
   delete vars;
   delete cache_mgr;
 
-  return mk == 0;
+  return 0;
 }
 
 int main(int argc, char* argv[]) {
