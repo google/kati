@@ -161,7 +161,7 @@ class Executor {
         printf("%s\n", runner->cmd->c_str());
         fflush(stdout);
       }
-      if (!g_is_syntax_check_only) {
+      if (!g_is_dry_run) {
         int result = system(runner->cmd->c_str());
         if (result != 0) {
           if (runner->ignore_error) {
