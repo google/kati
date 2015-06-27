@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "flags.h"
 #include "stringprintf.h"
 
 #ifdef NOLOG
@@ -29,6 +30,11 @@
     fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str());    \
   } while(0)
 #endif
+
+#define LOG_STAT(args...) do {                                      \
+    if (g_enable_stat_logs)                                         \
+      fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str());  \
+  } while(0)
 
 #define PERROR(...) do {                                            \
     fprintf(stderr, "%s: %s\n", StringPrintf(__VA_ARGS__).c_str(),  \
