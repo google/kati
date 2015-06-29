@@ -28,6 +28,7 @@ CXX_SRCS:= \
 	ninja.cc \
 	parser.cc \
 	rule.cc \
+	stats.cc \
 	string_piece.cc \
 	string_pool.cc \
 	stringprintf.cc \
