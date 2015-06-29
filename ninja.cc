@@ -74,6 +74,7 @@ class NinjaGenerator {
           } else if (!prev_backslash) {
             quote = *in;
           }
+          break;
 
         case '$':
           cmd_buf_ += "$$";
@@ -186,7 +187,7 @@ class NinjaGenerator {
     }
 
     EmitBuild(node, rule_name);
-    // goma
+    // TODO: goma
 
     for (DepNode* d : node->deps) {
       EmitNode(d);
