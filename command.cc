@@ -94,33 +94,33 @@ class AutoSuffixFVar : public AutoVar {
 };
 
 void AutoAtVar::Eval(Evaluator*, string* s) const {
-  AppendString(ce_->current_dep_node()->output, s);
+  *s += ce_->current_dep_node()->output.str();
 }
 
 void AutoLessVar::Eval(Evaluator*, string* s) const {
   auto& ai = ce_->current_dep_node()->actual_inputs;
   if (!ai.empty())
-    AppendString(ai[0], s);
+    *s += ai[0].str();
 }
 
 void AutoHatVar::Eval(Evaluator*, string* s) const {
   unordered_set<StringPiece> seen;
   WordWriter ww(s);
-  for (StringPiece ai : ce_->current_dep_node()->actual_inputs) {
-    if (seen.insert(ai).second)
-      ww.Write(ai);
+  for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
+    if (seen.insert(ai.str()).second)
+      ww.Write(ai.str());
   }
 }
 
 void AutoPlusVar::Eval(Evaluator*, string* s) const {
   WordWriter ww(s);
-  for (StringPiece ai : ce_->current_dep_node()->actual_inputs) {
-    ww.Write(ai);
+  for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
+    ww.Write(ai.str());
   }
 }
 
 void AutoStarVar::Eval(Evaluator*, string* s) const {
-  AppendString(StripExt(ce_->current_dep_node()->output), s);
+  AppendString(StripExt(ce_->current_dep_node()->output.str()), s);
 }
 
 void AutoSuffixDVar::Eval(Evaluator* ev, string* s) const {
@@ -163,9 +163,9 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev)
   Vars* vars = ev_->mutable_vars();
 #define INSERT_AUTO_VAR(name, sym) do {                                 \
     Var* v = new name(this, sym);                                       \
-    (*vars)[STRING_PIECE(sym)] = v;                                     \
-    (*vars)[STRING_PIECE(sym"D")] = new AutoSuffixDVar(this, sym"D", v); \
-    (*vars)[STRING_PIECE(sym"F")] = new AutoSuffixFVar(this, sym"F", v); \
+    (*vars)[Intern(sym)] = v;                                           \
+    (*vars)[Intern(sym"D")] = new AutoSuffixDVar(this, sym"D", v);      \
+    (*vars)[Intern(sym"F")] = new AutoSuffixFVar(this, sym"F", v);      \
   } while (0)
   INSERT_AUTO_VAR(AutoAtVar, "@");
   INSERT_AUTO_VAR(AutoLessVar, "<");
@@ -198,8 +198,7 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
       ParseCommandPrefixes(&cmd, &echo, &ignore_error);
 
       if (!cmd.empty()) {
-        Command* command = new Command;
-        command->output = n->output;
+        Command* command = new Command(n->output);
         command->cmd = make_shared<string>(cmd.as_string());
         command->echo = echo;
         command->ignore_error = ignore_error;

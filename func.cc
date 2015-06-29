@@ -31,6 +31,7 @@
 #include "log.h"
 #include "parser.h"
 #include "strutil.h"
+#include "symtab.h"
 #include "var.h"
 
 namespace {
@@ -391,7 +392,7 @@ void OrFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void ValueFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> var_name = args[0]->Eval(ev);
-  Var* var = ev->LookupVar(*var_name);
+  Var* var = ev->LookupVar(Intern(*var_name));
   AppendString(var->String().as_string(), s);
 }
 
@@ -447,7 +448,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   };
 
   shared_ptr<string> func_name = args[0]->Eval(ev);
-  Var* func = ev->LookupVar(*func_name);
+  Var* func = ev->LookupVar(Intern(*func_name));
   vector<unique_ptr<SimpleVar>> av;
   for (size_t i = 1; i < args.size(); i++) {
     unique_ptr<SimpleVar> s(
@@ -457,7 +458,8 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   vector<unique_ptr<ScopedVar>> sv;
   for (size_t i = 1; i < args.size(); i++) {
     sv.push_back(move(unique_ptr<ScopedVar>(
-        new ScopedVar(ev->mutable_vars(), tmpvar_names[i], av[i-1].get()))));
+        new ScopedVar(ev->mutable_vars(),
+                      Intern(tmpvar_names[i]), av[i-1].get()))));
   }
   func->Eval(ev, s);
 }
@@ -469,7 +471,7 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   for (StringPiece tok : WordScanner(*list)) {
     unique_ptr<SimpleVar> v(new SimpleVar(
         make_shared<string>(tok.data(), tok.size()), VarOrigin::AUTOMATIC));
-    ScopedVar sv(ev->mutable_vars(), *varname, v.get());
+    ScopedVar sv(ev->mutable_vars(), Intern(*varname), v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
   }
@@ -477,13 +479,13 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void OriginFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> var_name = args[0]->Eval(ev);
-  Var* var = ev->LookupVar(*var_name);
+  Var* var = ev->LookupVar(Intern(*var_name));
   *s += GetOriginStr(var->Origin());
 }
 
 void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> var_name = args[0]->Eval(ev);
-  Var* var = ev->LookupVar(*var_name);
+  Var* var = ev->LookupVar(Intern(*var_name));
   *s += var->Flavor();
 }
 
@@ -567,7 +569,7 @@ void InitFuncTable() {
   g_func_info_map = new unordered_map<StringPiece, FuncInfo*>;
   for (size_t i = 0; i < sizeof(g_func_infos) / sizeof(g_func_infos[0]); i++) {
     FuncInfo* fi = &g_func_infos[i];
-    bool ok = g_func_info_map->insert(make_pair(Intern(fi->name), fi)).second;
+    bool ok = g_func_info_map->emplace(fi->name, fi).second;
     CHECK(ok);
   }
 }

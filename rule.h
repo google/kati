@@ -21,6 +21,7 @@
 #include "loc.h"
 #include "log.h"
 #include "string_piece.h"
+#include "symtab.h"
 
 using namespace std;
 
@@ -34,10 +35,10 @@ class Rule {
 
   string DebugString() const;
 
-  vector<StringPiece> outputs;
-  vector<StringPiece> inputs;
-  vector<StringPiece> order_only_inputs;
-  vector<StringPiece> output_patterns;
+  vector<Symbol> outputs;
+  vector<Symbol> inputs;
+  vector<Symbol> order_only_inputs;
+  vector<Symbol> output_patterns;
   bool is_double_colon;
   bool is_suffix_rule;
   vector<Value*> cmds;
@@ -51,7 +52,7 @@ class Rule {
 };
 
 struct RuleVarAssignment {
-  vector<StringPiece> outputs;
+  vector<Symbol> outputs;
   StringPiece lhs;
   StringPiece rhs;
   AssignOp op;

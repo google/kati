@@ -26,6 +26,7 @@
 #include "parser.h"
 #include "rule.h"
 #include "strutil.h"
+#include "symtab.h"
 #include "value.h"
 #include "var.h"
 
@@ -49,7 +50,7 @@ Evaluator::~Evaluator() {
   // }
 }
 
-Var* Evaluator::EvalRHS(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
+Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
                         AssignOp op, bool is_override) {
   VarOrigin origin = (
       (is_bootstrap_ ? VarOrigin::DEFAULT :
@@ -87,7 +88,7 @@ Var* Evaluator::EvalRHS(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
     }
   }
 
-  LOG("Assign: %.*s=%s", SPF(lhs), rhs->DebugString().c_str());
+  LOG("Assign: %s=%s", lhs.c_str(), rhs->DebugString().c_str());
   if (needs_assign) {
     return rhs;
   }
@@ -97,7 +98,7 @@ Var* Evaluator::EvalRHS(StringPiece lhs, Value* rhs_v, StringPiece orig_rhs,
 void Evaluator::EvalAssign(const AssignAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
-  StringPiece lhs = Intern(*ast->lhs->Eval(this));
+  Symbol lhs = Intern(*ast->lhs->Eval(this));
   if (lhs.empty())
     Error("*** empty variable name.");
   Var* rhs = EvalRHS(lhs, ast->rhs, ast->orig_rhs, ast->op,
@@ -130,7 +131,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
     return;
   }
 
-  for (StringPiece output : rule_var.outputs) {
+  for (Symbol output : rule_var.outputs) {
     auto p = rule_vars_.emplace(output, nullptr);
     if (p.second) {
       p.first->second = new Vars;
@@ -153,7 +154,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
     }
 
     current_scope_ = p.first->second;
-    StringPiece lhs = Intern(rule_var.lhs);
+    Symbol lhs = Intern(rule_var.lhs);
     Var* rhs_var = EvalRHS(lhs, rhs, STRING_PIECE("*TODO*"), rule_var.op);
     if (rhs_var)
       current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op));
@@ -182,7 +183,7 @@ void Evaluator::EvalIf(const IfAST* ast) {
   switch (ast->op) {
     case CondOp::IFDEF:
     case CondOp::IFNDEF: {
-      StringPiece lhs = Intern(*ast->lhs->Eval(this));
+      Symbol lhs = Intern(*ast->lhs->Eval(this));
       Var* v = LookupVarInCurrentScope(lhs);
       shared_ptr<string> s = v->Eval(this);
       is_true = (s->empty() == (ast->op == CondOp::IFNDEF));
@@ -228,8 +229,8 @@ void Evaluator::DoInclude(const char* fname, bool should_exist) {
     return;
   }
 
-  Var* var_list = LookupVar("MAKEFILE_LIST");
-  var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname))));
+  Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
+  var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
   for (AST* ast : mk->asts()) {
     LOG("%s", ast->DebugString().c_str());
     ast->Eval(this);
@@ -279,7 +280,7 @@ void Evaluator::EvalExport(const ExportAST* ast) {
   }
 }
 
-Var* Evaluator::LookupVar(StringPiece name) {
+Var* Evaluator::LookupVar(Symbol name) {
   if (current_scope_) {
     Var* v = current_scope_->Lookup(name);
     if (v->IsDefined())
@@ -291,7 +292,7 @@ Var* Evaluator::LookupVar(StringPiece name) {
   return in_vars_->Lookup(name);
 }
 
-Var* Evaluator::LookupVarInCurrentScope(StringPiece name) {
+Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
   if (current_scope_) {
     return current_scope_->Lookup(name);
   }

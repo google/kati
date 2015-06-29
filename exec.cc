@@ -32,6 +32,7 @@
 #include "log.h"
 #include "string_piece.h"
 #include "strutil.h"
+#include "symtab.h"
 #include "value.h"
 #include "var.h"
 
@@ -49,15 +50,15 @@ class Executor {
     done_[n->output] = true;
 
     LOG("ExecNode: %s for %s",
-        n->output.as_string().c_str(),
-        needed_by ? needed_by->output.as_string().c_str() : "(null)");
+        n->output.c_str(),
+        needed_by ? needed_by->output.c_str() : "(null)");
 
     for (DepNode* d : n->deps) {
-      if (d->is_order_only && Exists(d->output)) {
+      if (d->is_order_only && Exists(d->output.str())) {
         continue;
       }
       // TODO: Check the timestamp.
-      if (Exists(d->output)) {
+      if (Exists(d->output.str())) {
         continue;
       }
       ExecNode(d, n);
@@ -74,11 +75,11 @@ class Executor {
         int result = system(command->cmd->c_str());
         if (result != 0) {
           if (command->ignore_error) {
-            fprintf(stderr, "[%.*s] Error %d (ignored)\n",
-                    SPF(command->output), WEXITSTATUS(result));
+            fprintf(stderr, "[%s] Error %d (ignored)\n",
+                    command->output.c_str(), WEXITSTATUS(result));
           } else {
-            fprintf(stderr, "*** [%.*s] Error %d\n",
-                    SPF(command->output), WEXITSTATUS(result));
+            fprintf(stderr, "*** [%s] Error %d\n",
+                    command->output.c_str(), WEXITSTATUS(result));
             exit(1);
           }
         }
@@ -89,7 +90,7 @@ class Executor {
 
  private:
   CommandEvaluator ce_;
-  unordered_map<StringPiece, bool> done_;
+  unordered_map<Symbol, bool> done_;
 };
 
 }  // namespace
