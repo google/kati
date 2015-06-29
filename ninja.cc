@@ -74,6 +74,7 @@ class NinjaGenerator {
           } else if (!prev_backslash) {
             quote = *in;
           }
+          cmd_buf_ += *in;
           break;
 
         case '$':
