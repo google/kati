@@ -29,6 +29,7 @@
 #include "flags.h"
 #include "func.h"
 #include "log.h"
+#include "ninja.h"
 #include "parser.h"
 #include "string_piece.h"
 #include "stringprintf.h"
@@ -38,6 +39,7 @@
 
 static const char* g_makefile;
 static bool g_is_syntax_check_only;
+static bool g_generate_ninja;
 
 static void ParseCommandLine(int argc, char* argv[],
                              vector<StringPiece>* targets,
@@ -52,6 +54,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_is_dry_run = true;
     } else if (!strcmp(arg, "--kati_stats")) {
       g_enable_stat_logs = true;
+    } else if (!strcmp(arg, "--ninja")) {
+      g_generate_ninja = true;
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
@@ -193,6 +197,12 @@ static int Run(const vector<StringPiece>& targets,
 
   if (g_is_syntax_check_only)
     return 0;
+
+  if (g_generate_ninja) {
+    ScopedTimeReporter tr("generate ninja time");
+    GenerateNinja(nodes, ev);
+    return 0;
+  }
 
   {
     ScopedTimeReporter tr("exec time");
