@@ -131,7 +131,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
   }
 
   for (StringPiece output : rule_var.outputs) {
-    auto p = rule_vars_.emplace(output, static_cast<Vars*>(NULL));
+    auto p = rule_vars_.emplace(output, nullptr);
     if (p.second) {
       p.first->second = new Vars;
     }

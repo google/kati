@@ -29,6 +29,8 @@
 #include "strutil.h"
 #include "var.h"
 
+namespace {
+
 static vector<DepNode*>* g_dep_node_pool;
 
 static StringPiece ReplaceSuffix(StringPiece s, StringPiece newsuf) {
@@ -38,6 +40,58 @@ static StringPiece ReplaceSuffix(StringPiece s, StringPiece newsuf) {
   AppendString(newsuf, &r);
   return Intern(r);
 }
+
+class RuleTrie {
+  struct Entry {
+    Entry(shared_ptr<Rule> r, StringPiece s)
+        : rule(r), suffix(s) {
+    }
+    shared_ptr<Rule> rule;
+    StringPiece suffix;
+  };
+
+ public:
+  RuleTrie() {}
+  ~RuleTrie() {
+    for (auto& p : children_)
+      delete p.second;
+  }
+
+  void Add(StringPiece name, shared_ptr<Rule> rule) {
+    if (name.empty() || name[0] == '%') {
+      rules_.push_back(Entry(rule, name));
+      return;
+    }
+    const char c = name[0];
+    auto p = children_.emplace(c, nullptr);
+    if (p.second) {
+      p.first->second = new RuleTrie();
+    }
+    p.first->second->Add(name.substr(1), rule);
+  }
+
+  void Get(StringPiece name, vector<shared_ptr<Rule>>* rules) {
+    for (const Entry& ent : rules_) {
+      if ((ent.suffix.empty() && name.empty()) ||
+          HasSuffix(name, ent.suffix.substr(1))) {
+        rules->push_back(ent.rule);
+      }
+    }
+  }
+
+  size_t size() const {
+    size_t r = rules_.size();
+    for (const auto& c : children_)
+      r += c.second->size();
+    return r;
+  }
+
+ private:
+  vector<Entry> rules_;
+  unordered_map<char, RuleTrie*> children_;
+};
+
+}  // namespace
 
 DepNode::DepNode(StringPiece o, bool p)
     : output(o),
@@ -55,11 +109,12 @@ class DepBuilder {
              const unordered_map<StringPiece, Vars*>& rule_vars)
       : ev_(ev),
         rule_vars_(rule_vars),
+        implicit_rules_(new RuleTrie()),
         first_rule_(NULL) {
     PopulateRules(rules);
     LOG_STAT("%zu variables", ev->mutable_vars()->size());
     LOG_STAT("%zu explicit rules", rules_.size());
-    LOG_STAT("%zu implicit rules", implicit_rules_.size());
+    LOG_STAT("%zu implicit rules", implicit_rules_->size());
     LOG_STAT("%zu suffix rules", suffix_rules_.size());
   }
 
@@ -106,7 +161,6 @@ class DepBuilder {
         PopulateExplicitRule(rule);
       }
     }
-    reverse(implicit_rules_.begin(), implicit_rules_.end());
     for (auto& p : suffix_rules_) {
       reverse(p.second.begin(), p.second.end());
     }
@@ -208,7 +262,7 @@ class DepBuilder {
       shared_ptr<Rule> r = make_shared<Rule>(*rule);
       r->output_patterns.clear();
       r->output_patterns.push_back(output_pattern);
-      implicit_rules_.push_back(r);
+      implicit_rules_->Add(output_pattern, r);
     }
   }
 
@@ -267,7 +321,10 @@ class DepBuilder {
       }
     }
 
-    for (shared_ptr<Rule> irule : implicit_rules_) {
+    vector<shared_ptr<Rule>> irules;
+    implicit_rules_->Get(output, &irules);
+    for (auto iter = irules.rbegin(); iter != irules.rend(); ++iter) {
+      shared_ptr<Rule> irule = *iter;
       if (!CanPickImplicitRule(irule, output))
         continue;
       if (rule) {
@@ -421,9 +478,7 @@ class DepBuilder {
   const unordered_map<StringPiece, Vars*>& rule_vars_;
   unique_ptr<Vars> cur_rule_vars_;
 
-  vector<shared_ptr<Rule>> implicit_rules_;   // pattern=%. no prefix,suffix.
-  //vector<Rule*> iprefix_rules_;   // pattern=prefix%..  may have suffix
-  //vector<Rule*> isuffix_rules_;   // pattern=%suffix  no prefix
+  unique_ptr<RuleTrie> implicit_rules_;
   typedef unordered_map<StringPiece, vector<shared_ptr<Rule>>> SuffixRuleMap;
   SuffixRuleMap suffix_rules_;
 
