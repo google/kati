@@ -204,7 +204,7 @@ class NinjaGenerator {
       }
     }
     if (!order_onlys.empty()) {
-      fprintf(fp_, " |");
+      fprintf(fp_, " ||");
       for (StringPiece oo : order_onlys) {
         fprintf(fp_, " %.*s", SPF(oo));
       }
