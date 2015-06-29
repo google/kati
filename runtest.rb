@@ -26,6 +26,7 @@ end
 def get_output_filenames
   files = Dir.glob('*')
   files.delete('Makefile')
+  files.delete('gmon.out')
   files.reject!{|f|f =~ /\.json$/}
   files
 end
