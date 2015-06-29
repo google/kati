@@ -298,9 +298,9 @@ void AbsPath(StringPiece s, string* o) {
 
   size_t j = 1;
   size_t prev_start = 1;
-  for (size_t i = 1; i < o->size(); i++) {
-    char c= (*o)[i];
-    if (c != '/') {
+  for (size_t i = 1; i <= o->size(); i++) {
+    char c = (*o)[i];
+    if (c != '/' && c != 0) {
       (*o)[j] = c;
       j++;
       continue;
@@ -318,11 +318,15 @@ void AbsPath(StringPiece s, string* o) {
         j++;
       }
     } else if (!prev_dir.empty()) {
-      (*o)[j] = c;
-      j++;
+      if (c) {
+        (*o)[j] = c;
+        j++;
+      }
     }
     prev_start = j;
   }
+  if (j > 1 && (*o)[j-1] == '/')
+    j--;
   o->resize(j);
 }
 
