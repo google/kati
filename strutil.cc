@@ -253,7 +253,7 @@ StringPiece Dirname(StringPiece s) {
   if (found == string::npos)
     return STRING_PIECE(".");
   if (found == 0)
-    return s;
+    return STRING_PIECE("");
   return s.substr(0, found);
 }
 

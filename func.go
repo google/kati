@@ -623,12 +623,12 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) error {
 	ws := newWordScanner(abuf.Bytes())
 	sw := ssvWriter{w: w}
 	for ws.Scan() {
-		name := string(ws.Bytes())
+		name := filepath.Dir(string(string(ws.Bytes())))
 		if name == "/" {
 			sw.WriteString(name)
 			continue
 		}
-		sw.WriteString(filepath.Dir(string(name)) + string(filepath.Separator))
+		sw.WriteString(name + string(filepath.Separator))
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "dir", t)
