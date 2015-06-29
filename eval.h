@@ -70,6 +70,9 @@ class Evaluator {
 
   void set_current_scope(Vars* v) { current_scope_ = v; }
 
+  bool avoid_io() const { return avoid_io_; }
+  void set_avoid_io(bool a) { avoid_io_ = a; }
+
  private:
   Var* EvalRHS(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
@@ -86,6 +89,7 @@ class Evaluator {
 
   Loc loc_;
   bool is_bootstrap_;
+  bool avoid_io_;
 };
 
 #endif  // EVAL_H_

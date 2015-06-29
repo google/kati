@@ -242,6 +242,13 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat = args[0]->Eval(ev);
+  if (ev->avoid_io()) {
+    *s += "$(/bin/ls -d ";
+    *s += *pat;
+    *s += " 2> /dev/null)";
+    return;
+  }
+
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*pat)) {
     ScopedTerminator st(tok);
@@ -317,6 +324,11 @@ void AddprefixFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void RealpathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> text = args[0]->Eval(ev);
+  if (ev->avoid_io()) {
+    *s += "KATI_TODO(realpath)";
+    return;
+  }
+
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
     ScopedTerminator st(tok);
@@ -390,6 +402,13 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
+  if (ev->avoid_io()) {
+    *s += "$(";
+    *s += *cmd;
+    *s += ")";
+    return;
+  }
+
   LOG("ShellFunc: %s", cmd->c_str());
   string out;
   // TODO: Handle $(SHELL).
@@ -459,20 +478,32 @@ void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   *s += var->Flavor();
 }
 
-void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+void InfoFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> a = args[0]->Eval(ev);
+  if (ev->avoid_io()) {
+    *s += "KATI_TODO(info)";
+    return;
+  }
   printf("%s\n", a->c_str());
   fflush(stdout);
 }
 
-void WarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+void WarningFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> a = args[0]->Eval(ev);
+  if (ev->avoid_io()) {
+    *s += "KATI_TODO(warning)";
+    return;
+  }
   printf("%s:%d: %s\n", LOCF(ev->loc()), a->c_str());
   fflush(stdout);
 }
 
-void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> a = args[0]->Eval(ev);
+  if (ev->avoid_io()) {
+    *s += "KATI_TODO(error)";
+    return;
+  }
   ev->Error(StringPrintf("*** %s.", a->c_str()));
 }
 
