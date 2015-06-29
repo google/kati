@@ -477,11 +477,7 @@ func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string)
 func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes []string, mindepth int) bool {
 	var found []string
 	var dirs []string
-	topdir := filepath.Clean(dir)
-	topdepth := strings.Count(dir, "/")
-	if topdir == "." {
-		topdepth++
-	}
+	topdepth := 1 + strings.Count(dir, "/")
 	dirs = append(dirs, dir)
 	for len(dirs) > 0 {
 		dir = filepath.Clean(dirs[0]) + "/"
