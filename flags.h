@@ -17,5 +17,6 @@
 
 extern bool g_is_dry_run;
 extern bool g_enable_stat_logs;
+extern const char* g_ignore_optional_include_pattern;
 
 #endif  // FLAGS_H_

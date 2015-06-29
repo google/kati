@@ -41,6 +41,25 @@ static const char* g_makefile;
 static bool g_is_syntax_check_only;
 static bool g_generate_ninja;
 
+static bool ParseCommandLineOptionWithArg(StringPiece option,
+                                          char* argv[],
+                                          int* index,
+                                          const char** out_arg) {
+  const char* arg = argv[*index];
+  if (!HasPrefix(arg, option))
+    return false;
+  if (arg[option.size()] == '\0') {
+    ++*index;
+    *out_arg = argv[*index];
+    return true;
+  }
+  if (arg[option.size()] == '=') {
+    *out_arg = arg + option.size() + 1;
+    return true;
+  }
+  return false;
+}
+
 static void ParseCommandLine(int argc, char* argv[],
                              vector<StringPiece>* targets,
                              vector<StringPiece>* cl_vars) {
@@ -56,6 +75,9 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (ParseCommandLineOptionWithArg(
+        "--ignore_optional_include",
+        argv, &i, &g_ignore_optional_include_pattern)) {
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
