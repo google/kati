@@ -119,7 +119,7 @@ var shBuiltins = []struct {
 			literal("cd "),
 			matchVarref{},
 			matchVarref{},
-			literal("/"),
+			mustLiteralRE("(/)"),
 			matchVarref{},
 			literal(` && find . -type d -a -name ".svn" -prune -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" -a \! -name "*~" -print `),
 		},
