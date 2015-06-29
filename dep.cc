@@ -122,6 +122,13 @@ class DepBuilder {
     LOG_STAT("%zu explicit rules", rules_.size());
     LOG_STAT("%zu implicit rules", implicit_rules_->size());
     LOG_STAT("%zu suffix rules", suffix_rules_.size());
+
+    auto found = rules_.find(".PHONY");
+    if (found != rules_.end()) {
+      for (StringPiece input : found->second->inputs) {
+        phony_.insert(input);
+      }
+    }
   }
 
   ~DepBuilder() {
