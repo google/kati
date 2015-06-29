@@ -250,14 +250,24 @@ void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 
   WordWriter ww(s);
+  vector<const char*> files;
   for (StringPiece tok : WordScanner(*pat)) {
     ScopedTerminator st(tok);
     // TODO: Make this faster by not always using glob.
+    files.clear();
     glob_t gl;
     glob(tok.data(), GLOB_NOSORT, NULL, &gl);
     for (size_t i = 0; i < gl.gl_pathc; i++) {
-      ww.Write(gl.gl_pathv[i]);
+      files.push_back(gl.gl_pathv[i]);
     }
+    sort(files.begin(), files.end(),
+         [](const char* a, const char* b) {
+           return strcmp(a, b) < 0;
+         });
+    for (const char* file : files) {
+      ww.Write(file);
+    }
+
     globfree(&gl);
   }
 }
