@@ -267,8 +267,7 @@ void DirFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
     ww.Write(Dirname(tok));
-    if (tok != "/")
-      s->push_back('/');
+    s->push_back('/');
   }
 }
 

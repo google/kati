@@ -7,6 +7,7 @@ test: foo
 	echo $(dir src/foo.c hacks)
 	echo $(dir hacks src/foo.c)
 	echo $(dir /)
+	echo $(dir /foo)
 
 foo:
 	mkdir foo bar
