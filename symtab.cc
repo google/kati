@@ -34,12 +34,20 @@ class Symtab {
   Symtab() {
     CHECK(g_symbols == NULL);
     g_symbols = &symbols_;
-    Symbol s = Intern("");
+
+    Symbol s = InternImpl("");
     CHECK(s.v_ == 0);
     CHECK(Intern("") == s);
+    char b[2];
+    b[1] = 0;
+    for (int i = 1; i < 256; i++) {
+      b[0] = i;
+      s = InternImpl(b);
+      CHECK(s.val() == i);
+    }
   }
 
-  Symbol Intern(StringPiece s) {
+  Symbol InternImpl(StringPiece s) {
     auto found = symtab_.find(s);
     if (found != symtab_.end()) {
       return found->second;
@@ -49,6 +57,13 @@ class Symtab {
     bool ok = symtab_.emplace(symbols_.back(), sym).second;
     CHECK(ok);
     return sym;
+  }
+
+  Symbol Intern(StringPiece s) {
+    if (s.size() <= 1) {
+      return Symbol(s.empty() ? 0 : (unsigned char)s[0]);
+    }
+    return InternImpl(s);
   }
 
  private:
