@@ -22,6 +22,7 @@
 
 #include "loc.h"
 #include "string_piece.h"
+#include "symtab.h"
 
 class Evaluator;
 class Rule;
@@ -29,16 +30,16 @@ class Value;
 class Vars;
 
 struct DepNode {
-  DepNode(StringPiece output, bool is_phony);
+  DepNode(Symbol output, bool is_phony);
 
-  StringPiece output;
+  Symbol output;
   vector<Value*> cmds;
   vector<DepNode*> deps;
   vector<DepNode*> parents;
   bool has_rule;
   bool is_order_only;
   bool is_phony;
-  vector<StringPiece> actual_inputs;
+  vector<Symbol> actual_inputs;
   Vars* rule_vars;
   Loc loc;
 };
@@ -48,8 +49,8 @@ void QuitDepNodePool();
 
 void MakeDep(Evaluator* ev,
              const vector<shared_ptr<Rule>>& rules,
-             const unordered_map<StringPiece, Vars*>& rule_vars,
-             const vector<StringPiece>& targets,
+             const unordered_map<Symbol, Vars*>& rule_vars,
+             const vector<Symbol>& targets,
              vector<DepNode*>* nodes);
 
 #endif  // DEP_H_

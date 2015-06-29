@@ -131,13 +131,13 @@ class VarRef : public Value {
 
   virtual shared_ptr<string> Eval(Evaluator* ev) const override {
     shared_ptr<string> name = name_->Eval(ev);
-    Var* v = ev->LookupVar(*name);
+    Var* v = ev->LookupVar(Intern(*name));
     return v->Eval(ev);
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     shared_ptr<string> name = name_->Eval(ev);
-    Var* v = ev->LookupVar(*name);
+    Var* v = ev->LookupVar(Intern(*name));
     v->Eval(ev, s);
   }
 
@@ -162,7 +162,7 @@ class VarSubst : public Value {
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     shared_ptr<string> name = name_->Eval(ev);
-    Var* v = ev->LookupVar(*name);
+    Var* v = ev->LookupVar(Intern(*name));
     shared_ptr<string> value = v->Eval(ev);
     shared_ptr<string> pat_str = pat_->Eval(ev);
     shared_ptr<string> subst = subst_->Eval(ev);

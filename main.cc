@@ -34,6 +34,7 @@
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
+#include "symtab.h"
 #include "time.h"
 #include "var.h"
 
@@ -61,7 +62,7 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
 }
 
 static void ParseCommandLine(int argc, char* argv[],
-                             vector<StringPiece>* targets,
+                             vector<Symbol>* targets,
                              vector<StringPiece>* cl_vars) {
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
@@ -116,7 +117,7 @@ static void Quit() {
   QuitSymtab();
 }
 
-static void ReadBootstrapMakefile(const vector<StringPiece>& targets,
+static void ReadBootstrapMakefile(const vector<Symbol>& targets,
                                   vector<AST*>* asts) {
   string bootstrap = (
       "CC:=cc\n"
@@ -138,7 +139,7 @@ static void ReadBootstrapMakefile(const vector<StringPiece>& targets,
       // TODO: Add more builtin rules.
                       );
   bootstrap += StringPrintf("MAKECMDGOALS:=%s\n",
-                            JoinStrings(targets, " ").c_str());
+                            JoinSymbols(targets, " ").c_str());
 
   char cwd[PATH_MAX];
   if (!getcwd(cwd, PATH_MAX)) {
@@ -146,13 +147,13 @@ static void ReadBootstrapMakefile(const vector<StringPiece>& targets,
     CHECK(false);
   }
   bootstrap += StringPrintf("CURDIR:=%s\n", cwd);
-  Parse(Intern(bootstrap), Loc("*bootstrap*", 0), asts);
+  Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), asts);
 }
 
 static void SetVar(StringPiece l, VarOrigin origin, Vars* vars) {
   size_t found = l.find('=');
   CHECK(found != string::npos);
-  StringPiece lhs = Intern(l.substr(0, found));
+  Symbol lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
   vars->Assign(lhs,
                new RecursiveVar(NewLiteral(rhs.data()), origin, rhs.data()));
@@ -168,7 +169,7 @@ static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
   }
 }
 
-static int Run(const vector<StringPiece>& targets,
+static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars) {
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
@@ -185,7 +186,7 @@ static int Run(const vector<StringPiece>& targets,
   }
   ev->set_is_bootstrap(false);
 
-  vars->Assign("MAKEFILE_LIST",
+  vars->Assign(Intern("MAKEFILE_LIST"),
                new SimpleVar(make_shared<string>(
                    StringPrintf(" %s", g_makefile)), VarOrigin::FILE));
 
@@ -205,7 +206,7 @@ static int Run(const vector<StringPiece>& targets,
   }
 
   for (const auto& p : ev->exports()) {
-    const string& name = p.first.as_string();
+    const Symbol name = p.first;
     if (p.second) {
       Var* v = ev->LookupVar(name);
       shared_ptr<string> value = v->Eval(ev);
@@ -242,7 +243,7 @@ static int Run(const vector<StringPiece>& targets,
 
 int main(int argc, char* argv[]) {
   Init();
-  vector<StringPiece> targets;
+  vector<Symbol> targets;
   vector<StringPiece> cl_vars;
   ParseCommandLine(argc, argv, &targets, &cl_vars);
   int r = Run(targets, cl_vars);

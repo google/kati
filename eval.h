@@ -22,6 +22,7 @@
 #include "ast.h"
 #include "loc.h"
 #include "string_piece.h"
+#include "symtab.h"
 
 using namespace std;
 
@@ -51,18 +52,18 @@ class Evaluator {
   void EvalInclude(const IncludeAST* ast);
   void EvalExport(const ExportAST* ast);
 
-  Var* LookupVar(StringPiece name);
+  Var* LookupVar(Symbol name);
   // For target specific variables.
-  Var* LookupVarInCurrentScope(StringPiece name);
+  Var* LookupVarInCurrentScope(Symbol name);
 
   const Loc& loc() const { return loc_; }
 
   const vector<shared_ptr<Rule>>& rules() const { return rules_; }
-  const unordered_map<StringPiece, Vars*>& rule_vars() const {
+  const unordered_map<Symbol, Vars*>& rule_vars() const {
     return rule_vars_;
   }
   Vars* mutable_vars() { return vars_; }
-  const unordered_map<StringPiece, bool>& exports() const { return exports_; }
+  const unordered_map<Symbol, bool>& exports() const { return exports_; }
 
   void Error(const string& msg);
 
@@ -74,15 +75,15 @@ class Evaluator {
   void set_avoid_io(bool a) { avoid_io_ = a; }
 
  private:
-  Var* EvalRHS(StringPiece lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
+  Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
   void DoInclude(const char* fname, bool should_exist);
 
   const Vars* in_vars_;
   Vars* vars_;
-  unordered_map<StringPiece, Vars*> rule_vars_;
+  unordered_map<Symbol, Vars*> rule_vars_;
   vector<shared_ptr<Rule>> rules_;
-  unordered_map<StringPiece, bool> exports_;
+  unordered_map<Symbol, bool> exports_;
 
   Rule* last_rule_;
   Vars* current_scope_;

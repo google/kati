@@ -21,6 +21,7 @@
 
 #include "ast.h"
 #include "string_piece.h"
+#include "symtab.h"
 #include "value.h"
 
 using namespace std;
@@ -170,19 +171,19 @@ class RuleVar : public Var {
   AssignOp op_;
 };
 
-class Vars : public unordered_map<StringPiece, Var*> {
+class Vars : public unordered_map<Symbol, Var*> {
  public:
   ~Vars();
 
-  Var* Lookup(StringPiece name) const;
+  Var* Lookup(Symbol name) const;
 
-  void Assign(StringPiece name, Var* v);
+  void Assign(Symbol name, Var* v);
 };
 
 class ScopedVar {
  public:
   // Does not take ownerships of arguments.
-  ScopedVar(Vars* vars, StringPiece name, Var* var);
+  ScopedVar(Vars* vars, Symbol name, Var* var);
   ~ScopedVar();
 
  private:

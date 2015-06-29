@@ -27,17 +27,18 @@
 #include "log.h"
 #include "rule.h"
 #include "strutil.h"
+#include "symtab.h"
 #include "var.h"
 
 namespace {
 
 static vector<DepNode*>* g_dep_node_pool;
 
-static StringPiece ReplaceSuffix(StringPiece s, StringPiece newsuf) {
+static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
   string r;
-  AppendString(StripExt(s), &r);
+  AppendString(StripExt(s.str()), &r);
   r += '.';
-  AppendString(newsuf, &r);
+  AppendString(newsuf.str(), &r);
   return Intern(r);
 }
 
@@ -99,7 +100,7 @@ class RuleTrie {
 
 }  // namespace
 
-DepNode::DepNode(StringPiece o, bool p)
+DepNode::DepNode(Symbol o, bool p)
     : output(o),
       has_rule(false),
       is_order_only(false),
@@ -112,7 +113,7 @@ class DepBuilder {
  public:
   DepBuilder(Evaluator* ev,
              const vector<shared_ptr<Rule>>& rules,
-             const unordered_map<StringPiece, Vars*>& rule_vars)
+             const unordered_map<Symbol, Vars*>& rule_vars)
       : ev_(ev),
         rule_vars_(rule_vars),
         implicit_rules_(new RuleTrie()),
@@ -123,9 +124,9 @@ class DepBuilder {
     LOG_STAT("%zu implicit rules", implicit_rules_->size());
     LOG_STAT("%zu suffix rules", suffix_rules_.size());
 
-    auto found = rules_.find(".PHONY");
+    auto found = rules_.find(Intern(".PHONY"));
     if (found != rules_.end()) {
-      for (StringPiece input : found->second->inputs) {
+      for (Symbol input : found->second->inputs) {
         phony_.insert(input);
       }
     }
@@ -134,7 +135,7 @@ class DepBuilder {
   ~DepBuilder() {
   }
 
-  void Build(vector<StringPiece> targets,
+  void Build(vector<Symbol> targets,
              vector<DepNode*>* nodes) {
     if (targets.empty()) {
       if (!first_rule_) {
@@ -146,10 +147,10 @@ class DepBuilder {
 
     // TODO: LogStats?
 
-    for (StringPiece target : targets) {
+    for (Symbol target : targets) {
       cur_rule_vars_.reset(new Vars);
       ev_->set_current_scope(cur_rule_vars_.get());
-      DepNode* n = BuildPlan(target, "");
+      DepNode* n = BuildPlan(target, Intern(""));
       nodes->push_back(n);
       ev_->set_current_scope(NULL);
       cur_rule_vars_.reset(NULL);
@@ -157,13 +158,13 @@ class DepBuilder {
   }
 
  private:
-  bool Exists(StringPiece target) {
+  bool Exists(Symbol target) {
     auto found = rules_.find(target);
     if (found != rules_.end())
       return true;
     if (phony_.count(target))
       return true;
-    return ::Exists(target);
+    return ::Exists(target.str());
   }
 
   void PopulateRules(const vector<shared_ptr<Rule>>& rules) {
@@ -179,11 +180,11 @@ class DepBuilder {
     }
   }
 
-  bool PopulateSuffixRule(shared_ptr<Rule> rule, StringPiece output) {
-    if (output.empty() || output[0] != '.')
+  bool PopulateSuffixRule(shared_ptr<Rule> rule, Symbol output) {
+    if (output.empty() || output.str()[0] != '.')
       return false;
 
-    StringPiece rest = output.substr(1);
+    const StringPiece rest = StringPiece(output.str()).substr(1);
     size_t dot_index = rest.find('.');
     // If there is only a single dot or the third dot, this is not a
     // suffix rule.
@@ -196,7 +197,7 @@ class DepBuilder {
     StringPiece output_suffix = rest.substr(dot_index+1);
     shared_ptr<Rule> r = make_shared<Rule>(*rule);
     r->inputs.clear();
-    r->inputs.push_back(input_suffix);
+    r->inputs.push_back(Intern(input_suffix));
     r->is_suffix_rule = true;
     suffix_rules_[output_suffix].push_back(r);
     return true;
@@ -204,18 +205,18 @@ class DepBuilder {
 
   shared_ptr<Rule> MergeRules(const Rule& old_rule,
                               const Rule& rule,
-                              StringPiece output,
+                              Symbol output,
                               bool is_suffix_rule) {
     if (old_rule.is_double_colon != rule.is_double_colon) {
       ERROR("%s:%d: *** target file `%s' has both : and :: entries.",
-            LOCF(rule.loc), output.as_string().c_str());
+            LOCF(rule.loc), output.str().c_str());
     }
     if (!old_rule.cmds.empty() && !rule.cmds.empty() &&
         !is_suffix_rule && !rule.is_double_colon) {
       WARN("%s:%d: warning: overriding commands for target `%s'",
-           LOCF(rule.cmd_loc()), output.as_string().c_str());
+           LOCF(rule.cmd_loc()), output.str().c_str());
       WARN("%s:%d: warning: ignoring old commands for target `%s'",
-           LOCF(old_rule.cmd_loc()), output.as_string().c_str());
+           LOCF(old_rule.cmd_loc()), output.str().c_str());
     }
 
     shared_ptr<Rule> r = make_shared<Rule>(rule);
@@ -245,14 +246,14 @@ class DepBuilder {
            old_rule.order_only_inputs.end(),
            back_inserter(r->inputs));
     }
-    for (StringPiece p : old_rule.output_patterns) {
+    for (Symbol p : old_rule.output_patterns) {
       r->output_patterns.push_back(p);
     }
     return r;
   }
 
   void PopulateExplicitRule(shared_ptr<Rule> rule) {
-    for (StringPiece output : rule->outputs) {
+    for (Symbol output : rule->outputs) {
       const bool is_suffix_rule = PopulateSuffixRule(rule, output);
 
       rule = make_shared<Rule>(*rule);
@@ -271,44 +272,44 @@ class DepBuilder {
   }
 
   void PopulateImplicitRule(shared_ptr<Rule> rule) {
-    for (StringPiece output_pattern : rule->output_patterns) {
+    for (Symbol output_pattern : rule->output_patterns) {
       shared_ptr<Rule> r = make_shared<Rule>(*rule);
       r->output_patterns.clear();
       r->output_patterns.push_back(output_pattern);
-      implicit_rules_->Add(output_pattern, r);
+      implicit_rules_->Add(output_pattern.str(), r);
     }
   }
 
-  shared_ptr<Rule> LookupRule(StringPiece o) {
+  shared_ptr<Rule> LookupRule(Symbol o) {
     auto found = rules_.find(o);
     if (found != rules_.end())
       return found->second;
     return NULL;
   }
 
-  Vars* LookupRuleVars(StringPiece o) {
+  Vars* LookupRuleVars(Symbol o) {
     auto found = rule_vars_.find(o);
     if (found != rule_vars_.end())
       return found->second;
     return NULL;
   }
 
-  bool CanPickImplicitRule(shared_ptr<Rule> rule, StringPiece output) {
+  bool CanPickImplicitRule(shared_ptr<Rule> rule, Symbol output) {
     CHECK(rule->output_patterns.size() == 1);
-    Pattern pat(rule->output_patterns[0]);
-    if (!pat.Match(output)) {
+    Pattern pat(rule->output_patterns[0].str());
+    if (!pat.Match(output.str())) {
       return false;
     }
-    for (StringPiece input : rule->inputs) {
+    for (Symbol input : rule->inputs) {
       string buf;
-      pat.AppendSubst(output, input, &buf);
-      if (!Exists(buf))
+      pat.AppendSubst(output.str(), input.str(), &buf);
+      if (!Exists(Intern(buf)))
         return false;
     }
     return true;
   }
 
-  Vars* MergeImplicitRuleVars(StringPiece output, Vars* vars) {
+  Vars* MergeImplicitRuleVars(Symbol output, Vars* vars) {
     auto found = rule_vars_.find(output);
     if (found == rule_vars_.end())
       return vars;
@@ -322,7 +323,7 @@ class DepBuilder {
     return r;
   }
 
-  bool PickRule(StringPiece output,
+  bool PickRule(Symbol output,
                 shared_ptr<Rule>* out_rule, Vars** out_var) {
     shared_ptr<Rule> rule = LookupRule(output);
     Vars* vars = LookupRuleVars(output);
@@ -335,7 +336,7 @@ class DepBuilder {
     }
 
     vector<shared_ptr<Rule>> irules;
-    implicit_rules_->Get(output, &irules);
+    implicit_rules_->Get(output.str(), &irules);
     for (auto iter = irules.rbegin(); iter != irules.rend(); ++iter) {
       shared_ptr<Rule> irule = *iter;
       if (!CanPickImplicitRule(irule, output))
@@ -362,7 +363,7 @@ class DepBuilder {
       return true;
     }
 
-    StringPiece output_suffix = GetExt(output);
+    StringPiece output_suffix = GetExt(output.str());
     if (output_suffix.get(0) != '.')
       return rule.get();
     output_suffix = output_suffix.substr(1);
@@ -373,7 +374,7 @@ class DepBuilder {
 
     for (shared_ptr<Rule> irule : found->second) {
       CHECK(irule->inputs.size() == 1);
-      StringPiece input = ReplaceSuffix(output, irule->inputs[0]);
+      Symbol input = ReplaceSuffix(output, irule->inputs[0]);
       if (!Exists(input))
         continue;
 
@@ -398,10 +399,10 @@ class DepBuilder {
     return rule.get();
   }
 
-  DepNode* BuildPlan(StringPiece output, StringPiece needed_by) {
+  DepNode* BuildPlan(Symbol output, Symbol needed_by) {
     LOG("BuildPlan: %s for %s",
-        output.as_string().c_str(),
-        needed_by.as_string().c_str());
+        output.c_str(),
+        needed_by.c_str());
 
     auto found = done_.find(output);
     if (found != done_.end()) {
@@ -420,7 +421,7 @@ class DepBuilder {
     vector<unique_ptr<ScopedVar>> sv;
     if (vars) {
       for (const auto& p : *vars) {
-        StringPiece name = p.first;
+        Symbol name = p.first;
         RuleVar* var = reinterpret_cast<RuleVar*>(p.second);
         CHECK(var);
         Var* new_var = var->v();
@@ -446,16 +447,17 @@ class DepBuilder {
       }
     }
 
-    for (StringPiece input : rule->inputs) {
+    for (Symbol input : rule->inputs) {
       if (rule->output_patterns.size() > 0) {
         if (rule->output_patterns.size() > 1) {
           ERROR("TODO: multiple output pattern is not supported yet");
         }
         string o;
-        Pattern(rule->output_patterns[0]).AppendSubst(output, input, &o);
+        Pattern(rule->output_patterns[0].str()).AppendSubst(
+            output.str(), input.str(), &o);
         input = Intern(o);
       } else if (rule->is_suffix_rule) {
-        input = Intern(ReplaceSuffix(output, input));
+        input = ReplaceSuffix(output, input);
       }
 
       n->actual_inputs.push_back(input);
@@ -463,7 +465,7 @@ class DepBuilder {
       n->deps.push_back(c);
     }
 
-    for (StringPiece input : rule->order_only_inputs) {
+    for (Symbol input : rule->order_only_inputs) {
       DepNode* c = BuildPlan(input, output);
       c->is_order_only = true;
       n->deps.push_back(c);
@@ -487,8 +489,8 @@ class DepBuilder {
   }
 
   Evaluator* ev_;
-  unordered_map<StringPiece, shared_ptr<Rule>> rules_;
-  const unordered_map<StringPiece, Vars*>& rule_vars_;
+  unordered_map<Symbol, shared_ptr<Rule>> rules_;
+  const unordered_map<Symbol, Vars*>& rule_vars_;
   unique_ptr<Vars> cur_rule_vars_;
 
   unique_ptr<RuleTrie> implicit_rules_;
@@ -496,14 +498,14 @@ class DepBuilder {
   SuffixRuleMap suffix_rules_;
 
   shared_ptr<Rule> first_rule_;
-  unordered_map<StringPiece, DepNode*> done_;
-  unordered_set<StringPiece> phony_;
+  unordered_map<Symbol, DepNode*> done_;
+  unordered_set<Symbol> phony_;
 };
 
 void MakeDep(Evaluator* ev,
              const vector<shared_ptr<Rule>>& rules,
-             const unordered_map<StringPiece, Vars*>& rule_vars,
-             const vector<StringPiece>& targets,
+             const unordered_map<Symbol, Vars*>& rule_vars,
+             const vector<Symbol>& targets,
              vector<DepNode*>* nodes) {
   DepBuilder db(ev, rules, rule_vars);
   db.Build(targets, nodes);

@@ -32,6 +32,7 @@ CXX_SRCS:= \
 	string_pool.cc \
 	stringprintf.cc \
 	strutil.cc \
+	symtab.cc \
 	time.cc \
 	value.cc \
 	var.cc

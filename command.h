@@ -18,7 +18,7 @@
 #include <memory>
 #include <vector>
 
-#include "string_piece.h"
+#include "symtab.h"
 
 using namespace std;
 
@@ -26,10 +26,10 @@ struct DepNode;
 class Evaluator;
 
 struct Command {
-  Command()
-      : echo(true), ignore_error(false) {
+  explicit Command(Symbol o)
+      : output(o), echo(true), ignore_error(false) {
   }
-  StringPiece output;
+  Symbol output;
   shared_ptr<string> cmd;
   bool echo;
   bool ignore_error;

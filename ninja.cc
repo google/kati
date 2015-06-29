@@ -197,19 +197,19 @@ class NinjaGenerator {
   }
 
   void EmitBuild(DepNode* node, const string& rule_name) {
-    fprintf(fp_, "build %.*s: %s", SPF(node->output), rule_name.c_str());
-    vector<StringPiece> order_onlys;
+    fprintf(fp_, "build %s: %s", node->output.c_str(), rule_name.c_str());
+    vector<Symbol> order_onlys;
     for (DepNode* d : node->deps) {
       if (d->is_order_only) {
         order_onlys.push_back(d->output);
       } else {
-        fprintf(fp_, " %.*s", SPF(d->output));
+        fprintf(fp_, " %s", d->output.c_str());
       }
     }
     if (!order_onlys.empty()) {
       fprintf(fp_, " ||");
-      for (StringPiece oo : order_onlys) {
-        fprintf(fp_, " %.*s", SPF(oo));
+      for (Symbol oo : order_onlys) {
+        fprintf(fp_, " %s", oo.c_str());
       }
     }
     fprintf(fp_, "\n");
@@ -242,7 +242,7 @@ class NinjaGenerator {
   CommandEvaluator ce_;
   Evaluator* ev_;
   FILE* fp_;
-  unordered_set<StringPiece> done_;
+  unordered_set<Symbol> done_;
   int rule_id_;
   string cmd_buf_;
 };

@@ -18,11 +18,9 @@
 
 #include <ctype.h>
 #include <limits.h>
-#include <string.h>
 #include <unistd.h>
 
 #include <stack>
-#include <unordered_map>
 #include <utility>
 
 #include "log.h"
@@ -101,31 +99,6 @@ ScopedTerminator::ScopedTerminator(StringPiece s)
 
 ScopedTerminator::~ScopedTerminator() {
   const_cast<char*>(s_.data())[s_.size()] = c_;
-}
-
-static unordered_map<StringPiece, char*>* g_symtab;
-
-void InitSymtab() {
-  g_symtab = new unordered_map<StringPiece, char*>;
-}
-
-void QuitSymtab() {
-  for (auto p : *g_symtab) {
-    free(p.second);
-  }
-  delete g_symtab;
-}
-
-StringPiece Intern(StringPiece s) {
-  auto found = g_symtab->find(s);
-  if (found != g_symtab->end())
-    return found->first;
-
-  char* b = static_cast<char*>(malloc(s.size()+1));
-  memcpy(b, s.data(), s.size());
-  s = StringPiece(b, s.size());
-  (*g_symtab)[s] = b;
-  return s;
 }
 
 void AppendString(StringPiece str, string* out) {

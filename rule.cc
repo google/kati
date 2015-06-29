@@ -20,6 +20,7 @@
 #include "parser.h"
 #include "stringprintf.h"
 #include "strutil.h"
+#include "symtab.h"
 #include "value.h"
 
 namespace {
@@ -31,11 +32,11 @@ static void ParseInputs(Rule* r, StringPiece s) {
       is_order_only = true;
       continue;
     }
-    input = Intern(TrimLeadingCurdir(input));
+    Symbol input_sym = Intern(TrimLeadingCurdir(input));
     if (is_order_only) {
-      r->order_only_inputs.push_back(input);
+      r->order_only_inputs.push_back(input_sym);
     } else {
-      r->inputs.push_back(input);
+      r->inputs.push_back(input_sym);
     }
   }
 }
@@ -60,12 +61,13 @@ void ParseRule(Loc& loc, StringPiece line, char term,
   }
 
   StringPiece first = line.substr(0, index);
-  vector<StringPiece> outputs;
+  vector<Symbol> outputs;
   for (StringPiece tok : WordScanner(first)) {
     outputs.push_back(Intern(TrimLeadingCurdir(tok)));
   }
 
-  const bool is_first_pattern = !outputs.empty() && IsPatternRule(outputs[0]);
+  const bool is_first_pattern = (
+      !outputs.empty() && IsPatternRule(outputs[0].str()));
   if (is_first_pattern) {
     if (outputs.size() > 1) {
       // TODO: Multiple output patterns are not supported yet.
@@ -107,7 +109,7 @@ void ParseRule(Loc& loc, StringPiece line, char term,
     CHECK(rest[term_index] == ';');
     // TODO: Maybe better to avoid Intern here?
     rule->cmds.push_back(
-        NewLiteral(Intern(TrimLeftSpace(rest.substr(term_index + 1)))));
+        NewLiteral(Intern(TrimLeftSpace(rest.substr(term_index + 1))).str()));
     rest = rest.substr(0, term_index);
   }
 
@@ -135,7 +137,7 @@ void ParseRule(Loc& loc, StringPiece line, char term,
   if (rule->output_patterns.size() > 1) {
     ERROR("%s:%d: *** multiple target patterns.", LOCF(loc));
   }
-  if (!IsPatternRule(rule->output_patterns[0])) {
+  if (!IsPatternRule(rule->output_patterns[0].str())) {
     ERROR("%s:%d: *** target pattern contains no '%%'.", LOCF(loc));
   }
   ParseInputs(rule, third);
@@ -143,15 +145,15 @@ void ParseRule(Loc& loc, StringPiece line, char term,
 
 string Rule::DebugString() const {
   vector<string> v;
-  v.push_back(StringPrintf("outputs=[%s]", JoinStrings(outputs, ",").c_str()));
-  v.push_back(StringPrintf("inputs=[%s]", JoinStrings(inputs, ",").c_str()));
+  v.push_back(StringPrintf("outputs=[%s]", JoinSymbols(outputs, ",").c_str()));
+  v.push_back(StringPrintf("inputs=[%s]", JoinSymbols(inputs, ",").c_str()));
   if (!order_only_inputs.empty()) {
     v.push_back(StringPrintf("order_only_inputs=[%s]",
-                             JoinStrings(order_only_inputs, ",").c_str()));
+                             JoinSymbols(order_only_inputs, ",").c_str()));
   }
   if (!output_patterns.empty()) {
     v.push_back(StringPrintf("output_patterns=[%s]",
-                             JoinStrings(output_patterns, ",").c_str()));
+                             JoinSymbols(output_patterns, ",").c_str()));
   }
   if (is_double_colon)
     v.push_back("is_double_colon");

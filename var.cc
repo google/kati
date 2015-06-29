@@ -110,14 +110,14 @@ Vars::~Vars() {
   }
 }
 
-Var* Vars::Lookup(StringPiece name) const {
+Var* Vars::Lookup(Symbol name) const {
   auto found = find(name);
   if (found == end())
     return kUndefined;
   return found->second;
 }
 
-void Vars::Assign(StringPiece name, Var* v) {
+void Vars::Assign(Symbol name, Var* v) {
   auto p = insert(make_pair(name, v));
   if (!p.second) {
     Var* orig = p.first->second;
@@ -134,7 +134,7 @@ void Vars::Assign(StringPiece name, Var* v) {
   }
 }
 
-ScopedVar::ScopedVar(Vars* vars, StringPiece name, Var* var)
+ScopedVar::ScopedVar(Vars* vars, Symbol name, Var* var)
     : vars_(vars), orig_(NULL) {
   auto p = vars->insert(make_pair(name, var));
   iter_ = p.first;

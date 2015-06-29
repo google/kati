@@ -69,10 +69,6 @@ class ScopedTerminator {
   char c_;
 };
 
-void InitSymtab();
-void QuitSymtab();
-StringPiece Intern(StringPiece s);
-
 template <class String>
 inline string JoinStrings(vector<String> v, const char* sep) {
   string r;
