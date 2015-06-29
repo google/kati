@@ -91,6 +91,7 @@ class NinjaGenerator {
           } else {
             cmd_buf_ += ' ';
           }
+          break;
 
         case '\\':
           prev_backslash = !prev_backslash;
