@@ -212,6 +212,11 @@ void Evaluator::EvalIf(const IfAST* ast) {
 }
 
 void Evaluator::DoInclude(const char* fname, bool should_exist) {
+  if (!should_exist && g_ignore_optional_include_pattern &&
+      Pattern(g_ignore_optional_include_pattern).Match(fname)) {
+    return;
+  }
+
   Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
   if (!mk->Exists()) {
     if (should_exist) {
