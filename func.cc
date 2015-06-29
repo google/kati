@@ -30,6 +30,7 @@
 #include "eval.h"
 #include "log.h"
 #include "parser.h"
+#include "stats.h"
 #include "strutil.h"
 #include "symtab.h"
 #include "var.h"
@@ -242,6 +243,7 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 }
 
 void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  COLLECT_STATS("func wildcard time");
   shared_ptr<string> pat = args[0]->Eval(ev);
   if (ev->avoid_io()) {
     *s += "$(/bin/ls -d ";
@@ -411,6 +413,7 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 }
 
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  COLLECT_STATS("func shell time");
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io()) {
     *s += "$(";

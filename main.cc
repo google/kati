@@ -31,6 +31,7 @@
 #include "log.h"
 #include "ninja.h"
 #include "parser.h"
+#include "stats.h"
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
@@ -111,6 +112,8 @@ static void Init() {
 }
 
 static void Quit() {
+  ReportAllStats();
+
   QuitParser();
   QuitDepNodePool();
   QuitFuncTable();
