@@ -15,6 +15,7 @@
 GO_SRCS:=$(wildcard *.go)
 CXX_SRCS:= \
 	ast.cc \
+	command.cc \
 	dep.cc \
 	eval.cc \
 	exec.cc \
@@ -24,6 +25,7 @@ CXX_SRCS:= \
 	flags.cc \
 	func.cc \
 	main.cc \
+	ninja.cc \
 	parser.cc \
 	rule.cc \
 	string_piece.cc \
