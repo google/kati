@@ -120,6 +120,32 @@ class Expr : public Value {
   vector<Value*> vals_;
 };
 
+class SymRef : public Value {
+ public:
+  explicit SymRef(Symbol n)
+      : name_(n) {
+  }
+  virtual ~SymRef() {
+  }
+
+  virtual shared_ptr<string> Eval(Evaluator* ev) const override {
+    Var* v = ev->LookupVar(name_);
+    return v->Eval(ev);
+  }
+
+  virtual void Eval(Evaluator* ev, string* s) const override {
+    Var* v = ev->LookupVar(name_);
+    v->Eval(ev, s);
+  }
+
+  virtual string DebugString_() const override {
+    return StringPrintf("SymRef(%s)", name_.c_str());
+  }
+
+ private:
+  Symbol name_;
+};
+
 class VarRef : public Value {
  public:
   explicit VarRef(Value* n)
@@ -310,7 +336,7 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
   char cp = CloseParen(s[1]);
   if (cp == 0) {
     *index_out = 2;
-    return new VarRef(new Literal(s.substr(1, 1)));
+    return new SymRef(Intern(s.substr(1, 1)));
   }
 
   char terms[] = {cp, ':', ' ', 0};
@@ -321,12 +347,17 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
     i += n;
     if (s[i] == cp) {
       *index_out = i + 1;
+      if (Literal* lit = dynamic_cast<Literal*>(vname)) {
+        Value* r = new SymRef(Intern(lit->val()));
+        delete lit;
+        return r;
+      }
       return new VarRef(vname);
     }
 
     if (s[i] == ' ' || s[i] == '\\') {
       // ${func ...}
-      if (Literal* lit = reinterpret_cast<Literal*>(vname)) {
+      if (Literal* lit = dynamic_cast<Literal*>(vname)) {
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
           delete lit;
           Func* func = new Func(fi);
