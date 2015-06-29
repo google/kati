@@ -70,12 +70,18 @@ class RuleTrie {
     p.first->second->Add(name.substr(1), rule);
   }
 
-  void Get(StringPiece name, vector<shared_ptr<Rule>>* rules) {
+  void Get(StringPiece name, vector<shared_ptr<Rule>>* rules) const {
     for (const Entry& ent : rules_) {
       if ((ent.suffix.empty() && name.empty()) ||
           HasSuffix(name, ent.suffix.substr(1))) {
         rules->push_back(ent.rule);
       }
+    }
+    if (name.empty())
+      return;
+    auto found = children_.find(name[0]);
+    if (found != children_.end()) {
+      found->second->Get(name.substr(1), rules);
     }
   }
 
