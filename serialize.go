@@ -113,9 +113,9 @@ type serializableDepNode struct {
 	Output             int
 	Cmds               []string
 	Deps               []int
+	OrderOnlys         []int
 	Parents            []int
 	HasRule            bool
-	IsOrderOnly        bool
 	IsPhony            bool
 	ActualInputs       []int
 	TargetSpecificVars []int
@@ -198,6 +198,10 @@ func (ns *depNodesSerializer) serializeDepNodes(nodes []*DepNode) {
 		for _, d := range n.Deps {
 			deps = append(deps, ns.serializeTarget(d.Output))
 		}
+		var orderonlys []int
+		for _, d := range n.OrderOnlys {
+			orderonlys = append(orderonlys, ns.serializeTarget(d.Output))
+		}
 		var parents []int
 		for _, d := range n.Parents {
 			parents = append(parents, ns.serializeTarget(d.Output))
@@ -237,9 +241,9 @@ func (ns *depNodesSerializer) serializeDepNodes(nodes []*DepNode) {
 			Output:             ns.serializeTarget(n.Output),
 			Cmds:               n.Cmds,
 			Deps:               deps,
+			OrderOnlys:         orderonlys,
 			Parents:            parents,
 			HasRule:            n.HasRule,
-			IsOrderOnly:        n.IsOrderOnly,
 			IsPhony:            n.IsPhony,
 			ActualInputs:       actualInputs,
 			TargetSpecificVars: vars,
@@ -247,6 +251,10 @@ func (ns *depNodesSerializer) serializeDepNodes(nodes []*DepNode) {
 			Lineno:             n.Lineno,
 		})
 		ns.serializeDepNodes(n.Deps)
+		if ns.err != nil {
+			return
+		}
+		ns.serializeDepNodes(n.OrderOnlys)
 		if ns.err != nil {
 			return
 		}
@@ -525,7 +533,6 @@ func deserializeNodes(g serializableGraph) (r []*DepNode, err error) {
 			Output:             targets[n.Output],
 			Cmds:               n.Cmds,
 			HasRule:            n.HasRule,
-			IsOrderOnly:        n.IsOrderOnly,
 			IsPhony:            n.IsPhony,
 			ActualInputs:       actualInputs,
 			Filename:           n.Filename,
@@ -550,6 +557,13 @@ func deserializeNodes(g serializableGraph) (r []*DepNode, err error) {
 				return nil, fmt.Errorf("unknown target: %d (%s)", o, targets[o])
 			}
 			d.Deps = append(d.Deps, c)
+		}
+		for _, o := range n.OrderOnlys {
+			c, present := nodeMap[targets[o]]
+			if !present {
+				return nil, fmt.Errorf("unknown target: %d (%s)", o, targets[o])
+			}
+			d.OrderOnlys = append(d.OrderOnlys, c)
 		}
 		for _, o := range n.Parents {
 			c, present := nodeMap[targets[o]]
@@ -580,6 +594,7 @@ func showSerializedNodesStats(nodes []*serializableDepNode) {
 	outputSize := 0
 	cmdSize := 0
 	depsSize := 0
+	orderOnlysSize := 0
 	actualInputSize := 0
 	tsvSize := 0
 	filenameSize := 0
@@ -589,23 +604,19 @@ func showSerializedNodesStats(nodes []*serializableDepNode) {
 		for _, c := range n.Cmds {
 			cmdSize += len(c)
 		}
-		for _ = range n.Deps {
-			depsSize += 4
-		}
-		for _ = range n.ActualInputs {
-			actualInputSize += 4
-		}
-		for _ = range n.TargetSpecificVars {
-			tsvSize += 4
-		}
+		depsSize += 4 * len(n.Deps)
+		orderOnlysSize += 4 * len(n.OrderOnlys)
+		actualInputSize += 4 * len(n.ActualInputs)
+		tsvSize += 4 * len(n.TargetSpecificVars)
 		filenameSize += len(n.Filename)
 		linenoSize += 4
 	}
-	size := outputSize + cmdSize + depsSize + actualInputSize + tsvSize + filenameSize + linenoSize
+	size := outputSize + cmdSize + depsSize + orderOnlysSize + actualInputSize + tsvSize + filenameSize + linenoSize
 	logStats("%d nodes %s", len(nodes), human(size))
 	logStats(" output %s", human(outputSize))
 	logStats(" command %s", human(cmdSize))
 	logStats(" deps %s", human(depsSize))
+	logStats(" orderonlys %s", human(orderOnlysSize))
 	logStats(" inputs %s", human(actualInputSize))
 	logStats(" tsv %s", human(tsvSize))
 	logStats(" filename %s", human(filenameSize))
