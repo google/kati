@@ -43,17 +43,22 @@ void Stats::Start() {
   start_time_ = GetTime();
 }
 
-void Stats::End() {
-  elapsed_ += GetTime() - start_time_;
+double Stats::End() {
+  double e = GetTime() - start_time_;
+  elapsed_ += e;
+  return e;
 }
 
-ScopedStatsRecorder::ScopedStatsRecorder(Stats* st)
-    : st_(st) {
+ScopedStatsRecorder::ScopedStatsRecorder(Stats* st, const char* msg)
+    : st_(st), msg_(msg) {
   st_->Start();
 }
 
 ScopedStatsRecorder::~ScopedStatsRecorder() {
-  st_->End();
+  double e = st_->End();
+  if (msg_ && e > 3.0) {
+    LOG_STAT("slow %s (%f): %s", st_->name_, e, msg_);
+  }
 }
 
 void ReportAllStats() {
