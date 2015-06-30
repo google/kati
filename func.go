@@ -1298,7 +1298,13 @@ func (f *funcOrigin) Eval(w io.Writer, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	v := ev.LookupVar(f.args[1].String())
+	abuf := newBuf()
+	err = f.args[1].Eval(abuf, ev)
+	if err != nil {
+		return err
+	}
+	v := ev.LookupVar(abuf.String())
+	freeBuf(abuf)
 	io.WriteString(w, v.Origin())
 	return nil
 }
@@ -1312,7 +1318,13 @@ func (f *funcFlavor) Eval(w io.Writer, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	v := ev.LookupVar(f.args[1].String())
+	abuf := newBuf()
+	err = f.args[1].Eval(abuf, ev)
+	if err != nil {
+		return err
+	}
+	v := ev.LookupVar(abuf.String())
+	freeBuf(abuf)
 	io.WriteString(w, v.Flavor())
 	return nil
 }
