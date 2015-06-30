@@ -253,6 +253,41 @@ StringPiece StripExt(StringPiece s) {
   return s.substr(0, found);
 }
 
+void NormalizePath(string* o, size_t start_index) {
+  size_t j = start_index;
+  size_t prev_start = start_index;
+  for (size_t i = start_index; i <= o->size(); i++) {
+    char c = (*o)[i];
+    if (c != '/' && c != 0) {
+      (*o)[j] = c;
+      j++;
+      continue;
+    }
+
+    StringPiece prev_dir = StringPiece(o->data() + prev_start, j - prev_start);
+    if (prev_dir == ".") {
+      j--;
+    } else if (prev_dir == "..") {
+      j -= 4;
+      j = o->rfind('/', j);
+      if (j == string::npos) {
+        j = start_index;
+      } else {
+        j++;
+      }
+    } else if (!prev_dir.empty()) {
+      if (c) {
+        (*o)[j] = c;
+        j++;
+      }
+    }
+    prev_start = j;
+  }
+  if (j > 1 && (*o)[j-1] == '/')
+    j--;
+  o->resize(j);
+}
+
 void AbsPath(StringPiece s, string* o) {
   if (s.get(0) == '/') {
     o->clear();
@@ -268,39 +303,7 @@ void AbsPath(StringPiece s, string* o) {
     *o += '/';
   }
   AppendString(s, o);
-
-  size_t j = 1;
-  size_t prev_start = 1;
-  for (size_t i = 1; i <= o->size(); i++) {
-    char c = (*o)[i];
-    if (c != '/' && c != 0) {
-      (*o)[j] = c;
-      j++;
-      continue;
-    }
-
-    StringPiece prev_dir = StringPiece(o->data() + prev_start, j - prev_start);
-    if (prev_dir == ".") {
-      j--;
-    } else if (prev_dir == "..") {
-      j -= 4;
-      j = o->rfind('/', j);
-      if (j == string::npos) {
-        j = 1;
-      } else {
-        j++;
-      }
-    } else if (!prev_dir.empty()) {
-      if (c) {
-        (*o)[j] = c;
-        j++;
-      }
-    }
-    prev_start = j;
-  }
-  if (j > 1 && (*o)[j-1] == '/')
-    j--;
-  o->resize(j);
+  NormalizePath(o, 1);
 }
 
 template<typename Cond>
