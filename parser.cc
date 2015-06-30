@@ -23,6 +23,7 @@
 #include "file.h"
 #include "loc.h"
 #include "log.h"
+#include "stats.h"
 #include "string_piece.h"
 #include "strutil.h"
 #include "value.h"
@@ -504,6 +505,7 @@ class Parser {
 };
 
 void Parse(Makefile* mk) {
+  COLLECT_STATS("parse file time");
   Parser parser(StringPiece(mk->buf(), mk->len()),
                 mk->filename().c_str(),
                 mk->mutable_asts());
@@ -511,6 +513,7 @@ void Parse(Makefile* mk) {
 }
 
 void Parse(StringPiece buf, const Loc& loc, vector<AST*>* out_asts) {
+  COLLECT_STATS("parse eval time");
   Parser parser(buf, loc, out_asts);
   parser.Parse();
 }
