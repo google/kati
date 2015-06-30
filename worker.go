@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -35,14 +34,6 @@ type job struct {
 	id       int
 
 	runners []runner
-}
-
-type runner struct {
-	output      string
-	cmd         string
-	echo        bool
-	ignoreError bool
-	shell       string
 }
 
 type jobResult struct {
@@ -118,84 +109,8 @@ func (w *worker) Wait() {
 	<-w.doneChan
 }
 
-func evalCmd(ev *Evaluator, r runner, s string) ([]runner, error) {
-	r = newRunner(r, s)
-	if strings.IndexByte(r.cmd, '$') < 0 {
-		// fast path
-		return []runner{r}, nil
-	}
-	// TODO(ukai): parse once more earlier?
-	expr, _, err := parseExpr([]byte(r.cmd), nil, false)
-	if err != nil {
-		return nil, ev.errorf("parse cmd %q: %v", r.cmd, err)
-	}
-	buf := newBuf()
-	err = expr.Eval(buf, ev)
-	if err != nil {
-		return nil, err
-	}
-	cmds := buf.String()
-	freeBuf(buf)
-	var runners []runner
-	for _, cmd := range strings.Split(cmds, "\n") {
-		if len(runners) > 0 && strings.HasSuffix(runners[len(runners)-1].cmd, "\\") {
-			runners[len(runners)-1].cmd += "\n"
-			runners[len(runners)-1].cmd += cmd
-		} else {
-			runners = append(runners, newRunner(r, cmd))
-		}
-	}
-	return runners, nil
-}
-
-func newRunner(r runner, s string) runner {
-	for {
-		s = trimLeftSpace(s)
-		if s == "" {
-			return runner{}
-		}
-		switch s[0] {
-		case '@':
-			if !DryRunFlag {
-				r.echo = false
-			}
-			s = s[1:]
-			continue
-		case '-':
-			r.ignoreError = true
-			s = s[1:]
-			continue
-		}
-		break
-	}
-	r.cmd = s
-	return r
-}
-
-func (r runner) run(output string) error {
-	if r.echo || DryRunFlag {
-		fmt.Printf("%s\n", r.cmd)
-	}
-	if DryRunFlag {
-		return nil
-	}
-	args := []string{r.shell, "-c", r.cmd}
-	cmd := exec.Cmd{
-		Path: args[0],
-		Args: args,
-	}
-	out, err := cmd.CombinedOutput()
-	fmt.Printf("%s", out)
-	exit := exitStatus(err)
-	if r.ignoreError && exit != 0 {
-		fmt.Printf("[%s] Error %d (ignored)\n", output, exit)
-		err = nil
-	}
-	return err
-}
-
 func (j *job) createRunners() ([]runner, error) {
-	runners, _, err := j.ex.createRunners(j.n, false)
+	runners, _, err := createRunners(j.ex.ctx, j.n)
 	return runners, err
 }
 
