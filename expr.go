@@ -141,14 +141,19 @@ func compactExpr(e expr) Value {
 // varref is variable reference. e.g. ${foo}.
 type varref struct {
 	varname Value
+	paren   byte
 }
 
 func (v *varref) String() string {
 	varname := v.varname.String()
-	if len(varname) == 1 {
+	if len(varname) == 1 && v.paren == 0 {
 		return fmt.Sprintf("$%s", varname)
 	}
-	return fmt.Sprintf("${%s}", varname)
+	paren := v.paren
+	if paren == 0 {
+		paren = '{'
+	}
+	return fmt.Sprintf("$%c%s%c", paren, varname, closeParen(paren))
 }
 
 func (v *varref) Eval(w io.Writer, ev *Evaluator) error {
@@ -171,11 +176,13 @@ func (v *varref) Eval(w io.Writer, ev *Evaluator) error {
 func (v *varref) serialize() serializableVar {
 	return serializableVar{
 		Type:     "varref",
+		V:        string(v.paren),
 		Children: []serializableVar{v.varname.serialize()},
 	}
 }
 func (v *varref) dump(d *dumpbuf) {
 	d.Byte(valueTypeVarref)
+	d.Byte(v.paren)
 	v.varname.dump(d)
 }
 
@@ -219,10 +226,15 @@ type varsubst struct {
 	varname Value
 	pat     Value
 	subst   Value
+	paren   byte
 }
 
 func (v varsubst) String() string {
-	return fmt.Sprintf("${%s:%s=%s}", v.varname, v.pat, v.subst)
+	paren := v.paren
+	if paren == 0 {
+		paren = '{'
+	}
+	return fmt.Sprintf("$%c%s:%s=%s%c", paren, v.varname, v.pat, v.subst, closeParen(paren))
 }
 
 func (v varsubst) Eval(w io.Writer, ev *Evaluator) error {
@@ -258,6 +270,7 @@ func (v varsubst) Eval(w io.Writer, ev *Evaluator) error {
 func (v varsubst) serialize() serializableVar {
 	return serializableVar{
 		Type: "varsubst",
+		V:    string(v.paren),
 		Children: []serializableVar{
 			v.varname.serialize(),
 			v.pat.serialize(),
@@ -268,6 +281,7 @@ func (v varsubst) serialize() serializableVar {
 
 func (v varsubst) dump(d *dumpbuf) {
 	d.Byte(valueTypeVarsubst)
+	d.Byte(v.paren)
 	v.varname.dump(d)
 	v.pat.dump(d)
 	v.subst.dump(d)
@@ -407,7 +421,8 @@ func parseDollar(in []byte, alloc bool) (Value, int, error) {
 	if in[1] == '$' {
 		return nil, 0, errors.New("should handle $$ as literal $")
 	}
-	paren := closeParen(in[1])
+	oparen := in[1]
+	paren := closeParen(oparen)
 	if paren == 0 {
 		// $x case.
 		if in[1] >= '0' && in[1] <= '9' {
@@ -435,7 +450,7 @@ Again:
 				// ${n}
 				return paramref(n), i + 1, nil
 			}
-			return &varref{varname: vname}, i + 1, nil
+			return &varref{varname: vname, paren: oparen}, i + 1, nil
 		case ' ':
 			// ${e ...}
 			switch token := e.(type) {
@@ -459,7 +474,7 @@ Again:
 			i += 1 + n
 			if in[i] == paren {
 				varname = appendStr(varname, colon, alloc)
-				return &varref{varname: varname}, i + 1, nil
+				return &varref{varname: varname, paren: oparen}, i + 1, nil
 			}
 			// ${varname:xx=...}
 			pat := e
@@ -473,6 +488,7 @@ Again:
 				varname: compactExpr(varname),
 				pat:     pat,
 				subst:   subst,
+				paren:   oparen,
 			}, i + 1, nil
 		default:
 			return nil, 0, fmt.Errorf("unexpected char %c at %d in %q", in[i], i, string(in))

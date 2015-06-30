@@ -51,7 +51,7 @@ func TestParseExpr(t *testing.T) {
 		},
 		{
 			in:  "$(foo)",
-			val: &varref{varname: literal("foo")},
+			val: &varref{varname: literal("foo"), paren: '('},
 		},
 		{
 			in: "$(foo:.c=.o)",
@@ -59,6 +59,7 @@ func TestParseExpr(t *testing.T) {
 				varname: literal("foo"),
 				pat:     literal(".c"),
 				subst:   literal(".o"),
+				paren:   '(',
 			},
 		},
 		{
@@ -70,12 +71,15 @@ func TestParseExpr(t *testing.T) {
 							literal("(subst"),
 							&varref{
 								varname: literal("space"),
+								paren:   '(',
 							},
 							&varref{
 								varname: literal(","),
+								paren:   '(',
 							},
 							&varref{
 								varname: literal("foo"),
+								paren:   '(',
 							},
 						},
 					},
@@ -91,6 +95,7 @@ func TestParseExpr(t *testing.T) {
 						literal("(subst"),
 						&varref{
 							varname: literal("space"),
+							paren:   '(',
 						},
 						&varref{
 							varname: literal(""),
@@ -99,6 +104,7 @@ func TestParseExpr(t *testing.T) {
 							literal(","),
 							&varref{
 								varname: literal("foo"),
+								paren:   '(',
 							},
 						},
 					},
@@ -185,9 +191,11 @@ func TestParseExpr(t *testing.T) {
 						literal("(and"),
 						&varref{
 							varname: literal("TRUE"),
+							paren:   '{',
 						},
 						&varref{
 							varname: literal("X"),
+							paren:   '(',
 						},
 					},
 				},
@@ -246,7 +254,8 @@ func TestParseExpr(t *testing.T) {
 				lhs: "foo",
 				op:  ":=",
 				rhs: &varref{
-					literal("bar"),
+					varname: literal("bar"),
+					paren:   '(',
 				},
 			},
 		},
