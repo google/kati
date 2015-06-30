@@ -29,23 +29,27 @@ vector<Stats*>* g_stats;
 }  // namespace
 
 Stats::Stats(const char* name)
-    : name_(name), start_time_(0), elapsed_(0) {
+    : name_(name), start_time_(0), elapsed_(0), cnt_(0) {
   if (g_stats == NULL)
     g_stats = new vector<Stats*>;
   g_stats->push_back(this);
 }
 
 string Stats::String() const {
-  return StringPrintf("%s: %f", name_, elapsed_);
+  return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
 }
 
 void Stats::Start() {
+  CHECK(!start_time_);
+  cnt_++;
   start_time_ = GetTime();
 }
 
 double Stats::End() {
+  CHECK(start_time_);
   double e = GetTime() - start_time_;
   elapsed_ += e;
+  start_time_ = 0;
   return e;
 }
 
