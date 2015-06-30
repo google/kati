@@ -1421,8 +1421,7 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) error {
 	varname := string(fargs[0])
 	ws := newWordScanner(fargs[1])
 	text := f.args[3]
-	restore := ev.outVars.save(varname)
-	defer restore()
+	ov := ev.LookupVar(varname)
 	space := false
 	for ws.Scan() {
 		word := ws.Bytes()
@@ -1437,5 +1436,9 @@ func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) error {
 		space = true
 	}
 	freeBuf(abuf)
+	av := ev.LookupVar(varname)
+	if _, ok := av.(*automaticVar); ok {
+		ev.outVars.Assign(varname, ov)
+	}
 	return nil
 }
