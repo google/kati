@@ -32,6 +32,12 @@ func showDeps(w io.Writer, n *DepNode, indent int, seen map[string]int) {
 	for _, d := range n.Deps {
 		showDeps(w, d, indent+1, seen)
 	}
+	if len(n.OrderOnlys) > 0 {
+		fmt.Fprintf(w, "%*corder_onlys:\n", indent, ' ')
+		for _, d := range n.OrderOnlys {
+			showDeps(w, d, indent+1, seen)
+		}
+	}
 }
 
 func showNode(w io.Writer, n *DepNode) {
@@ -49,9 +55,6 @@ func showNode(w io.Writer, n *DepNode) {
 
 	fmt.Fprintf(w, "\n")
 	fmt.Fprintf(w, "location: %s:%d\n", n.Filename, n.Lineno)
-	if n.IsOrderOnly {
-		fmt.Fprintf(w, "order-only: true\n")
-	}
 	if n.IsPhony {
 		fmt.Fprintf(w, "phony: true\n")
 	}

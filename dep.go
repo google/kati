@@ -26,9 +26,9 @@ type DepNode struct {
 	Output             string
 	Cmds               []string
 	Deps               []*DepNode
+	OrderOnlys         []*DepNode
 	Parents            []*DepNode
 	HasRule            bool
-	IsOrderOnly        bool
 	IsPhony            bool
 	ActualInputs       []string
 	TargetSpecificVars Vars
@@ -37,8 +37,8 @@ type DepNode struct {
 }
 
 func (n *DepNode) String() string {
-	return fmt.Sprintf("Dep{output=%s cmds=%d deps=%d hasRule=%t orderOnly=%t, phony=%t filename=%s lineno=%d}",
-		n.Output, len(n.Cmds), len(n.Deps), n.HasRule, n.IsOrderOnly, n.IsPhony, n.Filename, n.Lineno)
+	return fmt.Sprintf("Dep{output=%s cmds=%d deps=%d orders=%d hasRule=%t phony=%t filename=%s lineno=%d}",
+		n.Output, len(n.Cmds), len(n.Deps), len(n.OrderOnlys), n.HasRule, n.IsPhony, n.Filename, n.Lineno)
 }
 
 type depBuilder struct {
@@ -297,7 +297,6 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 		}()
 	}
 
-	var children []*DepNode
 	var actualInputs []string
 	logf("Evaluating command: %s inputs:%q", output, rule.inputs)
 	for _, input := range rule.inputs {
@@ -312,33 +311,30 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 		actualInputs = append(actualInputs, input)
 
 		db.trace = append(db.trace, input)
-		n, err := db.buildPlan(input, output, tsvs)
+		ni, err := db.buildPlan(input, output, tsvs)
 		db.trace = db.trace[0 : len(db.trace)-1]
 		if err != nil {
 			return nil, err
 		}
-		if n != nil {
-			children = append(children, n)
+		if ni != nil {
+			n.Deps = append(n.Deps, ni)
+			ni.Parents = append(ni.Parents, n)
 		}
 	}
 
 	for _, input := range rule.orderOnlyInputs {
 		db.trace = append(db.trace, input)
-		n, err := db.buildPlan(input, output, tsvs)
+		ni, err := db.buildPlan(input, output, tsvs)
 		db.trace = db.trace[0 : len(db.trace)-1]
 		if err != nil {
 			return nil, err
 		}
 		if n != nil {
-			n.IsOrderOnly = true
-			children = append(children, n)
+			n.OrderOnlys = append(n.OrderOnlys, ni)
+			ni.Parents = append(ni.Parents, n)
 		}
 	}
 
-	n.Deps = children
-	for _, c := range n.Deps {
-		c.Parents = append(c.Parents, n)
-	}
 	n.HasRule = true
 	n.Cmds = rule.cmds
 	n.ActualInputs = actualInputs

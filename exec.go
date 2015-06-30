@@ -193,7 +193,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 	j = &job{
 		n:       n,
 		ex:      ex,
-		numDeps: len(n.Deps),
+		numDeps: len(n.Deps) + len(n.OrderOnlys),
 		depsTs:  int64(-1),
 	}
 	if neededBy != nil {
@@ -206,7 +206,10 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 	// ex.makeJobs(d, j).
 	var deps []*DepNode
 	for _, d := range n.Deps {
-		if d.IsOrderOnly && exists(d.Output) {
+		deps = append(deps, d)
+	}
+	for _, d := range n.OrderOnlys {
+		if exists(d.Output) {
 			j.numDeps--
 			continue
 		}

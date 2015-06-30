@@ -207,13 +207,12 @@ func (n *ninjaGenerator) emitBuild(output, rule, dep string) {
 
 func getDepString(node *DepNode) string {
 	var deps []string
-	var orderOnlys []string
 	for _, d := range node.Deps {
-		if d.IsOrderOnly {
-			orderOnlys = append(orderOnlys, d.Output)
-		} else {
-			deps = append(deps, d.Output)
-		}
+		deps = append(deps, d.Output)
+	}
+	var orderOnlys []string
+	for _, d := range node.OrderOnlys {
+		orderOnlys = append(orderOnlys, d.Output)
 	}
 	dep := ""
 	if len(deps) > 0 {
@@ -231,7 +230,7 @@ func (n *ninjaGenerator) emitNode(node *DepNode) error {
 	}
 	n.done[node.Output] = true
 
-	if len(node.Cmds) == 0 && len(node.Deps) == 0 && !node.IsPhony {
+	if len(node.Cmds) == 0 && len(node.Deps) == 0 && len(node.OrderOnlys) == 0 && !node.IsPhony {
 		return nil
 	}
 
@@ -243,6 +242,7 @@ func (n *ninjaGenerator) emitNode(node *DepNode) error {
 	useLocalPool := false
 	if len(runners) > 0 {
 		ruleName = n.genRuleName()
+		fmt.Fprintf(n.f, "\n# rule for %s\n", node.Output)
 		fmt.Fprintf(n.f, "rule %s\n", ruleName)
 		fmt.Fprintf(n.f, " description = build $out\n")
 
@@ -272,8 +272,15 @@ func (n *ninjaGenerator) emitNode(node *DepNode) error {
 	if useLocalPool {
 		fmt.Fprintf(n.f, " pool = local_pool\n")
 	}
+	fmt.Fprintf(n.f, "\n")
 
 	for _, d := range node.Deps {
+		err := n.emitNode(d)
+		if err != nil {
+			return err
+		}
+	}
+	for _, d := range node.OrderOnlys {
 		err := n.emitNode(d)
 		if err != nil {
 			return err
