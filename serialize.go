@@ -396,7 +396,7 @@ func deserializeVar(sv serializableVar) (r Value, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return &varref{varname: dv}, nil
+		return &varref{varname: dv, paren: sv.V[0]}, nil
 	case "paramref":
 		v, err := strconv.Atoi(sv.V)
 		if err != nil {
@@ -420,6 +420,7 @@ func deserializeVar(sv serializableVar) (r Value, err error) {
 			varname: varname,
 			pat:     pat,
 			subst:   subst,
+			paren:   sv.V[0],
 		}, nil
 
 	case "func":

@@ -14,9 +14,9 @@ test:
 	echo $(value FOO)
 	echo $(value FOO BAR)
 	echo $(value FOO,BAR)
-# TODO: Fix
-#	echo $(value $(FOOREF))
-#	echo $(value @)
+	echo $(value $(FOOREF))
+	echo $(value @)
+	echo '$(value @D)'
+	echo '$(value @F)'
 
-# TODO(go): Fix
-# $(info $(value X))
+$(info $(value X))

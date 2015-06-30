@@ -15,11 +15,9 @@
 package kati
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -49,11 +47,10 @@ func newExecContext(vars Vars, avoidIO bool) *execContext {
 		"*": autoStarVar{autoVar: av},
 	} {
 		ev.vars[k] = v
-		// TODO(ukai): define recursive vars
 		// $<k>D = $(patsubst %/,%,$(dir $<k>))
+		ev.vars[k+"D"] = suffixDVar(k)
 		// $<k>F = $(notdir $<k>)
-		ev.vars[k+"D"] = autoSuffixDVar{v: v}
-		ev.vars[k+"F"] = autoSuffixFVar{v: v}
+		ev.vars[k+"F"] = suffixFVar(k)
 	}
 
 	// TODO: We should move this to somewhere around evalCmd so that
@@ -99,87 +96,94 @@ func (v autoVar) dump(d *dumpbuf) {
 type autoAtVar struct{ autoVar }
 
 func (v autoAtVar) Eval(w io.Writer, ev *Evaluator) error {
-	fmt.Fprint(w, v.ctx.output)
+	fmt.Fprint(w, v.String())
 	return nil
 }
-func (v autoAtVar) String() string { return "$*" }
+func (v autoAtVar) String() string { return v.ctx.output }
 
 type autoLessVar struct{ autoVar }
 
 func (v autoLessVar) Eval(w io.Writer, ev *Evaluator) error {
-	if len(v.ctx.inputs) > 0 {
-		fmt.Fprint(w, v.ctx.inputs[0])
-	}
+	fmt.Fprint(w, v.String())
 	return nil
 }
-func (v autoLessVar) String() string { return "$<" }
+func (v autoLessVar) String() string {
+	if len(v.ctx.inputs) > 0 {
+		return v.ctx.inputs[0]
+	}
+	return ""
+}
 
 type autoHatVar struct{ autoVar }
 
 func (v autoHatVar) Eval(w io.Writer, ev *Evaluator) error {
-	fmt.Fprint(w, strings.Join(v.ctx.uniqueInputs(), " "))
+	fmt.Fprint(w, v.String())
 	return nil
 }
-func (v autoHatVar) String() string { return "$^" }
+func (v autoHatVar) String() string {
+	return strings.Join(v.ctx.uniqueInputs(), " ")
+}
 
 type autoPlusVar struct{ autoVar }
 
 func (v autoPlusVar) Eval(w io.Writer, ev *Evaluator) error {
-	fmt.Fprint(w, strings.Join(v.ctx.inputs, " "))
+	fmt.Fprint(w, v.String())
 	return nil
 }
-func (v autoPlusVar) String() string { return "$+" }
+func (v autoPlusVar) String() string { return strings.Join(v.ctx.inputs, " ") }
 
 type autoStarVar struct{ autoVar }
 
 func (v autoStarVar) Eval(w io.Writer, ev *Evaluator) error {
-	// TODO: Use currentStem. See auto_stem_var.mk
-	fmt.Fprint(w, stripExt(v.ctx.output))
-	return nil
-}
-func (v autoStarVar) String() string { return "$*" }
-
-type autoSuffixDVar struct {
-	autoVar
-	v Var
-}
-
-func (v autoSuffixDVar) Eval(w io.Writer, ev *Evaluator) error {
-	var buf bytes.Buffer
-	err := v.v.Eval(&buf, ev)
-	if err != nil {
-		return err
-	}
-	ws := newWordScanner(buf.Bytes())
-	sw := ssvWriter{w: w}
-	for ws.Scan() {
-		sw.WriteString(filepath.Dir(string(ws.Bytes())))
-	}
+	fmt.Fprint(w, v.String())
 	return nil
 }
 
-func (v autoSuffixDVar) String() string { return v.v.String() + "D" }
+// TODO: Use currentStem. See auto_stem_var.mk
+func (v autoStarVar) String() string { return stripExt(v.ctx.output) }
 
-type autoSuffixFVar struct {
-	autoVar
-	v Var
+func suffixDVar(k string) Var {
+	return &recursiveVar{
+		expr: expr{
+			&funcPatsubst{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(patsubst"),
+						literal("%/"),
+						literal("%"),
+						&funcDir{
+							fclosure: fclosure{
+								args: []Value{
+									literal("(dir"),
+									&varref{
+										varname: literal(k),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		origin: "automatic",
+	}
 }
 
-func (v autoSuffixFVar) Eval(w io.Writer, ev *Evaluator) error {
-	var buf bytes.Buffer
-	err := v.v.Eval(&buf, ev)
-	if err != nil {
-		return err
+func suffixFVar(k string) Var {
+	return &recursiveVar{
+		expr: expr{
+			&funcNotdir{
+				fclosure: fclosure{
+					args: []Value{
+						literal("(notdir"),
+						&varref{varname: literal(k)},
+					},
+				},
+			},
+		},
+		origin: "automatic",
 	}
-	ws := newWordScanner(buf.Bytes())
-	sw := ssvWriter{w: w}
-	for ws.Scan() {
-		sw.WriteString(filepath.Base(string(ws.Bytes())))
-	}
-	return nil
 }
-
-func (v autoSuffixFVar) String() string { return v.v.String() + "F" }
 
 // runner is a single shell command invocation.
 type runner struct {
