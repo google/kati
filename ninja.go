@@ -28,9 +28,10 @@ import (
 type ninjaGenerator struct {
 	f       *os.File
 	nodes   []*DepNode
-	vars    Vars
 	exports map[string]bool
-	ex      *Executor
+
+	ctx *execContext
+
 	ruleID  int
 	done    map[string]bool
 	gomaDir string
@@ -39,10 +40,11 @@ type ninjaGenerator struct {
 var ccRE = regexp.MustCompile(`^prebuilts/(gcc|clang)/.*(gcc|g\+\+|clang|clang\+\+) .* -c `)
 
 func newNinjaGenerator(g *DepGraph, gomaDir string) *ninjaGenerator {
+	ctx := newExecContext(g.vars, true)
 	return &ninjaGenerator{
 		nodes:   g.nodes,
-		vars:    g.vars,
 		exports: g.exports,
+		ctx:     ctx,
 		done:    make(map[string]bool),
 		gomaDir: gomaDir,
 	}
@@ -234,7 +236,7 @@ func (n *ninjaGenerator) emitNode(node *DepNode) error {
 		return nil
 	}
 
-	runners, _, err := n.ex.createRunners(node, true)
+	runners, _, err := createRunners(n.ctx, node)
 	if err != nil {
 		return err
 	}
@@ -301,15 +303,10 @@ func (n *ninjaGenerator) generateShell() (err error) {
 		}
 	}()
 
-	ev := NewEvaluator(n.vars)
-	shell, err := ev.EvaluateVar("SHELL")
-	if err != nil {
-		shell = "/bin/sh"
-	}
-	fmt.Fprintf(f, "#!%s\n", shell)
+	fmt.Fprintf(f, "#!%s\n", n.ctx.shell)
 	for name, export := range n.exports {
 		if export {
-			v, err := ev.EvaluateVar(name)
+			v, err := n.ctx.ev.EvaluateVar(name)
 			if err != nil {
 				return err
 			}
@@ -348,10 +345,6 @@ func (n *ninjaGenerator) generateNinja() (err error) {
 		fmt.Fprintf(n.f, " depth = %d\n", runtime.NumCPU())
 	}
 
-	n.ex, err = NewExecutor(n.vars, nil)
-	if err != nil {
-		return err
-	}
 	for _, node := range n.nodes {
 		err := n.emitNode(node)
 		if err != nil {
