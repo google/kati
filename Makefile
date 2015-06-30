@@ -22,6 +22,7 @@ CXX_SRCS:= \
 	file.cc \
 	file_cache.cc \
 	fileutil.cc \
+	find.cc \
 	flags.cc \
 	func.cc \
 	main.cc \

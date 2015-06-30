@@ -26,6 +26,7 @@
 #include "file.h"
 #include "file_cache.h"
 #include "fileutil.h"
+#include "find.h"
 #include "flags.h"
 #include "func.h"
 #include "log.h"
@@ -249,6 +250,8 @@ int main(int argc, char* argv[]) {
   vector<Symbol> targets;
   vector<StringPiece> cl_vars;
   ParseCommandLine(argc, argv, &targets, &cl_vars);
+  // This depends on command line flags.
+  InitFindEmulator();
   int r = Run(targets, cl_vars);
   Quit();
   return r;

@@ -28,6 +28,7 @@
 
 #include "ast.h"
 #include "eval.h"
+#include "find.h"
 #include "log.h"
 #include "parser.h"
 #include "stats.h"
@@ -412,6 +413,19 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   }
 }
 
+//#define TEST_FIND_EMULATOR
+
+#ifdef TEST_FIND_EMULATOR
+static string SortWordsInString(StringPiece s) {
+  vector<string> toks;
+  for (StringPiece tok : WordScanner(s)) {
+    toks.push_back(tok.as_string());
+  }
+  sort(toks.begin(), toks.end());
+  return JoinStrings(toks, " ");
+}
+#endif
+
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io()) {
@@ -421,8 +435,21 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     return;
   }
 
-  COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd->c_str());
   LOG("ShellFunc: %s", cmd->c_str());
+
+#ifdef TEST_FIND_EMULATOR
+  bool need_check = false;
+  string out2;
+  if (FindEmulator::Get()->HandleFind(*cmd, &out2)) {
+    need_check = true;
+  }
+#else
+  if (FindEmulator::Get()->HandleFind(*cmd, s))
+    return;
+#endif
+
+
+  COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd->c_str());
   string out;
   // TODO: Handle $(SHELL).
   FILE* fp = popen(cmd->c_str(), "r");
@@ -442,6 +469,18 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     if (out[i] == '\n')
       out[i] = ' ';
   }
+
+#ifdef TEST_FIND_EMULATOR
+  if (need_check) {
+    string sorted = SortWordsInString(out);
+    out2 = SortWordsInString(out2);
+    if (sorted != out2) {
+      ERROR("FindEmulator is broken: %s\n%s\nvs\n%s",
+            cmd->c_str(), sorted.c_str(), out2.c_str());
+    }
+  }
+#endif
+
   *s += out;
 }
 
