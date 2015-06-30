@@ -285,15 +285,35 @@ func (vt Vars) Lookup(name string) Var {
 	return undefinedVar{}
 }
 
+// origin precedence
+//  override / environment override
+//  command line
+//  file
+//  environment
+//  default
+// TODO(ukai): is this correct order?
+var originPrecedence = map[string]int{
+	"automatic":            5,
+	"override":             4,
+	"environment override": 4,
+	"command line":         3,
+	"file":                 2,
+	"environment":          2,
+	"default":              1,
+	"undefined":            0,
+}
+
 // Assign assigns v to name.
 func (vt Vars) Assign(name string, v Var) {
-	switch v.Origin() {
-	case "override", "environment override":
-	default:
+	vo := v.Origin()
+	if vo != "automatic" {
+		vp := originPrecedence[v.Origin()]
+		var op int
 		if ov, ok := vt[name]; ok {
-			if ov.Origin() == "command line" {
-				return
-			}
+			op = originPrecedence[ov.Origin()]
+		}
+		if op > vp {
+			return
 		}
 	}
 	vt[name] = v
