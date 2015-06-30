@@ -27,7 +27,7 @@ class Stats {
 
  private:
   void Start();
-  void End();
+  double End();
 
   friend class ScopedStatsRecorder;
 
@@ -38,11 +38,12 @@ class Stats {
 
 class ScopedStatsRecorder {
  public:
-  explicit ScopedStatsRecorder(Stats* st);
+  explicit ScopedStatsRecorder(Stats* st, const char* msg = 0);
   ~ScopedStatsRecorder();
 
  private:
   Stats* st_;
+  const char* msg_;
 };
 
 void ReportAllStats();
@@ -50,5 +51,9 @@ void ReportAllStats();
 #define COLLECT_STATS(name)                     \
   static Stats stats(name);                     \
   ScopedStatsRecorder ssr(&stats)
+
+#define COLLECT_STATS_WITH_SLOW_REPORT(name, msg)       \
+  static Stats stats(name);                             \
+  ScopedStatsRecorder ssr(&stats, msg)
 
 #endif  // STATS_H_

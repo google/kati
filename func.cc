@@ -413,7 +413,6 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 }
 
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
-  COLLECT_STATS("func shell time");
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io()) {
     *s += "$(";
@@ -422,6 +421,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     return;
   }
 
+  COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd->c_str());
   LOG("ShellFunc: %s", cmd->c_str());
   string out;
   // TODO: Handle $(SHELL).
