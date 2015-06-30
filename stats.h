@@ -34,6 +34,7 @@ class Stats {
   const char* name_;
   double start_time_;
   double elapsed_;
+  int cnt_;
 };
 
 class ScopedStatsRecorder {
