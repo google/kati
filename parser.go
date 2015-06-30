@@ -451,7 +451,7 @@ func (p *parser) isDirective(line []byte, directives map[string]directiveFunc) (
 		if bytes.HasPrefix(stripped, []byte(prefix)) {
 			return f, true
 		}
-		if prefix[len(prefix)-1] == ' ' && bytes.HasPrefix(stripped, []byte(prefix[:len(prefix)-1])) && stripped[len(prefix)-1] == '\t' {
+		if prefix[len(prefix)-1] == ' ' && bytes.HasPrefix(stripped, []byte(prefix[:len(prefix)-1])) && len(stripped) >= len(prefix) && stripped[len(prefix)-1] == '\t' {
 			return f, true
 		}
 	}
