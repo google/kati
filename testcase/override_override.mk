@@ -1,5 +1,3 @@
-# TODO(go): Fix.
-
 override A:=PASS_A
 A:=FAIL_A
 
