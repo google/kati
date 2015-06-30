@@ -169,25 +169,31 @@ func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 	if err != nil {
 		return nil, err
 	}
-	buf := bytes.NewBuffer(v.value)
+	buf := bytes.NewBuffer(nil)
+	buf.Write(v.value)
 	buf.WriteByte(' ')
 	err = val.Eval(buf, ev)
 	if err != nil {
 		return nil, err
 	}
-	v.value = buf.Bytes()
-	return v, nil
+	return &simpleVar{
+		value:  buf.String(),
+		origin: "file",
+	}, nil
 }
 
 func (v *automaticVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
-	buf := bytes.NewBuffer(v.value)
+	buf := bytes.NewBuffer(nil)
+	buf.Write(v.value)
 	buf.WriteByte(' ')
 	err := val.Eval(buf, ev)
 	if err != nil {
 		return nil, err
 	}
-	v.value = buf.Bytes()
-	return v, nil
+	return &simpleVar{
+		value:  buf.String(),
+		origin: "file",
+	}, nil
 }
 
 type recursiveVar struct {
@@ -293,7 +299,6 @@ func (vt Vars) Lookup(name string) Var {
 //  default
 // TODO(ukai): is this correct order?
 var originPrecedence = map[string]int{
-	"automatic":            5,
 	"override":             4,
 	"environment override": 4,
 	"command line":         3,
@@ -301,11 +306,14 @@ var originPrecedence = map[string]int{
 	"environment":          2,
 	"default":              1,
 	"undefined":            0,
+	"automatic":            0,
 }
 
 // Assign assigns v to name.
 func (vt Vars) Assign(name string, v Var) {
 	vo := v.Origin()
+	// assign automatic always win.
+	// assign new value to automatic always win.
 	if vo != "automatic" {
 		vp := originPrecedence[v.Origin()]
 		var op int
