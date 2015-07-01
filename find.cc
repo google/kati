@@ -240,7 +240,7 @@ class DirentSymlinkNode : public DirentNode {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks) {
       // TODO
-      LOG("symlink is hard");
+      LOG("FindEmulator: symlink is hard");
       return false;
 
       char buf[PATH_MAX+1];
@@ -331,19 +331,20 @@ class FindEmulatorImpl : public FindEmulator {
       return false;
     }
 
+    const size_t orig_out_size = out->size();
     for (StringPiece finddir : fc.finddirs) {
       const DirentNode* base = root_->FindDir(ConcatDir(fc.chdir, finddir));
       if (!base) {
-        string s = "testdir/../testdir";
-        NormalizePath(&s);
         LOG("FindEmulator: Find dir (%s) not found: %s",
             ConcatDir(fc.chdir, finddir).c_str(), cmd.c_str());
+        out->resize(orig_out_size);
         return false;
       }
 
       string path = finddir.as_string();
       if (!base->RunFind(fc, 0, &path, out)) {
         LOG("FindEmulator: RunFind failed: %s", cmd.c_str());
+        out->resize(orig_out_size);
         return false;
       }
     }
