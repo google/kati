@@ -131,6 +131,7 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
       // Pretend to be GNU make 3.81, for compatibility.
       "MAKE_VERSION:=3.81\n"
       "SHELL:=/bin/sh\n"
+      "KATI_VARIANT:=c\n"
       // TODO: Add more builtin vars.
 
       // http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules

@@ -15,8 +15,10 @@ test:
 	echo $(value FOO BAR)
 	echo $(value FOO,BAR)
 	echo $(value $(FOOREF))
+ifeq ($(KATI_VARIANT),c)
 	echo $(value @)
 	echo '$(value @D)'
 	echo '$(value @F)'
+endif
 
 $(info $(value X))
