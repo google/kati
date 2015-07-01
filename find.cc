@@ -110,7 +110,7 @@ class OrCond : public Cond {
 
 struct FindCommand {
   FindCommand()
-      : follows_symlinks(false) {
+      : follows_symlinks(false), depth(INT_MAX) {
   }
   ~FindCommand() {
   }
@@ -121,6 +121,7 @@ struct FindCommand {
   bool follows_symlinks;
   unique_ptr<Cond> print_cond;
   unique_ptr<Cond> prune_cond;
+  int depth;
 };
 
 class DirentNode {
@@ -130,7 +131,7 @@ class DirentNode {
   virtual const DirentNode* FindDir(StringPiece) const {
     return NULL;
   }
-  virtual bool RunFind(const FindCommand& fc,
+  virtual bool RunFind(const FindCommand& fc, int d,
                        string* path, string* out) const = 0;
 
   const string& base() const { return base_; }
@@ -159,7 +160,7 @@ class DirentFileNode : public DirentNode {
       : DirentNode(name), type_(type) {
   }
 
-  virtual bool RunFind(const FindCommand& fc,
+  virtual bool RunFind(const FindCommand& fc, int,
                        string* path, string* out) const {
     PrintIfNecessary(fc, *path, type_, out);
     return true;
@@ -194,7 +195,7 @@ class DirentDirNode : public DirentNode {
     return found->second->FindDir(nd);
   }
 
-  virtual bool RunFind(const FindCommand& fc,
+  virtual bool RunFind(const FindCommand& fc, int d,
                        string* path, string* out) const {
     if (fc.prune_cond && fc.prune_cond->IsTrue(base_, DT_DIR)) {
       *out += *path;
@@ -203,13 +204,16 @@ class DirentDirNode : public DirentNode {
     }
     PrintIfNecessary(fc, *path, DT_DIR, out);
 
+    if (d >= fc.depth)
+      return true;
+
     size_t orig_path_size = path->size();
     for (const auto& p : children_) {
       DirentNode* c = p.second;
       if ((*path)[path->size()-1] != '/')
         *path += '/';
       *path += c->base();
-      if (!c->RunFind(fc, path, out))
+      if (!c->RunFind(fc, d + 1, path, out))
         return false;
       path->resize(orig_path_size);
     }
@@ -231,7 +235,7 @@ class DirentSymlinkNode : public DirentNode {
       : DirentNode(name) {
   }
 
-  virtual bool RunFind(const FindCommand& fc,
+  virtual bool RunFind(const FindCommand& fc, int,
                        string* path, string* out) const {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks) {
@@ -338,7 +342,7 @@ class FindEmulatorImpl : public FindEmulator {
       }
 
       string path = finddir.as_string();
-      if (!base->RunFind(fc, &path, out)) {
+      if (!base->RunFind(fc, 0, &path, out)) {
         LOG("FindEmulator: RunFind failed: %s", cmd.c_str());
         return false;
       }
@@ -551,8 +555,16 @@ class FindEmulatorImpl : public FindEmulator {
             return false;
           return true;
         } else if (tok == "-maxdepth") {
-          // TODO
-          return false;
+          if (!GetNextToken(&tok) || tok.empty())
+            return false;
+          const string& depth_str = tok.as_string();
+          char* endptr;
+          long d = strtol(depth_str.c_str(), &endptr, 10);
+          if (endptr != depth_str.data() + depth_str.size() ||
+              d < 0 || d > INT_MAX) {
+            return false;
+          }
+          fc_->depth = d;
         } else if (tok[0] == '-' || tok == "\\(") {
           if (fc_->print_cond.get())
             return false;
