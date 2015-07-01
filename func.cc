@@ -486,11 +486,11 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 #ifdef TEST_FIND_EMULATOR
   bool need_check = false;
   string out2;
-  if (FindEmulator::Get()->HandleFind(*cmd, &out2)) {
+  if (FindEmulator::Get() && FindEmulator::Get()->HandleFind(*cmd, &out2)) {
     need_check = true;
   }
 #else
-  if (FindEmulator::Get()->HandleFind(*cmd, s))
+  if (FindEmulator::Get() && FindEmulator::Get()->HandleFind(*cmd, s))
     return;
 #endif
 

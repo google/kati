@@ -43,6 +43,7 @@
 static const char* g_makefile;
 static bool g_is_syntax_check_only;
 static bool g_generate_ninja;
+static bool g_use_find_emulator;
 
 static bool ParseCommandLineOptionWithArg(StringPiece option,
                                           char* argv[],
@@ -78,6 +79,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (!strcmp(arg, "--use_find_emulator")) {
+      g_use_find_emulator = true;
     } else if (ParseCommandLineOptionWithArg(
         "--ignore_optional_include",
         argv, &i, &g_ignore_optional_include_pattern)) {
@@ -252,7 +255,8 @@ int main(int argc, char* argv[]) {
   vector<StringPiece> cl_vars;
   ParseCommandLine(argc, argv, &targets, &cl_vars);
   // This depends on command line flags.
-  InitFindEmulator();
+  if (g_use_find_emulator)
+    InitFindEmulator();
   int r = Run(targets, cl_vars);
   Quit();
   return r;

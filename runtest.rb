@@ -152,7 +152,7 @@ run_make_test = proc do |mk|
       json = "#{tc.empty? ? 'test' : tc}"
       cmd = "../../kati -save_json=#{json}.json -kati_log #{tc} 2>&1"
       if ckati
-        cmd = "../../ckati #{tc} 2>&1"
+        cmd = "../../ckati --use_find_emulator #{tc} 2>&1"
       end
       res = IO.popen(cmd, 'r:binary', &:read)
       res = normalize_kati_log(res)
