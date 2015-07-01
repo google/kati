@@ -67,3 +67,10 @@ test2:
 	$(call run_find, cd testdir; find -L . -type f)
 	$(call run_find, cd testdir; find -L . -type d)
 	$(call run_find, cd testdir; find -L . -type l)
+	@echo maxdepth
+	$(call run_find, find testdir -maxdepth 1)
+	$(call run_find, find testdir -maxdepth 2)
+	$(call run_find, find testdir -maxdepth 0)
+	$(call run_find, find testdir -maxdepth hoge)
+	$(call run_find, find testdir -maxdepth 1hoge)
+	$(call run_find, find testdir -maxdepth -1)
