@@ -525,12 +525,14 @@ class FindEmulatorImpl : public FindEmulator {
 
     // <expr> ::= <term> {<or> <term>}
     // <term> ::= <fact> {<and> <fact>}
-    // <fact> ::= <not> <fact> | '\(' <expr> '\)' | <name> | <type>
+    // <fact> ::= <not> <fact> | '\(' <expr> '\)' | <pred>
     // <not> ::= '-not' | '\!'
     // <and> ::= '-and' | '-a'
     // <or> ::= '-or' | '-o'
+    // <pred> ::= <name> | <type> | <maxdepth>
     // <name> ::= '-name' NAME
     // <type> ::= '-type' TYPE
+    // <maxdepth> ::= '-maxdepth' MAXDEPTH
     Cond* ParseFindCond(StringPiece tok) {
       return ParseExpr(tok);
     }
