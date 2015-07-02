@@ -86,13 +86,20 @@ func newWordScanner(in []byte) *wordScanner {
 	}
 }
 
-func (ws *wordScanner) Scan() bool {
+func (ws *wordScanner) next() bool {
 	for ws.s = ws.i; ws.s < len(ws.in); ws.s++ {
 		if !wsbytes[ws.in[ws.s]] {
 			break
 		}
 	}
 	if ws.s == len(ws.in) {
+		return false
+	}
+	return true
+}
+
+func (ws *wordScanner) Scan() bool {
+	if !ws.next() {
 		return false
 	}
 	for ws.i = ws.s; ws.i < len(ws.in); ws.i++ {
@@ -105,6 +112,13 @@ func (ws *wordScanner) Scan() bool {
 
 func (ws *wordScanner) Bytes() []byte {
 	return ws.in[ws.s:ws.i]
+}
+
+func (ws *wordScanner) Remain() []byte {
+	if !ws.next() {
+		return nil
+	}
+	return ws.in[ws.s:]
 }
 
 func matchPattern(pat, str string) bool {
@@ -249,4 +263,148 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func bytesContains(s []byte, b byte) bool {
+	for _, c := range s {
+		if c == b {
+			return true
+		}
+	}
+	return false
+}
+
+func firstWord(line []byte) ([]byte, []byte) {
+	s := newWordScanner(line)
+	if s.Scan() {
+		w := s.Bytes()
+		return w, s.Remain()
+	}
+	return line, nil
+}
+
+func findLiteralChar(s, stop []byte, skipVar bool) int {
+	i := 0
+	for {
+		var ch byte
+		for i < len(s) {
+			ch = s[i]
+			if ch == '\\' {
+				i += 2
+				continue
+			}
+			if bytesContains(stop, ch) {
+				break
+			}
+			if skipVar && ch == '$' {
+				break
+			}
+			i++
+		}
+		if i >= len(s) {
+			return -1
+		}
+		if ch == '$' {
+			i++
+			if i == len(s) {
+				return -1
+			}
+			oparen := s[i]
+			cparen := closeParen(oparen)
+			i++
+			if cparen != 0 {
+				pcount := 1
+			SkipParen:
+				for i < len(s) {
+					ch = s[i]
+					switch ch {
+					case oparen:
+						pcount++
+					case cparen:
+						pcount--
+						if pcount == 0 {
+							i++
+							break SkipParen
+						}
+					}
+					i++
+				}
+			}
+			continue
+		}
+		return i
+	}
+	return -1
+}
+
+func removeComment(line []byte) ([]byte, bool) {
+	var buf []byte
+	for i := 0; i < len(line); i++ {
+		if line[i] != '#' {
+			continue
+		}
+		b := 1
+		for ; i-b >= 0; b++ {
+			if line[i-b] != '\\' {
+				break
+			}
+		}
+		b++
+		nb := b / 2
+		quoted := b%2 == 1
+		if buf == nil {
+			buf = make([]byte, len(line))
+			copy(buf, line)
+			line = buf
+		}
+		// fmt.Printf("line:%q i=%d b=%d nb=%d quoted=%t\n", line, i, b, nb, quoted)
+		// fmt.Printf("%q %q\n", line[:i-b+nb+1], line[i:])
+		line = append(line[:i-b+nb+1], line[i:]...)
+		if !quoted {
+			return line[:i-b+nb+1], true
+		}
+		i = i - nb + 1
+	}
+	return line, false
+}
+
+// concatline removes backslash newline.
+// TODO: backslash baskslash newline becomes backslash newline.
+func concatline(line []byte) []byte {
+	var buf []byte
+	for i := 0; i < len(line); i++ {
+		if line[i] != '\\' {
+			continue
+		}
+		if i+1 == len(line) {
+			break
+		}
+		if line[i+1] == '\n' {
+			if buf == nil {
+				buf = make([]byte, len(line))
+				copy(buf, line)
+				line = buf
+			}
+			oline := trimRightSpaceBytes(line[:i])
+			oline = append(oline, ' ')
+			nextline := trimLeftSpaceBytes(line[i+2:])
+			line = append(oline, nextline...)
+			i = len(oline) - 1
+			continue
+		}
+		if i+2 < len(line) && line[i+1] == '\r' && line[i+2] == '\n' {
+			if buf == nil {
+				buf = make([]byte, len(line))
+				copy(buf, line)
+				line = buf
+			}
+			oline := trimRightSpaceBytes(line[:i])
+			oline = append(oline, ' ')
+			nextline := trimLeftSpaceBytes(line[i+3:])
+			line = append(oline, nextline...)
+			i = len(oline) - 1
+			continue
+		}
+	}
+	return line
 }

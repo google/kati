@@ -17,6 +17,7 @@ package kati
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -57,7 +58,11 @@ func (p pattern) subst(repl, str string) string {
 
 type rule struct {
 	srcpos
-	outputs         []string
+	// outputs is output of the rule.
+	// []string{} for ': xxx'
+	// nil for empty line.
+	outputs []string
+
 	inputs          []string
 	orderOnlyInputs []string
 	outputPatterns  []pattern
@@ -96,38 +101,57 @@ func (r *rule) parseInputs(s []byte) {
 	}
 }
 
-func (r *rule) parseVar(s []byte) (*assignAST, error) {
-	eq := bytes.IndexByte(s, '=')
-	if eq <= 0 {
-		return nil, nil
-	}
-	rhs := trimLeftSpaceBytes(s[eq+1:])
-	var lhs []byte
+func (r *rule) parseVar(s []byte, rhs expr) (*assignAST, error) {
+	var lhsBytes []byte
 	var op string
 	// TODO(ukai): support override, export.
-	switch s[eq-1] { // s[eq] is '='
+	if s[len(s)-1] != '=' {
+		panic(fmt.Sprintf("unexpected lhs %q", s))
+	}
+	switch s[len(s)-2] { // s[len(s)-1] is '='
 	case ':':
-		lhs = trimSpaceBytes(s[:eq-1])
+		lhsBytes = trimSpaceBytes(s[:len(s)-2])
 		op = ":="
 	case '+':
-		lhs = trimSpaceBytes(s[:eq-1])
+		lhsBytes = trimSpaceBytes(s[:len(s)-2])
 		op = "+="
 	case '?':
-		lhs = trimSpaceBytes(s[:eq-1])
+		lhsBytes = trimSpaceBytes(s[:len(s)-2])
 		op = "?="
 	default:
-		lhs = trimSpaceBytes(s[:eq])
+		lhsBytes = trimSpaceBytes(s[:len(s)-1])
 		op = "="
 	}
-	assign, err := newAssignAST(nil, lhs, rhs, op)
+	lhs, _, err := parseExpr(lhsBytes, nil, parseOp{alloc: true})
 	if err != nil {
 		return nil, err
+	}
+	assign := &assignAST{
+		lhs: lhs,
+		rhs: compactExpr(rhs),
+		op:  op,
 	}
 	assign.srcpos = r.srcpos
 	return assign, nil
 }
 
-func (r *rule) parse(line []byte) (*assignAST, error) {
+// parse parses rule line.
+// line is rule line until '=', or before ';'
+// rhs is not nil, if line ended with '=' (target specific var)
+func (r *rule) parse(line []byte, rhs expr) (*assignAST, error) {
+	var removed bool
+	line, removed = removeComment(line)
+	if removed {
+		rhs = nil
+		line = trimRightSpaceBytes(line)
+	}
+	line = trimLeftSpaceBytes(line)
+	// See semicolon.mk.
+	if rhs == nil && (len(line) == 0 || line[0] == ';') {
+		return nil, nil
+	}
+	r.outputs = []string{}
+
 	index := bytes.IndexByte(line, ':')
 	if index < 0 {
 		return nil, errors.New("*** missing separator.")
@@ -158,11 +182,11 @@ func (r *rule) parse(line []byte) (*assignAST, error) {
 	}
 
 	rest := line[index:]
-	assign, err := r.parseVar(rest)
-	if err != nil {
-		return nil, err
-	}
-	if assign != nil {
+	if rhs != nil {
+		assign, err := r.parseVar(rest, rhs)
+		if err != nil {
+			return nil, err
+		}
 		return assign, nil
 	}
 	index = bytes.IndexByte(rest, ':')

@@ -136,6 +136,12 @@ func compactExpr(e expr) Value {
 	// TODO(ukai): concat literal
 	return e
 }
+func toExpr(v Value) expr {
+	if e, ok := v.(expr); ok {
+		return e
+	}
+	return expr{v}
+}
 
 // varref is variable reference. e.g. ${foo}.
 type varref struct {

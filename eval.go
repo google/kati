@@ -254,58 +254,56 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	ev.lastRule = nil
 	ev.srcpos = ast.srcpos
 
-	lexpr := ast.expr
-	buf := newBuf()
-	err := lexpr.Eval(buf, ev)
-	if err != nil {
-		return err
-	}
-	line := buf.Bytes()
-	if ast.term == '=' {
-		line = append(line, ast.afterTerm...)
-	}
-	if LogFlag {
-		logf("rule? %q=>%q", ast.expr, line)
+	abuf := newBuf()
+	aexpr := toExpr(ast.expr)
+	var rhs expr
+	semi := ast.semi
+	for i, v := range aexpr {
+		var buf bytes.Buffer
+		err := v.Eval(&buf, ev)
+		if err != nil {
+			return err
+		}
+		b := buf.Bytes()
+		eq := findLiteralChar(b, []byte{'='}, true)
+		if eq >= 0 {
+			abuf.Write(b[:eq+1])
+			rhs = expr{}
+			if eq+1 < len(b) {
+				rhs = append(rhs, tmpval(trimLeftSpaceBytes(b[eq+1:])))
+			}
+			if i+1 < len(aexpr) {
+				rhs = append(rhs, aexpr[i+1:]...)
+			}
+			if ast.semi != nil {
+				rhs = append(rhs, literal(';'))
+				sexpr, _, err := parseExpr(ast.semi, nil, parseOp{})
+				if err != nil {
+					return err
+				}
+				rhs = append(rhs, toExpr(sexpr)...)
+				semi = nil
+			}
+			break
+		}
+		abuf.Write(b)
 	}
 
-	// See semicolon.mk.
-	if len(bytes.TrimRight(line, " \t\n;")) == 0 {
-		freeBuf(buf)
-		return nil
-	}
-
+	line := abuf.Bytes()
 	r := &rule{srcpos: ast.srcpos}
-	assign, err := r.parse(line)
+	assign, err := r.parse(line, rhs)
 	if err != nil {
 		return ast.error(err)
 	}
-	freeBuf(buf)
+	freeBuf(abuf)
 	if LogFlag {
-		logf("rule %q => outputs:%q, inputs:%q", line, r.outputs, r.inputs)
+		logf("rule %q => outputs:%q, inputs:%q", ast.expr, r.outputs, r.inputs)
 	}
 
 	// TODO: Pretty print.
 	//logf("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
-		if ast.term == ';' {
-			nexpr, _, err := parseExpr(ast.afterTerm, nil, parseOp{})
-			if err != nil {
-				return ast.errorf("parse error: %q: %v", string(ast.afterTerm), err)
-			}
-			lexpr = expr{lexpr, nexpr}
-
-			buf = newBuf()
-			err = lexpr.Eval(buf, ev)
-			if err != nil {
-				return err
-			}
-			assign, err = r.parse(buf.Bytes())
-			if err != nil {
-				return ast.error(err)
-			}
-			freeBuf(buf)
-		}
 		for _, output := range r.outputs {
 			ev.setTargetSpecificVar(assign, output)
 		}
@@ -315,8 +313,8 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 		return nil
 	}
 
-	if ast.term == ';' {
-		r.cmds = append(r.cmds, string(ast.afterTerm[1:]))
+	if semi != nil {
+		r.cmds = append(r.cmds, string(semi))
 	}
 	if LogFlag {
 		logf("rule outputs:%q cmds:%q", r.outputs, r.cmds)
@@ -328,7 +326,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 
 func (ev *Evaluator) evalCommand(ast *commandAST) error {
 	ev.srcpos = ast.srcpos
-	if ev.lastRule == nil {
+	if ev.lastRule == nil || ev.lastRule.outputs == nil {
 		// This could still be an assignment statement. See
 		// assign_after_tab.mk.
 		if strings.IndexByte(ast.cmd, '=') >= 0 {
