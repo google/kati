@@ -87,9 +87,8 @@ func (ast *assignAST) show() {
 // are expanded.
 type maybeRuleAST struct {
 	srcpos
-	expr      Value
-	term      byte // Either ':', '=', or 0
-	afterTerm []byte
+	expr Value
+	semi []byte // after ';' if ';' exists
 }
 
 func (ast *maybeRuleAST) eval(ev *Evaluator) error {

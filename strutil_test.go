@@ -166,3 +166,80 @@ func TestSubstPattern(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveComment(t *testing.T) {
+	for _, tc := range []struct {
+		in      string
+		want    string
+		removed bool
+	}{
+		{
+			in:   "foo",
+			want: "foo",
+		},
+		{
+			in:      "foo #bar",
+			want:    "foo ",
+			removed: true,
+		},
+		{
+			in:   `foo \#bar`,
+			want: "foo #bar",
+		},
+		{
+			in:      `foo \#bar # baz`,
+			want:    `foo #bar `,
+			removed: true,
+		},
+		{
+			in:   `foo \\ \# \: \; \% \= \a \? \+`,
+			want: `foo \\ # \: \; \% \= \a \? \+`,
+		},
+		{
+			in:      `foo \\#bar`,
+			want:    `foo \`,
+			removed: true,
+		},
+		{
+			in:   `foo \\\#bar`,
+			want: `foo \#bar`,
+		},
+		{
+			in:   `PASS:=\#PASS`,
+			want: `PASS:=#PASS`,
+		},
+	} {
+		got, removed := removeComment([]byte(tc.in))
+		if string(got) != tc.want {
+			t.Errorf("removeComment(%q)=%q, _; want=%q, _", tc.in, got, tc.want)
+		}
+		if removed != tc.removed {
+			t.Errorf("removeComment(%q)=_, %t; want=_, %t", tc.in, removed, tc.removed)
+		}
+	}
+}
+
+func TestConcatline(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want string
+	}{
+		{
+			in:   "foo",
+			want: "foo",
+		},
+		{
+			in:   "foo \\\n\t bar",
+			want: "foo bar",
+		},
+		{
+			in:   "foo \\\n   \\\n\t bar",
+			want: "foo bar",
+		},
+	} {
+		got := string(concatline([]byte(tc.in)))
+		if got != tc.want {
+			t.Errorf("concatline(%q)=%q; want=%q\n", tc.in, got, tc.want)
+		}
+	}
+}

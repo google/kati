@@ -51,11 +51,15 @@ type parser struct {
 	linenoFixed bool
 	done        bool
 	outStmts    *[]ast
+	inRecipe    bool
 	ifStack     []ifState
-	inDef       []string
-	defOpt      string
-	numIfNest   int
-	err         error
+
+	defineVar []byte
+	inDef     []byte
+
+	defOpt    string
+	numIfNest int
+	err       error
 }
 
 func newParser(rd io.Reader, filename string) *parser {
@@ -76,93 +80,42 @@ func (p *parser) srcpos() srcpos {
 
 func (p *parser) addStatement(stmt ast) {
 	*p.outStmts = append(*p.outStmts, stmt)
+	switch stmt.(type) {
+	case *maybeRuleAST:
+		p.inRecipe = true
+	case *assignAST, *includeAST, *exportAST:
+		p.inRecipe = false
+	}
 }
 
 func (p *parser) readLine() []byte {
 	if !p.linenoFixed {
-		p.lineno = p.elineno
+		p.lineno = p.elineno + 1
 	}
-	line, err := p.rd.ReadBytes('\n')
-	if !p.linenoFixed {
-		p.lineno++
-		p.elineno = p.lineno
-	}
-	if err == io.EOF {
-		p.done = true
-	} else if err != nil {
-		p.err = fmt.Errorf("readline %s: %v", p.srcpos(), err)
-		p.done = true
-	}
-
-	line = bytes.TrimRight(line, "\r\n")
-
-	return line
-}
-
-func removeComment(line []byte) []byte {
-	var parenStack []byte
-	// Do not use range as we may modify |line| and |i|.
-	for i := 0; i < len(line); i++ {
-		ch := line[i]
-		switch ch {
-		case '(', '{':
-			parenStack = append(parenStack, ch)
-		case ')', '}':
-			if len(parenStack) > 0 {
-				cp := closeParen(parenStack[len(parenStack)-1])
-				if cp == ch {
-					parenStack = parenStack[:len(parenStack)-1]
-				}
-			}
-		case '#':
-			if len(parenStack) == 0 {
-				if i == 0 || line[i-1] != '\\' {
-					return line[:i]
-				}
-				// Drop the backslash before '#'.
-				line = append(line[:i-1], line[i:]...)
-				i--
-			}
+	var line []byte
+	for !p.done {
+		buf, err := p.rd.ReadBytes('\n')
+		if !p.linenoFixed {
+			p.elineno++
+		}
+		if err == io.EOF {
+			p.done = true
+		} else if err != nil {
+			p.err = fmt.Errorf("readline %s: %v", p.srcpos(), err)
+			p.done = true
+		}
+		line = append(line, buf...)
+		buf = bytes.TrimRight(buf, "\r\n")
+		backslash := false
+		for len(buf) > 1 && buf[len(buf)-1] == '\\' {
+			buf = buf[:len(buf)-1]
+			backslash = !backslash
+		}
+		if !backslash {
+			break
 		}
 	}
-	return line
-}
-
-func hasTrailingBackslash(line []byte) bool {
-	if len(line) == 0 {
-		return false
-	}
-	if line[len(line)-1] != '\\' {
-		return false
-	}
-	return len(line) <= 1 || line[len(line)-2] != '\\'
-}
-
-func (p *parser) processDefineLine(line []byte) []byte {
-	for hasTrailingBackslash(line) {
-		line = line[:len(line)-1]
-		line = bytes.TrimRight(line, "\t ")
-		lineno := p.lineno
-		nline := trimLeftSpaceBytes(p.readLine())
-		p.lineno = lineno
-		line = append(line, ' ')
-		line = append(line, nline...)
-	}
-	return line
-}
-
-func (p *parser) processMakefileLine(line []byte) []byte {
-	return removeComment(p.processDefineLine(line))
-}
-
-func (p *parser) processRecipeLine(line []byte) []byte {
-	for hasTrailingBackslash(line) {
-		line = append(line, '\n')
-		lineno := p.lineno
-		nline := p.readLine()
-		p.lineno = lineno
-		line = append(line, nline...)
-	}
+	line = bytes.TrimRight(line, "\r\n")
 	return line
 }
 
@@ -187,75 +140,104 @@ func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) (*assi
 	}, nil
 }
 
-func (p *parser) parseAssign(line []byte, sep, esep int) (ast, error) {
-	logf("parseAssign %q op:%q", line, line[sep:esep])
-	aast, err := newAssignAST(p, bytes.TrimSpace(line[:sep]), trimLeftSpaceBytes(line[esep:]), string(line[sep:esep]))
-	if err != nil {
-		return nil, err
+func (p *parser) handleDirective(line []byte, directives map[string]directiveFunc) bool {
+	w, data := firstWord(line)
+	if d, ok := directives[string(w)]; ok {
+		d(p, data)
+		return true
 	}
-	aast.srcpos = p.srcpos()
-	return aast, nil
+	return false
 }
 
-func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) (ast, error) {
-	if len(trimSpaceBytes(line)) == 0 {
-		return nil, nil
+func (p *parser) handleRuleOrAssign(line []byte) {
+	rline := line
+	var semi []byte
+	if i := findLiteralChar(line, []byte{';'}, true); i >= 0 {
+		// preserve after semicolon
+		semi = append(semi, line[i+1:]...)
+		rline = concatline(line[:i])
+	} else {
+		rline = concatline(line)
 	}
-
-	expr := line
-	var term byte
-	var afterTerm []byte
-
-	// Either '=' or ';' is used.
-	if equalIndex >= 0 && semicolonIndex >= 0 {
-		if equalIndex < semicolonIndex {
-			semicolonIndex = -1
-		} else {
-			equalIndex = -1
+	aline, _ := removeComment(concatline(line))
+	aline = trimLeftSpaceBytes(aline)
+	if len(aline) == 0 {
+		return
+	}
+	// fmt.Printf("assign: %q=>%q\n", line, aline)
+	i := findLiteralChar(aline, []byte{':', '='}, true)
+	if i >= 0 {
+		if aline[i] == '=' {
+			p.parseAssign(aline, i)
+			return
+		}
+		if aline[i] == ':' && i+1 < len(aline) && aline[i+1] == '=' {
+			p.parseAssign(aline, i+1)
+			return
 		}
 	}
-	if semicolonIndex >= 0 {
-		afterTerm = expr[semicolonIndex:]
-		expr = expr[0:semicolonIndex]
-		term = ';'
-	} else if equalIndex >= 0 {
-		afterTerm = expr[equalIndex:]
-		expr = expr[0:equalIndex]
-		term = '='
-	}
-
-	v, _, err := parseExpr(expr, nil, parseOp{alloc: true})
-	if err != nil {
-		return nil, p.srcpos().error(err)
-	}
-
-	rast := &maybeRuleAST{
-		expr:      v,
-		term:      term,
-		afterTerm: afterTerm,
-	}
-	rast.srcpos = p.srcpos()
-	return rast, nil
+	// not assignment
+	p.parseMaybeRule(rline, semi)
+	return
 }
 
-func (p *parser) parseInclude(line string, oplen int) {
+func (p *parser) parseAssign(line []byte, sep int) {
+	lhs, op, rhs := line[:sep], line[sep:sep+1], line[sep+1:]
+	if sep > 0 {
+		switch line[sep-1] {
+		case ':', '+', '?':
+			lhs, op = line[:sep-1], line[sep-1:sep+1]
+		}
+	}
+	logf("parseAssign %s %s", line, op)
+	lhs = trimSpaceBytes(lhs)
+	rhs = trimLeftSpaceBytes(rhs)
+	aast, err := newAssignAST(p, lhs, rhs, string(op))
+	if err != nil {
+		p.err = err
+		return
+	}
+	aast.srcpos = p.srcpos()
+	p.addStatement(aast)
+}
+
+func (p *parser) parseMaybeRule(line, semi []byte) {
+	if line[0] == '\t' {
+		p.err = p.srcpos().errorf("*** commands commence before first target.")
+		return
+	}
+	expr, _, err := parseExpr(line, nil, parseOp{})
+	if err != nil {
+		p.err = p.srcpos().errorf("parse error: %s: %v", string(line), err)
+		return
+	}
+	// TODO(ukai): remove ast, and eval here.
+	rast := &maybeRuleAST{
+		expr: expr,
+		semi: semi,
+	}
+	rast.srcpos = p.srcpos()
+	p.addStatement(rast)
+}
+
+func (p *parser) parseInclude(op string, line []byte) {
 	// TODO(ukai): parse expr here
 	iast := &includeAST{
-		expr: line[oplen+1:],
-		op:   line[:oplen],
+		expr: string(line),
+		op:   op,
 	}
 	iast.srcpos = p.srcpos()
 	p.addStatement(iast)
 }
 
-func (p *parser) parseIfdef(line []byte, oplen int) {
-	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil, parseOp{alloc: true})
+func (p *parser) parseIfdef(op string, data []byte) {
+	lhs, _, err := parseExpr(data, nil, parseOp{alloc: true})
 	if err != nil {
 		p.err = p.srcpos().error(err)
 		return
 	}
 	iast := &ifAST{
-		op:  string(line[:oplen]),
+		op:  op,
 		lhs: lhs,
 	}
 	iast.srcpos = p.srcpos()
@@ -264,22 +246,22 @@ func (p *parser) parseIfdef(line []byte, oplen int) {
 	p.outStmts = &iast.trueStmts
 }
 
-func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool, error) {
+func (p *parser) parseTwoQuotes(s []byte, op string) ([]string, bool, error) {
 	var args []string
 	for i := 0; i < 2; i++ {
-		s = strings.TrimSpace(s)
-		if s == "" {
+		s = trimSpaceBytes(s)
+		if len(s) == 0 {
 			return nil, false, nil
 		}
 		quote := s[0]
 		if quote != '\'' && quote != '"' {
 			return nil, false, nil
 		}
-		end := strings.IndexByte(s[1:], quote) + 1
+		end := bytes.IndexByte(s[1:], quote) + 1
 		if end < 0 {
 			return nil, false, nil
 		}
-		args = append(args, s[1:end])
+		args = append(args, string(s[1:end]))
 		s = s[end+1:]
 	}
 	if len(s) > 0 {
@@ -291,11 +273,11 @@ func (p *parser) parseTwoQuotes(s string, op string) ([]string, bool, error) {
 // parse
 //  "(lhs, rhs)"
 //  "lhs, rhs"
-func (p *parser) parseEq(s string, op string) (string, string, bool, error) {
+func (p *parser) parseEq(s []byte, op string) (string, string, bool, error) {
 	if s[0] == '(' && s[len(s)-1] == ')' {
-		s = s[1 : len(s)-1]
+		in := s[1 : len(s)-1]
+		logf("parseEq ( %q )", in)
 		term := []byte{','}
-		in := []byte(s)
 		v, n, err := parseExpr(in, term, parseOp{matchParen: true})
 		if err != nil {
 			return "", "", false, err
@@ -317,9 +299,8 @@ func (p *parser) parseEq(s string, op string) (string, string, bool, error) {
 	return args[0], args[1], true, nil
 }
 
-func (p *parser) parseIfeq(line string, oplen int) {
-	op := line[:oplen]
-	lhsBytes, rhsBytes, ok, err := p.parseEq(strings.TrimSpace(line[oplen+1:]), op)
+func (p *parser) parseIfeq(op string, data []byte) {
+	lhsBytes, rhsBytes, ok, err := p.parseEq(data, op)
 	if err != nil {
 		p.err = err
 		return
@@ -349,7 +330,6 @@ func (p *parser) parseIfeq(line string, oplen int) {
 	p.addStatement(iast)
 	p.ifStack = append(p.ifStack, ifState{ast: iast, numNest: p.numIfNest})
 	p.outStmts = &iast.trueStmts
-	return
 }
 
 func (p *parser) checkIfStack(curKeyword string) error {
@@ -359,7 +339,7 @@ func (p *parser) checkIfStack(curKeyword string) error {
 	return nil
 }
 
-func (p *parser) parseElse(line []byte) {
+func (p *parser) parseElse(data []byte) {
 	err := p.checkIfStack("else")
 	if err != nil {
 		p.err = err
@@ -373,19 +353,18 @@ func (p *parser) parseElse(line []byte) {
 	state.inElse = true
 	p.outStmts = &state.ast.falseStmts
 
-	nextIf := trimLeftSpaceBytes(line[len("else"):])
+	nextIf := data
 	if len(nextIf) == 0 {
 		return
 	}
 	var ifDirectives = map[string]directiveFunc{
-		"ifdef ":  ifdefDirective,
-		"ifndef ": ifndefDirective,
-		"ifeq ":   ifeqDirective,
-		"ifneq ":  ifneqDirective,
+		"ifdef":  ifdefDirective,
+		"ifndef": ifndefDirective,
+		"ifeq":   ifeqDirective,
+		"ifneq":  ifneqDirective,
 	}
 	p.numIfNest = state.numNest + 1
-	if f, ok := p.isDirective(nextIf, ifDirectives); ok {
-		f(p, nextIf)
+	if p.handleDirective(nextIf, ifDirectives) {
 		p.numIfNest = 0
 		return
 	}
@@ -394,7 +373,7 @@ func (p *parser) parseElse(line []byte) {
 	return
 }
 
-func (p *parser) parseEndif(line string) {
+func (p *parser) parseEndif(data []byte) {
 	err := p.checkIfStack("endif")
 	if err != nil {
 		p.err = err
@@ -417,121 +396,98 @@ func (p *parser) parseEndif(line string) {
 	return
 }
 
-type directiveFunc func(*parser, []byte) []byte
-
-var makeDirectives = map[string]directiveFunc{
-	"include ":  includeDirective,
-	"-include ": sincludeDirective,
-	"sinclude":  sincludeDirective,
-	"ifdef ":    ifdefDirective,
-	"ifndef ":   ifndefDirective,
-	"ifeq ":     ifeqDirective,
-	"ifneq ":    ifneqDirective,
-	"else":      elseDirective,
-	"endif":     endifDirective,
-	"define ":   defineDirective,
-	"override ": overrideDirective,
-	"export ":   exportDirective,
-	"unexport ": unexportDirective,
+func (p *parser) parseDefine(data []byte) {
+	p.defineVar = nil
+	p.inDef = nil
+	p.defineVar = append(p.defineVar, trimSpaceBytes(data)...)
+	return
 }
 
-// TODO(ukai): use []byte
-func (p *parser) isDirective(line []byte, directives map[string]directiveFunc) (directiveFunc, bool) {
-	stripped := trimLeftSpaceBytes(line)
-	// Fast paths.
-	// TODO: Consider using a trie.
-	if len(stripped) == 0 {
-		return nil, false
+type directiveFunc func(*parser, []byte)
+
+var makeDirectives map[string]directiveFunc
+
+func init() {
+	makeDirectives = map[string]directiveFunc{
+		"include":  includeDirective,
+		"-include": sincludeDirective,
+		"sinclude": sincludeDirective,
+		"ifdef":    ifdefDirective,
+		"ifndef":   ifndefDirective,
+		"ifeq":     ifeqDirective,
+		"ifneq":    ifneqDirective,
+		"else":     elseDirective,
+		"endif":    endifDirective,
+		"define":   defineDirective,
+		"override": overrideDirective,
+		"export":   exportDirective,
+		"unexport": unexportDirective,
 	}
-	if ch := stripped[0]; ch != 'i' && ch != '-' && ch != 's' && ch != 'e' && ch != 'd' && ch != 'o' && ch != 'u' {
-		return nil, false
-	}
-
-	for prefix, f := range directives {
-		if bytes.HasPrefix(stripped, []byte(prefix)) {
-			return f, true
-		}
-		if prefix[len(prefix)-1] == ' ' && bytes.HasPrefix(stripped, []byte(prefix[:len(prefix)-1])) && len(stripped) >= len(prefix) && stripped[len(prefix)-1] == '\t' {
-			return f, true
-		}
-	}
-	return nil, false
 }
 
-func includeDirective(p *parser, line []byte) []byte {
-	p.parseInclude(string(line), len("include"))
-	return nil
+func includeDirective(p *parser, data []byte) {
+	p.parseInclude("include", data)
 }
 
-func sincludeDirective(p *parser, line []byte) []byte {
-	p.parseInclude(string(line), len("-include"))
-	return nil
+func sincludeDirective(p *parser, data []byte) {
+	p.parseInclude("-include", data)
 }
 
-func ifdefDirective(p *parser, line []byte) []byte {
-	p.parseIfdef(line, len("ifdef"))
-	return nil
+func ifdefDirective(p *parser, data []byte) {
+	p.parseIfdef("ifdef", data)
 }
 
-func ifndefDirective(p *parser, line []byte) []byte {
-	p.parseIfdef(line, len("ifndef"))
-	return nil
+func ifndefDirective(p *parser, data []byte) {
+	p.parseIfdef("ifndef", data)
 }
 
-func ifeqDirective(p *parser, line []byte) []byte {
-	p.parseIfeq(string(line), len("ifeq"))
-	return nil
+func ifeqDirective(p *parser, data []byte) {
+	p.parseIfeq("ifeq", data)
 }
 
-func ifneqDirective(p *parser, line []byte) []byte {
-	p.parseIfeq(string(line), len("ifneq"))
-	return nil
+func ifneqDirective(p *parser, data []byte) {
+	p.parseIfeq("ifneq", data)
 }
 
-func elseDirective(p *parser, line []byte) []byte {
-	p.parseElse(line)
-	return nil
+func elseDirective(p *parser, data []byte) {
+	p.parseElse(data)
 }
 
-func endifDirective(p *parser, line []byte) []byte {
-	p.parseEndif(string(line))
-	return nil
+func endifDirective(p *parser, data []byte) {
+	p.parseEndif(data)
 }
 
-func defineDirective(p *parser, line []byte) []byte {
-	lhs := trimLeftSpaceBytes(line[len("define "):])
-	p.inDef = []string{string(lhs)}
-	return nil
+func defineDirective(p *parser, data []byte) {
+	p.parseDefine(data)
 }
 
-func overrideDirective(p *parser, line []byte) []byte {
+func overrideDirective(p *parser, data []byte) {
 	p.defOpt = "override"
-	line = trimLeftSpaceBytes(line[len("override "):])
 	defineDirective := map[string]directiveFunc{
 		"define": defineDirective,
 	}
-	if f, ok := p.isDirective(line, defineDirective); ok {
-		f(p, line)
-		return nil
+	logf("override define? %q", data)
+	if p.handleDirective(data, defineDirective) {
+		return
 	}
 	// e.g. overrider foo := bar
 	// line will be "foo := bar".
-	return line
+	p.handleRuleOrAssign(data)
 }
 
-func handleExport(p *parser, line []byte, export bool) (hasEqual bool) {
-	equalIndex := bytes.IndexByte(line, '=')
-	if equalIndex > 0 {
+func handleExport(p *parser, data []byte, export bool) (hasEqual bool) {
+	i := bytes.IndexByte(data, '=')
+	if i > 0 {
 		hasEqual = true
-		switch line[equalIndex-1] {
+		switch data[i-1] {
 		case ':', '+', '?':
-			equalIndex--
+			i--
 		}
-		line = line[:equalIndex]
+		data = data[:i]
 	}
 
 	east := &exportAST{
-		expr:   line,
+		expr:   data,
 		export: export,
 	}
 	east.srcpos = p.srcpos()
@@ -539,166 +495,117 @@ func handleExport(p *parser, line []byte, export bool) (hasEqual bool) {
 	return hasEqual
 }
 
-func exportDirective(p *parser, line []byte) []byte {
+func exportDirective(p *parser, data []byte) {
 	p.defOpt = "export"
-	line = trimLeftSpaceBytes(line[len("export "):])
 	defineDirective := map[string]directiveFunc{
 		"define": defineDirective,
 	}
-	if f, ok := p.isDirective(line, defineDirective); ok {
-		f(p, line)
-		return nil
+	logf("export define? %q", data)
+	if p.handleDirective(data, defineDirective) {
+		return
 	}
 
-	if !handleExport(p, line, true) {
-		return nil
+	if !handleExport(p, data, true) {
+		return
 	}
 
 	// e.g. export foo := bar
 	// line will be "foo := bar".
-	return line
+	p.handleRuleOrAssign(data)
 }
 
-func unexportDirective(p *parser, line []byte) []byte {
-	handleExport(p, line[len("unexport "):], false)
-	return nil
-}
-
-func (p *parser) isEndef(s string) bool {
-	if s == "endef" {
-		return true
-	}
-	found := strings.IndexAny(s, " \t")
-	if found >= 0 && s[:found] == "endef" {
-		rest := strings.TrimSpace(s[found+1:])
-		if rest != "" && rest[0] != '#' {
-			warnNoPrefix(p.srcpos(), "extraneous text after \"endef\" directive")
-		}
-		return true
-	}
-	return false
+func unexportDirective(p *parser, data []byte) {
+	handleExport(p, data, false)
+	return
 }
 
 func (p *parser) parse() (mk makefile, err error) {
 	for !p.done {
 		line := p.readLine()
-
-		if len(p.inDef) > 0 {
-			lineStr := string(p.processDefineLine(line))
-			if p.isEndef(lineStr) {
-				logf("multilineAssign %q", p.inDef)
-				aast, err := newAssignAST(p, []byte(p.inDef[0]), []byte(strings.Join(p.inDef[1:], "\n")), "=")
-				if err != nil {
-					return makefile{}, err
-				}
-				aast.srcpos = p.srcpos()
-				aast.srcpos.lineno -= len(p.inDef)
-				p.addStatement(aast)
-				p.inDef = nil
-				p.defOpt = ""
-				continue
-			}
-			p.inDef = append(p.inDef, lineStr)
-			continue
-		}
-		p.defOpt = ""
-
-		if len(bytes.TrimSpace(line)) == 0 {
-			continue
-		}
-
-		if f, ok := p.isDirective(line, makeDirectives); ok {
-			line = trimSpaceBytes(p.processMakefileLine(line))
-			line = f(p, line)
+		logf("line: %q", line)
+		if p.defineVar != nil {
+			p.processDefine(line)
 			if p.err != nil {
 				return makefile{}, p.err
 			}
-			if len(line) == 0 {
-				continue
-			}
-		}
-		if line[0] == '\t' {
-			cast := &commandAST{cmd: string(p.processRecipeLine(line[1:]))}
-			cast.srcpos = p.srcpos()
-			p.addStatement(cast)
 			continue
 		}
-
-		line = p.processMakefileLine(line)
-
-		var stmt ast
-		var parenStack []byte
-		equalIndex := -1
-		semicolonIndex := -1
-		isRule := false
-		for i, ch := range line {
-			switch ch {
-			case '(', '{':
-				parenStack = append(parenStack, ch)
-			case ')', '}':
-				if len(parenStack) == 0 {
-					warn(p.srcpos(), "Unmatched parens: %s", line)
-				} else {
-					cp := closeParen(parenStack[len(parenStack)-1])
-					if cp == ch {
-						parenStack = parenStack[:len(parenStack)-1]
-					}
-				}
-			}
-			if len(parenStack) > 0 {
+		p.defOpt = ""
+		if p.inRecipe {
+			if len(line) > 0 && line[0] == '\t' {
+				cast := &commandAST{cmd: string(line[1:])}
+				cast.srcpos = p.srcpos()
+				p.addStatement(cast)
 				continue
 			}
-
-			switch ch {
-			case ':':
-				if i+1 < len(line) && line[i+1] == '=' {
-					if !isRule {
-						stmt, err = p.parseAssign(line, i, i+2)
-						if err != nil {
-							return makefile{}, err
-						}
-					}
-				} else {
-					isRule = true
-				}
-			case ';':
-				if semicolonIndex < 0 {
-					semicolonIndex = i
-				}
-			case '=':
-				if !isRule {
-					stmt, err = p.parseAssign(line, i, i+1)
-					if err != nil {
-						return makefile{}, err
-					}
-				}
-				if equalIndex < 0 {
-					equalIndex = i
-				}
-			case '?', '+':
-				if !isRule && i+1 < len(line) && line[i+1] == '=' {
-					stmt, err = p.parseAssign(line, i, i+2)
-					if err != nil {
-						return makefile{}, err
-					}
-				}
-			}
-			if stmt != nil {
-				p.addStatement(stmt)
-				break
-			}
 		}
-		if stmt == nil {
-			stmt, err = p.parseMaybeRule(line, equalIndex, semicolonIndex)
-			if err != nil {
-				return makefile{}, err
-			}
-			if stmt != nil {
-				p.addStatement(stmt)
-			}
+		p.parseLine(line)
+		if p.err != nil {
+			return makefile{}, p.err
 		}
 	}
 	return p.mk, p.err
+}
+
+func (p *parser) parseLine(line []byte) {
+	cline := concatline(line)
+	if len(cline) == 0 {
+		return
+	}
+	logf("concatline:%q", cline)
+	var dline []byte
+	cline, _ = removeComment(cline)
+	dline = append(dline, cline...)
+	dline = trimSpaceBytes(dline)
+	if len(dline) == 0 {
+		return
+	}
+	logf("directive?: %q", dline)
+	if p.handleDirective(dline, makeDirectives) {
+		return
+	}
+	logf("rule or assign?: %q", line)
+	p.handleRuleOrAssign(line)
+}
+
+func (p *parser) processDefine(line []byte) {
+	line = concatline(line)
+	logf("concatline:%q", line)
+	if !p.isEndef(line) {
+		if len(p.inDef) != 0 {
+			p.inDef = append(p.inDef, '\n')
+		}
+		p.inDef = append(p.inDef, line...)
+		return
+	}
+	logf("multilineAssign %q %q", p.defineVar, p.inDef)
+	aast, err := newAssignAST(p, p.defineVar, p.inDef, "=")
+	if err != nil {
+		p.err = p.srcpos().errorf("assign error %q=%q: %v", p.defineVar, p.inDef, err)
+		return
+	}
+	aast.srcpos = p.srcpos()
+	aast.srcpos.lineno -= bytes.Count(p.inDef, []byte{'\n'})
+	p.addStatement(aast)
+	p.defineVar = nil
+	p.inDef = nil
+	return
+}
+
+func (p *parser) isEndef(line []byte) bool {
+	if bytes.Equal(line, []byte("endef")) {
+		return true
+	}
+	w, data := firstWord(line)
+	if bytes.Equal(w, []byte("endef")) {
+		data, _ = removeComment(data)
+		data = trimLeftSpaceBytes(data)
+		if len(data) > 0 {
+			warnNoPrefix(p.srcpos(), `extraneous text after "endef" directive`)
+		}
+		return true
+	}
+	return false
 }
 
 func defaultMakefile() (string, error) {

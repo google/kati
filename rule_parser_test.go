@@ -22,6 +22,7 @@ import (
 func TestRuleParser(t *testing.T) {
 	for _, tc := range []struct {
 		in     string
+		rhs    expr
 		want   rule
 		assign *assignAST
 		err    string
@@ -55,6 +56,7 @@ func TestRuleParser(t *testing.T) {
 		{
 			in: "%.o: %.c",
 			want: rule{
+				outputs:        []string{},
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 				inputs:         []string{"%.c"},
 			},
@@ -96,7 +98,8 @@ func TestRuleParser(t *testing.T) {
 			},
 		},
 		{
-			in: "foo: CFLAGS = -g",
+			in:  "foo: CFLAGS =",
+			rhs: expr{literal("-g")},
 			want: rule{
 				outputs: []string{"foo"},
 			},
@@ -107,7 +110,8 @@ func TestRuleParser(t *testing.T) {
 			},
 		},
 		{
-			in: "foo: CFLAGS=-g",
+			in:  "foo: CFLAGS=",
+			rhs: expr{literal("-g")},
 			want: rule{
 				outputs: []string{"foo"},
 			},
@@ -118,7 +122,8 @@ func TestRuleParser(t *testing.T) {
 			},
 		},
 		{
-			in: "foo: CFLAGS := -g",
+			in:  "foo: CFLAGS :=",
+			rhs: expr{literal("-g")},
 			want: rule{
 				outputs: []string{"foo"},
 			},
@@ -129,8 +134,10 @@ func TestRuleParser(t *testing.T) {
 			},
 		},
 		{
-			in: "%.o: CFLAGS := -g",
+			in:  "%.o: CFLAGS :=",
+			rhs: expr{literal("-g")},
 			want: rule{
+				outputs:        []string{},
 				outputPatterns: []pattern{pattern{suffix: ".o"}},
 			},
 			assign: &assignAST{
@@ -147,36 +154,36 @@ func TestRuleParser(t *testing.T) {
 		*/
 	} {
 		got := &rule{}
-		assign, err := got.parse([]byte(tc.in))
+		assign, err := got.parse([]byte(tc.in), tc.rhs)
 		if tc.err != "" {
 			if err == nil {
-				t.Errorf(`r.parse(%q)=_, <nil>, want _, %q`, tc.in, tc.err)
+				t.Errorf(`r.parse(%q, %v)=_, <nil>, want _, %q`, tc.in, tc.rhs, tc.err)
 				continue
 			}
 			if got, want := err.Error(), tc.err; got != want {
-				t.Errorf(`r.parse(%q)=_, %s, want %s`, tc.in, got, want)
+				t.Errorf(`r.parse(%q, %v)=_, %s, want %s`, tc.in, tc.rhs, got, want)
 			}
 			continue
 		}
 		if err != nil {
-			t.Errorf(`r.parse(%q)=_, %v; want nil error`, tc.in, err)
+			t.Errorf(`r.parse(%q, %v)=_, %v; want nil error`, tc.in, tc.rhs, err)
 			continue
 		}
 		if !reflect.DeepEqual(*got, tc.want) {
-			t.Errorf(`r.parse(%q); r=%#v, want %#v`, tc.in, *got, tc.want)
+			t.Errorf(`r.parse(%q, %v); r=%#v, want %#v`, tc.in, tc.rhs, *got, tc.want)
 		}
 		if tc.assign != nil {
 			if assign == nil {
-				t.Errorf(`r.parse(%q)=<nil>; want=%#v`, tc.in, tc.assign)
+				t.Errorf(`r.parse(%q, %v)=<nil>; want=%#v`, tc.in, tc.rhs, tc.assign)
 				continue
 			}
 			if got, want := assign, tc.assign; !reflect.DeepEqual(got, want) {
-				t.Errorf(`r.parse(%q)=%#v; want=%#v`, tc.in, got, want)
+				t.Errorf(`r.parse(%q, %v)=%#v; want=%#v`, tc.in, tc.rhs, got, want)
 			}
 			continue
 		}
 		if assign != nil {
-			t.Errorf(`r.parse(%q)=%v; want=<nil>`, tc.in, assign)
+			t.Errorf(`r.parse(%q, %v)=%v; want=<nil>`, tc.in, tc.rhs, assign)
 		}
 	}
 }
