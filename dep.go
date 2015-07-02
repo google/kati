@@ -17,7 +17,6 @@ package kati
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -45,9 +44,7 @@ type depBuilder struct {
 	rules    map[string]*rule
 	ruleVars map[string]Vars
 
-	implicitRules []*rule // pattern=%. no prefix,suffix.
-	iprefixRules  []*rule // pattern=prefix%..  may have suffix
-	isuffixRules  []*rule // pattern=%suffix  no prefix
+	implicitRules *ruleTrie
 
 	suffixRules map[string][]*rule
 	firstRule   *rule
@@ -61,6 +58,70 @@ type depBuilder struct {
 	pickImplicitRuleCnt           int
 	pickSuffixRuleCnt             int
 	pickExplicitRuleWithoutCmdCnt int
+}
+
+type ruleTrieEntry struct {
+	rule   *rule
+	suffix string
+}
+
+type ruleTrie struct {
+	rules    []ruleTrieEntry
+	children map[byte]*ruleTrie
+}
+
+func newRuleTrie() *ruleTrie {
+	return &ruleTrie{
+		children: make(map[byte]*ruleTrie),
+	}
+}
+
+func (rt *ruleTrie) add(name string, r *rule) {
+	logf("rule trie: add %q %v %s", name, r.outputPatterns[0], r)
+	if name == "" || name[0] == '%' {
+		logf("rule trie: add entry %q %v %s", name, r.outputPatterns[0], r)
+		rt.rules = append(rt.rules, ruleTrieEntry{
+			rule:   r,
+			suffix: name,
+		})
+		return
+	}
+	c, found := rt.children[name[0]]
+	if !found {
+		c = newRuleTrie()
+		rt.children[name[0]] = c
+	}
+	c.add(name[1:], r)
+}
+
+func (rt *ruleTrie) lookup(name string) []*rule {
+	logf("rule trie: lookup %q", name)
+	if rt == nil {
+		return nil
+	}
+	var rules []*rule
+	for _, entry := range rt.rules {
+		if (entry.suffix == "" && name == "") || strings.HasSuffix(name, entry.suffix[1:]) {
+			rules = append(rules, entry.rule)
+		}
+	}
+	if name == "" {
+		return rules
+	}
+	rules = append(rules, rt.children[name[0]].lookup(name[1:])...)
+	logf("rule trie: lookup %q => %v", name, rules)
+	return rules
+}
+
+func (rt *ruleTrie) size() int {
+	if rt == nil {
+		return 0
+	}
+	size := len(rt.rules)
+	for _, c := range rt.children {
+		size += c.size()
+	}
+	return size
 }
 
 func replaceSuffix(s string, newsuf string) string {
@@ -79,55 +140,6 @@ func (db *depBuilder) exists(target string) bool {
 		return true
 	}
 	return exists(target)
-}
-
-func (db *depBuilder) PickImplicitRules(output string) []*rule {
-	var rules []*rule
-	i := sort.Search(len(db.iprefixRules), func(i int) bool {
-		prefix := db.iprefixRules[i].outputPatterns[0].prefix
-		if strings.HasPrefix(output, prefix) {
-			return true
-		}
-		return prefix >= output
-	})
-	if i < len(db.iprefixRules) {
-		for ; i < len(db.iprefixRules); i++ {
-			rule := db.iprefixRules[i]
-			if !strings.HasPrefix(output, rule.outputPatterns[0].prefix) {
-				break
-			}
-			if db.canPickImplicitRule(rule, output) {
-				rules = append(rules, rule)
-			}
-		}
-	}
-
-	i = sort.Search(len(db.isuffixRules), func(i int) bool {
-		suffix := db.isuffixRules[i].outputPatterns[0].suffix
-		if strings.HasSuffix(output, suffix) {
-			return true
-		}
-		return reverse(suffix) >= reverse(output)
-	})
-	if i < len(db.isuffixRules) {
-		for ; i < len(db.isuffixRules); i++ {
-			rule := db.isuffixRules[i]
-			if !strings.HasSuffix(output, rule.outputPatterns[0].suffix) {
-				break
-			}
-			if db.canPickImplicitRule(rule, output) {
-				rules = append(rules, rule)
-			}
-		}
-	}
-	for _, rule := range db.implicitRules {
-		if db.canPickImplicitRule(rule, output) {
-			rules = append(rules, rule)
-		}
-	}
-	// TODO(ukai): which implicit rules is selected?
-	// longest match? last defined?
-	return rules
 }
 
 func (db *depBuilder) canPickImplicitRule(r *rule, output string) bool {
@@ -179,7 +191,14 @@ func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
 		db.pickExplicitRuleWithoutCmdCnt++
 	}
 
-	for _, irule := range db.PickImplicitRules(output) {
+	irules := db.implicitRules.lookup(output)
+	for i := len(irules) - 1; i >= 0; i-- {
+		irule := irules[i]
+		if !db.canPickImplicitRule(irule, output) {
+			logf("ignore implicit rule %q %s", output, irule)
+			continue
+		}
+		logf("pick implicit rule %q => %q %s", output, irule.outputPatterns, irule)
 		db.pickImplicitRuleCnt++
 		if r != nil {
 			ir := &rule{}
@@ -438,13 +457,7 @@ func (db *depBuilder) populateImplicitRule(r *rule) {
 		ir := &rule{}
 		*ir = *r
 		ir.outputPatterns = []pattern{outputPattern}
-		if outputPattern.prefix != "" {
-			db.iprefixRules = append(db.iprefixRules, ir)
-		} else if outputPattern.suffix != "" {
-			db.isuffixRules = append(db.isuffixRules, ir)
-		} else {
-			db.implicitRules = append(db.implicitRules, ir)
-		}
+		db.implicitRules.add(outputPattern.String(), ir)
 	}
 }
 
@@ -465,14 +478,6 @@ func (db *depBuilder) populateRules(er *evalResult) error {
 		}
 	}
 
-	// reverse to the last implicit rules should be selected.
-	// testcase/implicit_pattern_rule.mk
-	reverseImplicitRules(db.implicitRules)
-	reverseImplicitRules(db.iprefixRules)
-	reverseImplicitRules(db.isuffixRules)
-
-	sort.Stable(byPrefix(db.iprefixRules))
-	sort.Stable(bySuffix(db.isuffixRules))
 	return nil
 }
 
@@ -513,12 +518,13 @@ func (db *depBuilder) reportStats() {
 
 func newDepBuilder(er *evalResult, vars Vars) (*depBuilder, error) {
 	db := &depBuilder{
-		rules:       make(map[string]*rule),
-		ruleVars:    er.ruleVars,
-		suffixRules: make(map[string][]*rule),
-		vars:        vars,
-		done:        make(map[string]*DepNode),
-		phony:       make(map[string]bool),
+		rules:         make(map[string]*rule),
+		ruleVars:      er.ruleVars,
+		implicitRules: newRuleTrie(),
+		suffixRules:   make(map[string][]*rule),
+		vars:          vars,
+		done:          make(map[string]*DepNode),
+		phony:         make(map[string]bool),
 	}
 
 	err := db.populateRules(er)
@@ -544,7 +550,7 @@ func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 
 	logStats("%d variables", len(db.vars))
 	logStats("%d explicit rules", len(db.rules))
-	logStats("%d implicit rules", len(db.implicitRules))
+	logStats("%d implicit rules", db.implicitRules.size())
 	logStats("%d suffix rules", len(db.suffixRules))
 
 	var nodes []*DepNode
