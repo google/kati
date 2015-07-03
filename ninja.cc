@@ -346,7 +346,7 @@ class NinjaGenerator {
     if (g_goma_dir) {
       fprintf(fp_, "pool local_pool\n");
       // TODO: Decide the appropriate number based on the number of cores.
-      fprintf(fp_, " depth = %d\n", 64);
+      fprintf(fp_, " depth = %d\n", 32);
     }
 
     for (DepNode* node : nodes) {
