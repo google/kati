@@ -453,7 +453,7 @@ Value* ParseExprImpl(const Loc& loc,
         r->AddValue(new Literal(s.substr(b, i-b)));
 
       if (s[i+1] == '$') {
-        r->AddValue(new Literal(STRING_PIECE("$")));
+        r->AddValue(new Literal(StringPiece("$")));
         i += 1;
         b = i + 1;
         continue;
@@ -512,7 +512,7 @@ Value* ParseExprImpl(const Loc& loc,
         if (i > b) {
           r->AddValue(new Literal(TrimRightSpace(s.substr(b, i-b))));
         }
-        r->AddValue(new Literal(STRING_PIECE(" ")));
+        r->AddValue(new Literal(StringPiece(" ")));
         for (i++; i < s.size(); i++) {
           if (!isspace(s[i]) &&
               (s[i] != '\\' || (s.get(i+1) != '\r' && s.get(i+1) != '\n'))) {

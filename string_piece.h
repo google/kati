@@ -41,8 +41,6 @@
 //#include "base/base_api.h"
 //#include "base/basictypes.h"
 
-#define STRING_PIECE(s) StringPiece(s, sizeof(s) - 1)
-
 class StringPiece {
  public:
   // standard STL container boilerplate

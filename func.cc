@@ -294,7 +294,7 @@ void NotdirFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*text)) {
     if (tok == "/") {
-      ww.Write(STRING_PIECE(""));
+      ww.Write(StringPiece(""));
     } else {
       ww.Write(Basename(tok));
     }

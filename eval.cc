@@ -145,9 +145,9 @@ void Evaluator::EvalRule(const RuleAST* ast) {
         // TODO: We always insert two whitespaces around the
         // terminator. Preserve whitespaces properly.
         if (ast->term == ';') {
-          rhs = NewExpr3(lit, NewLiteral(STRING_PIECE(" ; ")), rhs);
+          rhs = NewExpr3(lit, NewLiteral(StringPiece(" ; ")), rhs);
         } else {
-          rhs = NewExpr3(lit, NewLiteral(STRING_PIECE(" = ")), rhs);
+          rhs = NewExpr3(lit, NewLiteral(StringPiece(" = ")), rhs);
         }
       } else {
         rhs = lit;
@@ -156,7 +156,7 @@ void Evaluator::EvalRule(const RuleAST* ast) {
 
     current_scope_ = p.first->second;
     Symbol lhs = Intern(rule_var.lhs);
-    Var* rhs_var = EvalRHS(lhs, rhs, STRING_PIECE("*TODO*"), rule_var.op);
+    Var* rhs_var = EvalRHS(lhs, rhs, StringPiece("*TODO*"), rule_var.op);
     if (rhs_var)
       current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op));
     current_scope_ = NULL;
