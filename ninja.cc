@@ -17,6 +17,8 @@
 #include "ninja.h"
 
 #include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <memory>
 #include <string>
@@ -355,12 +357,33 @@ class NinjaGenerator {
   }
 
   void GenerateShell() {
-#if 0
-    Var* v = ev->LookupVar("SHELL");
-    shell_ = v->Eval(ev);
-    if (shell_->empty())
-      shell_ = make_shared<string>("/bin/sh");
-#endif
+    FILE* fp = fopen("ninja.sh", "wb");
+    if (fp == NULL)
+      PERROR("fopen(ninja.sh) failed");
+
+    Var* v = ev_->LookupVar(Intern("SHELL"));
+    shared_ptr<string> shell = v->Eval(ev_);
+    if (shell->empty())
+      shell = make_shared<string>("/bin/sh");
+    fprintf(fp, "#!%s\n", shell->c_str());
+
+    for (const auto& p : ev_->exports()) {
+      if (p.second) {
+        shared_ptr<string> val = ev_->LookupVar(p.first)->Eval(ev_);
+        fprintf(fp, "export %s=%s\n", p.first.c_str(), val->c_str());
+      } else {
+        fprintf(fp, "unset %s\n", p.first.c_str());
+      }
+    }
+
+    if (g_goma_dir) {
+      fprintf(fp, "exec ninja -j300 \"$@\"\n");
+    } else {
+      fprintf(fp, "exec ninja \"$@\"\n");
+    }
+
+    if (chmod("ninja.sh", 0755) != 0)
+      PERROR("chmod ninja.sh failed");
   }
 
   CommandEvaluator ce_;
