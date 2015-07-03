@@ -199,6 +199,7 @@ void Evaluator::EvalIf(const IfAST* ast) {
     }
     default:
       CHECK(false);
+      abort();
   }
 
   const vector<AST*>* asts;

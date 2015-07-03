@@ -44,7 +44,7 @@ class Executor {
       : ce_(ev) {
   }
 
-  void ExecNode(DepNode* n, DepNode* needed_by) {
+  void ExecNode(DepNode* n, DepNode* needed_by UNUSED) {
     if (done_[n->output])
       return;
     done_[n->output] = true;
