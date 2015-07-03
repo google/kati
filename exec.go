@@ -41,10 +41,11 @@ type Executor struct {
 }
 
 func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
-	output := n.Output
+	output, _ := existsInVPATH(ex.ctx.ev, n.Output)
 	if neededBy != nil {
 		logf("MakeJob: %s for %s", output, neededBy.n.Output)
 	}
+	n.Output = output
 	ex.buildCnt++
 	if ex.buildCnt%100 == 0 {
 		ex.reportStats()
@@ -88,7 +89,8 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 		deps = append(deps, d)
 	}
 	for _, d := range n.OrderOnlys {
-		if exists(d.Output) {
+		// need lock for ex.ctx.ev?
+		if _, ok := existsInVPATH(ex.ctx.ev, d.Output); ok {
 			j.numDeps--
 			continue
 		}
