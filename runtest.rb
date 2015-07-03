@@ -21,6 +21,7 @@ if ARGV[0] == '-s'
 elsif ARGV[0] == '-c'
   ckati = true
   ARGV.shift
+  ENV['KATI_VARIANT'] = 'c'
 end
 
 def get_output_filenames

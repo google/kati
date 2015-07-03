@@ -1,3 +1,5 @@
+# TODO(c): Fix
+
 x=FAIL
 $(foreach x,FAIL PASS,$(eval x+=$(x)))
 # x will leak if assigned.
