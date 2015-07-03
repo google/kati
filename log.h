@@ -23,6 +23,11 @@
 #include "flags.h"
 #include "stringprintf.h"
 
+using namespace std;
+
+extern bool g_log_no_exit;
+extern string* g_last_error;
+
 #ifdef NOLOG
 #define LOG(args...)
 #else
@@ -48,7 +53,9 @@
 
 #define ERROR(...) do {                                         \
     fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str()); \
-    exit(1);                                                    \
+    if (!g_log_no_exit)                                         \
+      exit(1);                                                  \
+    g_last_error = new string(StringPrintf(__VA_ARGS__));       \
   } while (0)
 
 #define CHECK(c) if (!(c)) ERROR("%s:%d: %s", __FILE__, __LINE__, #c)
