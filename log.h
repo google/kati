@@ -28,6 +28,9 @@ using namespace std;
 extern bool g_log_no_exit;
 extern string* g_last_error;
 
+// Useful for logging-only arguments.
+#define UNUSED __attribute__((unused))
+
 #ifdef NOLOG
 #define LOG(args...)
 #else

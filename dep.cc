@@ -399,7 +399,7 @@ class DepBuilder {
     return rule.get();
   }
 
-  DepNode* BuildPlan(Symbol output, Symbol needed_by) {
+  DepNode* BuildPlan(Symbol output, Symbol needed_by UNUSED) {
     LOG("BuildPlan: %s for %s",
         output.c_str(),
         needed_by.c_str());
