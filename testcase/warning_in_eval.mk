@@ -1,8 +1,7 @@
 warn=$(warning foo)
 
 $(eval $(warn))
-# TODO: Fix
-#$(eval $$(warn))
+$(eval $$(warn))
 $(warning bar)
 
 test:
