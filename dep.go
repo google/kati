@@ -483,29 +483,6 @@ func (db *depBuilder) populateRules(er *evalResult) error {
 	return nil
 }
 
-func reverseImplicitRules(rules []*rule) {
-	for i := 0; i < len(rules)/2; i++ {
-		j := len(rules) - i - 1
-		rules[i], rules[j] = rules[j], rules[i]
-	}
-}
-
-type byPrefix []*rule
-
-func (p byPrefix) Len() int      { return len(p) }
-func (p byPrefix) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p byPrefix) Less(i, j int) bool {
-	return p[i].outputPatterns[0].prefix < p[j].outputPatterns[0].prefix
-}
-
-type bySuffix []*rule
-
-func (s bySuffix) Len() int      { return len(s) }
-func (s bySuffix) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s bySuffix) Less(i, j int) bool {
-	return reverse(s[i].outputPatterns[0].suffix) < reverse(s[j].outputPatterns[0].suffix)
-}
-
 func (db *depBuilder) reportStats() {
 	if !LogFlag && !PeriodicStatsFlag {
 		return
