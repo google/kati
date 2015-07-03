@@ -242,15 +242,6 @@ func trimLeadingCurdir(s string) string {
 	return s
 }
 
-func reverse(s string) string {
-	// TODO(ukai): support UTF-8?
-	r := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		r[i] = s[len(s)-1-i]
-	}
-	return string(r)
-}
-
 func contains(list []string, s string) bool {
 	for _, v := range list {
 		if v == s {
