@@ -25,6 +25,7 @@ CXX_SRCS:= \
 	find.cc \
 	flags.cc \
 	func.cc \
+	log.cc \
 	main.cc \
 	ninja.cc \
 	parser.cc \

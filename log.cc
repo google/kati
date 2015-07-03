@@ -12,22 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NINJA_H_
-#define NINJA_H_
+// +build ignore
 
-#include <string>
-#include <vector>
+#include "log.h"
 
-#include "string_piece.h"
-
-using namespace std;
-
-class DepNode;
-class Evaluator;
-
-void GenerateNinja(const vector<DepNode*>& nodes, Evaluator* ev);
-
-// Exposed only for test.
-bool GetDepfileFromCommand(StringPiece cmd, string* out);
-
-#endif  // NINJA_H_
+bool g_log_no_exit;
+string* g_last_error;
