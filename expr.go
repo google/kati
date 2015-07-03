@@ -26,7 +26,6 @@ import (
 )
 
 var (
-	errEndOfInput = errors.New("parse: unexpected end of input")
 	errNotLiteral = errors.New("valueNum: not literal")
 
 	bufFree = sync.Pool{
@@ -323,14 +322,21 @@ func valueNum(v Value) (int, error) {
 	return 0, errNotLiteral
 }
 
+type parseOp struct {
+	// alloc indicates text will be allocated as literal (string)
+	alloc bool
+
+	// matchParen matches parenthesis.
+	// note: required for func arg
+	matchParen bool
+}
+
 // parseExpr parses expression in `in` until it finds any byte in term.
 // if term is nil, it will parse to end of input.
-// if term is not nil, and it reaches to end of input, return errEndOfInput.
+// if term is not nil, and it reaches to end of input, return error.
 // it returns parsed value, and parsed length `n`, so in[n-1] is any byte of
 // term, and in[n:] is next input.
-// if alloc is true, text will be literal (allocate string).
-// otherwise, text will be tmpval on in.
-func parseExpr(in, term []byte, alloc bool) (Value, int, error) {
+func parseExpr(in, term []byte, op parseOp) (Value, int, error) {
 	var exp expr
 	b := 0
 	i := 0
@@ -348,20 +354,20 @@ Loop:
 				break Loop
 			}
 			if in[i+1] == '$' {
-				exp = appendStr(exp, in[b:i+1], alloc)
+				exp = appendStr(exp, in[b:i+1], op.alloc)
 				i += 2
 				b = i
 				continue
 			}
 			if bytes.IndexByte(term, in[i+1]) >= 0 {
-				exp = appendStr(exp, in[b:i], alloc)
+				exp = appendStr(exp, in[b:i], op.alloc)
 				exp = append(exp, &varref{varname: literal("")})
 				i++
 				b = i
 				break Loop
 			}
-			exp = appendStr(exp, in[b:i], alloc)
-			v, n, err := parseDollar(in[i:], alloc)
+			exp = appendStr(exp, in[b:i], op.alloc)
+			v, n, err := parseDollar(in[i:], op.alloc)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -370,6 +376,9 @@ Loop:
 			exp = append(exp, v)
 			continue
 		case '(', '{':
+			if !op.matchParen {
+				break
+			}
 			cp := closeParen(ch)
 			if i := bytes.IndexByte(term, cp); i >= 0 {
 				parenDepth++
@@ -379,6 +388,9 @@ Loop:
 				parenDepth++
 			}
 		case saveParen:
+			if !op.matchParen {
+				break
+			}
 			parenDepth--
 			if parenDepth == 0 {
 				i := bytes.IndexByte(term, 0)
@@ -388,9 +400,9 @@ Loop:
 		}
 		i++
 	}
-	exp = appendStr(exp, in[b:i], alloc)
+	exp = appendStr(exp, in[b:i], op.alloc)
 	if i == len(in) && term != nil {
-		return exp, i, errEndOfInput
+		return exp, i, fmt.Errorf("parse: unexpected end of input: %q %d [%q]", in, i, term)
 	}
 	return compactExpr(exp), i, nil
 }
@@ -433,9 +445,10 @@ func parseDollar(in []byte, alloc bool) (Value, int, error) {
 	term := []byte{paren, ':', ' '}
 	var varname expr
 	i := 2
+	op := parseOp{alloc: alloc}
 Again:
 	for {
-		e, n, err := parseExpr(in[i:], term, alloc)
+		e, n, err := parseExpr(in[i:], term, op)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -457,7 +470,7 @@ Again:
 			case literal, tmpval:
 				funcName := intern(token.String())
 				if f, ok := funcMap[funcName]; ok {
-					return parseFunc(f(), in, i+1, term[:1], funcName, alloc)
+					return parseFunc(f(), in, i+1, term[:1], funcName, op.alloc)
 				}
 			}
 			term = term[:2] // drop ' '
@@ -465,20 +478,21 @@ Again:
 		case ':':
 			// ${varname:...}
 			colon := in[i : i+1]
-			term = term[:2]
-			term[1] = '=' // term={paren, '='}.
-			e, n, err := parseExpr(in[i+1:], term, alloc)
+			var vterm []byte
+			vterm = append(vterm, term[:2]...)
+			vterm[1] = '=' // term={paren, '='}.
+			e, n, err := parseExpr(in[i+1:], vterm, op)
 			if err != nil {
 				return nil, 0, err
 			}
 			i += 1 + n
 			if in[i] == paren {
-				varname = appendStr(varname, colon, alloc)
+				varname = appendStr(varname, colon, op.alloc)
 				return &varref{varname: varname, paren: oparen}, i + 1, nil
 			}
 			// ${varname:xx=...}
 			pat := e
-			subst, n, err := parseExpr(in[i+1:], term[:1], alloc)
+			subst, n, err := parseExpr(in[i+1:], term[:1], op)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -600,12 +614,13 @@ func parseFunc(f mkFunc, in []byte, s int, term []byte, funcName string, alloc b
 		return f, i, nil
 	}
 	narg := 1
+	op := parseOp{alloc: alloc, matchParen: true}
 	for {
 		if arity != 0 && narg >= arity {
 			// final arguments.
 			term = term[:1] // drop ','
 		}
-		v, n, err := parseExpr(in[i:], term, alloc)
+		v, n, err := parseExpr(in[i:], term, op)
 		if err != nil {
 			return nil, 0, err
 		}

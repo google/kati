@@ -1,5 +1,3 @@
-# TODO(go): Fix.
-
 PAREN:=(
 $(PAREN):=PASS
 

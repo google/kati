@@ -289,7 +289,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 
 	if assign != nil {
 		if ast.term == ';' {
-			nexpr, _, err := parseExpr(ast.afterTerm, nil, false)
+			nexpr, _, err := parseExpr(ast.afterTerm, nil, parseOp{})
 			if err != nil {
 				return ast.errorf("parse error: %q: %v", string(ast.afterTerm), err)
 			}
@@ -424,7 +424,7 @@ func (ev *Evaluator) evalInclude(ast *includeAST) error {
 	ev.srcpos = ast.srcpos
 
 	logf("%s include %q", ev.srcpos, ast.expr)
-	v, _, err := parseExpr([]byte(ast.expr), nil, false)
+	v, _, err := parseExpr([]byte(ast.expr), nil, parseOp{})
 	if err != nil {
 		return ast.errorf("parse failed: %q: %v", ast.expr, err)
 	}
@@ -538,7 +538,7 @@ func (ev *Evaluator) evalExport(ast *exportAST) error {
 	ev.lastRule = nil
 	ev.srcpos = ast.srcpos
 
-	v, _, err := parseExpr(ast.expr, nil, false)
+	v, _, err := parseExpr(ast.expr, nil, parseOp{})
 	if err != nil {
 		return ast.errorf("failed to parse: %q: %v", string(ast.expr), err)
 	}
