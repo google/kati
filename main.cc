@@ -82,6 +82,8 @@ static void ParseCommandLine(int argc, char* argv[],
     } else if (!strcmp(arg, "--use_find_emulator")) {
       g_use_find_emulator = true;
     } else if (ParseCommandLineOptionWithArg(
+        "--goma_dir", argv, &i, &g_goma_dir)) {
+    } else if (ParseCommandLineOptionWithArg(
         "--ignore_optional_include",
         argv, &i, &g_ignore_optional_include_pattern)) {
     } else if (arg[0] == '-') {
