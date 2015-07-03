@@ -236,7 +236,7 @@ func (r runner) eval(ev *Evaluator, s string) ([]runner, error) {
 		return []runner{r}, nil
 	}
 	// TODO(ukai): parse once more earlier?
-	expr, _, err := parseExpr([]byte(r.cmd), nil, false)
+	expr, _, err := parseExpr([]byte(r.cmd), nil, parseOp{})
 	if err != nil {
 		return nil, ev.errorf("parse cmd %q: %v", r.cmd, err)
 	}

@@ -167,11 +167,11 @@ func (p *parser) processRecipeLine(line []byte) []byte {
 }
 
 func newAssignAST(p *parser, lhsBytes []byte, rhsBytes []byte, op string) (*assignAST, error) {
-	lhs, _, err := parseExpr(lhsBytes, nil, true)
+	lhs, _, err := parseExpr(lhsBytes, nil, parseOp{alloc: true})
 	if err != nil {
 		return nil, err
 	}
-	rhs, _, err := parseExpr(rhsBytes, nil, true)
+	rhs, _, err := parseExpr(rhsBytes, nil, parseOp{alloc: true})
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (p *parser) parseMaybeRule(line []byte, equalIndex, semicolonIndex int) (as
 		term = '='
 	}
 
-	v, _, err := parseExpr(expr, nil, true)
+	v, _, err := parseExpr(expr, nil, parseOp{alloc: true})
 	if err != nil {
 		return nil, p.srcpos().error(err)
 	}
@@ -249,7 +249,7 @@ func (p *parser) parseInclude(line string, oplen int) {
 }
 
 func (p *parser) parseIfdef(line []byte, oplen int) {
-	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil, true)
+	lhs, _, err := parseExpr(trimLeftSpaceBytes(line[oplen+1:]), nil, parseOp{alloc: true})
 	if err != nil {
 		p.err = p.srcpos().error(err)
 		return
@@ -296,14 +296,14 @@ func (p *parser) parseEq(s string, op string) (string, string, bool, error) {
 		s = s[1 : len(s)-1]
 		term := []byte{','}
 		in := []byte(s)
-		v, n, err := parseExpr(in, term, false)
+		v, n, err := parseExpr(in, term, parseOp{matchParen: true})
 		if err != nil {
 			return "", "", false, err
 		}
 		lhs := v.String()
 		n++
 		n += skipSpaces(in[n:], nil)
-		v, n, err = parseExpr(in[n:], nil, false)
+		v, n, err = parseExpr(in[n:], nil, parseOp{matchParen: true})
 		if err != nil {
 			return "", "", false, err
 		}
@@ -329,12 +329,12 @@ func (p *parser) parseIfeq(line string, oplen int) {
 		return
 	}
 
-	lhs, _, err := parseExpr([]byte(lhsBytes), nil, true)
+	lhs, _, err := parseExpr([]byte(lhsBytes), nil, parseOp{matchParen: true})
 	if err != nil {
 		p.err = p.srcpos().error(err)
 		return
 	}
-	rhs, _, err := parseExpr([]byte(rhsBytes), nil, true)
+	rhs, _, err := parseExpr([]byte(rhsBytes), nil, parseOp{matchParen: true})
 	if err != nil {
 		p.err = p.srcpos().error(err)
 		return

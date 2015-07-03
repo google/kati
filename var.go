@@ -115,7 +115,7 @@ func (v *simpleVar) dump(d *dumpbuf) {
 }
 
 func (v *simpleVar) Append(ev *Evaluator, s string) (Var, error) {
-	val, _, err := parseExpr([]byte(s), nil, false)
+	val, _, err := parseExpr([]byte(s), nil, parseOp{})
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (v *automaticVar) dump(d *dumpbuf) {
 }
 
 func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
-	val, _, err := parseExpr([]byte(s), nil, false)
+	val, _, err := parseExpr([]byte(s), nil, parseOp{})
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (v *recursiveVar) Append(_ *Evaluator, s string) (Var, error) {
 	} else {
 		exp = expr{v.expr, literal(" ")}
 	}
-	sv, _, err := parseExpr([]byte(s), nil, true)
+	sv, _, err := parseExpr([]byte(s), nil, parseOp{alloc: true})
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (v *recursiveVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
 	buf.WriteString(v.expr.String())
 	buf.WriteByte(' ')
 	buf.WriteString(val.String())
-	e, _, err := parseExpr(buf.Bytes(), nil, true)
+	e, _, err := parseExpr(buf.Bytes(), nil, parseOp{alloc: true})
 	if err != nil {
 		return nil, err
 	}

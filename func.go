@@ -1240,7 +1240,7 @@ func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) error {
 	case ":=":
 		// TODO(ukai): compute parsed expr in Compact when f.rhs is
 		// literal? e.g. literal("$(foo)") => varref{literal("foo")}.
-		exp, _, err := parseExpr(rhs, nil, false)
+		exp, _, err := parseExpr(rhs, nil, parseOp{})
 		if err != nil {
 			return ev.errorf("eval assign error: %q: %v", f.String(), err)
 		}
