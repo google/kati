@@ -49,6 +49,7 @@ type depBuilder struct {
 	suffixRules map[string][]*rule
 	firstRule   *rule
 	vars        Vars
+	ev          *Evaluator
 	done        map[string]*DepNode
 	phony       map[string]bool
 
@@ -139,7 +140,8 @@ func (db *depBuilder) exists(target string) bool {
 	if db.phony[target] {
 		return true
 	}
-	return exists(target)
+	_, ok := existsInVPATH(db.ev, target)
+	return ok
 }
 
 func (db *depBuilder) canPickImplicitRule(r *rule, output string) bool {
@@ -295,7 +297,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 					db.vars[name] = tsv
 				} else {
 					var err error
-					v, err = oldVar.AppendVar(NewEvaluator(db.vars), tsv)
+					v, err = oldVar.AppendVar(db.ev, tsv)
 					if err != nil {
 						return nil, err
 					}
@@ -523,6 +525,7 @@ func newDepBuilder(er *evalResult, vars Vars) (*depBuilder, error) {
 		implicitRules: newRuleTrie(),
 		suffixRules:   make(map[string][]*rule),
 		vars:          vars,
+		ev:            NewEvaluator(vars),
 		done:          make(map[string]*DepNode),
 		phony:         make(map[string]bool),
 	}

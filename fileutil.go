@@ -14,7 +14,11 @@
 
 package kati
 
-import "os"
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+)
 
 func exists(filename string) bool {
 	_, err := os.Stat(filename)
@@ -22,4 +26,34 @@ func exists(filename string) bool {
 		return false
 	}
 	return true
+}
+
+func existsInVPATH(ev *Evaluator, target string) (string, bool) {
+	if exists(target) {
+		return target, true
+	}
+	vpath, found := ev.vars["VPATH"]
+	if !found {
+		return target, false
+	}
+	// TODO(ukai): support vpath directive (pattern vpath).
+	// TODO(ukai): ok to cache vpath value?
+	abuf := newBuf()
+	err := vpath.Eval(abuf, ev)
+	if err != nil {
+		return target, false
+	}
+	// In the 'VPATH' variable, directory names are separated by colons
+	// or blanks. (on windows, semi-colons)
+	ws := newWordScanner(abuf.Bytes())
+	for ws.Scan() {
+		for _, dir := range bytes.Split(ws.Bytes(), []byte{':'}) {
+			vtarget := filepath.Join(string(dir), target)
+			if exists(vtarget) {
+				return vtarget, true
+			}
+		}
+	}
+	freeBuf(abuf)
+	return target, false
 }
