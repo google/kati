@@ -50,18 +50,18 @@ static StringPiece FindCommandLineFlagWithArg(StringPiece cmd,
 }
 
 bool GetDepfileFromCommandImpl(StringPiece cmd, string* out) {
-  if (cmd.find(STRING_PIECE(" -MD ")) == string::npos &&
-      cmd.find(STRING_PIECE(" -MMD ")) == string::npos) {
+  if (cmd.find(StringPiece(" -MD ")) == string::npos &&
+      cmd.find(StringPiece(" -MMD ")) == string::npos) {
     return false;
   }
 
-  StringPiece mf = FindCommandLineFlagWithArg(cmd, STRING_PIECE(" -MF "));
+  StringPiece mf = FindCommandLineFlagWithArg(cmd, StringPiece(" -MF "));
   if (!mf.empty()) {
     mf.AppendToString(out);
     return true;
   }
 
-  StringPiece o = FindCommandLineFlagWithArg(cmd, STRING_PIECE(" -o "));
+  StringPiece o = FindCommandLineFlagWithArg(cmd, StringPiece(" -o "));
   if (o.empty()) {
     ERROR("Cannot find the depfile in %s", cmd.as_string().c_str());
     return false;

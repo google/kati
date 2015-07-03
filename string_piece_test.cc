@@ -24,10 +24,10 @@ using namespace std;
 
 int main() {
   unordered_set<StringPiece> sps;
-  sps.insert(STRING_PIECE("foo"));
-  sps.insert(STRING_PIECE("foo"));
-  sps.insert(STRING_PIECE("bar"));
+  sps.insert(StringPiece("foo"));
+  sps.insert(StringPiece("foo"));
+  sps.insert(StringPiece("bar"));
   assert(sps.size() == 2);
-  assert(sps.count(STRING_PIECE("foo")) == 1);
-  assert(sps.count(STRING_PIECE("bar")) == 1);
+  assert(sps.count(StringPiece("foo")) == 1);
+  assert(sps.count(StringPiece("bar")) == 1);
 }

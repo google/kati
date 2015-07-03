@@ -224,9 +224,9 @@ StringPiece TrimSpace(StringPiece s) {
 StringPiece Dirname(StringPiece s) {
   size_t found = s.rfind('/');
   if (found == string::npos)
-    return STRING_PIECE(".");
+    return StringPiece(".");
   if (found == 0)
-    return STRING_PIECE("");
+    return StringPiece("");
   return s.substr(0, found);
 }
 
@@ -240,7 +240,7 @@ StringPiece Basename(StringPiece s) {
 StringPiece GetExt(StringPiece s) {
   size_t found = s.rfind('.');
   if (found == string::npos)
-    return STRING_PIECE("");
+    return StringPiece("");
   return s.substr(found);
 }
 

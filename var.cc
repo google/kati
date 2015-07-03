@@ -97,7 +97,7 @@ void UndefinedVar::Eval(Evaluator*, string*) const {
 }
 
 StringPiece UndefinedVar::String() const {
-  return STRING_PIECE("");
+  return StringPiece("");
 }
 
 string UndefinedVar::DebugString() const {
