@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -39,4 +41,53 @@ double GetTimestamp(StringPiece filename) {
     return -2.0;
   }
   return st.st_mtime;
+}
+
+int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
+               string* s) {
+  int pipefd[2];
+  if (pipe(pipefd) != 0)
+    PERROR("pipe failed");
+  int pid;
+  if ((pid = vfork())) {
+    int status;
+    close(pipefd[1]);
+    while (true) {
+      int result = waitpid(pid, &status, WNOHANG);
+      if (result < 0)
+        PERROR("waitpid failed");
+
+      while (true) {
+        char buf[4096];
+        ssize_t r = read(pipefd[0], buf, 4096);
+        if (r < 0)
+          PERROR("read failed");
+        if (r == 0)
+          break;
+        s->append(buf, buf+r);
+      }
+
+      if (result != 0) {
+        break;
+      }
+    }
+    close(pipefd[0]);
+
+    return status;
+  } else {
+    close(pipefd[0]);
+    if (redirect_stderr) {
+      if (dup2(pipefd[1], 2) < 0)
+        PERROR("dup2 failed");
+    }
+    if (dup2(pipefd[1], 1) < 0)
+      PERROR("dup2 failed");
+    close(pipefd[1]);
+
+    const char* argv[] = {
+      shell.c_str(), "-c", cmd.c_str(), NULL
+    };
+    execvp(argv[0], const_cast<char**>(argv));
+  }
+  abort();
 }

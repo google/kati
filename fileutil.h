@@ -15,9 +15,16 @@
 #ifndef FILEUTIL_H_
 #define FILEUTIL_H_
 
+#include <string>
+
 #include "string_piece.h"
+
+using namespace std;
 
 bool Exists(StringPiece f);
 double GetTimestamp(StringPiece f);
+
+int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
+               string* out);
 
 #endif  // FILEUTIL_H_

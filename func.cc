@@ -21,8 +21,6 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -32,6 +30,7 @@
 
 #include "ast.h"
 #include "eval.h"
+#include "fileutil.h"
 #include "find.h"
 #include "log.h"
 #include "parser.h"
@@ -430,48 +429,6 @@ static string SortWordsInString(StringPiece s) {
 }
 #endif
 
-static void RunCommand(const string& cmd, string* s) {
-  int pipefd[2];
-  if (pipe(pipefd) != 0)
-    PERROR("pipe failed");
-  int pid;
-  if ((pid = vfork())) {
-    close(pipefd[1]);
-    while (true) {
-      int status;
-      int result = waitpid(pid, &status, WNOHANG);
-      if (result < 0)
-        PERROR("waitpid failed");
-
-      while (true) {
-        char buf[4096];
-        ssize_t r = read(pipefd[0], buf, 4096);
-        if (r < 0)
-          PERROR("read failed");
-        if (r == 0)
-          break;
-        s->append(buf, buf+r);
-      }
-
-      if (result != 0) {
-        break;
-      }
-    }
-    close(pipefd[0]);
-  } else {
-    close(pipefd[0]);
-    if (dup2(pipefd[1], 1) < 0)
-      PERROR("dup2 failed");
-    close(pipefd[1]);
-
-    const char* argv[] = {
-      // TODO: Handle $(SHELL).
-      "/bin/sh", "-c", cmd.c_str(), NULL
-    };
-    execvp(argv[0], const_cast<char**>(argv));
-  }
-}
-
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io()) {
@@ -496,21 +453,8 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
   COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd->c_str());
   string out;
-#if 0
-  // TODO: Handle $(SHELL).
-  FILE* fp = popen(cmd->c_str(), "r");
-  while (true) {
-    char buf[4096];
-    size_t r = fread(buf, 1, 4096, fp);
-    out.append(buf, buf+r);
-    if (r == 0) {
-      fclose(fp);
-      break;
-    }
-  }
-#else
-  RunCommand(*cmd, &out);
-#endif
+  shared_ptr<string> shell = ev->EvalVar(kShellSym);
+  RunCommand(*shell, *cmd, false, &out);
 
   while (out[out.size()-1] == '\n')
     out.pop_back();

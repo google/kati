@@ -28,6 +28,11 @@ class Symtab;
 
 class Symbol {
  public:
+  struct IsUninitialized {};
+  explicit Symbol(IsUninitialized)
+    : v_(-1) {
+  }
+
   const string& str() const {
     return (*g_symbols)[v_];
   }
@@ -66,6 +71,8 @@ template<> struct hash<Symbol> {
   }
 };
 }
+
+extern Symbol kShellSym;
 
 void InitSymtab();
 void QuitSymtab();

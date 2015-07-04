@@ -25,6 +25,8 @@
 
 vector<string>* g_symbols;
 
+Symbol kShellSym = Symbol(Symbol::IsUninitialized());
+
 Symbol::Symbol(int v)
     : v_(v) {
 }
@@ -45,6 +47,8 @@ class Symtab {
       s = InternImpl(b);
       CHECK(s.val() == i);
     }
+
+    kShellSym = Intern("SHELL");
   }
 
   Symbol InternImpl(StringPiece s) {

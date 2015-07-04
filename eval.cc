@@ -304,6 +304,10 @@ Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
   return in_vars_->Lookup(name);
 }
 
+shared_ptr<string> Evaluator::EvalVar(Symbol name) {
+  return LookupVar(name)->Eval(this);
+}
+
 void Evaluator::Error(const string& msg) {
   ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
 }
