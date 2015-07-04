@@ -280,15 +280,15 @@ bool ShouldHandleComments(ParseExprOpt opt) {
   return opt != ParseExprOpt::DEFINE && opt != ParseExprOpt::COMMAND;
 }
 
-Value* ParseFunc(const Loc& loc,
-                 Func* f, StringPiece s, size_t i, char* terms,
-                 size_t* index_out) {
+void ParseFunc(const Loc& loc,
+               Func* f, StringPiece s, size_t i, char* terms,
+               size_t* index_out) {
   terms[1] = ',';
   terms[2] = '\0';
   i += SkipSpaces(s.substr(i), terms);
   if (i == s.size()) {
     *index_out = i;
-    return f;
+    return;
   }
 
   int nargs = 1;
@@ -309,6 +309,11 @@ Value* ParseFunc(const Loc& loc,
     // TODO: concatLine???
     f->AddArg(v);
     i += n;
+    if (i == s.size()) {
+      ERROR("%s:%d: *** unterminated call to function '%s': "
+            "missing '%c'.",
+            LOCF(loc), f->name(), terms[0]);
+    }
     nargs++;
     if (s[i] == terms[0]) {
       i++;
@@ -325,7 +330,7 @@ Value* ParseFunc(const Loc& loc,
   }
 
   *index_out = i;
-  return f;
+  return;
 }
 
 Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
@@ -361,7 +366,8 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
           delete lit;
           Func* func = new Func(fi);
-          return ParseFunc(loc, func, s, i+1, terms, index_out);
+          ParseFunc(loc, func, s, i+1, terms, index_out);
+          return func;
         }
       }
 
@@ -398,6 +404,11 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
       return new VarSubst(vname->Compact(), pat, subst);
     }
 
+#if 0
+    size_t found = s.find(cp);
+    if (found
+    return NULL;
+#endif
     ERROR("%s:%d: *** unterminated variable reference.", LOCF(loc));
   }
 }
@@ -405,19 +416,6 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
 Value* ParseExprImpl(const Loc& loc,
                      StringPiece s, const char* terms, ParseExprOpt opt,
                      size_t* index_out, bool trim_right_space) {
-  // TODO: A faulty optimization.
-#if 0
-  char specials[] = "$(){}\\\n";
-  size_t found = s.find_first_of(specials);
-  if (found == string::npos) {
-    *index_out = s.size();
-    return new Literal(s);
-  }
-  if (terms && strchr(terms, s[found])) {
-    *index_out = found;
-    return new Literal(s.substr(0, found));
-  }
-#endif
   if (s.get(s.size() - 1) == '\r')
     s.remove_suffix(1);
 
