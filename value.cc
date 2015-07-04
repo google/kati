@@ -404,11 +404,13 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
       return new VarSubst(vname->Compact(), pat, subst);
     }
 
-#if 0
+    // GNU make accepts expressions like $((). See unmatched_paren*.mk
+    // for detail.
     size_t found = s.find(cp);
-    if (found
-    return NULL;
-#endif
+    if (found != string::npos) {
+      *index_out = s.size();
+      return new SymRef(Intern(s.substr(2, found-2)));
+    }
     ERROR("%s:%d: *** unterminated variable reference.", LOCF(loc));
   }
 }
