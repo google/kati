@@ -38,30 +38,55 @@
 
 namespace {
 
+const double kNotExist = -2.0;
+const double kProcessing = -1.0;
+
 class Executor {
  public:
   explicit Executor(Evaluator* ev)
       : ce_(ev) {
   }
 
-  void ExecNode(DepNode* n, DepNode* needed_by UNUSED) {
-    if (done_[n->output])
-      return;
-    done_[n->output] = true;
+  double ExecNode(DepNode* n, DepNode* needed_by) {
+    auto found = done_.find(n->output);
+    if (found != done_.end()) {
+      if (found->second == kProcessing) {
+        WARN("Circular %s <- %s dependency dropped.",
+             needed_by ? needed_by->output.c_str() : "(null)",
+             n->output.c_str());
+      }
+      return found->second;
+    }
+    done_[n->output] = kProcessing;
+    double output_ts = GetTimestamp(n->output.c_str());
 
     LOG("ExecNode: %s for %s",
         n->output.c_str(),
         needed_by ? needed_by->output.c_str() : "(null)");
 
+    if (!n->has_rule && output_ts == kNotExist && !n->is_phony) {
+      if (needed_by) {
+        ERROR("*** No rule to make target '%s', needed by '%s'.",
+              n->output.c_str(), needed_by->output.c_str());
+      } else {
+        ERROR("*** No rule to make target '%s'.", n->output.c_str());
+      }
+    }
+
+    double latest = kProcessing;
     for (DepNode* d : n->deps) {
       if (d->is_order_only && Exists(d->output.str())) {
         continue;
       }
-      // TODO: Check the timestamp.
-      if (Exists(d->output.str())) {
-        continue;
-      }
-      ExecNode(d, n);
+
+      double ts = ExecNode(d, n);
+      if (latest < ts)
+        latest = ts;
+    }
+
+    if (output_ts >= latest && !n->is_phony) {
+      done_[n->output] = output_ts;
+      return output_ts;
     }
 
     vector<Command*> commands;
@@ -86,11 +111,14 @@ class Executor {
       }
       delete command;
     }
+
+    done_[n->output] = output_ts;
+    return output_ts;
   }
 
  private:
   CommandEvaluator ce_;
-  unordered_map<Symbol, bool> done_;
+  unordered_map<Symbol, double> done_;
 };
 
 }  // namespace

@@ -1,4 +1,3 @@
-# TODO(c): exec.cc is broken.
 test: self loop not_circular1 not_circular2
 	echo PASS
 

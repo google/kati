@@ -18,5 +18,6 @@
 #include "string_piece.h"
 
 bool Exists(StringPiece f);
+double GetTimestamp(StringPiece f);
 
 #endif  // FILEUTIL_H_
