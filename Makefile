@@ -36,7 +36,7 @@ CXX_SRCS:= \
 	stringprintf.cc \
 	strutil.cc \
 	symtab.cc \
-	time.cc \
+	timeutil.cc \
 	value.cc \
 	var.cc
 CXX_TEST_SRCS:= \

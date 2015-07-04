@@ -37,7 +37,7 @@
 #include "stringprintf.h"
 #include "strutil.h"
 #include "symtab.h"
-#include "time.h"
+#include "timeutil.h"
 #include "var.h"
 
 static const char* g_makefile;

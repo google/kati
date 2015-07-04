@@ -12,19 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef TIME_H_
-#define TIME_H_
+// +build ignore
 
-double GetTime();
+#include "timeutil.h"
 
-struct ScopedTimeReporter {
- public:
-  explicit ScopedTimeReporter(const char* name);
-  ~ScopedTimeReporter();
+#include <sys/time.h>
 
- private:
-  const char* name_;
-  double start_;
-};
+#include "log.h"
 
-#endif  // TIME_H_
+double GetTime() {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) < 0)
+    PERROR("gettimeofday");
+  return tv.tv_sec + tv.tv_usec * 0.001 * 0.001;
+}
+
+ScopedTimeReporter::ScopedTimeReporter(const char* name)
+    : name_(name), start_(GetTime()) {
+}
+
+ScopedTimeReporter::~ScopedTimeReporter() {
+  double elapsed = GetTime() - start_;
+  LOG_STAT("%s: %f", name_, elapsed);
+}
