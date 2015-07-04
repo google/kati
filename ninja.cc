@@ -361,15 +361,14 @@ class NinjaGenerator {
     if (fp == NULL)
       PERROR("fopen(ninja.sh) failed");
 
-    Var* v = ev_->LookupVar(Intern("SHELL"));
-    shared_ptr<string> shell = v->Eval(ev_);
+    shared_ptr<string> shell = ev_->EvalVar(kShellSym);
     if (shell->empty())
       shell = make_shared<string>("/bin/sh");
     fprintf(fp, "#!%s\n", shell->c_str());
 
     for (const auto& p : ev_->exports()) {
       if (p.second) {
-        shared_ptr<string> val = ev_->LookupVar(p.first)->Eval(ev_);
+        shared_ptr<string> val = ev_->EvalVar(p.first);
         fprintf(fp, "export %s=%s\n", p.first.c_str(), val->c_str());
       } else {
         fprintf(fp, "unset %s\n", p.first.c_str());

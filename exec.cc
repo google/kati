@@ -45,6 +45,7 @@ class Executor {
  public:
   explicit Executor(Evaluator* ev)
       : ce_(ev) {
+    shell_ = ev->EvalVar(kShellSym);
   }
 
   double ExecNode(DepNode* n, DepNode* needed_by) {
@@ -97,7 +98,10 @@ class Executor {
         fflush(stdout);
       }
       if (!g_is_dry_run) {
-        int result = system(command->cmd->c_str());
+        string out;
+        int result = RunCommand(*shell_, command->cmd->c_str(), true,
+                                &out);
+        printf("%s", out.c_str());
         if (result != 0) {
           if (command->ignore_error) {
             fprintf(stderr, "[%s] Error %d (ignored)\n",
@@ -119,6 +123,7 @@ class Executor {
  private:
   CommandEvaluator ce_;
   unordered_map<Symbol, double> done_;
+  shared_ptr<string> shell_;
 };
 
 }  // namespace
