@@ -94,6 +94,7 @@ struct AssignAST : public AST {
 
 struct CommandAST : public AST {
   Value* expr;
+  StringPiece orig;
 
   virtual ~CommandAST();
 

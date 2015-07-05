@@ -167,8 +167,11 @@ void Evaluator::EvalCommand(const CommandAST* ast) {
   loc_ = ast->loc();
 
   if (!last_rule_) {
-    // TODO:
-    ERROR("TODO");
+    vector<AST*> asts;
+    ParseNotAfterRule(ast->orig, ast->loc(), &asts);
+    for (AST* a : asts)
+      a->Eval(this);
+    return;
   }
 
   last_rule_->cmds.push_back(ast->expr);
