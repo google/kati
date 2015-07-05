@@ -1,5 +1,4 @@
-# TODO(go): Implement vpath. It seems Android actually uses it...
-# TODO(c): bar is built even if foo doesn't exist.
+# TODO: Implement vpath.
 
 vpath dir %.c
 
