@@ -79,7 +79,7 @@ class Evaluator {
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
-  void DoInclude(const char* fname, bool should_exist);
+  void DoInclude(const string& fname);
 
   const Vars* in_vars_;
   Vars* vars_;

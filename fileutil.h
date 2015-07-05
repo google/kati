@@ -15,7 +15,9 @@
 #ifndef FILEUTIL_H_
 #define FILEUTIL_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "string_piece.h"
 
@@ -26,5 +28,7 @@ double GetTimestamp(StringPiece f);
 
 int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
                string* out);
+
+void Glob(const char* pat, vector<string>** files);
 
 #endif  // FILEUTIL_H_

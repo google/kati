@@ -17,11 +17,14 @@
 #include "fileutil.h"
 
 #include <errno.h>
+#include <glob.h>
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include <unordered_map>
 
 #include "log.h"
 
@@ -90,4 +93,44 @@ int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
     execvp(argv[0], const_cast<char**>(argv));
   }
   abort();
+}
+
+namespace {
+
+class GlobCache {
+ public:
+  ~GlobCache() {
+    for (auto& p : cache_) {
+      delete p.second;
+    }
+  }
+
+  void Get(const char* pat, vector<string>** files) {
+    auto p = cache_.emplace(pat, nullptr);
+    if (p.second) {
+      vector<string>* files = p.first->second = new vector<string>;
+      if (strcspn(pat, "?*[\\") != strlen(pat)) {
+        glob_t gl;
+        glob(pat, GLOB_NOSORT, NULL, &gl);
+        for (size_t i = 0; i < gl.gl_pathc; i++) {
+          files->push_back(gl.gl_pathv[i]);
+        }
+        globfree(&gl);
+      } else {
+        if (Exists(pat))
+          files->push_back(pat);
+      }
+    }
+    *files = p.first->second;
+  }
+
+ private:
+  unordered_map<string, vector<string>*> cache_;
+};
+
+}  // namespace
+
+void Glob(const char* pat, vector<string>** files) {
+  static GlobCache gc;
+  gc.Get(pat, files);
 }
