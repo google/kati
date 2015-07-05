@@ -1,6 +1,3 @@
-
-# TODO(c): For non-bach environment, implement $(SHELL).
-
 SHELL:=/bin/bash
 
 define func
