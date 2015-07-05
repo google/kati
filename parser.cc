@@ -177,9 +177,9 @@ class Parser {
   }
 
   void ParseRuleOrAssign(StringPiece line) {
-    size_t sep = FindTwoOutsideParen(line, ':', '=');
-    if (sep == string::npos) {
-      ParseRule(line, sep);
+    size_t sep = FindThreeOutsideParen(line, ':', '=', ';');
+    if (sep == string::npos || line[sep] == ';') {
+      ParseRule(line, string::npos);
     } else if (line[sep] == '=') {
       ParseAssign(line, sep);
     } else if (line.get(sep+1) == '=') {

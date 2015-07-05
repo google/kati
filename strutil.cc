@@ -345,6 +345,12 @@ size_t FindTwoOutsideParen(StringPiece s, char c1, char c2) {
     });
 }
 
+size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
+  return FindOutsideParenImpl(s, [&c1, &c2, &c3](char d){
+      return d == c1 || d == c2 || d == c3;
+    });
+}
+
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   bool prev_backslash = false;
   for (; e < s.size(); e++) {
