@@ -17,12 +17,12 @@
 #include "eval.h"
 
 #include <errno.h>
-#include <glob.h>
 #include <string.h>
 
 #include "ast.h"
 #include "file.h"
 #include "file_cache.h"
+#include "fileutil.h"
 #include "parser.h"
 #include "rule.h"
 #include "strutil.h"
@@ -217,22 +217,9 @@ void Evaluator::EvalIf(const IfAST* ast) {
   }
 }
 
-void Evaluator::DoInclude(const char* fname, bool should_exist) {
-  if (!should_exist && g_ignore_optional_include_pattern &&
-      Pattern(g_ignore_optional_include_pattern).Match(fname)) {
-    return;
-  }
-
+void Evaluator::DoInclude(const string& fname) {
   Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
-  if (!mk->Exists()) {
-    if (should_exist) {
-      Error(StringPrintf(
-          "%s: %s\n"
-          "NOTE: kati does not support generating missing makefiles",
-          fname, strerror(errno)));
-    }
-    return;
-  }
+  CHECK(mk->Exists());
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
   var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
@@ -249,15 +236,24 @@ void Evaluator::EvalInclude(const IncludeAST* ast) {
   shared_ptr<string> pats = ast->expr->Eval(this);
   for (StringPiece pat : WordScanner(*pats)) {
     ScopedTerminator st(pat);
-    if (pat.find_first_of("?*[") != string::npos) {
-      glob_t gl;
-      glob(pat.data(), GLOB_NOSORT, NULL, &gl);
-      for (size_t i = 0; i < gl.gl_pathc; i++) {
-        DoInclude(gl.gl_pathv[i], ast->should_exist);
+    vector<string>* files;
+    Glob(pat.data(), &files);
+
+    if (ast->should_exist) {
+      if (files->empty()) {
+        Error(StringPrintf(
+            "%s: %s\n"
+            "NOTE: kati does not support generating missing makefiles",
+            pat.data(), strerror(errno)));
       }
-      globfree(&gl);
-    } else {
-      DoInclude(pat.data(), ast->should_exist);
+    }
+
+    for (const string& fname : *files) {
+      if (!ast->should_exist && g_ignore_optional_include_pattern &&
+          Pattern(g_ignore_optional_include_pattern).Match(fname)) {
+        return;
+      }
+      DoInclude(fname);
     }
   }
 }
