@@ -27,6 +27,8 @@ class Makefile;
 
 void Parse(Makefile* mk);
 void Parse(StringPiece buf, const Loc& loc, vector<AST*>* out_asts);
+void ParseNotAfterRule(StringPiece buf, const Loc& loc,
+                       vector<AST*>* out_asts);
 
 void ParseAssignStatement(StringPiece line, size_t sep,
                           StringPiece* lhs, StringPiece* rhs, AssignOp* op);

@@ -129,6 +129,8 @@ class Parser {
     delete make_directives_;
   }
 
+  void set_state(ParserState st) { state_ = st; }
+
  private:
   void Error(const string& msg) {
     ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
@@ -157,6 +159,7 @@ class Parser {
       CommandAST* ast = new CommandAST();
       ast->set_loc(loc_);
       ast->expr = ParseExpr(line.substr(1), ParseExprOpt::COMMAND);
+      ast->orig = line;
       out_asts_->push_back(ast);
       return;
     }
@@ -515,6 +518,13 @@ void Parse(Makefile* mk) {
 void Parse(StringPiece buf, const Loc& loc, vector<AST*>* out_asts) {
   COLLECT_STATS("parse eval time");
   Parser parser(buf, loc, out_asts);
+  parser.Parse();
+}
+
+void ParseNotAfterRule(StringPiece buf, const Loc& loc,
+                       vector<AST*>* out_asts) {
+  Parser parser(buf, loc, out_asts);
+  parser.set_state(ParserState::NOT_AFTER_RULE);
   parser.Parse();
 }
 
