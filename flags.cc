@@ -20,3 +20,4 @@ bool g_enable_stat_logs;
 bool g_is_dry_run;
 const char* g_ignore_optional_include_pattern;
 const char* g_goma_dir;
+int g_num_jobs;

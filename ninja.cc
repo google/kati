@@ -27,6 +27,7 @@
 #include "command.h"
 #include "dep.h"
 #include "eval.h"
+#include "flags.h"
 #include "log.h"
 #include "string_piece.h"
 #include "stringprintf.h"
@@ -355,8 +356,7 @@ class NinjaGenerator {
 
     if (g_goma_dir) {
       fprintf(fp_, "pool local_pool\n");
-      // TODO: Decide the appropriate number based on the number of cores.
-      fprintf(fp_, " depth = %d\n", 32);
+      fprintf(fp_, " depth = %d\n", g_num_jobs);
     }
 
     for (DepNode* node : nodes) {
