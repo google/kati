@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "ast.h"
@@ -62,12 +63,21 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
     *out_arg = arg + option.size() + 1;
     return true;
   }
+  // E.g, -j999
+  if (option.size() == 2) {
+    *out_arg = arg + option.size();
+    return true;
+  }
   return false;
 }
 
 static void ParseCommandLine(int argc, char* argv[],
                              vector<Symbol>* targets,
                              vector<StringPiece>* cl_vars) {
+  // TODO: Decide the appropriate number based on the number of cores.
+  g_num_jobs = 32;
+  const char* num_jobs_str;
+
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
     if (!strcmp(arg, "-f")) {
@@ -80,6 +90,12 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (ParseCommandLineOptionWithArg(
+        "-j", argv, &i, &num_jobs_str)) {
+      g_num_jobs = strtol(num_jobs_str, NULL, 10);
+      if (g_num_jobs <= 0) {
+        ERROR("Invalid -j flag: %s", num_jobs_str);
+      }
     } else if (ParseCommandLineOptionWithArg(
         "--ninja_suffix", argv, &i, &g_ninja_suffix)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
