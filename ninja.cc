@@ -314,6 +314,9 @@ class NinjaGenerator {
     for (DepNode* d : node->deps) {
       EmitNode(d);
     }
+    for (DepNode* d : node->order_onlys) {
+      EmitNode(d);
+    }
   }
 
   void EmitBuild(DepNode* node, const string& rule_name) {
