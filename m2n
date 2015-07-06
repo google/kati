@@ -62,7 +62,7 @@ EOF
       shift
       ;;
 
-    --*)
+    -*)
       extra_flags+=" $1"
       shift
       ;;
