@@ -1,3 +1,5 @@
+# TODO(go): Fix
+
 # http://www.gnu.org/software/make/manual/make.html#Syntax-of-Functions
 comma:= ,
 empty:=
@@ -8,3 +10,4 @@ bar:= $(subst $(space),$(comma),$(foo))
 
 test:
 	echo $(bar)
+	echo $(subst ,repl,str)
