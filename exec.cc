@@ -75,11 +75,16 @@ class Executor {
     }
 
     double latest = kProcessing;
-    for (DepNode* d : n->deps) {
-      if (d->is_order_only && Exists(d->output.str())) {
+    for (DepNode* d : n->order_onlys) {
+      if (Exists(d->output.str())) {
         continue;
       }
+      double ts = ExecNode(d, n);
+      if (latest < ts)
+        latest = ts;
+    }
 
+    for (DepNode* d : n->deps) {
       double ts = ExecNode(d, n);
       if (latest < ts)
         latest = ts;

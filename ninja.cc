@@ -320,16 +320,12 @@ class NinjaGenerator {
     fprintf(fp_, "build %s: %s", node->output.c_str(), rule_name.c_str());
     vector<Symbol> order_onlys;
     for (DepNode* d : node->deps) {
-      if (d->is_order_only) {
-        order_onlys.push_back(d->output);
-      } else {
-        fprintf(fp_, " %s", d->output.c_str());
-      }
+      fprintf(fp_, " %s", d->output.c_str());
     }
-    if (!order_onlys.empty()) {
+    if (!node->order_onlys.empty()) {
       fprintf(fp_, " ||");
-      for (Symbol oo : order_onlys) {
-        fprintf(fp_, " %s", oo.c_str());
+      for (DepNode* d : node->order_onlys) {
+        fprintf(fp_, " %s", d->output.c_str());
       }
     }
     fprintf(fp_, "\n");
