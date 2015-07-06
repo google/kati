@@ -290,9 +290,11 @@ static FindEmulator* g_instance;
 
 class FindEmulatorImpl : public FindEmulator {
  public:
-  FindEmulatorImpl() {
+  FindEmulatorImpl()
+      : node_cnt_(0) {
     ScopedTimeReporter tr("init find emulator time");
     root_.reset(ConstructDirectoryTree(""));
+    LOG_STAT("%d find nodes", node_cnt_);
     g_instance = this;
   }
 
@@ -665,6 +667,7 @@ class FindEmulatorImpl : public FindEmulator {
       } else {
         c = new DirentFileNode(npath, ent->d_type);
       }
+      node_cnt_++;
       n->Add(ent->d_name, c);
     }
     closedir(dir);
@@ -686,6 +689,7 @@ class FindEmulatorImpl : public FindEmulator {
   }
 
   unique_ptr<DirentNode> root_;
+  int node_cnt_;
 };
 
 }  // namespace
