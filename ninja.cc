@@ -136,11 +136,14 @@ bool GetDepfileFromCommand(StringPiece cmd, string* out) {
 
 class NinjaGenerator {
  public:
-  explicit NinjaGenerator(Evaluator* ev)
+  NinjaGenerator(const char* ninja_suffix, Evaluator* ev)
       : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0) {
     ev_->set_avoid_io(true);
     if (g_goma_dir)
       gomacc_ = StringPrintf("%s/gomacc ", g_goma_dir);
+    if (ninja_suffix) {
+      ninja_suffix_ = ninja_suffix;
+    }
   }
 
   ~NinjaGenerator() {
@@ -334,8 +337,16 @@ class NinjaGenerator {
     fprintf(fp_, "\n");
   }
 
+  string GetNinjaFilename() const {
+    return StringPrintf("build%s.ninja", ninja_suffix_.c_str());
+  }
+
+  string GetShellScriptFilename() const {
+    return StringPrintf("ninja%s.sh", ninja_suffix_.c_str());
+  }
+
   void GenerateNinja(const vector<DepNode*>& nodes) {
-    fp_ = fopen("build.ninja", "wb");
+    fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
       PERROR("fopen(build.ninja) failed");
 
@@ -356,7 +367,7 @@ class NinjaGenerator {
   }
 
   void GenerateShell() {
-    FILE* fp = fopen("ninja.sh", "wb");
+    FILE* fp = fopen(GetShellScriptFilename().c_str(), "wb");
     if (fp == NULL)
       PERROR("fopen(ninja.sh) failed");
 
@@ -374,13 +385,13 @@ class NinjaGenerator {
       }
     }
 
+    fprintf(fp, "exec ninja -f %s ", GetNinjaFilename().c_str());
     if (g_goma_dir) {
-      fprintf(fp, "exec ninja -j300 \"$@\"\n");
-    } else {
-      fprintf(fp, "exec ninja \"$@\"\n");
+      fprintf(fp, "-j300 ");
     }
+    fprintf(fp, "\"$@\"\n");
 
-    if (chmod("ninja.sh", 0755) != 0)
+    if (chmod(GetShellScriptFilename().c_str(), 0755) != 0)
       PERROR("chmod ninja.sh failed");
   }
 
@@ -391,9 +402,11 @@ class NinjaGenerator {
   int rule_id_;
   string cmd_buf_;
   string gomacc_;
+  string ninja_suffix_;
 };
 
-void GenerateNinja(const vector<DepNode*>& nodes, Evaluator* ev) {
-  NinjaGenerator ng(ev);
+void GenerateNinja(const char* ninja_suffix,
+                   const vector<DepNode*>& nodes, Evaluator* ev) {
+  NinjaGenerator ng(ninja_suffix, ev);
   ng.Generate(nodes);
 }

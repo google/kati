@@ -43,6 +43,7 @@
 static const char* g_makefile;
 static bool g_is_syntax_check_only;
 static bool g_generate_ninja;
+static const char* g_ninja_suffix;
 static bool g_use_find_emulator;
 
 static bool ParseCommandLineOptionWithArg(StringPiece option,
@@ -79,6 +80,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (ParseCommandLineOptionWithArg(
+        "--ninja_suffix", argv, &i, &g_ninja_suffix)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       g_use_find_emulator = true;
     } else if (ParseCommandLineOptionWithArg(
@@ -232,7 +235,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(nodes, ev);
+    GenerateNinja(g_ninja_suffix, nodes, ev);
     return 0;
   }
 
