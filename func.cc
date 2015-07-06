@@ -64,6 +64,11 @@ void SubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat = args[0]->Eval(ev);
   shared_ptr<string> repl = args[1]->Eval(ev);
   shared_ptr<string> str = args[2]->Eval(ev);
+  if (pat->empty()) {
+    *s += *str;
+    *s += *repl;
+    return;
+  }
   size_t index = 0;
   while (index < str->size()) {
     size_t found = str->find(*pat, index);
