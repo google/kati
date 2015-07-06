@@ -54,7 +54,6 @@ var (
 	eagerCmdEvalFlag    bool
 	generateNinja       bool
 	gomaDir             string
-	usePara             bool
 	findCachePrunes     string
 	findCacheLeafNames  string
 	shellDate           string
@@ -83,7 +82,6 @@ func init() {
 	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
-	flag.BoolVar(&usePara, "use_para", false, "Use para.")
 
 	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
 		"space separated prune directories for find cache.")
@@ -327,9 +325,6 @@ func katiMain(args []string) error {
 
 	execOpt := &kati.ExecutorOpt{
 		NumJobs: jobsFlag,
-	}
-	if usePara {
-		execOpt.ParaPath = findPara()
 	}
 	ex, err := kati.NewExecutor(vars, execOpt)
 	if err != nil {

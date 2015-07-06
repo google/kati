@@ -125,8 +125,7 @@ func (ex *Executor) reportStats() {
 
 // ExecutorOpt is an option for Executor.
 type ExecutorOpt struct {
-	NumJobs  int
-	ParaPath string
+	NumJobs int
 }
 
 // NewExecutor creates new Executor.
@@ -137,7 +136,7 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) (*Executor, error) {
 	if opt.NumJobs < 1 {
 		opt.NumJobs = 1
 	}
-	wm, err := newWorkerManager(opt.NumJobs, opt.ParaPath)
+	wm, err := newWorkerManager(opt.NumJobs)
 	if err != nil {
 		return nil, err
 	}

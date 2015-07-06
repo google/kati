@@ -49,7 +49,7 @@ CXXFLAGS:=-g -W -Wall -MMD
 CXXFLAGS+=-O -DNOLOG
 #CXXFLAGS+=-pg
 
-all: kati para ckati $(CXX_TEST_EXES)
+all: kati ckati $(CXX_TEST_EXES)
 
 kati: go_src_stamp
 	GOPATH=$$(pwd)/out go install github.com/google/kati/cmd/kati
@@ -61,7 +61,7 @@ go_src_stamp: $(GO_SRCS) cmd/*/*.go
 	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
 	touch $@
 
-go_test: $(GO_SRCS) para
+go_test: $(GO_SRCS)
 	go test *.go
 
 ckati: $(CXX_OBJS)
@@ -73,9 +73,6 @@ $(CXX_ALL_OBJS): %.o: %.cc
 $(CXX_TEST_EXES): $(filter-out main.o,$(CXX_OBJS))
 $(CXX_TEST_EXES): %: %.o
 	$(CXX) $^ -o $@
-
-para: para.cc
-	$(CXX) -std=c++11 -g -O -W -Wall -MMD -o $@ $<
 
 test: all go_test
 	ruby runtest.rb
