@@ -20,17 +20,61 @@
 set -e
 
 kati_dir=$(cd $(dirname $0) && pwd)
+extra_flags=
+goma_flag=
 
-if [ x"$1" == x--help ]; then
+while [ x"$1" != x"" ]; do
+  case "$1" in
+    --help)
       cat - <<EOF
 Usage:
   m2n         # for full-build
   m2n --goma  # use goma. \$HOME/goma must exist
+  m2n --go    # use go version. Slower but maybe more portable.
   m2n bionic  # works like mmm
 EOF
       exit 1
-fi
-kati=${kati_dir}/kati
-${kati} --m2n "$@"
+      ;;
 
+    --go)
+      kati=${kati_dir}/kati
+      shift
+      ${kati} --m2n "$@"
+      echo
+      echo ninja.sh and build.ninja were generated, please run ./ninja.sh
+      exit
+      ;;
+
+    --goma)
+      if [ ! -e $HOME/goma/goma_ctl.py ]; then
+        echo "$HOME/goma/goma_ctl.py should exist to use goma"
+        exit 1
+      fi
+      $HOME/goma/goma_ctl.py ensure_start
+      goma_flag=--goma_dir=$HOME/goma
+      shift
+      ;;
+
+    --*)
+      extra_flags+=" $1"
+      shift
+      ;;
+
+    *)
+      target=$1
+      shift
+      ;;
+  esac
+done
+
+kati=${kati_dir}/ckati
+
+if [ x"${target}" != x"" ]; then
+  export ONE_SHOT_MAKEFILE=${target}/Android.mk
+  echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
+fi
+
+${kati} --ninja --ignore_optional_include=out/%.P --use_find_emulator ${goma_flag} ${extra_flags}
+
+echo
 echo ninja.sh and build.ninja were generated, please run ./ninja.sh
