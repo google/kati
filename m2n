@@ -70,11 +70,14 @@ done
 kati=${kati_dir}/ckati
 
 if [ x"${target}" != x"" ]; then
-  export ONE_SHOT_MAKEFILE=${target}/Android.mk
-  echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
+  if [ -f ${target}/Android.mk ]; then
+    export ONE_SHOT_MAKEFILE=${target}/Android.mk
+    echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
+    target=
+  fi
 fi
 
-${kati} --ninja --ignore_optional_include=out/%.P --use_find_emulator ${goma_flag} ${extra_flags}
+${kati} --ninja --ignore_optional_include=out/%.P --use_find_emulator ${goma_flag} ${extra_flags} ${target}
 
 echo
 echo ninja.sh and build.ninja were generated, please run ./ninja.sh
