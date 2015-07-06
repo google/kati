@@ -145,13 +145,13 @@ class Parser {
   }
 
   void ParseLine(StringPiece line) {
-    if (line.empty() || (line.size() == 1 && line[0] == '\r'))
-      return;
-
     if (!define_name_.empty()) {
       ParseInsideDefine(line);
       return;
     }
+
+    if (line.empty() || (line.size() == 1 && line[0] == '\r'))
+      return;
 
     current_directive_ = AssignDirective::NONE;
 
