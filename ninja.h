@@ -25,7 +25,8 @@ using namespace std;
 class DepNode;
 class Evaluator;
 
-void GenerateNinja(const vector<DepNode*>& nodes, Evaluator* ev);
+void GenerateNinja(const char* ninja_suffix,
+                   const vector<DepNode*>& nodes, Evaluator* ev);
 
 // Exposed only for test.
 bool GetDepfileFromCommand(StringPiece cmd, string* out);

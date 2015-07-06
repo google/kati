@@ -28,10 +28,10 @@ while [ x"$1" != x"" ]; do
     --help)
       cat - <<EOF
 Usage:
-  m2n         # for full-build
-  m2n --goma  # use goma. \$HOME/goma must exist
-  m2n --go    # use go version. Slower but maybe more portable.
-  m2n bionic  # works like mmm
+  m2n               # for default full-build
+  m2n --goma        # use goma. \$HOME/goma must exist
+  m2n --go          # use go version. Slower but maybe more portable.
+  m2n cts           # for target 'cts'
 EOF
       exit 1
       ;;
@@ -55,13 +55,20 @@ EOF
       shift
       ;;
 
+    --mmm)
+      echo 'Note: --mmm may not work'
+      shift;
+      mmm="$1"
+      shift
+      ;;
+
     --*)
       extra_flags+=" $1"
       shift
       ;;
 
     *)
-      target=$1
+      targets="${targets} $1"
       shift
       ;;
   esac
@@ -69,15 +76,32 @@ done
 
 kati=${kati_dir}/ckati
 
-if [ x"${target}" != x"" ]; then
-  if [ -f ${target}/Android.mk ]; then
-    export ONE_SHOT_MAKEFILE=${target}/Android.mk
-    echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
-    target=
+ninja_suffix=
+ninja_suffix_flag=
+
+if [ x"${mmm}" != x"" ]; then
+  mk="${mmm}/Android.mk"
+  if [ ! -f ${mk} ]; then
+    echo "${mk} does not exist"
+    exit 1
   fi
+
+  export ONE_SHOT_MAKEFILE=${mk}
+  echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
+
+  ninja_suffix=-mmm-${mmm}
 fi
 
-${kati} --ninja --ignore_optional_include=out/%.P --use_find_emulator ${goma_flag} ${extra_flags} ${target}
+if [ x"${targets}" != x"" ]; then
+  ninja_suffix+=-$(echo ${targets} | sed 's/ /-/')
+fi
+
+if [ x"${ninja_suffix}" != x"" ]; then
+  ninja_suffix=$(echo ${ninja_suffix} | sed 'y/\//_/')
+  ninja_suffix_flag=--ninja_suffix=${ninja_suffix}
+fi
+
+${kati} --ninja ${ninja_suffix_flag} --ignore_optional_include=out/%.P --use_find_emulator ${goma_flag} ${extra_flags} ${targets}
 
 echo
-echo ninja.sh and build.ninja were generated, please run ./ninja.sh
+echo ninja${ninja_suffix}.sh and build${ninja_suffix}.ninja were generated, please run ./ninja${ninja_suffix}.sh
