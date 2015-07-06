@@ -103,7 +103,6 @@ class RuleTrie {
 DepNode::DepNode(Symbol o, bool p)
     : output(o),
       has_rule(false),
-      is_order_only(false),
       is_phony(p),
       rule_vars(NULL) {
   g_dep_node_pool->push_back(this);
@@ -467,8 +466,7 @@ class DepBuilder {
 
     for (Symbol input : rule->order_only_inputs) {
       DepNode* c = BuildPlan(input, output);
-      c->is_order_only = true;
-      n->deps.push_back(c);
+      n->order_onlys.push_back(c);
     }
 
     n->has_rule = true;

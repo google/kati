@@ -35,9 +35,9 @@ struct DepNode {
   Symbol output;
   vector<Value*> cmds;
   vector<DepNode*> deps;
+  vector<DepNode*> order_onlys;
   vector<DepNode*> parents;
   bool has_rule;
-  bool is_order_only;
   bool is_phony;
   vector<Symbol> actual_inputs;
   Vars* rule_vars;
