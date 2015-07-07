@@ -27,6 +27,8 @@ import (
 var (
 	errEndOfInput = errors.New("unexpected end of input")
 	errNotLiteral = errors.New("valueNum: not literal")
+
+	errUnterminatedVariableReference = errors.New("*** unterminated variable reference.")
 )
 
 type evalWriter interface {
@@ -442,6 +444,9 @@ Again:
 	for {
 		e, n, err := parseExpr(in[i:], term, op)
 		if err != nil {
+			if err == errEndOfInput {
+				return nil, 0, errUnterminatedVariableReference
+			}
 			return nil, 0, err
 		}
 		varname = append(varname, e)
