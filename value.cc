@@ -299,8 +299,16 @@ void ParseFunc(const Loc& loc,
     }
 
     if (f->trim_space()) {
-      while (i < s.size() && isspace(s[i]))
-        i++;
+      for (; i < s.size(); i++) {
+        if (isspace(s[i]))
+          continue;
+        if (s[i] == '\\') {
+          char c = s.get(i+1);
+          if (c == '\r' || c == '\n')
+            continue;
+        }
+        break;
+      }
     }
     const bool trim_right_space = (f->trim_space() ||
                                    (nargs == 1 && f->trim_right_space_1st()));
