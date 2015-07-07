@@ -366,6 +366,18 @@ func removeComment(line []byte) ([]byte, bool) {
 	return line, false
 }
 
+// cmdline removes tab at the beginning of lines.
+func cmdline(line string) string {
+	buf := []byte(line)
+	for i := 0; i < len(buf); i++ {
+		if buf[i] == '\n' && i+1 < len(buf) && buf[i+1] == '\t' {
+			copy(buf[i+1:], buf[i+2:])
+			buf = buf[:len(buf)-1]
+		}
+	}
+	return string(buf)
+}
+
 // concatline removes backslash newline.
 // TODO: backslash baskslash newline becomes backslash newline.
 func concatline(line []byte) []byte {
