@@ -281,6 +281,9 @@ func (p *parser) parseTwoQuotes(s []byte, op string) ([]string, bool, error) {
 //  "(lhs, rhs)"
 //  "lhs, rhs"
 func (p *parser) parseEq(s []byte, op string) (string, string, bool, error) {
+	if len(s) == 0 {
+		return "", "", false, nil
+	}
 	if s[0] == '(' && s[len(s)-1] == ')' {
 		in := s[1 : len(s)-1]
 		logf("parseEq ( %q )", in)
