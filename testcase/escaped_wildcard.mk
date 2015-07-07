@@ -1,5 +1,3 @@
-# TODO(go): Fix
-
 test1:
 	touch foo
 
