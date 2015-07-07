@@ -14,12 +14,14 @@
 
 package kati
 
-import "io"
+import (
+	"bytes"
+	"io"
+	"sync"
+)
 
-// ssvWriter is a writer to write space separated values.
-type ssvWriter struct {
-	w          io.Writer
-	needsSpace bool
+var bufFree = sync.Pool{
+	New: func() interface{} { return new(buffer) },
 }
 
 func writeByte(w io.Writer, b byte) error {
@@ -32,18 +34,60 @@ func writeByte(w io.Writer, b byte) error {
 
 // use io.WriteString to stringWrite.
 
-func (sw *ssvWriter) Write(b []byte) {
-	if sw.needsSpace {
-		writeByte(sw.w, ' ')
-	}
-	sw.needsSpace = true
-	sw.w.Write(b)
+type ssvWriter struct {
+	io.Writer
+	space bool
 }
 
-func (sw *ssvWriter) WriteString(s string) {
-	if sw.needsSpace {
-		writeByte(sw.w, ' ')
+func (w *ssvWriter) writeWord(word []byte) {
+	if w.space {
+		writeByte(w.Writer, ' ')
 	}
-	sw.needsSpace = true
-	io.WriteString(sw.w, s)
+	w.space = true
+	w.Writer.Write(word)
+}
+
+func (w *ssvWriter) writeWordString(word string) {
+	if w.space {
+		writeByte(w.Writer, ' ')
+	}
+	w.space = true
+	io.WriteString(w.Writer, word)
+}
+
+func (w *ssvWriter) resetSpace() {
+	w.space = false
+}
+
+type buffer struct {
+	bytes.Buffer
+	ssvWriter
+	args [][]byte
+}
+
+func newBuf() *buffer {
+	buf := bufFree.Get().(*buffer)
+	buf.Reset()
+	return buf
+}
+
+func freeBuf(buf *buffer) {
+	if cap(buf.Bytes()) > 1024 {
+		return
+	}
+	buf.Reset()
+	buf.args = buf.args[:0]
+	bufFree.Put(buf)
+}
+
+func (b *buffer) Reset() {
+	b.Buffer.Reset()
+	b.resetSpace()
+}
+
+func (b *buffer) resetSpace() {
+	if b.ssvWriter.Writer == nil {
+		b.ssvWriter.Writer = &b.Buffer
+	}
+	b.ssvWriter.resetSpace()
 }

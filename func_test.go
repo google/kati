@@ -14,10 +14,7 @@
 
 package kati
 
-import (
-	"bytes"
-	"testing"
-)
+import "testing"
 
 func BenchmarkFuncStrip(b *testing.B) {
 	strip := &funcStrip{
@@ -29,7 +26,7 @@ func BenchmarkFuncStrip(b *testing.B) {
 		},
 	}
 	ev := NewEvaluator(make(map[string]Var))
-	var buf bytes.Buffer
+	var buf buffer
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -48,7 +45,7 @@ func BenchmarkFuncSort(b *testing.B) {
 		},
 	}
 	ev := NewEvaluator(make(map[string]Var))
-	var buf bytes.Buffer
+	var buf buffer
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -69,7 +66,7 @@ func BenchmarkFuncPatsubst(b *testing.B) {
 		},
 	}
 	ev := NewEvaluator(make(map[string]Var))
-	var buf bytes.Buffer
+	var buf buffer
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -16,7 +16,6 @@ package kati
 
 import (
 	"fmt"
-	"io"
 	"os/exec"
 	"strings"
 	"sync"
@@ -95,7 +94,7 @@ func (v autoVar) dump(d *dumpbuf) {
 
 type autoAtVar struct{ autoVar }
 
-func (v autoAtVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v autoAtVar) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, v.String())
 	return nil
 }
@@ -103,7 +102,7 @@ func (v autoAtVar) String() string { return v.ctx.output }
 
 type autoLessVar struct{ autoVar }
 
-func (v autoLessVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v autoLessVar) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, v.String())
 	return nil
 }
@@ -116,7 +115,7 @@ func (v autoLessVar) String() string {
 
 type autoHatVar struct{ autoVar }
 
-func (v autoHatVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v autoHatVar) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, v.String())
 	return nil
 }
@@ -126,7 +125,7 @@ func (v autoHatVar) String() string {
 
 type autoPlusVar struct{ autoVar }
 
-func (v autoPlusVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v autoPlusVar) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, v.String())
 	return nil
 }
@@ -134,7 +133,7 @@ func (v autoPlusVar) String() string { return strings.Join(v.ctx.inputs, " ") }
 
 type autoStarVar struct{ autoVar }
 
-func (v autoStarVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v autoStarVar) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, v.String())
 	return nil
 }
