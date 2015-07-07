@@ -253,70 +253,70 @@ func (p *parser) parseIfdef(op string, data []byte) {
 	p.outStmts = &iast.trueStmts
 }
 
-func (p *parser) parseTwoQuotes(s []byte, op string) ([]string, bool, error) {
+func (p *parser) parseTwoQuotes(s []byte) (string, string, []byte, bool) {
 	var args []string
 	for i := 0; i < 2; i++ {
 		s = trimSpaceBytes(s)
 		if len(s) == 0 {
-			return nil, false, nil
+			return "", "", nil, false
 		}
 		quote := s[0]
 		if quote != '\'' && quote != '"' {
-			return nil, false, nil
+			return "", "", nil, false
 		}
 		end := bytes.IndexByte(s[1:], quote) + 1
 		if end < 0 {
-			return nil, false, nil
+			return "", "", nil, false
 		}
 		args = append(args, string(s[1:end]))
 		s = s[end+1:]
 	}
-	if len(s) > 0 {
-		return nil, false, p.srcpos().errorf(`extraneous text after %q directive`, op)
-	}
-	return args, true, nil
+	return args[0], args[1], s, true
 }
 
 // parse
 //  "(lhs, rhs)"
 //  "lhs, rhs"
-func (p *parser) parseEq(s []byte, op string) (string, string, bool, error) {
+func (p *parser) parseEq(s []byte) (string, string, []byte, bool) {
 	if len(s) == 0 {
-		return "", "", false, nil
+		return "", "", nil, false
 	}
-	if s[0] == '(' && s[len(s)-1] == ')' {
-		in := s[1 : len(s)-1]
+	if s[0] == '(' {
+		in := s[1:]
 		logf("parseEq ( %q )", in)
 		term := []byte{','}
 		v, n, err := parseExpr(in, term, parseOp{matchParen: true})
 		if err != nil {
-			return "", "", false, err
+			logf("parse eq: %q: %v", in, err)
+			return "", "", nil, false
 		}
 		lhs := v.String()
 		n++
 		n += skipSpaces(in[n:], nil)
-		v, n, err = parseExpr(in[n:], nil, parseOp{matchParen: true})
+		term = []byte{')'}
+		in = in[n:]
+		v, n, err = parseExpr(in, term, parseOp{matchParen: true})
 		if err != nil {
-			return "", "", false, err
+			logf("parse eq 2nd: %q: %v", in, err)
+			return "", "", nil, false
 		}
 		rhs := v.String()
-		return lhs, rhs, true, nil
+		in = in[n+1:]
+		in = trimSpaceBytes(in)
+		return lhs, rhs, in, true
 	}
-	args, ok, err := p.parseTwoQuotes(s, op)
-	if !ok {
-		return "", "", false, err
-	}
-	return args[0], args[1], true, nil
+	return p.parseTwoQuotes(s)
 }
 
 func (p *parser) parseIfeq(op string, data []byte) {
-	lhsBytes, rhsBytes, ok, err := p.parseEq(data, op)
-	if err != nil {
-		p.err = err
-		return
-	}
+	lhsBytes, rhsBytes, extra, ok := p.parseEq(data)
 	if !ok {
 		p.err = p.srcpos().errorf(`*** invalid syntax in conditional.`)
+		return
+	}
+	if len(extra) > 0 {
+		logf("extra %q", extra)
+		p.err = p.srcpos().errorf(`extraneous text after %q directive`, op)
 		return
 	}
 
