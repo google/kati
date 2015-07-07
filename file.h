@@ -20,8 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "string_pool.h"
-
 using namespace std;
 
 class AST;
@@ -35,7 +33,6 @@ class Makefile {
   size_t len() const { return len_; }
   const string& filename() const { return filename_; }
 
-  StringPool* mutable_pool() { return &pool_; }
   const vector<AST*>& asts() const { return asts_; }
   vector<AST*>* mutable_asts() { return &asts_; }
 
@@ -46,7 +43,6 @@ class Makefile {
   size_t len_;
   uint64_t mtime_;
   string filename_;
-  StringPool pool_;
   vector<AST*> asts_;
 };
 
