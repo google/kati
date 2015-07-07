@@ -91,3 +91,57 @@ func (b *buffer) resetSpace() {
 	}
 	b.ssvWriter.resetSpace()
 }
+
+type wordBuffer struct {
+	words [][]byte
+	cont  bool
+}
+
+func (wb *wordBuffer) Write(data []byte) (int, error) {
+	if len(data) == 0 {
+		return 0, nil
+	}
+	if isWhitespace(rune(data[0])) {
+		wb.cont = false
+	}
+	ws := newWordScanner(data)
+	for ws.Scan() {
+		if wb.cont {
+			word := wb.words[len(wb.words)-1]
+			word = append(word, ws.Bytes()...)
+			wb.words[len(wb.words)-1] = word
+			wb.cont = false
+			continue
+		}
+		wb.writeWord(ws.Bytes())
+	}
+	if !isWhitespace(rune(data[len(data)-1])) {
+		wb.cont = true
+	}
+	return len(data), nil
+}
+
+func (wb *wordBuffer) writeWord(word []byte) {
+	var w []byte
+	w = append(w, word...)
+	wb.words = append(wb.words, w)
+}
+
+func (wb *wordBuffer) writeWordString(word string) {
+	wb.writeWord([]byte(word))
+}
+
+func (wb *wordBuffer) resetSpace() {}
+
+func (wb *wordBuffer) Bytes() []byte {
+	var sp bool
+	var b []byte
+	for _, word := range wb.words {
+		if sp {
+			b = append(b, ' ')
+		}
+		b = append(b, word...)
+		sp = true
+	}
+	return b
+}
