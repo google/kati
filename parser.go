@@ -593,10 +593,13 @@ func (p *parser) processDefine(line []byte) {
 	line = concatline(line)
 	logf("concatline:%q", line)
 	if !p.isEndef(line) {
-		if len(p.inDef) != 0 {
+		if p.inDef != nil {
 			p.inDef = append(p.inDef, '\n')
 		}
 		p.inDef = append(p.inDef, line...)
+		if p.inDef == nil {
+			p.inDef = []byte{}
+		}
 		return
 	}
 	logf("multilineAssign %q %q", p.defineVar, p.inDef)
