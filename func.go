@@ -182,7 +182,12 @@ func (f *funcSubst) Eval(w evalWriter, ev *Evaluator) error {
 	to := fargs[1]
 	text := fargs[2]
 	logf("subst from:%q to:%q text:%q", from, to, text)
-	w.Write(bytes.Replace(text, from, to, -1))
+	if len(from) == 0 {
+		w.Write(text)
+		w.Write(to)
+	} else {
+		w.Write(bytes.Replace(text, from, to, -1))
+	}
 	freeBuf(abuf)
 	stats.add("funcbody", "subst", t)
 	return nil
