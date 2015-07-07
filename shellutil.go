@@ -302,22 +302,26 @@ type funcShellAndroidFindExtFilesUnder struct {
 
 func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
-	fargs, err := ev.args(abuf, f.chdir, f.roots)
+	err := f.chdir.Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
-	chdir := string(trimSpaceBytes(fargs[0]))
-	var roots []string
+	chdir := string(trimSpaceBytes(abuf.Bytes()))
+	freeBuf(abuf)
+	var wb wordBuffer
+	err = f.roots.Eval(&wb, ev)
+	if err != nil {
+		return err
+	}
 	hasDotDot := false
-	ws := newWordScanner(fargs[1])
-	for ws.Scan() {
-		root := string(ws.Bytes())
+	var roots []string
+	for _, word := range wb.words {
+		root := string(word)
 		if strings.Contains(root, "..") {
 			hasDotDot = true
 		}
-		roots = append(roots, string(ws.Bytes()))
+		roots = append(roots, root)
 	}
-	freeBuf(abuf)
 	logf("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
 	if strings.Contains(chdir, "..") || hasDotDot {
 		logf("shellAndroidFindExtFilesUnder contains ..: call original shell")
@@ -382,28 +386,32 @@ func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
 	var params []Value
 	params = append(params, f.name)
-	params = append(params, f.dirlist)
 	params = append(params, f.prunes...)
 	fargs, err := ev.args(abuf, params...)
 	if err != nil {
 		return err
 	}
 	name := string(trimSpaceBytes(fargs[0]))
+	var prunes []string
+	for _, arg := range fargs[1:] {
+		prunes = append(prunes, string(trimSpaceBytes(arg)))
+	}
+	freeBuf(abuf)
+
+	var wb wordBuffer
+	err = f.dirlist.Eval(&wb, ev)
+	if err != nil {
+		return err
+	}
 	var dirs []string
-	ws := newWordScanner(fargs[1])
-	for ws.Scan() {
-		dir := string(ws.Bytes())
+	for _, word := range wb.words {
+		dir := string(word)
 		if strings.Contains(dir, "..") {
 			logf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
 			return f.funcShell.Eval(w, ev)
 		}
 		dirs = append(dirs, dir)
 	}
-	var prunes []string
-	for _, arg := range fargs[2:] {
-		prunes = append(prunes, string(trimSpaceBytes(arg)))
-	}
-	freeBuf(abuf)
 
 	for _, dir := range dirs {
 		androidFindCache.findleaves(w, dir, name, prunes, f.mindepth)

@@ -38,22 +38,20 @@ func existsInVPATH(ev *Evaluator, target string) (string, bool) {
 	}
 	// TODO(ukai): support vpath directive (pattern vpath).
 	// TODO(ukai): ok to cache vpath value?
-	abuf := newBuf()
-	err := vpath.Eval(abuf, ev)
+	var wb wordBuffer
+	err := vpath.Eval(&wb, ev)
 	if err != nil {
 		return target, false
 	}
 	// In the 'VPATH' variable, directory names are separated by colons
 	// or blanks. (on windows, semi-colons)
-	ws := newWordScanner(abuf.Bytes())
-	for ws.Scan() {
-		for _, dir := range bytes.Split(ws.Bytes(), []byte{':'}) {
+	for _, word := range wb.words {
+		for _, dir := range bytes.Split(word, []byte{':'}) {
 			vtarget := filepath.Join(string(dir), target)
 			if exists(vtarget) {
 				return vtarget, true
 			}
 		}
 	}
-	freeBuf(abuf)
 	return target, false
 }
