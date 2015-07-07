@@ -197,7 +197,7 @@ func (p *parser) parseAssign(line []byte, sep int) {
 			lhs, op = line[:sep-1], line[sep-1:sep+1]
 		}
 	}
-	logf("parseAssign %s %s", line, op)
+	logf("parseAssign %s op:%s opt:%s", line, op, p.defOpt)
 	lhs = trimSpaceBytes(lhs)
 	rhs = trimLeftSpaceBytes(rhs)
 	aast, err := newAssignAST(p, lhs, rhs, string(op))
@@ -560,6 +560,7 @@ func handleExport(p *parser, data []byte, export bool) (hasEqual bool) {
 		export: export,
 	}
 	east.srcpos = p.srcpos()
+	logf("export %v", east)
 	p.addStatement(east)
 	return hasEqual
 }
@@ -580,14 +581,7 @@ func exportDirective(p *parser, data []byte) {
 
 	// e.g. export foo := bar
 	// line will be "foo := bar".
-	if p.handleAssign(data) {
-		return
-	}
-	p.defOpt = ""
-	var line []byte
-	line = append(line, []byte("export ")...)
-	line = append(line, data...)
-	p.handleRuleOrAssign(line)
+	p.handleAssign(data)
 }
 
 func unexportDirective(p *parser, data []byte) {
