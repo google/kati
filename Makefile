@@ -32,7 +32,6 @@ CXX_SRCS:= \
 	rule.cc \
 	stats.cc \
 	string_piece.cc \
-	string_pool.cc \
 	stringprintf.cc \
 	strutil.cc \
 	symtab.cc \
