@@ -15,6 +15,7 @@
 package kati
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -36,8 +37,25 @@ var wildcardCache = &wildcardCacheT{
 	m: make(map[string][]string),
 }
 
+func wildcardUnescape(pat string) string {
+	var buf bytes.Buffer
+	for i := 0; i < len(pat); i++ {
+		if pat[i] == '\\' && i+1 < len(pat) {
+			switch pat[i+1] {
+			case '*', '?', '[', '\\':
+				writeByte(&buf, pat[i])
+			default:
+				i++
+			}
+		}
+		writeByte(&buf, pat[i])
+	}
+	return buf.String()
+}
+
 func wildcardGlob(pat string) ([]string, error) {
 	// TODO(ukai): use find cache for glob if exists.
+	pat = wildcardUnescape(pat)
 	pattern := filepath.Clean(pat)
 	if pattern != pat {
 		// For some reason, go's Glob normalizes

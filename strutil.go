@@ -357,8 +357,6 @@ func removeComment(line []byte) ([]byte, bool) {
 			copy(buf, line)
 			line = buf
 		}
-		// fmt.Printf("line:%q i=%d b=%d nb=%d quoted=%t\n", line, i, b, nb, quoted)
-		// fmt.Printf("%q %q\n", line[:i-b+nb+1], line[i:])
 		line = append(line[:i-b+nb+1], line[i:]...)
 		if !quoted {
 			return line[:i-b+nb+1], true
