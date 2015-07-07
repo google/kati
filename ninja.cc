@@ -284,8 +284,10 @@ class NinjaGenerator {
     if (!p.second)
       return;
 
-    if (node->cmds.empty() && node->deps.empty() && !node->is_phony)
+    if (node->cmds.empty() &&
+        node->deps.empty() && node->order_onlys.empty() && !node->is_phony) {
       return;
+    }
 
     vector<Command*> commands;
     ce_.Eval(node, &commands);
