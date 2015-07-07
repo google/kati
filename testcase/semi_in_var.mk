@@ -1,6 +1,3 @@
-# TODO(go): Not sure how this behavior can be explained. We probably
-# will not need to support bar and baz, but we probably need foo.
-
 ECHO=@echo $@
 SEMI=;
 RULE=bar: ; $(EHCO)

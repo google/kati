@@ -185,6 +185,11 @@ func (r *rule) parse(line []byte, rhs expr) (*assignAST, error) {
 		}
 		return assign, nil
 	}
+	index = bytes.IndexByte(rest, ';')
+	if index >= 0 {
+		r.cmds = append(r.cmds, string(rest[index+1:]))
+		rest = rest[:index-1]
+	}
 	index = bytes.IndexByte(rest, ':')
 	if index < 0 {
 		r.parseInputs(rest)
