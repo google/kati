@@ -162,7 +162,8 @@ func (p *parser) handleRuleOrAssign(line []byte) {
 	if p.handleAssign(line) {
 		return
 	}
-	// not assignment
+	// not assignment.
+	// ie. no '=' found or ':' found before '=' (except ':=')
 	p.parseMaybeRule(rline, semi)
 	return
 }
@@ -213,6 +214,54 @@ func (p *parser) parseMaybeRule(line, semi []byte) {
 		p.err = p.srcpos().errorf("*** commands commence before first target.")
 		return
 	}
+	var assign *assignAST
+	ci := findLiteralChar(line, []byte{':'}, true)
+	if ci >= 0 {
+		eqi := findLiteralChar(line[ci+1:], []byte{'='}, true)
+		if eqi == 0 {
+			panic(fmt.Sprintf("unexpected eq after colon: %q", line))
+		}
+		if eqi > 0 {
+			var lhsbytes []byte
+			op := "="
+			switch line[ci+1+eqi-1] {
+			case ':', '+', '?':
+				lhsbytes = append(lhsbytes, line[ci+1:ci+1+eqi-1]...)
+				op = string(line[ci+1+eqi-1 : ci+1+eqi+1])
+			default:
+				lhsbytes = append(lhsbytes, line[ci+1:ci+1+eqi]...)
+			}
+
+			lhsbytes = trimSpaceBytes(lhsbytes)
+			lhs, _, err := parseExpr(lhsbytes, nil, parseOp{})
+			if err != nil {
+				p.err = p.srcpos().error(err)
+				return
+			}
+			var rhsbytes []byte
+			rhsbytes = append(rhsbytes, line[ci+1+eqi+1:]...)
+			if semi != nil {
+				rhsbytes = append(rhsbytes, ';')
+				rhsbytes = append(rhsbytes, concatline(semi)...)
+			}
+			rhsbytes = trimLeftSpaceBytes(rhsbytes)
+			semi = nil
+			rhs, _, err := parseExpr(rhsbytes, nil, parseOp{})
+			if err != nil {
+				p.err = p.srcpos().error(err)
+				return
+			}
+
+			// TODO(ukai): support override, export in target specific var.
+			assign = &assignAST{
+				lhs: lhs,
+				rhs: rhs,
+				op:  op,
+			}
+			assign.srcpos = p.srcpos()
+			line = line[:ci+1]
+		}
+	}
 	expr, _, err := parseExpr(line, nil, parseOp{})
 	if err != nil {
 		p.err = p.srcpos().error(err)
@@ -220,10 +269,13 @@ func (p *parser) parseMaybeRule(line, semi []byte) {
 	}
 	// TODO(ukai): remove ast, and eval here.
 	rast := &maybeRuleAST{
-		expr: expr,
-		semi: semi,
+		isRule: ci >= 0,
+		expr:   expr,
+		assign: assign,
+		semi:   semi,
 	}
 	rast.srcpos = p.srcpos()
+	logf("stmt: %#v", rast)
 	p.addStatement(rast)
 }
 

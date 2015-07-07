@@ -1,5 +1,3 @@
-# TODO: Fix
-
 TSV:=test: A=PASS
 A_EQ_B:=A=B
 EQ==

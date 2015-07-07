@@ -255,6 +255,8 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	ev.lastRule = nil
 	ev.srcpos = ast.srcpos
 
+	logf("maybe rule %s: %q assign:%v", ev.srcpos, ast.expr, ast.assign)
+
 	abuf := newBuf()
 	aexpr := toExpr(ast.expr)
 	var rhs expr
@@ -267,10 +269,13 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 			return err
 		}
 		b := buf.Bytes()
+		if ast.isRule {
+			abuf.Write(b)
+			continue
+		}
 		eq := findLiteralChar(b, []byte{'='}, true)
 		if eq >= 0 {
 			abuf.Write(b[:eq+1])
-			rhs = expr{}
 			if eq+1 < len(b) {
 				rhs = append(rhs, tmpval(trimLeftSpaceBytes(b[eq+1:])))
 			}
@@ -293,13 +298,13 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 
 	line := abuf.Bytes()
 	r := &rule{srcpos: ast.srcpos}
-	assign, err := r.parse(line, rhs)
+	assign, err := r.parse(line, ast.assign, rhs)
 	if err != nil {
 		return ast.error(err)
 	}
 	freeBuf(abuf)
 	if LogFlag {
-		logf("rule %q => outputs:%q, inputs:%q", ast.expr, r.outputs, r.inputs)
+		logf("rule %q assign:%v rhs:%v=> outputs:%q, inputs:%q", ast.expr, ast.assign, rhs, r.outputs, r.inputs)
 	}
 
 	// TODO: Pretty print.

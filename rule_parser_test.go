@@ -22,6 +22,7 @@ import (
 func TestRuleParser(t *testing.T) {
 	for _, tc := range []struct {
 		in     string
+		tsv    *assignAST
 		rhs    expr
 		want   rule
 		assign *assignAST
@@ -110,6 +111,22 @@ func TestRuleParser(t *testing.T) {
 			},
 		},
 		{
+			in: "foo:",
+			tsv: &assignAST{
+				lhs: literal("CFLAGS"),
+				rhs: literal("-g"),
+				op:  "=",
+			},
+			want: rule{
+				outputs: []string{"foo"},
+			},
+			assign: &assignAST{
+				lhs: literal("CFLAGS"),
+				rhs: literal("-g"),
+				op:  "=",
+			},
+		},
+		{
 			in:  "foo: CFLAGS=",
 			rhs: expr{literal("-g")},
 			want: rule{
@@ -146,6 +163,23 @@ func TestRuleParser(t *testing.T) {
 				op:  ":=",
 			},
 		},
+		{
+			in: "%.o:",
+			tsv: &assignAST{
+				lhs: literal("CFLAGS"),
+				rhs: literal("-g"),
+				op:  ":=",
+			},
+			want: rule{
+				outputs:        []string{},
+				outputPatterns: []pattern{pattern{suffix: ".o"}},
+			},
+			assign: &assignAST{
+				lhs: literal("CFLAGS"),
+				rhs: literal("-g"),
+				op:  ":=",
+			},
+		},
 		/* TODO
 		{
 			in:  "foo.o: %.c: %.c",
@@ -154,7 +188,7 @@ func TestRuleParser(t *testing.T) {
 		*/
 	} {
 		got := &rule{}
-		assign, err := got.parse([]byte(tc.in), tc.rhs)
+		assign, err := got.parse([]byte(tc.in), tc.tsv, tc.rhs)
 		if tc.err != "" {
 			if err == nil {
 				t.Errorf(`r.parse(%q, %v)=_, <nil>, want _, %q`, tc.in, tc.rhs, tc.err)
