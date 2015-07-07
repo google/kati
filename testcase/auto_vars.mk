@@ -12,7 +12,6 @@ bar:
 
 baz:
 
-# TODO: Fix
-#test2: foo bar foo
-#	echo $^
-#	echo $+
+test2: foo bar foo
+	echo $^
+	echo $+
