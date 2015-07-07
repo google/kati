@@ -246,6 +246,7 @@ func (r runner) eval(ev *Evaluator, s string) ([]runner, error) {
 	}
 	cmds := buf.String()
 	freeBuf(buf)
+	logf("evalcmd: %q => %q", r.cmd, cmds)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
 		if len(runners) > 0 && strings.HasSuffix(runners[len(runners)-1].cmd, "\\") {
@@ -265,7 +266,7 @@ func (r runner) run(output string) error {
 	if DryRunFlag {
 		return nil
 	}
-	args := []string{r.shell, "-c", r.cmd}
+	args := []string{r.shell, "-c", cmdline(r.cmd)}
 	cmd := exec.Cmd{
 		Path: args[0],
 		Args: args,
