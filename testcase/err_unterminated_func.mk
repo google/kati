@@ -1,3 +1,1 @@
-# TODO(go): Fix
-
 $(info ()
