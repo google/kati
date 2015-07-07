@@ -16,7 +16,6 @@ package kati
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"time"
 )
@@ -256,7 +255,7 @@ func rot13(buf []byte) {
 	}
 }
 
-func (f *funcShellAndroidRot13) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShellAndroidRot13) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
 	fargs, err := ev.args(abuf, f.v)
 	if err != nil {
@@ -273,7 +272,7 @@ type funcShellAndroidFindFileInDir struct {
 	dir Value
 }
 
-func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShellAndroidFindFileInDir) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
 	fargs, err := ev.args(abuf, f.dir)
 	if err != nil {
@@ -290,8 +289,7 @@ func (f *funcShellAndroidFindFileInDir) Eval(w io.Writer, ev *Evaluator) error {
 		logf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
-	sw := ssvWriter{w: w}
-	androidFindCache.findInDir(&sw, dir)
+	androidFindCache.findInDir(w, dir)
 	return nil
 }
 
@@ -302,7 +300,7 @@ type funcShellAndroidFindExtFilesUnder struct {
 	ext   string
 }
 
-func (f *funcShellAndroidFindExtFilesUnder) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
 	fargs, err := ev.args(abuf, f.chdir, f.roots)
 	if err != nil {
@@ -330,9 +328,8 @@ func (f *funcShellAndroidFindExtFilesUnder) Eval(w io.Writer, ev *Evaluator) err
 		return f.funcShell.Eval(w, ev)
 	}
 	buf := newBuf()
-	sw := ssvWriter{w: buf}
 	for _, root := range roots {
-		if !androidFindCache.findExtFilesUnder(&sw, chdir, root, f.ext) {
+		if !androidFindCache.findExtFilesUnder(buf, chdir, root, f.ext) {
 			freeBuf(buf)
 			logf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
 			return f.funcShell.Eval(w, ev)
@@ -348,7 +345,7 @@ type funcShellAndroidFindJavaResourceFileGroup struct {
 	dir Value
 }
 
-func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
 	fargs, err := ev.args(abuf, f.dir)
 	if err != nil {
@@ -365,8 +362,7 @@ func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w io.Writer, ev *Evalua
 		logf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
-	sw := ssvWriter{w: w}
-	androidFindCache.findJavaResourceFileGroup(&sw, dir)
+	androidFindCache.findJavaResourceFileGroup(w, dir)
 	return nil
 }
 
@@ -378,7 +374,7 @@ type funcShellAndroidFindleaves struct {
 	mindepth int
 }
 
-func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 	if !androidFindCache.leavesReady() {
 		logf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
@@ -409,9 +405,8 @@ func (f *funcShellAndroidFindleaves) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	freeBuf(abuf)
 
-	sw := ssvWriter{w: w}
 	for _, dir := range dirs {
-		androidFindCache.findleaves(&sw, dir, name, prunes, f.mindepth)
+		androidFindCache.findleaves(w, dir, name, prunes, f.mindepth)
 	}
 	return nil
 }
@@ -454,7 +449,7 @@ func compactShellDate(sh *funcShell, v []Value) Value {
 	}
 }
 
-func (f *funcShellDate) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShellDate) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, ShellDateTimestamp.Format(f.format))
 	return nil
 }

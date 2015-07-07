@@ -174,6 +174,7 @@ func NewEvaluator(vars map[string]Var) *Evaluator {
 func (ev *Evaluator) args(buf *buffer, args ...Value) ([][]byte, error) {
 	pos := make([]int, 0, len(args))
 	for _, arg := range args {
+		buf.resetSpace()
 		err := arg.Eval(buf, ev)
 		if err != nil {
 			return nil, err
@@ -259,7 +260,8 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	var rhs expr
 	semi := ast.semi
 	for i, v := range aexpr {
-		var buf bytes.Buffer
+		var buf buffer
+		buf.resetSpace()
 		err := v.Eval(&buf, ev)
 		if err != nil {
 			return err
@@ -388,7 +390,8 @@ func (ev *Evaluator) lookupVarInCurrentScope(name string) Var {
 // Only for a few special uses such as getting SHELL and handling
 // export/unexport.
 func (ev *Evaluator) EvaluateVar(name string) (string, error) {
-	var buf bytes.Buffer
+	var buf buffer
+	buf.resetSpace()
 	err := ev.LookupVar(name).Eval(&buf, ev)
 	if err != nil {
 		return "", err
@@ -427,7 +430,8 @@ func (ev *Evaluator) evalInclude(ast *includeAST) error {
 	if err != nil {
 		return ast.errorf("parse failed: %q: %v", ast.expr, err)
 	}
-	var buf bytes.Buffer
+	var buf buffer
+	buf.resetSpace()
 	err = v.Eval(&buf, ev)
 	if err != nil {
 		return ast.errorf("%v", err)
@@ -541,7 +545,8 @@ func (ev *Evaluator) evalExport(ast *exportAST) error {
 	if err != nil {
 		return ast.errorf("failed to parse: %q: %v", string(ast.expr), err)
 	}
-	var buf bytes.Buffer
+	var buf buffer
+	buf.resetSpace()
 	err = v.Eval(&buf, ev)
 	if err != nil {
 		return ast.errorf("%v\n expr:%s", err, v)

@@ -111,7 +111,7 @@ func wildcardGlob(pat string) ([]string, error) {
 	return filepath.Glob(pat)
 }
 
-func wildcard(sw *ssvWriter, pat string) error {
+func wildcard(w evalWriter, pat string) error {
 	if UseWildcardCache {
 		// TODO(ukai): make sure it didn't chdir?
 		wildcardCache.mu.Lock()
@@ -119,7 +119,7 @@ func wildcard(sw *ssvWriter, pat string) error {
 		wildcardCache.mu.Unlock()
 		if ok {
 			for _, file := range files {
-				sw.WriteString(file)
+				w.writeWordString(file)
 			}
 			return nil
 		}
@@ -129,7 +129,7 @@ func wildcard(sw *ssvWriter, pat string) error {
 		return err
 	}
 	for _, file := range files {
-		sw.WriteString(file)
+		w.writeWordString(file)
 	}
 	if UseWildcardCache {
 		wildcardCache.mu.Lock()
@@ -394,7 +394,7 @@ Loop:
 // pattern in repo/android/build/core/definitions.mk
 // find-subdir-assets
 // if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
-func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
+func (c *androidFindCacheT) findInDir(w evalWriter, dir string) {
 	dir = filepath.Clean(dir)
 	logf("android find in dir cache: %s", dir)
 	c.walk(dir, func(_ int, fi fileInfo) error {
@@ -409,7 +409,7 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 		}
 		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
-		sw.WriteString(name)
+		w.writeWordString(name)
 		logf("android find in dir cache: %s=> %s", dir, name)
 		return nil
 	})
@@ -419,7 +419,7 @@ func (c *androidFindCacheT) findInDir(sw *ssvWriter, dir string) {
 // all-java-files-under etc
 // cd ${LOCAL_PATH} ; find -L $1 -name "*<ext>" -and -not -name ".*"
 // returns false if symlink is found.
-func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext string) bool {
+func (c *androidFindCacheT) findExtFilesUnder(w evalWriter, chdir, root, ext string) bool {
 	chdir = filepath.Clean(chdir)
 	dir := filepath.Join(chdir, root)
 	logf("android find %s in dir cache: %s %s", ext, chdir, root)
@@ -449,7 +449,7 @@ func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext st
 			continue
 		}
 		name := strings.TrimPrefix(fi.path, chdir+"/")
-		sw.WriteString(name)
+		w.writeWordString(name)
 		logf("android find %s in dir cache: %s=> %s", ext, dir, name)
 	}
 	return true
@@ -461,7 +461,7 @@ func (c *androidFindCacheT) findExtFilesUnder(sw *ssvWriter, chdir, root, ext st
 // -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
 // -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
 // -a \! -name "*~" -print )
-func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string) {
+func (c *androidFindCacheT) findJavaResourceFileGroup(w evalWriter, dir string) {
 	logf("android find java resource in dir cache: %s", dir)
 	c.walk(filepath.Clean(dir), func(_ int, fi fileInfo) error {
 		// -type d -a -name ".svn" -prune
@@ -486,13 +486,13 @@ func (c *androidFindCacheT) findJavaResourceFileGroup(sw *ssvWriter, dir string)
 		}
 		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
-		sw.WriteString(name)
+		w.writeWordString(name)
 		logf("android find java resource in dir cache: %s=> %s", dir, name)
 		return nil
 	})
 }
 
-func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes []string, mindepth int) bool {
+func (c *androidFindCacheT) findleaves(w evalWriter, dir, name string, prunes []string, mindepth int) bool {
 	var found []string
 	var dirs []string
 	topdir := filepath.Clean(dir)
@@ -547,7 +547,7 @@ func (c *androidFindCacheT) findleaves(sw *ssvWriter, dir, name string, prunes [
 	logf("android findleave done")
 	sort.Strings(found)
 	for _, f := range found {
-		sw.WriteString(f)
+		w.writeWordString(f)
 	}
 	return true
 }

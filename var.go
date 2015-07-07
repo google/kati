@@ -70,7 +70,7 @@ func (v *targetSpecificVar) String() string {
 	return v.v.String()
 	// return v.v.String() + " (op=" + v.op + ")"
 }
-func (v *targetSpecificVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v *targetSpecificVar) Eval(w evalWriter, ev *Evaluator) error {
 	return v.v.Eval(w, ev)
 }
 
@@ -97,7 +97,7 @@ func (v *simpleVar) Origin() string  { return v.origin }
 func (v *simpleVar) IsDefined() bool { return true }
 
 func (v *simpleVar) String() string { return v.value }
-func (v *simpleVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v *simpleVar) Eval(w evalWriter, ev *Evaluator) error {
 	io.WriteString(w, v.value)
 	return nil
 }
@@ -153,7 +153,7 @@ func (v *automaticVar) Origin() string  { return "automatic" }
 func (v *automaticVar) IsDefined() bool { return true }
 
 func (v *automaticVar) String() string { return string(v.value) }
-func (v *automaticVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v *automaticVar) Eval(w evalWriter, ev *Evaluator) error {
 	w.Write(v.value)
 	return nil
 }
@@ -169,10 +169,11 @@ func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 	if err != nil {
 		return nil, err
 	}
-	buf := bytes.NewBuffer(nil)
+	var buf buffer
 	buf.Write(v.value)
 	buf.WriteByte(' ')
-	err = val.Eval(buf, ev)
+	buf.resetSpace()
+	err = val.Eval(&buf, ev)
 	if err != nil {
 		return nil, err
 	}
@@ -183,10 +184,11 @@ func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 }
 
 func (v *automaticVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
-	buf := bytes.NewBuffer(nil)
+	var buf buffer
 	buf.Write(v.value)
 	buf.WriteByte(' ')
-	err := val.Eval(buf, ev)
+	buf.resetSpace()
+	err := val.Eval(&buf, ev)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +208,7 @@ func (v *recursiveVar) Origin() string  { return v.origin }
 func (v *recursiveVar) IsDefined() bool { return true }
 
 func (v *recursiveVar) String() string { return v.expr.String() }
-func (v *recursiveVar) Eval(w io.Writer, ev *Evaluator) error {
+func (v *recursiveVar) Eval(w evalWriter, ev *Evaluator) error {
 	v.expr.Eval(w, ev)
 	return nil
 }
@@ -262,7 +264,7 @@ func (undefinedVar) Flavor() string  { return "undefined" }
 func (undefinedVar) Origin() string  { return "undefined" }
 func (undefinedVar) IsDefined() bool { return false }
 func (undefinedVar) String() string  { return "" }
-func (undefinedVar) Eval(_ io.Writer, _ *Evaluator) error {
+func (undefinedVar) Eval(_ evalWriter, _ *Evaluator) error {
 	return nil
 }
 func (undefinedVar) serialize() serializableVar {

@@ -167,7 +167,7 @@ func (c *fclosure) dump(d *dumpbuf) {
 type funcSubst struct{ fclosure }
 
 func (f *funcSubst) Arity() int { return 3 }
-func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcSubst) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("subst", 3, len(f.args))
 	if err != nil {
 		return err
@@ -191,7 +191,7 @@ func (f *funcSubst) Eval(w io.Writer, ev *Evaluator) error {
 type funcPatsubst struct{ fclosure }
 
 func (f *funcPatsubst) Arity() int { return 3 }
-func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcPatsubst) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("patsubst", 3, len(f.args))
 	if err != nil {
 		return err
@@ -226,7 +226,7 @@ func (f *funcPatsubst) Eval(w io.Writer, ev *Evaluator) error {
 type funcStrip struct{ fclosure }
 
 func (f *funcStrip) Arity() int { return 1 }
-func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcStrip) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("strip", 1, len(f.args))
 	if err != nil {
 		return err
@@ -254,7 +254,7 @@ func (f *funcStrip) Eval(w io.Writer, ev *Evaluator) error {
 type funcFindstring struct{ fclosure }
 
 func (f *funcFindstring) Arity() int { return 2 }
-func (f *funcFindstring) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcFindstring) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("findstring", 2, len(f.args))
 	if err != nil {
 		return err
@@ -278,7 +278,7 @@ func (f *funcFindstring) Eval(w io.Writer, ev *Evaluator) error {
 type funcFilter struct{ fclosure }
 
 func (f *funcFilter) Arity() int { return 2 }
-func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcFilter) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("filter", 2, len(f.args))
 	if err != nil {
 		return err
@@ -295,12 +295,11 @@ func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) error {
 		patterns = append(patterns, ws.Bytes())
 	}
 	ws = newWordScanner(fargs[1])
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		text := ws.Bytes()
 		for _, pat := range patterns {
 			if matchPatternBytes(pat, text) {
-				sw.Write(text)
+				w.writeWord(text)
 			}
 		}
 	}
@@ -312,7 +311,7 @@ func (f *funcFilter) Eval(w io.Writer, ev *Evaluator) error {
 type funcFilterOut struct{ fclosure }
 
 func (f *funcFilterOut) Arity() int { return 2 }
-func (f *funcFilterOut) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcFilterOut) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("filter-out", 2, len(f.args))
 	if err != nil {
 		return err
@@ -329,7 +328,6 @@ func (f *funcFilterOut) Eval(w io.Writer, ev *Evaluator) error {
 		patterns = append(patterns, ws.Bytes())
 	}
 	ws = newWordScanner(fargs[1])
-	sw := ssvWriter{w: w}
 Loop:
 	for ws.Scan() {
 		text := ws.Bytes()
@@ -338,7 +336,7 @@ Loop:
 				continue Loop
 			}
 		}
-		sw.Write(text)
+		w.writeWord(text)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "filter-out", t)
@@ -348,7 +346,7 @@ Loop:
 type funcSort struct{ fclosure }
 
 func (f *funcSort) Arity() int { return 1 }
-func (f *funcSort) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcSort) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("sort", 1, len(f.args))
 	if err != nil {
 		return err
@@ -386,7 +384,7 @@ func (f *funcSort) Eval(w io.Writer, ev *Evaluator) error {
 type funcWord struct{ fclosure }
 
 func (f *funcWord) Arity() int { return 2 }
-func (f *funcWord) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcWord) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("word", 2, len(f.args))
 	if err != nil {
 		return err
@@ -421,7 +419,7 @@ func (f *funcWord) Eval(w io.Writer, ev *Evaluator) error {
 type funcWordlist struct{ fclosure }
 
 func (f *funcWordlist) Arity() int { return 3 }
-func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcWordlist) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("wordlist", 3, len(f.args))
 	if err != nil {
 		return err
@@ -448,11 +446,10 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) error {
 
 	ws := newWordScanner(fargs[2])
 	i := 0
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		i++
 		if si <= i && i <= ei {
-			sw.Write(ws.Bytes())
+			w.writeWord(ws.Bytes())
 		}
 	}
 	freeBuf(abuf)
@@ -463,7 +460,7 @@ func (f *funcWordlist) Eval(w io.Writer, ev *Evaluator) error {
 type funcWords struct{ fclosure }
 
 func (f *funcWords) Arity() int { return 1 }
-func (f *funcWords) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcWords) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("words", 1, len(f.args))
 	if err != nil {
 		return err
@@ -488,7 +485,7 @@ func (f *funcWords) Eval(w io.Writer, ev *Evaluator) error {
 type funcFirstword struct{ fclosure }
 
 func (f *funcFirstword) Arity() int { return 1 }
-func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcFirstword) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("firstword", 1, len(f.args))
 	if err != nil {
 		return err
@@ -511,7 +508,7 @@ func (f *funcFirstword) Eval(w io.Writer, ev *Evaluator) error {
 type funcLastword struct{ fclosure }
 
 func (f *funcLastword) Arity() int { return 1 }
-func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcLastword) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("lastword", 1, len(f.args))
 	if err != nil {
 		return err
@@ -540,7 +537,7 @@ func (f *funcLastword) Eval(w io.Writer, ev *Evaluator) error {
 type funcJoin struct{ fclosure }
 
 func (f *funcJoin) Arity() int { return 2 }
-func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcJoin) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("join", 2, len(f.args))
 	if err != nil {
 		return err
@@ -553,14 +550,14 @@ func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) error {
 	t := time.Now()
 	ws1 := newWordScanner(fargs[0])
 	ws2 := newWordScanner(fargs[1])
-	sw := ssvWriter{w: w}
 	for {
 		if w1, w2 := ws1.Scan(), ws2.Scan(); !w1 && !w2 {
 			break
 		}
-		sw.Write(ws1.Bytes())
-		// Use |w| not to append extra ' '.
-		w.Write(ws2.Bytes())
+		var word []byte
+		word = append(word, ws1.Bytes()...)
+		word = append(word, ws2.Bytes()...)
+		w.writeWord(word)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "join", t)
@@ -570,7 +567,7 @@ func (f *funcJoin) Eval(w io.Writer, ev *Evaluator) error {
 type funcWildcard struct{ fclosure }
 
 func (f *funcWildcard) Arity() int { return 1 }
-func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcWildcard) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("wildcard", 1, len(f.args))
 	if err != nil {
 		return err
@@ -592,10 +589,9 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		pat := string(ws.Bytes())
-		err = wildcard(&sw, pat)
+		err = wildcard(w, pat)
 		if err != nil {
 			return err
 		}
@@ -609,7 +605,7 @@ func (f *funcWildcard) Eval(w io.Writer, ev *Evaluator) error {
 type funcDir struct{ fclosure }
 
 func (f *funcDir) Arity() int { return 1 }
-func (f *funcDir) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcDir) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("dir", 1, len(f.args))
 	if err != nil {
 		return err
@@ -621,14 +617,13 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		name := filepath.Dir(string(string(ws.Bytes())))
 		if name == "/" {
-			sw.WriteString(name)
+			w.writeWordString(name)
 			continue
 		}
-		sw.WriteString(name + string(filepath.Separator))
+		w.writeWordString(name + string(filepath.Separator))
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "dir", t)
@@ -638,7 +633,7 @@ func (f *funcDir) Eval(w io.Writer, ev *Evaluator) error {
 type funcNotdir struct{ fclosure }
 
 func (f *funcNotdir) Arity() int { return 1 }
-func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcNotdir) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("notdir", 1, len(f.args))
 	if err != nil {
 		return err
@@ -650,14 +645,13 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		name := string(ws.Bytes())
 		if name == string(filepath.Separator) {
-			sw.Write([]byte{}) // separator
+			w.writeWord([]byte{}) // separator
 			continue
 		}
-		sw.WriteString(filepath.Base(name))
+		w.writeWordString(filepath.Base(name))
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "notdir", t)
@@ -667,7 +661,7 @@ func (f *funcNotdir) Eval(w io.Writer, ev *Evaluator) error {
 type funcSuffix struct{ fclosure }
 
 func (f *funcSuffix) Arity() int { return 1 }
-func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcSuffix) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("suffix", 1, len(f.args))
 	if err != nil {
 		return err
@@ -679,12 +673,11 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		tok := string(ws.Bytes())
 		e := filepath.Ext(tok)
 		if len(e) > 0 {
-			sw.WriteString(e)
+			w.writeWordString(e)
 		}
 	}
 	freeBuf(abuf)
@@ -695,7 +688,7 @@ func (f *funcSuffix) Eval(w io.Writer, ev *Evaluator) error {
 type funcBasename struct{ fclosure }
 
 func (f *funcBasename) Arity() int { return 1 }
-func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcBasename) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("basename", 1, len(f.args))
 	if err != nil {
 		return err
@@ -707,11 +700,10 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		tok := string(ws.Bytes())
 		e := stripExt(tok)
-		sw.WriteString(e)
+		w.writeWordString(e)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "basename", t)
@@ -721,7 +713,7 @@ func (f *funcBasename) Eval(w io.Writer, ev *Evaluator) error {
 type funcAddsuffix struct{ fclosure }
 
 func (f *funcAddsuffix) Arity() int { return 2 }
-func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcAddsuffix) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("addsuffix", 2, len(f.args))
 	if err != nil {
 		return err
@@ -734,11 +726,11 @@ func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) error {
 	t := time.Now()
 	suf := fargs[0]
 	ws := newWordScanner(fargs[1])
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
-		sw.Write(ws.Bytes())
-		// Use |w| not to append extra ' '.
-		w.Write(suf)
+		var name []byte
+		name = append(name, ws.Bytes()...)
+		name = append(name, suf...)
+		w.writeWord(name)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "addsuffix", t)
@@ -748,7 +740,7 @@ func (f *funcAddsuffix) Eval(w io.Writer, ev *Evaluator) error {
 type funcAddprefix struct{ fclosure }
 
 func (f *funcAddprefix) Arity() int { return 2 }
-func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcAddprefix) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("addprefix", 2, len(f.args))
 	if err != nil {
 		return err
@@ -761,11 +753,11 @@ func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) error {
 	t := time.Now()
 	pre := fargs[0]
 	ws := newWordScanner(fargs[1])
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
-		sw.Write(pre)
-		// Use |w| not to append extra ' '.
-		w.Write(ws.Bytes())
+		var name []byte
+		name = append(name, pre...)
+		name = append(name, ws.Bytes()...)
+		w.writeWord(name)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "addprefix", t)
@@ -775,7 +767,7 @@ func (f *funcAddprefix) Eval(w io.Writer, ev *Evaluator) error {
 type funcRealpath struct{ fclosure }
 
 func (f *funcRealpath) Arity() int { return 1 }
-func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcRealpath) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("realpath", 1, len(f.args))
 	if err != nil {
 		return err
@@ -792,7 +784,6 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
@@ -805,7 +796,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) error {
 			logf("realpath: %v", err)
 			continue
 		}
-		sw.WriteString(name)
+		w.writeWordString(name)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "realpath", t)
@@ -815,7 +806,7 @@ func (f *funcRealpath) Eval(w io.Writer, ev *Evaluator) error {
 type funcAbspath struct{ fclosure }
 
 func (f *funcAbspath) Arity() int { return 1 }
-func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcAbspath) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("abspath", 1, len(f.args))
 	if err != nil {
 		return err
@@ -827,7 +818,6 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) error {
 	}
 	t := time.Now()
 	ws := newWordScanner(abuf.Bytes())
-	sw := ssvWriter{w: w}
 	for ws.Scan() {
 		name := string(ws.Bytes())
 		name, err := filepath.Abs(name)
@@ -835,7 +825,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) error {
 			logf("abs: %v", err)
 			continue
 		}
-		sw.WriteString(name)
+		w.writeWordString(name)
 	}
 	freeBuf(abuf)
 	stats.add("funcbody", "abspath", t)
@@ -846,7 +836,7 @@ func (f *funcAbspath) Eval(w io.Writer, ev *Evaluator) error {
 type funcIf struct{ fclosure }
 
 func (f *funcIf) Arity() int { return 3 }
-func (f *funcIf) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcIf) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("if", 2, len(f.args))
 	if err != nil {
 		return err
@@ -870,7 +860,7 @@ func (f *funcIf) Eval(w io.Writer, ev *Evaluator) error {
 type funcAnd struct{ fclosure }
 
 func (f *funcAnd) Arity() int { return 0 }
-func (f *funcAnd) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcAnd) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("and", 0, len(f.args))
 	if err != nil {
 		return nil
@@ -897,7 +887,7 @@ func (f *funcAnd) Eval(w io.Writer, ev *Evaluator) error {
 type funcOr struct{ fclosure }
 
 func (f *funcOr) Arity() int { return 0 }
-func (f *funcOr) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcOr) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("or", 0, len(f.args))
 	if err != nil {
 		return err
@@ -942,7 +932,7 @@ func hasNoIoInShellScript(s []byte) bool {
 	return true
 }
 
-func (f *funcShell) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("shell", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1019,7 +1009,7 @@ type funcCall struct{ fclosure }
 
 func (f *funcCall) Arity() int { return 0 }
 
-func (f *funcCall) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
 	abuf := newBuf()
 	fargs, err := ev.args(abuf, f.args[1:]...)
 	if err != nil {
@@ -1052,7 +1042,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) error {
 
 	var buf bytes.Buffer
 	if LogFlag {
-		w = io.MultiWriter(w, &buf)
+		w = &ssvWriter{Writer: io.MultiWriter(w, &buf)}
 	}
 	err = v.Eval(w, ev)
 	if err != nil {
@@ -1071,7 +1061,7 @@ func (f *funcCall) Eval(w io.Writer, ev *Evaluator) error {
 type funcValue struct{ fclosure }
 
 func (f *funcValue) Arity() int { return 1 }
-func (f *funcValue) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcValue) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("value", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1091,7 +1081,7 @@ func (f *funcValue) Eval(w io.Writer, ev *Evaluator) error {
 type funcEval struct{ fclosure }
 
 func (f *funcEval) Arity() int { return 1 }
-func (f *funcEval) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcEval) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("eval", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1184,8 +1174,8 @@ func stripComment(arg string) string {
 
 type funcNop struct{ expr string }
 
-func (f *funcNop) String() string                   { return f.expr }
-func (f *funcNop) Eval(io.Writer, *Evaluator) error { return nil }
+func (f *funcNop) String() string                    { return f.expr }
+func (f *funcNop) Eval(evalWriter, *Evaluator) error { return nil }
 func (f *funcNop) serialize() serializableVar {
 	return serializableVar{
 		Type: "funcNop",
@@ -1228,8 +1218,8 @@ func (f *funcEvalAssign) String() string {
 	return fmt.Sprintf("$(eval %s %s %s)", f.lhs, f.op, f.rhs)
 }
 
-func (f *funcEvalAssign) Eval(w io.Writer, ev *Evaluator) error {
-	var abuf bytes.Buffer
+func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
+	var abuf buffer
 	err := f.rhs.Eval(&abuf, ev)
 	if err != nil {
 		return err
@@ -1299,7 +1289,7 @@ func (f *funcEvalAssign) dump(d *dumpbuf) {
 type funcOrigin struct{ fclosure }
 
 func (f *funcOrigin) Arity() int { return 1 }
-func (f *funcOrigin) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcOrigin) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("origin", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1319,7 +1309,7 @@ func (f *funcOrigin) Eval(w io.Writer, ev *Evaluator) error {
 type funcFlavor struct{ fclosure }
 
 func (f *funcFlavor) Arity() int { return 1 }
-func (f *funcFlavor) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcFlavor) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("flavor", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1339,7 +1329,7 @@ func (f *funcFlavor) Eval(w io.Writer, ev *Evaluator) error {
 type funcInfo struct{ fclosure }
 
 func (f *funcInfo) Arity() int { return 1 }
-func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcInfo) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("info", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1362,7 +1352,7 @@ func (f *funcInfo) Eval(w io.Writer, ev *Evaluator) error {
 type funcWarning struct{ fclosure }
 
 func (f *funcWarning) Arity() int { return 1 }
-func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcWarning) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("warning", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1385,7 +1375,7 @@ func (f *funcWarning) Eval(w io.Writer, ev *Evaluator) error {
 type funcError struct{ fclosure }
 
 func (f *funcError) Arity() int { return 1 }
-func (f *funcError) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcError) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("error", 1, len(f.args))
 	if err != nil {
 		return err
@@ -1408,7 +1398,7 @@ type funcForeach struct{ fclosure }
 
 func (f *funcForeach) Arity() int { return 3 }
 
-func (f *funcForeach) Eval(w io.Writer, ev *Evaluator) error {
+func (f *funcForeach) Eval(w evalWriter, ev *Evaluator) error {
 	err := assertArity("foreach", 3, len(f.args))
 	if err != nil {
 		return err

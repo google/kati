@@ -14,10 +14,7 @@
 
 package kati
 
-import (
-	"bytes"
-	"strings"
-)
+import "strings"
 
 type ast interface {
 	eval(*Evaluator) error
@@ -53,7 +50,8 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) (Var, error) {
 		case tmpval:
 			return &simpleVar{value: v.String(), origin: origin}, nil
 		default:
-			var buf bytes.Buffer
+			var buf buffer
+			buf.resetSpace()
 			err := v.Eval(&buf, ev)
 			if err != nil {
 				return nil, err
