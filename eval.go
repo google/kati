@@ -304,6 +304,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	//logf("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
+		logf("target specific var: %#v", assign)
 		for _, output := range r.outputs {
 			ev.setTargetSpecificVar(assign, output)
 		}
