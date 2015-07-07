@@ -1,5 +1,3 @@
-# TODO(go): Fix
-
 test: override
 
 A=PASS

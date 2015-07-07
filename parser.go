@@ -159,26 +159,33 @@ func (p *parser) handleRuleOrAssign(line []byte) {
 	} else {
 		rline = concatline(line)
 	}
+	if p.handleAssign(line) {
+		return
+	}
+	// not assignment
+	p.parseMaybeRule(rline, semi)
+	return
+}
+
+func (p *parser) handleAssign(line []byte) bool {
 	aline, _ := removeComment(concatline(line))
 	aline = trimLeftSpaceBytes(aline)
 	if len(aline) == 0 {
-		return
+		return false
 	}
 	// fmt.Printf("assign: %q=>%q\n", line, aline)
 	i := findLiteralChar(aline, []byte{':', '='}, true)
 	if i >= 0 {
 		if aline[i] == '=' {
 			p.parseAssign(aline, i)
-			return
+			return true
 		}
 		if aline[i] == ':' && i+1 < len(aline) && aline[i+1] == '=' {
 			p.parseAssign(aline, i+1)
-			return
+			return true
 		}
 	}
-	// not assignment
-	p.parseMaybeRule(rline, semi)
-	return
+	return false
 }
 
 func (p *parser) parseAssign(line []byte, sep int) {
@@ -472,7 +479,14 @@ func overrideDirective(p *parser, data []byte) {
 	}
 	// e.g. overrider foo := bar
 	// line will be "foo := bar".
-	p.handleRuleOrAssign(data)
+	if p.handleAssign(data) {
+		return
+	}
+	p.defOpt = ""
+	var line []byte
+	line = append(line, []byte("override ")...)
+	line = append(line, data...)
+	p.handleRuleOrAssign(line)
 }
 
 func handleExport(p *parser, data []byte, export bool) (hasEqual bool) {
@@ -511,7 +525,14 @@ func exportDirective(p *parser, data []byte) {
 
 	// e.g. export foo := bar
 	// line will be "foo := bar".
-	p.handleRuleOrAssign(data)
+	if p.handleAssign(data) {
+		return
+	}
+	p.defOpt = ""
+	var line []byte
+	line = append(line, []byte("export ")...)
+	line = append(line, data...)
+	p.handleRuleOrAssign(line)
 }
 
 func unexportDirective(p *parser, data []byte) {
