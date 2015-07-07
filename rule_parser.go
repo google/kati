@@ -133,8 +133,9 @@ func (r *rule) parseVar(s []byte, rhs expr) (*assignAST, error) {
 
 // parse parses rule line.
 // line is rule line until '=', or before ';'
-// rhs is not nil, if line ended with '=' (target specific var)
-func (r *rule) parse(line []byte, rhs expr) (*assignAST, error) {
+// assign is not nil, if line was known as target specific var '<xxx>: <v>=<val>'
+// rhs is not nil, if line ended with '=' (target specific var after evaluated)
+func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, error) {
 	var removed bool
 	line, removed = removeComment(line)
 	if removed {
@@ -178,6 +179,12 @@ func (r *rule) parse(line []byte, rhs expr) (*assignAST, error) {
 	}
 
 	rest := line[index:]
+	if assign != nil {
+		if len(rest) > 0 {
+			panic(fmt.Sprintf("pattern specific var? line:%q", line))
+		}
+		return assign, nil
+	}
 	if rhs != nil {
 		assign, err := r.parseVar(rest, rhs)
 		if err != nil {

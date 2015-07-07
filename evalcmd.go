@@ -296,7 +296,7 @@ func createRunners(ctx *execContext, n *DepNode) ([]runner, bool, error) {
 		restore := ctx.ev.vars.save(k)
 		defer restore()
 		ctx.ev.vars[k] = v
-		logf("tsv: %s=%s", k, v)
+		logf("set tsv: %s=%s", k, v)
 	}
 
 	ctx.ev.filename = n.Filename

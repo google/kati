@@ -124,6 +124,9 @@ func compactExpr(e expr) Value {
 	return e
 }
 func toExpr(v Value) expr {
+	if v == nil {
+		return nil
+	}
 	if e, ok := v.(expr); ok {
 		return e
 	}
