@@ -215,7 +215,7 @@ func (p *parser) parseMaybeRule(line, semi []byte) {
 	}
 	expr, _, err := parseExpr(line, nil, parseOp{})
 	if err != nil {
-		p.err = p.srcpos().errorf("parse error: %s: %v", string(line), err)
+		p.err = p.srcpos().error(err)
 		return
 	}
 	// TODO(ukai): remove ast, and eval here.

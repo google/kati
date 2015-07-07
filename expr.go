@@ -25,6 +25,7 @@ import (
 )
 
 var (
+	errEndOfInput = errors.New("unexpected end of input")
 	errNotLiteral = errors.New("valueNum: not literal")
 )
 
@@ -392,7 +393,8 @@ Loop:
 	}
 	exp = appendStr(exp, in[b:i], op.alloc)
 	if i == len(in) && term != nil {
-		return exp, i, fmt.Errorf("parse: unexpected end of input: %q %d [%q]", in, i, term)
+		logf("parse: unexpected end of input: %q %d [%q]", in, i, term)
+		return exp, i, errEndOfInput
 	}
 	return compactExpr(exp), i, nil
 }
@@ -612,6 +614,9 @@ func parseFunc(f mkFunc, in []byte, s int, term []byte, funcName string, alloc b
 		}
 		v, n, err := parseExpr(in[i:], term, op)
 		if err != nil {
+			if err == errEndOfInput {
+				return nil, 0, fmt.Errorf("*** unterminated call to function `%s': missing `)'.", funcName)
+			}
 			return nil, 0, err
 		}
 		v = concatLine(v)
