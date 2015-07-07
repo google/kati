@@ -210,6 +210,10 @@ func (p *parser) parseAssign(line []byte, sep int) {
 }
 
 func (p *parser) parseMaybeRule(line, semi []byte) {
+	if len(line) == 0 {
+		p.err = p.srcpos().errorf("*** missing rule before commands.")
+		return
+	}
 	if line[0] == '\t' {
 		p.err = p.srcpos().errorf("*** commands commence before first target.")
 		return
