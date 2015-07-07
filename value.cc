@@ -102,7 +102,8 @@ class Expr : public Value {
       }
       r += v->DebugString();
     }
-    r += ")";
+    if (!r.empty())
+      r += ")";
     return r;
   }
 
