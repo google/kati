@@ -122,12 +122,8 @@ func (r *rule) parseVar(s []byte, rhs expr) (*assignAST, error) {
 		lhsBytes = trimSpaceBytes(s[:len(s)-1])
 		op = "="
 	}
-	lhs, _, err := parseExpr(lhsBytes, nil, parseOp{alloc: true})
-	if err != nil {
-		return nil, err
-	}
 	assign := &assignAST{
-		lhs: lhs,
+		lhs: literal(string(lhsBytes)),
 		rhs: compactExpr(rhs),
 		op:  op,
 	}
