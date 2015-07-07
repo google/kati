@@ -41,7 +41,7 @@ Note ./ninja.sh passes all parameters to ninja.
 For example, the following is equivalent to "make cts":
 
     % ~/src/kati/m2n cts
-    % ./ninja-cts.h
+    % ./ninja-cts.sh
 
 Or, if your target is built by "make", your can specify the target of ninja.
 
