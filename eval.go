@@ -343,10 +343,12 @@ func (ev *Evaluator) evalCommand(ast *commandAST) error {
 			if err != nil {
 				return ast.errorf("parse failed: %q: %v", line, err)
 			}
-			if len(mk.stmts) == 1 && mk.stmts[0].(*assignAST) != nil {
-				err = ev.eval(mk.stmts[0])
-				if err != nil {
-					return err
+			if len(mk.stmts) >= 1 && mk.stmts[len(mk.stmts)-1].(*assignAST) != nil {
+				for _, stmt := range mk.stmts {
+					err = ev.eval(stmt)
+					if err != nil {
+						return err
+					}
 				}
 			}
 			return nil
