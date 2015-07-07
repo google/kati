@@ -1,2 +1,2 @@
-# TODO: This is an error. See also semicolon.mk
+# This is an error. See also semicolon.mk
 ;
