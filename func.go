@@ -927,9 +927,11 @@ func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 	}
 	arg := abuf.String()
 	freeBuf(abuf)
-	shellVar := ev.LookupVar("SHELL")
-	// TODO: Should be Eval, not String.
-	cmdline := []string{shellVar.String(), "-c", arg}
+	shellVar, err := ev.EvaluateVar("SHELL")
+	if err != nil {
+		return err
+	}
+	cmdline := []string{shellVar, "-c", arg}
 	if LogFlag {
 		logf("shell %q", cmdline)
 	}

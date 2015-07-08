@@ -1,4 +1,4 @@
-# TODO: Fix
+# TODO: Fix - "override export define C" is invalid "override" directive.
 
 override export A:=PASS_A
 export override B:=PASS_B
