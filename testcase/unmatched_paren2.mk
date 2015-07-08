@@ -1,5 +1,3 @@
-# TODO(go): do we need to support this?
-
 foo = FOO
 bar = BAR
 dp := $$(
