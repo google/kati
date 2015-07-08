@@ -4,9 +4,8 @@ SHELL:=/bin/echo
 
 $(info $(shell foo))
 
-# TODO: Fix.
-#echo=/bin/echo
-#SHELL=$(echo)
+echo=/bin/echo
+SHELL=$(echo)
 
 $(info $(shell bar))
 

@@ -1,4 +1,4 @@
-# TODO: Fix.
+# TODO: Fix - command not found message differs
 
 test:
 
