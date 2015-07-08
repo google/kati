@@ -448,11 +448,24 @@ Again:
 		e, n, err := parseExpr(in[i:], term, op)
 		if err != nil {
 			if err == errEndOfInput {
+				// unmatched_paren2.mk
+				varname = append(varname, toExpr(e)...)
+				if len(varname) > 0 {
+					for i, vn := range varname {
+						if vr, ok := vn.(*varref); ok {
+							if vr.paren == oparen {
+								varname = varname[:i+1]
+								varname[i] = expr{literal(fmt.Sprintf("$%c", oparen)), vr.varname}
+								return &varref{varname: varname, paren: oparen}, i + 1 + n + 1, nil
+							}
+						}
+					}
+				}
 				return nil, 0, errUnterminatedVariableReference
 			}
 			return nil, 0, err
 		}
-		varname = append(varname, e)
+		varname = append(varname, toExpr(e)...)
 		i += n
 		switch in[i] {
 		case paren:
