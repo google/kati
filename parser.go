@@ -197,7 +197,7 @@ func (p *parser) parseAssign(line []byte, sep int) {
 			lhs, op = line[:sep-1], line[sep-1:sep+1]
 		}
 	}
-	logf("parseAssign %s op:%s opt:%s", line, op, p.defOpt)
+	logf("parseAssign %s op:%q opt:%s", line, op, p.defOpt)
 	lhs = trimSpaceBytes(lhs)
 	rhs = trimLeftSpaceBytes(rhs)
 	aast, err := newAssignAST(p, lhs, rhs, string(op))
@@ -596,7 +596,9 @@ func unexportDirective(p *parser, data []byte) {
 func (p *parser) parse() (mk makefile, err error) {
 	for !p.done {
 		line := p.readLine()
-		logf("line: %q", line)
+		if LogFlag {
+			logf("%s: %q", p.srcpos(), line)
+		}
 		if p.defineVar != nil {
 			p.processDefine(line)
 			if p.err != nil {
@@ -626,7 +628,9 @@ func (p *parser) parseLine(line []byte) {
 	if len(cline) == 0 {
 		return
 	}
-	logf("concatline:%q", cline)
+	if LogFlag {
+		logf("concatline:%q", cline)
+	}
 	var dline []byte
 	cline, _ = removeComment(cline)
 	dline = append(dline, cline...)
@@ -634,17 +638,23 @@ func (p *parser) parseLine(line []byte) {
 	if len(dline) == 0 {
 		return
 	}
-	logf("directive?: %q", dline)
+	if LogFlag {
+		logf("directive?: %q", dline)
+	}
 	if p.handleDirective(dline, makeDirectives) {
 		return
 	}
-	logf("rule or assign?: %q", line)
+	if LogFlag {
+		logf("rule or assign?: %q", line)
+	}
 	p.handleRuleOrAssign(line)
 }
 
 func (p *parser) processDefine(line []byte) {
 	line = concatline(line)
-	logf("concatline:%q", line)
+	if LogFlag {
+		logf("concatline:%q", line)
+	}
 	if !p.isEndef(line) {
 		if p.inDef != nil {
 			p.inDef = append(p.inDef, '\n')

@@ -387,6 +387,9 @@ func concatline(line []byte) []byte {
 			continue
 		}
 		if i+1 == len(line) {
+			if line[i-1] != '\\' {
+				line = line[:i]
+			}
 			break
 		}
 		if line[i+1] == '\n' {
