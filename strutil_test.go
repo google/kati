@@ -236,6 +236,14 @@ func TestConcatline(t *testing.T) {
 			in:   "foo \\\n   \\\n\t bar",
 			want: "foo bar",
 		},
+		{
+			in:   `foo \`,
+			want: `foo `,
+		},
+		{
+			in:   `foo \\`,
+			want: `foo \\`,
+		},
 	} {
 		got := string(concatline([]byte(tc.in)))
 		if got != tc.want {

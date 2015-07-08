@@ -1065,8 +1065,8 @@ func (f *funcEval) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	s := abuf.Bytes()
-	logf("eval %q at %s", s, ev.srcpos)
-	mk, err := parseMakefileBytes(s, ev.srcpos)
+	logf("eval %v=>%q at %s", f.args[1], s, ev.srcpos)
+	mk, err := parseMakefileBytes(trimSpaceBytes(s), ev.srcpos)
 	if err != nil {
 		return ev.errorf("%v", err)
 	}
@@ -1193,11 +1193,13 @@ func (f *funcEvalAssign) String() string {
 
 func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
 	var abuf buffer
+	abuf.resetSpace()
 	err := f.rhs.Eval(&abuf, ev)
 	if err != nil {
 		return err
 	}
 	rhs := trimLeftSpaceBytes(abuf.Bytes())
+	logf("evalAssign: lhs=%q rhs=%s %q", f.lhs, f.rhs, rhs)
 	var rvalue Var
 	switch f.op {
 	case ":=":
@@ -1359,6 +1361,7 @@ func (f *funcError) Eval(w evalWriter, ev *Evaluator) error {
 		return nil
 	}
 	var abuf buffer
+	abuf.resetSpace()
 	err = f.args[1].Eval(&abuf, ev)
 	if err != nil {
 		return err
