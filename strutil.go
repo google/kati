@@ -265,15 +265,6 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-func bytesContains(s []byte, b byte) bool {
-	for _, c := range s {
-		if c == b {
-			return true
-		}
-	}
-	return false
-}
-
 func firstWord(line []byte) ([]byte, []byte) {
 	s := newWordScanner(line)
 	if s.Scan() {
@@ -283,7 +274,7 @@ func firstWord(line []byte) ([]byte, []byte) {
 	return line, nil
 }
 
-func findLiteralChar(s, stop []byte, skipVar bool) int {
+func findLiteralChar(s []byte, stop1, stop2 byte) int {
 	i := 0
 	for {
 		var ch byte
@@ -293,10 +284,13 @@ func findLiteralChar(s, stop []byte, skipVar bool) int {
 				i += 2
 				continue
 			}
-			if bytesContains(stop, ch) {
+			if ch == stop1 {
 				break
 			}
-			if skipVar && ch == '$' {
+			if ch == stop2 {
+				break
+			}
+			if ch == '$' {
 				break
 			}
 			i++

@@ -160,6 +160,9 @@ var (
 
 // AndroidFindCacheInit initializes find cache for android build.
 func AndroidFindCacheInit(prunes, leafNames []string) {
+	if !UseFindCache {
+		return
+	}
 	if leafNames != nil {
 		androidDefaultLeafNames = leafNames
 	}
@@ -167,6 +170,9 @@ func AndroidFindCacheInit(prunes, leafNames []string) {
 }
 
 func (c *androidFindCacheT) ready() bool {
+	if !UseFindCache {
+		return false
+	}
 	if c.files != nil {
 		return true
 	}
@@ -177,6 +183,9 @@ func (c *androidFindCacheT) ready() bool {
 }
 
 func (c *androidFindCacheT) leavesReady() bool {
+	if !UseFindCache {
+		return false
+	}
 	if c.leaves != nil {
 		return true
 	}
@@ -187,6 +196,9 @@ func (c *androidFindCacheT) leavesReady() bool {
 }
 
 func (c *androidFindCacheT) init(prunes []string) {
+	if !UseFindCache {
+		return
+	}
 	c.once.Do(func() {
 		c.filesch = make(chan []fileInfo, 1)
 		c.leavesch = make(chan []fileInfo, 1)

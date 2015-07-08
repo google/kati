@@ -152,7 +152,7 @@ func (p *parser) handleDirective(line []byte, directives map[string]directiveFun
 func (p *parser) handleRuleOrAssign(line []byte) {
 	rline := line
 	var semi []byte
-	if i := findLiteralChar(line, []byte{';'}, true); i >= 0 {
+	if i := findLiteralChar(line, ';', 0); i >= 0 {
 		// preserve after semicolon
 		semi = append(semi, line[i+1:]...)
 		rline = concatline(line[:i])
@@ -175,7 +175,7 @@ func (p *parser) handleAssign(line []byte) bool {
 		return false
 	}
 	// fmt.Printf("assign: %q=>%q\n", line, aline)
-	i := findLiteralChar(aline, []byte{':', '='}, true)
+	i := findLiteralChar(aline, ':', '=')
 	if i >= 0 {
 		if aline[i] == '=' {
 			p.parseAssign(aline, i)
@@ -219,9 +219,9 @@ func (p *parser) parseMaybeRule(line, semi []byte) {
 		return
 	}
 	var assign *assignAST
-	ci := findLiteralChar(line, []byte{':'}, true)
+	ci := findLiteralChar(line, ':', 0)
 	if ci >= 0 {
-		eqi := findLiteralChar(line[ci+1:], []byte{'='}, true)
+		eqi := findLiteralChar(line[ci+1:], '=', 0)
 		if eqi == 0 {
 			panic(fmt.Sprintf("unexpected eq after colon: %q", line))
 		}
