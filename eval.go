@@ -273,7 +273,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 			abuf.Write(b)
 			continue
 		}
-		eq := findLiteralChar(b, []byte{'='}, true)
+		eq := findLiteralChar(b, '=', 0)
 		if eq >= 0 {
 			abuf.Write(b[:eq+1])
 			if eq+1 < len(b) {
