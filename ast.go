@@ -50,8 +50,8 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) (Var, error) {
 		case tmpval:
 			return &simpleVar{value: v.String(), origin: origin}, nil
 		default:
-			var buf buffer
-			buf.resetSpace()
+			var buf evalBuffer
+			buf.resetSep()
 			err := v.Eval(&buf, ev)
 			if err != nil {
 				return nil, err

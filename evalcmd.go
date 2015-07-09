@@ -239,13 +239,13 @@ func (r runner) eval(ev *Evaluator, s string) ([]runner, error) {
 	if err != nil {
 		return nil, ev.errorf("parse cmd %q: %v", r.cmd, err)
 	}
-	buf := newBuf()
+	buf := newEbuf()
 	err = expr.Eval(buf, ev)
 	if err != nil {
 		return nil, err
 	}
 	cmds := buf.String()
-	freeBuf(buf)
+	buf.release()
 	logf("evalcmd: %q => %q", r.cmd, cmds)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {

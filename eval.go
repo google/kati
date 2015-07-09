@@ -171,10 +171,10 @@ func NewEvaluator(vars map[string]Var) *Evaluator {
 	}
 }
 
-func (ev *Evaluator) args(buf *buffer, args ...Value) ([][]byte, error) {
+func (ev *Evaluator) args(buf *evalBuffer, args ...Value) ([][]byte, error) {
 	pos := make([]int, 0, len(args))
 	for _, arg := range args {
-		buf.resetSpace()
+		buf.resetSep()
 		err := arg.Eval(buf, ev)
 		if err != nil {
 			return nil, err
@@ -217,13 +217,13 @@ func (ev *Evaluator) evalAssignAST(ast *assignAST) (string, Var, error) {
 	case tmpval:
 		lhs = string(v)
 	default:
-		buf := newBuf()
+		buf := newEbuf()
 		err := v.Eval(buf, ev)
 		if err != nil {
 			return "", nil, err
 		}
 		lhs = string(trimSpaceBytes(buf.Bytes()))
-		freeBuf(buf)
+		buf.release()
 	}
 	rhs, err := ast.evalRHS(ev, lhs)
 	if err != nil {
@@ -257,13 +257,13 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 
 	logf("maybe rule %s: %q assign:%v", ev.srcpos, ast.expr, ast.assign)
 
-	abuf := newBuf()
+	abuf := newEbuf()
 	aexpr := toExpr(ast.expr)
 	var rhs expr
 	semi := ast.semi
 	for i, v := range aexpr {
-		var buf buffer
-		buf.resetSpace()
+		var buf evalBuffer
+		buf.resetSep()
 		err := v.Eval(&buf, ev)
 		if err != nil {
 			return err
@@ -302,7 +302,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	if err != nil {
 		return ast.error(err)
 	}
-	freeBuf(abuf)
+	abuf.release()
 	if LogFlag {
 		logf("rule %q assign:%v rhs:%v=> outputs:%q, inputs:%q", ast.expr, ast.assign, rhs, r.outputs, r.inputs)
 	}
@@ -397,8 +397,8 @@ func (ev *Evaluator) lookupVarInCurrentScope(name string) Var {
 // Only for a few special uses such as getting SHELL and handling
 // export/unexport.
 func (ev *Evaluator) EvaluateVar(name string) (string, error) {
-	var buf buffer
-	buf.resetSpace()
+	var buf evalBuffer
+	buf.resetSep()
 	err := ev.LookupVar(name).Eval(&buf, ev)
 	if err != nil {
 		return "", err
@@ -437,8 +437,8 @@ func (ev *Evaluator) evalInclude(ast *includeAST) error {
 	if err != nil {
 		return ast.errorf("parse failed: %q: %v", ast.expr, err)
 	}
-	var buf buffer
-	buf.resetSpace()
+	var buf evalBuffer
+	buf.resetSep()
 	err = v.Eval(&buf, ev)
 	if err != nil {
 		return ast.errorf("%v", err)
@@ -492,7 +492,7 @@ func (ev *Evaluator) evalIf(iast *ifAST) error {
 	switch iast.op {
 	case "ifdef", "ifndef":
 		expr := iast.lhs
-		buf := newBuf()
+		buf := newEbuf()
 		err := expr.Eval(buf, ev)
 		if err != nil {
 			return iast.errorf("%v\n expr:%s", err, expr)
@@ -505,7 +505,7 @@ func (ev *Evaluator) evalIf(iast *ifAST) error {
 		}
 		value := buf.String()
 		val := buf.Len()
-		freeBuf(buf)
+		buf.release()
 		isTrue = (val > 0) == (iast.op == "ifdef")
 		if LogFlag {
 			logf("%s lhs=%q value=%q => %t", iast.op, iast.lhs, value, isTrue)
@@ -513,14 +513,14 @@ func (ev *Evaluator) evalIf(iast *ifAST) error {
 	case "ifeq", "ifneq":
 		lexpr := iast.lhs
 		rexpr := iast.rhs
-		buf := newBuf()
+		buf := newEbuf()
 		params, err := ev.args(buf, lexpr, rexpr)
 		if err != nil {
 			return iast.errorf("%v\n (%s,%s)", err, lexpr, rexpr)
 		}
 		lhs := string(params[0])
 		rhs := string(params[1])
-		freeBuf(buf)
+		buf.release()
 		isTrue = (lhs == rhs) == (iast.op == "ifeq")
 		if LogFlag {
 			logf("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
@@ -552,8 +552,8 @@ func (ev *Evaluator) evalExport(ast *exportAST) error {
 	if err != nil {
 		return ast.errorf("failed to parse: %q: %v", string(ast.expr), err)
 	}
-	var buf buffer
-	buf.resetSpace()
+	var buf evalBuffer
+	buf.resetSep()
 	err = v.Eval(&buf, ev)
 	if err != nil {
 		return ast.errorf("%v\n expr:%s", err, v)

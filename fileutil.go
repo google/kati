@@ -38,8 +38,8 @@ func existsInVPATH(ev *Evaluator, target string) (string, bool) {
 	}
 	// TODO(ukai): support vpath directive (pattern vpath).
 	// TODO(ukai): ok to cache vpath value?
-	var wb wordBuffer
-	err := vpath.Eval(&wb, ev)
+	wb := newWbuf()
+	err := vpath.Eval(wb, ev)
 	if err != nil {
 		return target, false
 	}
@@ -53,5 +53,6 @@ func existsInVPATH(ev *Evaluator, target string) (string, bool) {
 			}
 		}
 	}
+	wb.release()
 	return target, false
 }
