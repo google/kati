@@ -35,7 +35,7 @@ type evalWriter interface {
 	io.Writer
 	writeWord([]byte)
 	writeWordString(string)
-	resetSpace()
+	resetSep()
 }
 
 // Value is an interface for value.
@@ -92,7 +92,7 @@ func (e expr) String() string {
 
 func (e expr) Eval(w evalWriter, ev *Evaluator) error {
 	for _, v := range e {
-		w.resetSpace()
+		w.resetSep()
 		err := v.Eval(w, ev)
 		if err != nil {
 			return err
@@ -153,13 +153,13 @@ func (v *varref) String() string {
 
 func (v *varref) Eval(w evalWriter, ev *Evaluator) error {
 	te := traceEvent.begin("var", v, traceEventMain)
-	buf := newBuf()
+	buf := newEbuf()
 	err := v.varname.Eval(buf, ev)
 	if err != nil {
 		return err
 	}
 	vv := ev.LookupVar(buf.String())
-	freeBuf(buf)
+	buf.release()
 	err = vv.Eval(w, ev)
 	if err != nil {
 		return err
@@ -234,7 +234,7 @@ func (v varsubst) String() string {
 
 func (v varsubst) Eval(w evalWriter, ev *Evaluator) error {
 	te := traceEvent.begin("varsubst", v, traceEventMain)
-	buf := newBuf()
+	buf := newEbuf()
 	params, err := ev.args(buf, v.varname, v.pat, v.subst)
 	if err != nil {
 		return err
@@ -249,7 +249,7 @@ func (v varsubst) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	vals := splitSpaces(buf.String())
-	freeBuf(buf)
+	buf.release()
 	space := false
 	for _, val := range vals {
 		if space {

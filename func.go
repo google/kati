@@ -172,7 +172,7 @@ func (f *funcSubst) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.args[1:]...)
 	if err != nil {
 		return err
@@ -188,7 +188,7 @@ func (f *funcSubst) Eval(w evalWriter, ev *Evaluator) error {
 	} else {
 		w.Write(bytes.Replace(text, from, to, -1))
 	}
-	freeBuf(abuf)
+	abuf.release()
 	stats.add("funcbody", "subst", t)
 	return nil
 }
@@ -201,13 +201,13 @@ func (f *funcPatsubst) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.args[1], f.args[2])
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[3].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[3].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,8 @@ func (f *funcPatsubst) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		w.writeWord(sword)
 	}
-	freeBuf(abuf)
+	abuf.release()
+	wb.release()
 	stats.add("funcbody", "patsubst", t)
 	return nil
 }
@@ -237,8 +238,8 @@ func (f *funcStrip) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -246,6 +247,7 @@ func (f *funcStrip) Eval(w evalWriter, ev *Evaluator) error {
 	for _, word := range wb.words {
 		w.writeWord(word)
 	}
+	wb.release()
 	stats.add("funcbody", "strip", t)
 	return nil
 }
@@ -258,7 +260,7 @@ func (f *funcFindstring) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.args[1:]...)
 	if err != nil {
 		return err
@@ -269,7 +271,7 @@ func (f *funcFindstring) Eval(w evalWriter, ev *Evaluator) error {
 	if bytes.Index(text, find) >= 0 {
 		w.Write(find)
 	}
-	freeBuf(abuf)
+	abuf.release()
 	stats.add("funcbody", "findstring", t)
 	return nil
 }
@@ -282,13 +284,13 @@ func (f *funcFilter) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var patternsBuffer wordBuffer
-	err = f.args[1].Eval(&patternsBuffer, ev)
+	patternsBuffer := newWbuf()
+	err = f.args[1].Eval(patternsBuffer, ev)
 	if err != nil {
 		return err
 	}
-	var textBuffer wordBuffer
-	err = f.args[2].Eval(&textBuffer, ev)
+	textBuffer := newWbuf()
+	err = f.args[2].Eval(textBuffer, ev)
 	if err != nil {
 		return err
 	}
@@ -300,6 +302,8 @@ func (f *funcFilter) Eval(w evalWriter, ev *Evaluator) error {
 			}
 		}
 	}
+	patternsBuffer.release()
+	textBuffer.release()
 	stats.add("funcbody", "filter", t)
 	return nil
 }
@@ -312,13 +316,13 @@ func (f *funcFilterOut) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var patternsBuffer wordBuffer
-	err = f.args[1].Eval(&patternsBuffer, ev)
+	patternsBuffer := newWbuf()
+	err = f.args[1].Eval(patternsBuffer, ev)
 	if err != nil {
 		return err
 	}
-	var textBuffer wordBuffer
-	err = f.args[2].Eval(&textBuffer, ev)
+	textBuffer := newWbuf()
+	err = f.args[2].Eval(textBuffer, ev)
 	if err != nil {
 		return err
 	}
@@ -332,6 +336,8 @@ Loop:
 		}
 		w.writeWord(text)
 	}
+	patternsBuffer.release()
+	textBuffer.release()
 	stats.add("funcbody", "filter-out", t)
 	return err
 }
@@ -344,8 +350,8 @@ func (f *funcSort) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -354,6 +360,7 @@ func (f *funcSort) Eval(w evalWriter, ev *Evaluator) error {
 	for _, tok := range wb.words {
 		toks = append(toks, string(tok))
 	}
+	wb.release()
 	sort.Strings(toks)
 
 	// Remove duplicate words.
@@ -377,13 +384,13 @@ func (f *funcWord) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	v := string(trimSpaceBytes(abuf.Bytes()))
-	freeBuf(abuf)
+	abuf.release()
 	index, ok := numericValueForFunc(v)
 	if !ok {
 		return ev.errorf(`*** non-numeric first argument to "word" function: %q.`, v)
@@ -391,8 +398,8 @@ func (f *funcWord) Eval(w evalWriter, ev *Evaluator) error {
 	if index == 0 {
 		return ev.errorf(`*** first argument to "word" function must be greater than 0.`)
 	}
-	var wb wordBuffer
-	err = f.args[2].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[2].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -400,6 +407,7 @@ func (f *funcWord) Eval(w evalWriter, ev *Evaluator) error {
 	if index-1 < len(wb.words) {
 		w.writeWord(wb.words[index-1])
 	}
+	wb.release()
 	stats.add("funcbody", "word", t)
 	return err
 }
@@ -412,7 +420,7 @@ func (f *funcWordlist) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.args[1], f.args[2])
 	if err != nil {
 		return err
@@ -431,10 +439,10 @@ func (f *funcWordlist) Eval(w evalWriter, ev *Evaluator) error {
 	if !ok {
 		return ev.errorf(`*** non-numeric second argument to "wordlist" function: %q.`, v)
 	}
-	freeBuf(abuf)
+	abuf.release()
 
-	var wb wordBuffer
-	err = f.args[3].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[3].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -443,6 +451,7 @@ func (f *funcWordlist) Eval(w evalWriter, ev *Evaluator) error {
 			w.writeWord(word)
 		}
 	}
+	wb.release()
 	stats.add("funcbody", "wordlist", t)
 	return nil
 }
@@ -455,13 +464,14 @@ func (f *funcWords) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
 	t := time.Now()
 	n := len(wb.words)
+	wb.release()
 	w.writeWordString(strconv.Itoa(n))
 	stats.add("funcbody", "words", t)
 	return nil
@@ -475,8 +485,8 @@ func (f *funcFirstword) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -484,6 +494,7 @@ func (f *funcFirstword) Eval(w evalWriter, ev *Evaluator) error {
 	if len(wb.words) > 0 {
 		w.writeWord(wb.words[0])
 	}
+	wb.release()
 	stats.add("funcbody", "firstword", t)
 	return nil
 }
@@ -496,8 +507,8 @@ func (f *funcLastword) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -505,6 +516,7 @@ func (f *funcLastword) Eval(w evalWriter, ev *Evaluator) error {
 	if len(wb.words) > 0 {
 		w.writeWord(wb.words[len(wb.words)-1])
 	}
+	wb.release()
 	stats.add("funcbody", "lastword", t)
 	return err
 }
@@ -519,13 +531,13 @@ func (f *funcJoin) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb1 wordBuffer
-	err = f.args[1].Eval(&wb1, ev)
+	wb1 := newWbuf()
+	err = f.args[1].Eval(wb1, ev)
 	if err != nil {
 		return err
 	}
-	var wb2 wordBuffer
-	err = f.args[2].Eval(&wb2, ev)
+	wb2 := newWbuf()
+	err = f.args[2].Eval(wb2, ev)
 	if err != nil {
 		return err
 	}
@@ -540,6 +552,8 @@ func (f *funcJoin) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		w.writeWord(word)
 	}
+	wb1.release()
+	wb2.release()
 	stats.add("funcbody", "join", t)
 	return nil
 }
@@ -552,8 +566,8 @@ func (f *funcWildcard) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -563,6 +577,7 @@ func (f *funcWildcard) Eval(w evalWriter, ev *Evaluator) error {
 		io.WriteString(w, "$(/bin/ls -d ")
 		w.Write(wb.Bytes())
 		io.WriteString(w, " 2> /dev/null)")
+		wb.release()
 		traceEvent.end(te)
 		return nil
 	}
@@ -574,6 +589,7 @@ func (f *funcWildcard) Eval(w evalWriter, ev *Evaluator) error {
 			return err
 		}
 	}
+	wb.release()
 	traceEvent.end(te)
 	stats.add("funcbody", "wildcard", t)
 	return nil
@@ -587,8 +603,8 @@ func (f *funcDir) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -601,6 +617,7 @@ func (f *funcDir) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		w.writeWordString(name + string(filepath.Separator))
 	}
+	wb.release()
 	stats.add("funcbody", "dir", t)
 	return nil
 }
@@ -613,8 +630,8 @@ func (f *funcNotdir) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -627,6 +644,7 @@ func (f *funcNotdir) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		w.writeWordString(filepath.Base(name))
 	}
+	wb.release()
 	stats.add("funcbody", "notdir", t)
 	return nil
 }
@@ -639,8 +657,8 @@ func (f *funcSuffix) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -652,6 +670,7 @@ func (f *funcSuffix) Eval(w evalWriter, ev *Evaluator) error {
 			w.writeWordString(e)
 		}
 	}
+	wb.release()
 	stats.add("funcbody", "suffix", t)
 	return err
 }
@@ -664,8 +683,8 @@ func (f *funcBasename) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -675,6 +694,7 @@ func (f *funcBasename) Eval(w evalWriter, ev *Evaluator) error {
 		e := stripExt(tok)
 		w.writeWordString(e)
 	}
+	wb.release()
 	stats.add("funcbody", "basename", t)
 	return nil
 }
@@ -687,13 +707,13 @@ func (f *funcAddsuffix) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[2].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[2].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -705,7 +725,8 @@ func (f *funcAddsuffix) Eval(w evalWriter, ev *Evaluator) error {
 		name = append(name, suf...)
 		w.writeWord(name)
 	}
-	freeBuf(abuf)
+	wb.release()
+	abuf.release()
 	stats.add("funcbody", "addsuffix", t)
 	return err
 }
@@ -718,14 +739,14 @@ func (f *funcAddprefix) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	pre := abuf.Bytes()
-	var wb wordBuffer
-	err = f.args[2].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[2].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -736,7 +757,8 @@ func (f *funcAddprefix) Eval(w evalWriter, ev *Evaluator) error {
 		name = append(name, word...)
 		w.writeWord(name)
 	}
-	freeBuf(abuf)
+	wb.release()
+	abuf.release()
 	stats.add("funcbody", "addprefix", t)
 	return err
 }
@@ -754,8 +776,8 @@ func (f *funcRealpath) Eval(w evalWriter, ev *Evaluator) error {
 		ev.hasIO = true
 		return nil
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -774,6 +796,7 @@ func (f *funcRealpath) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		w.writeWordString(name)
 	}
+	wb.release()
 	stats.add("funcbody", "realpath", t)
 	return err
 }
@@ -786,8 +809,8 @@ func (f *funcAbspath) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	var wb wordBuffer
-	err = f.args[1].Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -801,6 +824,7 @@ func (f *funcAbspath) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		w.writeWordString(name)
 	}
+	wb.release()
 	stats.add("funcbody", "abspath", t)
 	return nil
 }
@@ -814,16 +838,16 @@ func (f *funcIf) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	if len(abuf.Bytes()) != 0 {
-		freeBuf(abuf)
+		abuf.release()
 		return f.args[2].Eval(w, ev)
 	}
-	freeBuf(abuf)
+	abuf.release()
 	if len(f.args) > 3 {
 		return f.args[3].Eval(w, ev)
 	}
@@ -838,7 +862,7 @@ func (f *funcAnd) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return nil
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	var cond []byte
 	for _, arg := range f.args[1:] {
 		abuf.Reset()
@@ -848,12 +872,12 @@ func (f *funcAnd) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		cond = abuf.Bytes()
 		if len(cond) == 0 {
-			freeBuf(abuf)
+			abuf.release()
 			return nil
 		}
 	}
 	w.Write(cond)
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -865,7 +889,7 @@ func (f *funcOr) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	for _, arg := range f.args[1:] {
 		abuf.Reset()
 		err = arg.Eval(abuf, ev)
@@ -875,11 +899,11 @@ func (f *funcOr) Eval(w evalWriter, ev *Evaluator) error {
 		cond := abuf.Bytes()
 		if len(cond) != 0 {
 			w.Write(cond)
-			freeBuf(abuf)
+			abuf.release()
 			return nil
 		}
 	}
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -910,7 +934,7 @@ func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
@@ -922,11 +946,11 @@ func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 		w.Write(abuf.Bytes())
 		writeByte(w, ')')
 		traceEvent.end(te)
-		freeBuf(abuf)
+		abuf.release()
 		return nil
 	}
 	arg := abuf.String()
-	freeBuf(abuf)
+	abuf.release()
 	shellVar, err := ev.EvaluateVar("SHELL")
 	if err != nil {
 		return err
@@ -985,7 +1009,7 @@ type funcCall struct{ fclosure }
 func (f *funcCall) Arity() int { return 0 }
 
 func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.args[1:]...)
 	if err != nil {
 		return err
@@ -1028,7 +1052,7 @@ func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
 	if LogFlag {
 		logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 	}
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -1041,13 +1065,13 @@ func (f *funcValue) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	v := ev.LookupVar(abuf.String())
-	freeBuf(abuf)
+	abuf.release()
 	io.WriteString(w, v.String())
 	return nil
 }
@@ -1061,7 +1085,7 @@ func (f *funcEval) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
@@ -1079,7 +1103,7 @@ func (f *funcEval) Eval(w evalWriter, ev *Evaluator) error {
 			return err
 		}
 	}
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -1194,8 +1218,8 @@ func (f *funcEvalAssign) String() string {
 }
 
 func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
-	var abuf buffer
-	abuf.resetSpace()
+	var abuf evalBuffer
+	abuf.resetSep()
 	err := f.rhs.Eval(&abuf, ev)
 	if err != nil {
 		return err
@@ -1211,13 +1235,13 @@ func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
 		if err != nil {
 			return ev.errorf("eval assign error: %q: %v", f.String(), err)
 		}
-		vbuf := newBuf()
+		vbuf := newEbuf()
 		err = exp.Eval(vbuf, ev)
 		if err != nil {
 			return err
 		}
 		rvalue = &simpleVar{value: vbuf.String(), origin: "file"}
-		freeBuf(vbuf)
+		vbuf.release()
 	case "=":
 		rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}
 	case "+=":
@@ -1271,13 +1295,13 @@ func (f *funcOrigin) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	v := ev.LookupVar(abuf.String())
-	freeBuf(abuf)
+	abuf.release()
 	io.WriteString(w, v.Origin())
 	return nil
 }
@@ -1291,13 +1315,13 @@ func (f *funcFlavor) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	v := ev.LookupVar(abuf.String())
-	freeBuf(abuf)
+	abuf.release()
 	io.WriteString(w, v.Flavor())
 	return nil
 }
@@ -1316,13 +1340,13 @@ func (f *funcInfo) Eval(w evalWriter, ev *Evaluator) error {
 		ev.hasIO = true
 		return nil
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("%s\n", abuf.String())
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -1339,13 +1363,13 @@ func (f *funcWarning) Eval(w evalWriter, ev *Evaluator) error {
 		ev.hasIO = true
 		return nil
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("%s: %s\n", ev.srcpos, abuf.String())
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -1362,8 +1386,8 @@ func (f *funcError) Eval(w evalWriter, ev *Evaluator) error {
 		ev.hasIO = true
 		return nil
 	}
-	var abuf buffer
-	abuf.resetSpace()
+	var abuf evalBuffer
+	abuf.resetSep()
 	err = f.args[1].Eval(&abuf, ev)
 	if err != nil {
 		return err
@@ -1381,15 +1405,15 @@ func (f *funcForeach) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	varname := string(abuf.Bytes())
-	freeBuf(abuf)
-	var wb wordBuffer
-	err = f.args[2].Eval(&wb, ev)
+	abuf.release()
+	wb := newWbuf()
+	err = f.args[2].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -1407,6 +1431,7 @@ func (f *funcForeach) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		space = true
 	}
+	wb.release()
 	av := ev.LookupVar(varname)
 	if _, ok := av.(*automaticVar); ok {
 		ev.outVars.Assign(varname, ov)

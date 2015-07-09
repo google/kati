@@ -119,7 +119,7 @@ func (v *simpleVar) Append(ev *Evaluator, s string) (Var, error) {
 	if err != nil {
 		return nil, err
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	io.WriteString(abuf, v.value)
 	writeByte(abuf, ' ')
 	err = val.Eval(abuf, ev)
@@ -127,12 +127,12 @@ func (v *simpleVar) Append(ev *Evaluator, s string) (Var, error) {
 		return nil, err
 	}
 	v.value = abuf.String()
-	freeBuf(abuf)
+	abuf.release()
 	return v, nil
 }
 
 func (v *simpleVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
-	abuf := newBuf()
+	abuf := newEbuf()
 	io.WriteString(abuf, v.value)
 	writeByte(abuf, ' ')
 	err := val.Eval(abuf, ev)
@@ -140,7 +140,7 @@ func (v *simpleVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
 		return nil, err
 	}
 	v.value = abuf.String()
-	freeBuf(abuf)
+	abuf.release()
 	return v, nil
 }
 
@@ -169,10 +169,10 @@ func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 	if err != nil {
 		return nil, err
 	}
-	var buf buffer
+	var buf evalBuffer
 	buf.Write(v.value)
 	buf.WriteByte(' ')
-	buf.resetSpace()
+	buf.resetSep()
 	err = val.Eval(&buf, ev)
 	if err != nil {
 		return nil, err
@@ -184,10 +184,10 @@ func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 }
 
 func (v *automaticVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
-	var buf buffer
+	var buf evalBuffer
 	buf.Write(v.value)
 	buf.WriteByte(' ')
-	buf.resetSpace()
+	buf.resetSep()
 	err := val.Eval(&buf, ev)
 	if err != nil {
 		return nil, err

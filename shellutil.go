@@ -256,14 +256,14 @@ func rot13(buf []byte) {
 }
 
 func (f *funcShellAndroidRot13) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.v)
 	if err != nil {
 		return err
 	}
 	rot13(fargs[0])
 	w.Write(fargs[0])
-	freeBuf(abuf)
+	abuf.release()
 	return nil
 }
 
@@ -273,13 +273,13 @@ type funcShellAndroidFindFileInDir struct {
 }
 
 func (f *funcShellAndroidFindFileInDir) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.dir)
 	if err != nil {
 		return err
 	}
 	dir := string(trimSpaceBytes(fargs[0]))
-	freeBuf(abuf)
+	abuf.release()
 	logf("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
 	if strings.Contains(dir, "..") {
 		logf("shellAndroidFindFileInDir contains ..: call original shell")
@@ -301,15 +301,15 @@ type funcShellAndroidFindExtFilesUnder struct {
 }
 
 func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newBuf()
+	abuf := newEbuf()
 	err := f.chdir.Eval(abuf, ev)
 	if err != nil {
 		return err
 	}
 	chdir := string(trimSpaceBytes(abuf.Bytes()))
-	freeBuf(abuf)
-	var wb wordBuffer
-	err = f.roots.Eval(&wb, ev)
+	abuf.release()
+	wb := newWbuf()
+	err = f.roots.Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -322,6 +322,7 @@ func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) er
 		}
 		roots = append(roots, root)
 	}
+	wb.release()
 	logf("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
 	if strings.Contains(chdir, "..") || hasDotDot {
 		logf("shellAndroidFindExtFilesUnder contains ..: call original shell")
@@ -331,16 +332,16 @@ func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) er
 		logf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
-	buf := newBuf()
+	buf := newEbuf()
 	for _, root := range roots {
 		if !androidFindCache.findExtFilesUnder(buf, chdir, root, f.ext) {
-			freeBuf(buf)
+			buf.release()
 			logf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
 			return f.funcShell.Eval(w, ev)
 		}
 	}
 	w.Write(buf.Bytes())
-	freeBuf(buf)
+	buf.release()
 	return nil
 }
 
@@ -350,13 +351,13 @@ type funcShellAndroidFindJavaResourceFileGroup struct {
 }
 
 func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newBuf()
+	abuf := newEbuf()
 	fargs, err := ev.args(abuf, f.dir)
 	if err != nil {
 		return err
 	}
 	dir := string(trimSpaceBytes(fargs[0]))
-	freeBuf(abuf)
+	abuf.release()
 	logf("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
 	if strings.Contains(dir, "..") {
 		logf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
@@ -383,7 +384,7 @@ func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 		logf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
-	abuf := newBuf()
+	abuf := newEbuf()
 	var params []Value
 	params = append(params, f.name)
 	params = append(params, f.prunes...)
@@ -396,10 +397,10 @@ func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 	for _, arg := range fargs[1:] {
 		prunes = append(prunes, string(trimSpaceBytes(arg)))
 	}
-	freeBuf(abuf)
+	abuf.release()
 
-	var wb wordBuffer
-	err = f.dirlist.Eval(&wb, ev)
+	wb := newWbuf()
+	err = f.dirlist.Eval(wb, ev)
 	if err != nil {
 		return err
 	}
@@ -412,6 +413,7 @@ func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		dirs = append(dirs, dir)
 	}
+	wb.release()
 
 	for _, dir := range dirs {
 		androidFindCache.findleaves(w, dir, name, prunes, f.mindepth)

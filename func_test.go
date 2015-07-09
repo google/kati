@@ -26,7 +26,7 @@ func BenchmarkFuncStrip(b *testing.B) {
 		},
 	}
 	ev := NewEvaluator(make(map[string]Var))
-	var buf buffer
+	var buf evalBuffer
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -45,7 +45,7 @@ func BenchmarkFuncSort(b *testing.B) {
 		},
 	}
 	ev := NewEvaluator(make(map[string]Var))
-	var buf buffer
+	var buf evalBuffer
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -66,7 +66,7 @@ func BenchmarkFuncPatsubst(b *testing.B) {
 		},
 	}
 	ev := NewEvaluator(make(map[string]Var))
-	var buf buffer
+	var buf evalBuffer
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
