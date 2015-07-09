@@ -16,6 +16,7 @@ package kati
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -129,7 +130,7 @@ type ExecutorOpt struct {
 }
 
 // NewExecutor creates new Executor.
-func NewExecutor(vars Vars, opt *ExecutorOpt) (*Executor, error) {
+func NewExecutor(opt *ExecutorOpt) (*Executor, error) {
 	if opt == nil {
 		opt = &ExecutorOpt{NumJobs: 1}
 	}
@@ -140,21 +141,34 @@ func NewExecutor(vars Vars, opt *ExecutorOpt) (*Executor, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx := newExecContext(vars, false)
 	ex := &Executor{
 		rules:       make(map[string]*rule),
 		suffixRules: make(map[string][]*rule),
 		done:        make(map[string]*job),
 		wm:          wm,
-		ctx:         ctx,
 	}
 	return ex, nil
 }
 
 // Exec executes to build roots.
-func (ex *Executor) Exec(roots []*DepNode) error {
+func (ex *Executor) Exec(g *DepGraph) error {
+	ex.ctx = newExecContext(g.vars, false)
+
+	// TODO: Handle target specific variables.
+	for name, export := range g.exports {
+		if export {
+			v, err := ex.ctx.ev.EvaluateVar(name)
+			if err != nil {
+				return err
+			}
+			os.Setenv(name, v)
+		} else {
+			os.Unsetenv(name)
+		}
+	}
+
 	startTime := time.Now()
-	for _, root := range roots {
+	for _, root := range g.nodes {
 		err := ex.makeJobs(root, nil)
 		if err != nil {
 			break

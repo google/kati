@@ -28,7 +28,6 @@ type DepGraph struct {
 	vars        Vars
 	accessedMks []*accessedMakefile
 	exports     map[string]bool
-	isCached    bool
 }
 
 // Nodes returns all rules.
@@ -36,12 +35,6 @@ func (g *DepGraph) Nodes() []*DepNode { return g.nodes }
 
 // Vars returns all variables.
 func (g *DepGraph) Vars() Vars { return g.vars }
-
-// Exports returns map for export variables.
-func (g *DepGraph) Exports() map[string]bool { return g.exports }
-
-// IsCached indicates the DepGraph is loaded from cache.
-func (g *DepGraph) IsCached() bool { return g.isCached }
 
 // LoadReq is a request to load makefile.
 type LoadReq struct {

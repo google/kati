@@ -127,27 +127,17 @@ func (t memStatsDumper) dump() {
 	}
 }
 
-func findPara() string {
-	switch runtime.GOOS {
-	case "linux":
-		katicmd, err := os.Readlink("/proc/self/exe")
-		if err != nil {
-			panic(err)
-		}
-		return filepath.Join(filepath.Dir(katicmd), "para")
-	default:
-		panic(fmt.Sprintf("unknown OS: %s", runtime.GOOS))
-	}
-}
-
-func load(req kati.LoadReq) (*kati.DepGraph, error) {
+func load(req kati.LoadReq) (*kati.DepGraph, bool, error) {
 	if loadGOB != "" {
-		return kati.GOB.Load(loadGOB)
+		g, err := kati.GOB.Load(loadGOB)
+		return g, true, err
 	}
 	if loadJSON != "" {
-		return kati.JSON.Load(loadJSON)
+		g, err := kati.JSON.Load(loadJSON)
+		return g, true, err
 	}
-	return kati.Load(req)
+	g, err := kati.Load(req)
+	return g, false, err
 }
 
 func save(g *kati.DepGraph, targets []string) error {
@@ -284,16 +274,16 @@ func katiMain(args []string) error {
 	req.UseCache = useCache
 	req.EagerEvalCommand = eagerCmdEvalFlag
 
-	g, err := load(req)
+	g, cached, err := load(req)
 	if err != nil {
 		return err
 	}
-	nodes := g.Nodes()
-	vars := g.Vars()
 
-	err = save(g, req.Targets)
-	if err != nil {
-		return err
+	if !cached {
+		err = save(g, req.Targets)
+		if err != nil {
+			return err
+		}
 	}
 
 	if generateNinja {
@@ -309,28 +299,14 @@ func katiMain(args []string) error {
 		return nil
 	}
 
-	// TODO: Handle target specific variables.
-	ev := kati.NewEvaluator(vars)
-	for name, export := range g.Exports() {
-		if export {
-			v, err := ev.EvaluateVar(name)
-			if err != nil {
-				return err
-			}
-			os.Setenv(name, v)
-		} else {
-			os.Unsetenv(name)
-		}
-	}
-
 	execOpt := &kati.ExecutorOpt{
 		NumJobs: jobsFlag,
 	}
-	ex, err := kati.NewExecutor(vars, execOpt)
+	ex, err := kati.NewExecutor(execOpt)
 	if err != nil {
 		return err
 	}
-	err = ex.Exec(nodes)
+	err = ex.Exec(g)
 	if err != nil {
 		return err
 	}
