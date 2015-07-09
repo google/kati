@@ -22,6 +22,7 @@ set -e
 kati_dir=$(cd $(dirname $0) && pwd)
 extra_flags=
 goma_flag=
+goma_dir=${GOMA_DIR:-$HOME/goma}
 
 while [ x"$1" != x"" ]; do
   case "$1" in
@@ -29,7 +30,7 @@ while [ x"$1" != x"" ]; do
       cat - <<EOF
 Usage:
   m2n               # for default full-build
-  m2n --goma        # use goma. \$HOME/goma must exist
+  m2n --goma        # use goma. \$HOME/goma must exist, or set \$GOMA_DIR
   m2n --go          # use go version. Slower but maybe more portable.
   m2n cts           # for target 'cts'
 EOF
@@ -46,12 +47,12 @@ EOF
       ;;
 
     --goma)
-      if [ ! -e $HOME/goma/goma_ctl.py ]; then
-        echo "$HOME/goma/goma_ctl.py should exist to use goma"
+      if [ ! -e $goma_dir/goma_ctl.py ]; then
+        echo "To use Goma you must set GOMA_DIR, or install goma in $HOME/goma"
         exit 1
       fi
-      $HOME/goma/goma_ctl.py ensure_start
-      goma_flag=--goma_dir=$HOME/goma
+      $goma_dir/goma_ctl.py ensure_start
+      goma_flag=--goma_dir=$goma_dir
       shift
       ;;
 
