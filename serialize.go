@@ -788,7 +788,6 @@ func loadCache(makefile string, roots []string) (*DepGraph, error) {
 			}
 		}
 	}
-	g.isCached = true
 	logAlways("Cache found!")
 	return g, nil
 }

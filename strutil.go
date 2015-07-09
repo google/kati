@@ -328,7 +328,6 @@ func findLiteralChar(s []byte, stop1, stop2 byte) int {
 		}
 		return i
 	}
-	return -1
 }
 
 func removeComment(line []byte) ([]byte, bool) {
