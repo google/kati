@@ -302,6 +302,15 @@ class NinjaGenerator {
       return;
     }
 
+    StringPiece base = Basename(node->output.str());
+    if (base != node->output.str()) {
+      auto p = short_names_.emplace(base, StringPiece(node->output.str()));
+      if (!p.second) {
+        // We generate shortcuts only for targets whose basename are unique.
+        p.first->second.clear();
+      }
+    }
+
     vector<Command*> commands;
     ce_.Eval(node, &commands);
 
@@ -378,6 +387,12 @@ class NinjaGenerator {
       EmitNode(node);
     }
 
+    fprintf(fp_, "\n# shortcuts:\n", short_names_.size());
+    for (auto p : short_names_) {
+      if (!p.second.empty())
+        fprintf(fp_, "build %.*s: phony %.*s\n", SPF(p.first), SPF(p.second));
+    }
+
     fclose(fp_);
   }
 
@@ -418,6 +433,7 @@ class NinjaGenerator {
   string cmd_buf_;
   string gomacc_;
   string ninja_suffix_;
+  unordered_map<StringPiece, StringPiece> short_names_;
 };
 
 void GenerateNinja(const char* ninja_suffix,
