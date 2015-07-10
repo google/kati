@@ -29,6 +29,6 @@ void GenerateNinja(const char* ninja_suffix,
                    const vector<DepNode*>& nodes, Evaluator* ev);
 
 // Exposed only for test.
-bool GetDepfileFromCommand(StringPiece cmd, string* out);
+bool GetDepfileFromCommand(string* cmd, string* out);
 
 #endif  // NINJA_H_
