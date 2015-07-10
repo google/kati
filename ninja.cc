@@ -101,14 +101,15 @@ static bool GetDepfileFromCommandImpl(StringPiece cmd, string* out) {
   return true;
 }
 
-bool GetDepfileFromCommand(StringPiece cmd, string* out) {
-  CHECK(cmd.get(cmd.size()-1) == ' ');
+bool GetDepfileFromCommand(string* cmd, string* out) {
+  CHECK(!cmd->empty());
+  CHECK((*cmd)[cmd->size()-1] == ' ');
 
-  if (!GetDepfileFromCommandImpl(cmd, out))
+  if (!GetDepfileFromCommandImpl(*cmd, out))
     return false;
 
   // A hack for Android - llvm-rs-cc seems not to emit a dep file.
-  if (cmd.find("bin/llvm-rs-cc ") != string::npos) {
+  if (cmd->find("bin/llvm-rs-cc ") != string::npos) {
     return false;
   }
 
@@ -118,8 +119,13 @@ bool GetDepfileFromCommand(StringPiece cmd, string* out) {
   string p;
   StripExt(*out).AppendToString(&p);
   p += ".P";
-  if (cmd.find(p) != string::npos) {
-    *out = p;
+  if (cmd->find(p) != string::npos) {
+    const string rm_f = "; rm -f " + *out;
+    const size_t found = cmd->find(rm_f);
+    if (found == string::npos) {
+      ERROR("Cannot find removal of .d file: %s", cmd->c_str());
+    }
+    cmd->erase(found, rm_f.size());
     return true;
   }
 
@@ -128,10 +134,16 @@ bool GetDepfileFromCommand(StringPiece cmd, string* out) {
   string as = "/";
   StripExt(Basename(*out)).AppendToString(&as);
   as += ".s";
-  if (cmd.find(as) != string::npos) {
+  if (cmd->find(as) != string::npos) {
     return false;
   }
 
+  *cmd += " && cp ";
+  *cmd += *out;
+  *cmd += ' ';
+  *cmd += *out;
+  *cmd += ".tmp";
+  *out += ".tmp";
   return true;
 }
 
@@ -272,11 +284,12 @@ class NinjaGenerator {
   void EmitDepfile() {
     cmd_buf_ += ' ';
     string depfile;
-    bool result = GetDepfileFromCommand(cmd_buf_, &depfile);
+    bool result = GetDepfileFromCommand(&cmd_buf_, &depfile);
     cmd_buf_.resize(cmd_buf_.size()-1);
     if (!result)
       return;
     fprintf(fp_, " depfile = %s\n", depfile.c_str());
+    fprintf(fp_, " deps = gcc\n");
   }
 
   void EmitNode(DepNode* node) {
