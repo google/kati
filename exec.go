@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // Executor manages execution of makefile rules.
@@ -44,7 +46,7 @@ type Executor struct {
 func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 	output, _ := existsInVPATH(ex.ctx.ev, n.Output)
 	if neededBy != nil {
-		logf("MakeJob: %s for %s", output, neededBy.n.Output)
+		glog.V(1).Infof("MakeJob: %s for %s", output, neededBy.n.Output)
 	}
 	n.Output = output
 	ex.buildCnt++
@@ -63,7 +65,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 				neededBy.numDeps--
 			}
 		} else {
-			logf("%s already done: %d", j.n.Output, j.outputTs)
+			glog.Infof("%s already done: %d", j.n.Output, j.outputTs)
 			if neededBy != nil {
 				ex.wm.ReportNewDep(j, neededBy)
 			}
@@ -97,7 +99,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 		}
 		deps = append(deps, d)
 	}
-	logf("new: %s (%d)", j.n.Output, j.numDeps)
+	glog.V(1).Infof("new: %s (%d)", j.n.Output, j.numDeps)
 
 	for _, d := range deps {
 		ex.trace = append(ex.trace, d.Output)
@@ -113,7 +115,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 }
 
 func (ex *Executor) reportStats() {
-	if !LogFlag && !PeriodicStatsFlag {
+	if !PeriodicStatsFlag {
 		return
 	}
 

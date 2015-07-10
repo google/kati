@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 var shBuiltins = []struct {
@@ -280,13 +282,13 @@ func (f *funcShellAndroidFindFileInDir) Eval(w evalWriter, ev *Evaluator) error 
 	}
 	dir := string(trimSpaceBytes(fargs[0]))
 	abuf.release()
-	logf("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
+	glog.V(1).Infof("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
 	if strings.Contains(dir, "..") {
-		logf("shellAndroidFindFileInDir contains ..: call original shell")
+		glog.Warningf("shellAndroidFindFileInDir contains ..: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	if !androidFindCache.ready() {
-		logf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
+		glog.Warningf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	androidFindCache.findInDir(w, dir)
@@ -323,20 +325,20 @@ func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) er
 		roots = append(roots, root)
 	}
 	wb.release()
-	logf("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
+	glog.V(1).Infof("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
 	if strings.Contains(chdir, "..") || hasDotDot {
-		logf("shellAndroidFindExtFilesUnder contains ..: call original shell")
+		glog.Warningf("shellAndroidFindExtFilesUnder contains ..: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	if !androidFindCache.ready() {
-		logf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
+		glog.Warningf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	buf := newEbuf()
 	for _, root := range roots {
 		if !androidFindCache.findExtFilesUnder(buf, chdir, root, f.ext) {
 			buf.release()
-			logf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
+			glog.Warningf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
 			return f.funcShell.Eval(w, ev)
 		}
 	}
@@ -358,13 +360,13 @@ func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w evalWriter, ev *Evalu
 	}
 	dir := string(trimSpaceBytes(fargs[0]))
 	abuf.release()
-	logf("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
+	glog.V(1).Infof("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
 	if strings.Contains(dir, "..") {
-		logf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
+		glog.Warningf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	if !androidFindCache.ready() {
-		logf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
+		glog.Warningf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	androidFindCache.findJavaResourceFileGroup(w, dir)
@@ -381,7 +383,7 @@ type funcShellAndroidFindleaves struct {
 
 func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 	if !androidFindCache.leavesReady() {
-		logf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
+		glog.Warningf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
 		return f.funcShell.Eval(w, ev)
 	}
 	abuf := newEbuf()
@@ -408,7 +410,7 @@ func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
 	for _, word := range wb.words {
 		dir := string(word)
 		if strings.Contains(dir, "..") {
-			logf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
+			glog.Warningf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
 			return f.funcShell.Eval(w, ev)
 		}
 		dirs = append(dirs, dir)

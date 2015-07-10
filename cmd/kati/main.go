@@ -27,6 +27,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/kati"
 )
 
@@ -89,7 +90,6 @@ func init() {
 		"space separated leaf names for find cache.")
 	flag.StringVar(&shellDate, "shell_date", "", "specify $(shell date) time as "+shellDateTimeformat)
 
-	flag.BoolVar(&kati.LogFlag, "kati_log", false, "Verbose kati specific log")
 	flag.BoolVar(&kati.StatsFlag, "kati_stats", false, "Show a bunch of statistics")
 	flag.BoolVar(&kati.PeriodicStatsFlag, "kati_periodic_stats", false, "Show a bunch of periodic statistics")
 	flag.BoolVar(&kati.EvalStatsFlag, "kati_eval_stats", false, "Show eval statistics")
@@ -221,6 +221,7 @@ func main() {
 }
 
 func katiMain(args []string) error {
+	defer glog.Flush()
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
 		if err != nil {

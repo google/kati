@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // DepGraph represents rules defined in makefiles.
@@ -59,7 +61,7 @@ func FromCommandLine(cmdline []string) LoadReq {
 	}
 	mk, err := defaultMakefile()
 	if err != nil {
-		logf("default makefile: %v", err)
+		glog.Warningf("default makefile: %v", err)
 	}
 	return LoadReq{
 		Makefile:        mk,
@@ -71,7 +73,7 @@ func FromCommandLine(cmdline []string) LoadReq {
 func initVars(vars Vars, kvlist []string, origin string) error {
 	for _, v := range kvlist {
 		kv := strings.SplitN(v, "=", 2)
-		logf("%s var %q", origin, v)
+		glog.V(1).Infof("%s var %q", origin, v)
 		if len(kv) < 2 {
 			return fmt.Errorf("A weird %s variable %q", origin, kv)
 		}

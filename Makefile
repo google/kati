@@ -51,13 +51,14 @@ CXXFLAGS+=-O -DNOLOG
 all: kati ckati $(CXX_TEST_EXES)
 
 kati: go_src_stamp
-	GOPATH=$$(pwd)/out go install github.com/google/kati/cmd/kati
+	GOPATH=$$(pwd)/out:$${GOPATH} go install github.com/google/kati/cmd/kati
 	cp out/bin/kati $@
 
 go_src_stamp: $(GO_SRCS) cmd/*/*.go
 	-rm -rf out/src/github.com/google/kati
 	mkdir -p out/src/github.com/google/kati
 	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
+	GOPATH=$$(pwd)/out:$${GOPATH} go get github.com/google/kati/cmd/kati
 	touch $@
 
 go_test: $(GO_SRCS)

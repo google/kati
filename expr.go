@@ -22,6 +22,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 var (
@@ -398,7 +400,7 @@ Loop:
 	}
 	exp = appendStr(exp, in[b:i], op.alloc)
 	if i == len(in) && term != nil {
-		logf("parse: unexpected end of input: %q %d [%q]", in, i, term)
+		glog.Warningf("parse: unexpected end of input: %q %d [%q]", in, i, term)
 		return exp, i, errEndOfInput
 	}
 	return compactExpr(exp), i, nil

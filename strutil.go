@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"path/filepath"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 var wsbytes = [256]bool{' ': true, '\t': true, '\n': true, '\r': true}
@@ -48,7 +50,7 @@ func splitSpaces(s string) []string {
 	if tokStart >= 0 {
 		r = append(r, s[tokStart:])
 	}
-	logf("splitSpace(%q)=%q", s, r)
+	glog.V(2).Infof("splitSpace(%q)=%q", s, r)
 	return r
 }
 
@@ -69,7 +71,7 @@ func splitSpacesBytes(s []byte) (r [][]byte) {
 	if tokStart >= 0 {
 		r = append(r, s[tokStart:])
 	}
-	logf("splitSpace(%q)=%q", s, r)
+	glog.V(2).Infof("splitSpace(%q)=%q", s, r)
 	return r
 }
 

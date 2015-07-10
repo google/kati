@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/golang/glog"
 )
 
 type fileState int
@@ -197,8 +199,8 @@ func (ev *Evaluator) evalAssign(ast *assignAST) error {
 	if err != nil {
 		return err
 	}
-	if LogFlag {
-		logf("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
+	if glog.V(1) {
+		glog.Infof("ASSIGN: %s=%q (flavor:%q)", lhs, rhs, rhs.Flavor())
 	}
 	if lhs == "" {
 		return ast.errorf("*** empty variable name.")
@@ -243,8 +245,8 @@ func (ev *Evaluator) setTargetSpecificVar(assign *assignAST, output string) erro
 	if err != nil {
 		return err
 	}
-	if LogFlag {
-		logf("rule outputs:%q assign:%q%s%q (flavor:%q)", output, lhs, assign.op, rhs, rhs.Flavor())
+	if glog.V(1) {
+		glog.Infof("rule outputs:%q assign:%q%s%q (flavor:%q)", output, lhs, assign.op, rhs, rhs.Flavor())
 	}
 	vars.Assign(lhs, &targetSpecificVar{v: rhs, op: assign.op})
 	ev.currentScope = nil
@@ -255,7 +257,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	ev.lastRule = nil
 	ev.srcpos = ast.srcpos
 
-	logf("maybe rule %s: %q assign:%v", ev.srcpos, ast.expr, ast.assign)
+	glog.V(1).Infof("maybe rule %s: %q assign:%v", ev.srcpos, ast.expr, ast.assign)
 
 	abuf := newEbuf()
 	aexpr := toExpr(ast.expr)
@@ -303,15 +305,15 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 		return ast.error(err)
 	}
 	abuf.release()
-	if LogFlag {
-		logf("rule %q assign:%v rhs:%v=> outputs:%q, inputs:%q", ast.expr, ast.assign, rhs, r.outputs, r.inputs)
+	if glog.V(1) {
+		glog.Infof("rule %q assign:%v rhs:%v=> outputs:%q, inputs:%q", ast.expr, ast.assign, rhs, r.outputs, r.inputs)
 	}
 
 	// TODO: Pretty print.
-	//logf("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
+	// glog.V(1).Infof("RULE: %s=%s (%d commands)", lhs, rhs, len(cmds))
 
 	if assign != nil {
-		logf("target specific var: %#v", assign)
+		glog.V(1).Infof("target specific var: %#v", assign)
 		for _, output := range r.outputs {
 			ev.setTargetSpecificVar(assign, output)
 		}
@@ -324,8 +326,8 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	if semi != nil {
 		r.cmds = append(r.cmds, string(semi))
 	}
-	if LogFlag {
-		logf("rule outputs:%q cmds:%q", r.outputs, r.cmds)
+	if glog.V(1) {
+		glog.Infof("rule outputs:%q cmds:%q", r.outputs, r.cmds)
 	}
 	ev.lastRule = r
 	ev.outRules = append(ev.outRules, r)
@@ -432,7 +434,7 @@ func (ev *Evaluator) evalInclude(ast *includeAST) error {
 	ev.lastRule = nil
 	ev.srcpos = ast.srcpos
 
-	logf("%s include %q", ev.srcpos, ast.expr)
+	glog.Infof("%s include %q", ev.srcpos, ast.expr)
 	v, _, err := parseExpr([]byte(ast.expr), nil, parseOp{})
 	if err != nil {
 		return ast.errorf("parse failed: %q: %v", ast.expr, err)
@@ -507,8 +509,8 @@ func (ev *Evaluator) evalIf(iast *ifAST) error {
 		val := buf.Len()
 		buf.release()
 		isTrue = (val > 0) == (iast.op == "ifdef")
-		if LogFlag {
-			logf("%s lhs=%q value=%q => %t", iast.op, iast.lhs, value, isTrue)
+		if glog.V(1) {
+			glog.Infof("%s lhs=%q value=%q => %t", iast.op, iast.lhs, value, isTrue)
 		}
 	case "ifeq", "ifneq":
 		lexpr := iast.lhs
@@ -522,8 +524,8 @@ func (ev *Evaluator) evalIf(iast *ifAST) error {
 		rhs := string(params[1])
 		buf.release()
 		isTrue = (lhs == rhs) == (iast.op == "ifeq")
-		if LogFlag {
-			logf("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
+		if glog.V(1) {
+			glog.Infof("%s lhs=%q %q rhs=%q %q => %t", iast.op, iast.lhs, lhs, iast.rhs, rhs, isTrue)
 		}
 	default:
 		return iast.errorf("unknown if statement: %q", iast.op)

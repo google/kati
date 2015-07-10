@@ -30,6 +30,7 @@ def get_output_filenames
   files.delete('Makefile')
   files.delete('gmon.out')
   files.reject!{|f|f =~ /\.json$/}
+  files.reject!{|f|f =~ /^kati\.*/}
   files
 end
 
@@ -152,7 +153,7 @@ run_make_test = proc do |mk|
     cleanup
     testcases.each do |tc|
       json = "#{tc.empty? ? 'test' : tc}"
-      cmd = "../../kati -save_json=#{json}.json -kati_log #{tc} 2>&1"
+      cmd = "../../kati -save_json=#{json}.json -log_dir=. #{tc} 2>&1"
       if ckati
         cmd = "../../ckati --use_find_emulator #{tc} 2>&1"
       end
@@ -193,7 +194,7 @@ run_make_test = proc do |mk|
     if name !~ /^err_/ && test_serialization && !expected_failure
       testcases.each do |tc|
         json = "#{tc.empty? ? 'test' : tc}"
-        cmd = "../../kati -save_json=#{json}_2.json -load_json=#{json}.json -n -kati_log #{tc} 2>&1"
+        cmd = "../../kati -save_json=#{json}_2.json -load_json=#{json}.json -n -log_dir=. #{tc} 2>&1"
         res = IO.popen(cmd, 'r:binary', &:read)
         if !File.exist?("#{json}.json") || !File.exist?("#{json}_2.json")
           puts "#{name}##{json}: Serialize failure (not exist)"
@@ -217,7 +218,7 @@ run_shell_test = proc do |sh|
     cmd = "sh ../../#{sh} make"
     expected = IO.popen(cmd, 'r:binary', &:read)
     cleanup
-    cmd = "sh ../../#{sh} ../../kati --use_cache --kati_log"
+    cmd = "sh ../../#{sh} ../../kati --use_cache -log_dir=."
     output = IO.popen(cmd, 'r:binary', &:read)
 
     expected = normalize_make_log(expected)
