@@ -18,6 +18,7 @@ require 'fileutils'
 
 if ARGV[0] == '-s'
   test_serialization = true
+  ARGV.shift
 elsif ARGV[0] == '-c'
   ckati = true
   ARGV.shift
