@@ -387,7 +387,7 @@ class NinjaGenerator {
       EmitNode(node);
     }
 
-    fprintf(fp_, "\n# shortcuts:\n", short_names_.size());
+    fprintf(fp_, "\n# shortcuts:\n");
     for (auto p : short_names_) {
       if (!p.second.empty())
         fprintf(fp_, "build %.*s: phony %.*s\n", SPF(p.first), SPF(p.second));
