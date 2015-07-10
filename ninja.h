@@ -26,7 +26,9 @@ class DepNode;
 class Evaluator;
 
 void GenerateNinja(const char* ninja_suffix,
-                   const vector<DepNode*>& nodes, Evaluator* ev);
+                   const vector<DepNode*>& nodes,
+                   Evaluator* ev,
+                   bool build_all_targets);
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);

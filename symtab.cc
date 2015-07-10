@@ -25,6 +25,7 @@
 
 vector<string>* g_symbols;
 
+Symbol kEmptySym = Symbol(Symbol::IsUninitialized());
 Symbol kShellSym = Symbol(Symbol::IsUninitialized());
 
 Symbol::Symbol(int v)
@@ -48,6 +49,7 @@ class Symtab {
       CHECK(s.val() == i);
     }
 
+    kEmptySym = Intern("");
     kShellSym = Intern("SHELL");
   }
 

@@ -251,7 +251,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(g_ninja_suffix, nodes, ev);
+    GenerateNinja(g_ninja_suffix, nodes, ev, !targets.empty());
     return 0;
   }
 

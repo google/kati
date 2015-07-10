@@ -72,6 +72,7 @@ template<> struct hash<Symbol> {
 };
 }
 
+extern Symbol kEmptySym;
 extern Symbol kShellSym;
 
 void InitSymtab();
