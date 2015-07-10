@@ -127,17 +127,17 @@ func (t memStatsDumper) dump() {
 	}
 }
 
-func load(req kati.LoadReq) (*kati.DepGraph, bool, error) {
+func load(req kati.LoadReq) (*kati.DepGraph, error) {
 	if loadGOB != "" {
 		g, err := kati.GOB.Load(loadGOB)
-		return g, true, err
+		return g, err
 	}
 	if loadJSON != "" {
 		g, err := kati.JSON.Load(loadJSON)
-		return g, true, err
+		return g, err
 	}
 	g, err := kati.Load(req)
-	return g, false, err
+	return g, err
 }
 
 func save(g *kati.DepGraph, targets []string) error {
@@ -277,16 +277,14 @@ func katiMain(args []string) error {
 	req.UseCache = useCache
 	req.EagerEvalCommand = eagerCmdEvalFlag
 
-	g, cached, err := load(req)
+	g, err := load(req)
 	if err != nil {
 		return err
 	}
 
-	if !cached {
-		err = save(g, req.Targets)
-		if err != nil {
-			return err
-		}
+	err = save(g, req.Targets)
+	if err != nil {
+		return err
 	}
 
 	if generateNinja {
