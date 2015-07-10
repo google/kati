@@ -166,7 +166,10 @@ func m2nsetup() {
 
 func gomasetup() {
 	if gomaDir == "" {
-		gomaDir = os.ExpandEnv("${HOME}/goma")
+		gomaDir = os.Getenv("GOMA_DIR")
+		if gomaDir == "" {
+			gomaDir = os.ExpandEnv("${HOME}/goma")
+		}
 	}
 	fmt.Printf("kati: setup goma: %s\n", gomaDir)
 	cmd := exec.Command(filepath.Join(gomaDir, "goma_ctl.py"), "ensure_start")
