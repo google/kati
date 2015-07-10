@@ -168,9 +168,9 @@ class NinjaGenerator {
     ev_->set_avoid_io(false);
   }
 
-  void Generate(const vector<DepNode*>& nodes) {
+  void Generate(const vector<DepNode*>& nodes, bool build_all_targets) {
     GenerateShell();
-    GenerateNinja(nodes);
+    GenerateNinja(nodes, build_all_targets);
   }
 
  private:
@@ -316,10 +316,10 @@ class NinjaGenerator {
 
     StringPiece base = Basename(node->output.str());
     if (base != node->output.str()) {
-      auto p = short_names_.emplace(base, StringPiece(node->output.str()));
+      auto p = short_names_.emplace(Intern(base), node->output);
       if (!p.second) {
         // We generate shortcuts only for targets whose basename are unique.
-        p.first->second.clear();
+        p.first->second = kEmptySym;
       }
     }
 
@@ -382,7 +382,7 @@ class NinjaGenerator {
     return StringPrintf("ninja%s.sh", ninja_suffix_.c_str());
   }
 
-  void GenerateNinja(const vector<DepNode*>& nodes) {
+  void GenerateNinja(const vector<DepNode*>& nodes, bool build_all_targets) {
     fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
       PERROR("fopen(build.ninja) failed");
@@ -408,10 +408,15 @@ class NinjaGenerator {
       EmitNode(node);
     }
 
+    if (!build_all_targets) {
+      CHECK(!nodes.empty());
+      fprintf(fp_, "\ndefault %s\n", nodes.front()->output.c_str());
+    }
+
     fprintf(fp_, "\n# shortcuts:\n");
     for (auto p : short_names_) {
-      if (!p.second.empty())
-        fprintf(fp_, "build %.*s: phony %.*s\n", SPF(p.first), SPF(p.second));
+      if (!p.second.empty() && !done_.count(p.second))
+        fprintf(fp_, "build %s: phony %s\n", p.first.c_str(), p.second.c_str());
     }
 
     fclose(fp_);
@@ -454,11 +459,13 @@ class NinjaGenerator {
   string cmd_buf_;
   string gomacc_;
   string ninja_suffix_;
-  unordered_map<StringPiece, StringPiece> short_names_;
+  unordered_map<Symbol, Symbol> short_names_;
 };
 
 void GenerateNinja(const char* ninja_suffix,
-                   const vector<DepNode*>& nodes, Evaluator* ev) {
+                   const vector<DepNode*>& nodes,
+                   Evaluator* ev,
+                   bool build_all_targets) {
   NinjaGenerator ng(ninja_suffix, ev);
-  ng.Generate(nodes);
+  ng.Generate(nodes, build_all_targets);
 }
