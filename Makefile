@@ -62,7 +62,7 @@ go_src_stamp: $(GO_SRCS) cmd/*/*.go
 	touch $@
 
 go_test: $(GO_SRCS)
-	go test *.go
+	GOPATH=$$(pwd)/out:$${GOPATH} go test *.go
 
 ckati: $(CXX_OBJS)
 	$(CXX) -std=c++11 $(CXXFLAGS) -o $@ $(CXX_OBJS)
