@@ -14,7 +14,11 @@
 
 package kati
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/golang/glog"
+)
 
 type ast interface {
 	eval(*Evaluator) error
@@ -77,7 +81,7 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) (Var, error) {
 }
 
 func (ast *assignAST) show() {
-	logf("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
+	glog.Infof("%s %s %s %q", ast.opt, ast.lhs, ast.op, ast.rhs)
 }
 
 // maybeRuleAST is an ast for rule line.
@@ -96,7 +100,7 @@ func (ast *maybeRuleAST) eval(ev *Evaluator) error {
 }
 
 func (ast *maybeRuleAST) show() {
-	logf("%s", ast.expr)
+	glog.Info(ast.expr)
 }
 
 type commandAST struct {
@@ -109,7 +113,7 @@ func (ast *commandAST) eval(ev *Evaluator) error {
 }
 
 func (ast *commandAST) show() {
-	logf("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
+	glog.Infof("\t%s", strings.Replace(ast.cmd, "\n", `\n`, -1))
 }
 
 type includeAST struct {
@@ -123,7 +127,7 @@ func (ast *includeAST) eval(ev *Evaluator) error {
 }
 
 func (ast *includeAST) show() {
-	logf("include %s", ast.expr)
+	glog.Infof("include %s", ast.expr)
 }
 
 type ifAST struct {
@@ -141,7 +145,7 @@ func (ast *ifAST) eval(ev *Evaluator) error {
 
 func (ast *ifAST) show() {
 	// TODO
-	logf("if")
+	glog.Info("if")
 }
 
 type exportAST struct {
@@ -156,5 +160,5 @@ func (ast *exportAST) eval(ev *Evaluator) error {
 
 func (ast *exportAST) show() {
 	// TODO
-	logf("export")
+	glog.Info("export")
 }

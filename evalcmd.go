@@ -19,6 +19,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/golang/glog"
 )
 
 type execContext struct {
@@ -246,7 +248,7 @@ func (r runner) eval(ev *Evaluator, s string) ([]runner, error) {
 	}
 	cmds := buf.String()
 	buf.release()
-	logf("evalcmd: %q => %q", r.cmd, cmds)
+	glog.V(1).Infof("evalcmd: %q => %q", r.cmd, cmds)
 	var runners []runner
 	for _, cmd := range strings.Split(cmds, "\n") {
 		if len(runners) > 0 && strings.HasSuffix(runners[len(runners)-1].cmd, "\\") {
@@ -263,10 +265,12 @@ func (r runner) run(output string) error {
 	if r.echo || DryRunFlag {
 		fmt.Printf("%s\n", r.cmd)
 	}
+	s := cmdline(r.cmd)
+	glog.Infof("sh:%q", s)
 	if DryRunFlag {
 		return nil
 	}
-	args := []string{r.shell, "-c", cmdline(r.cmd)}
+	args := []string{r.shell, "-c", s}
 	cmd := exec.Cmd{
 		Path: args[0],
 		Args: args,
@@ -296,12 +300,12 @@ func createRunners(ctx *execContext, n *DepNode) ([]runner, bool, error) {
 		restore := ctx.ev.vars.save(k)
 		defer restore()
 		ctx.ev.vars[k] = v
-		logf("set tsv: %s=%s", k, v)
+		glog.Infof("set tsv: %s=%s", k, v)
 	}
 
 	ctx.ev.filename = n.Filename
 	ctx.ev.lineno = n.Lineno
-	logf("Building: %s cmds:%q", n.Output, n.Cmds)
+	glog.Infof("Building: %s cmds:%q", n.Output, n.Cmds)
 	r := runner{
 		output: n.Output,
 		echo:   true,

@@ -16,7 +16,6 @@ package kati
 
 // Flags to control kati.
 var (
-	LogFlag           bool
 	StatsFlag         bool
 	PeriodicStatsFlag bool
 	EvalStatsFlag     bool

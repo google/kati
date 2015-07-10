@@ -30,6 +30,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 type makefile struct {
@@ -197,7 +199,7 @@ func (p *parser) parseAssign(line []byte, sep int) {
 			lhs, op = line[:sep-1], line[sep-1:sep+1]
 		}
 	}
-	logf("parseAssign %s op:%q opt:%s", line, op, p.defOpt)
+	glog.V(1).Infof("parseAssign %s op:%q opt:%s", line, op, p.defOpt)
 	lhs = trimSpaceBytes(lhs)
 	rhs = trimLeftSpaceBytes(rhs)
 	aast, err := newAssignAST(p, lhs, rhs, string(op))
@@ -279,7 +281,7 @@ func (p *parser) parseMaybeRule(line, semi []byte) {
 		semi:   semi,
 	}
 	rast.srcpos = p.srcpos()
-	logf("stmt: %#v", rast)
+	glog.V(1).Infof("stmt: %#v", rast)
 	p.addStatement(rast)
 }
 
@@ -339,11 +341,11 @@ func (p *parser) parseEq(s []byte) (string, string, []byte, bool) {
 	}
 	if s[0] == '(' {
 		in := s[1:]
-		logf("parseEq ( %q )", in)
+		glog.V(1).Infof("parseEq ( %q )", in)
 		term := []byte{','}
 		v, n, err := parseExpr(in, term, parseOp{matchParen: true})
 		if err != nil {
-			logf("parse eq: %q: %v", in, err)
+			glog.V(1).Infof("parse eq: %q: %v", in, err)
 			return "", "", nil, false
 		}
 		lhs := v.String()
@@ -353,7 +355,7 @@ func (p *parser) parseEq(s []byte) (string, string, []byte, bool) {
 		in = in[n:]
 		v, n, err = parseExpr(in, term, parseOp{matchParen: true})
 		if err != nil {
-			logf("parse eq 2nd: %q: %v", in, err)
+			glog.V(1).Infof("parse eq 2nd: %q: %v", in, err)
 			return "", "", nil, false
 		}
 		rhs := v.String()
@@ -371,7 +373,7 @@ func (p *parser) parseIfeq(op string, data []byte) {
 		return
 	}
 	if len(extra) > 0 {
-		logf("extra %q", extra)
+		glog.V(1).Infof("extra %q", extra)
 		p.err = p.srcpos().errorf(`extraneous text after %q directive`, op)
 		return
 	}
@@ -532,7 +534,7 @@ func overrideDirective(p *parser, data []byte) {
 	defineDirective := map[string]directiveFunc{
 		"define": defineDirective,
 	}
-	logf("override define? %q", data)
+	glog.V(1).Infof("override define? %q", data)
 	if p.handleDirective(data, defineDirective) {
 		return
 	}
@@ -564,7 +566,7 @@ func handleExport(p *parser, data []byte, export bool) (hasEqual bool) {
 		export: export,
 	}
 	east.srcpos = p.srcpos()
-	logf("export %v", east)
+	glog.V(1).Infof("export %v", east)
 	p.addStatement(east)
 	return hasEqual
 }
@@ -574,7 +576,7 @@ func exportDirective(p *parser, data []byte) {
 	defineDirective := map[string]directiveFunc{
 		"define": defineDirective,
 	}
-	logf("export define? %q", data)
+	glog.V(1).Infof("export define? %q", data)
 	if p.handleDirective(data, defineDirective) {
 		return
 	}
@@ -596,8 +598,8 @@ func unexportDirective(p *parser, data []byte) {
 func (p *parser) parse() (mk makefile, err error) {
 	for !p.done {
 		line := p.readLine()
-		if LogFlag {
-			logf("%s: %q", p.srcpos(), line)
+		if glog.V(1) {
+			glog.Infof("%s: %q", p.srcpos(), line)
 		}
 		if p.defineVar != nil {
 			p.processDefine(line)
@@ -628,8 +630,8 @@ func (p *parser) parseLine(line []byte) {
 	if len(cline) == 0 {
 		return
 	}
-	if LogFlag {
-		logf("concatline:%q", cline)
+	if glog.V(1) {
+		glog.Infof("concatline:%q", cline)
 	}
 	var dline []byte
 	cline, _ = removeComment(cline)
@@ -638,22 +640,22 @@ func (p *parser) parseLine(line []byte) {
 	if len(dline) == 0 {
 		return
 	}
-	if LogFlag {
-		logf("directive?: %q", dline)
+	if glog.V(1) {
+		glog.Infof("directive?: %q", dline)
 	}
 	if p.handleDirective(dline, makeDirectives) {
 		return
 	}
-	if LogFlag {
-		logf("rule or assign?: %q", line)
+	if glog.V(1) {
+		glog.Infof("rule or assign?: %q", line)
 	}
 	p.handleRuleOrAssign(line)
 }
 
 func (p *parser) processDefine(line []byte) {
 	line = concatline(line)
-	if LogFlag {
-		logf("concatline:%q", line)
+	if glog.V(1) {
+		glog.Infof("concatline:%q", line)
 	}
 	if !p.isEndef(line) {
 		if p.inDef != nil {
@@ -665,7 +667,7 @@ func (p *parser) processDefine(line []byte) {
 		}
 		return
 	}
-	logf("multilineAssign %q %q", p.defineVar, p.inDef)
+	glog.V(1).Infof("multilineAssign %q %q", p.defineVar, p.inDef)
 	aast, err := newAssignAST(p, p.defineVar, p.inDef, "=")
 	if err != nil {
 		p.err = p.srcpos().errorf("assign error %q=%q: %v", p.defineVar, p.inDef, err)
@@ -753,16 +755,16 @@ func (mc *makefileCacheT) lookup(filename string) (makefile, [sha1.Size]byte, bo
 }
 
 func (mc *makefileCacheT) parse(filename string) (makefile, [sha1.Size]byte, error) {
-	logf("parse Makefile %q", filename)
+	glog.Infof("parse Makefile %q", filename)
 	mk, hash, ok, err := makefileCache.lookup(filename)
 	if ok {
-		if LogFlag {
-			logf("makefile cache hit for %q", filename)
+		if glog.V(1) {
+			glog.Infof("makefile cache hit for %q", filename)
 		}
 		return mk, hash, err
 	}
-	if LogFlag {
-		logf("reading makefile %q", filename)
+	if glog.V(1) {
+		glog.Infof("reading makefile %q", filename)
 	}
 	c, err := ioutil.ReadFile(filename)
 	if err != nil {

@@ -26,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 type wildcardCacheT struct {
@@ -207,7 +209,7 @@ func (c *androidFindCacheT) init(prunes []string) {
 }
 
 func (c *androidFindCacheT) start(prunes, leafNames []string) {
-	logf("find cache init: prunes=%q leafNames=%q", prunes, leafNames)
+	glog.Infof("find cache init: prunes=%q leafNames=%q", prunes, leafNames)
 	te := traceEvent.begin("findcache", literal("init"), traceEventFindCache)
 	defer func() {
 		traceEvent.end(te)
@@ -229,7 +231,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 					if info.IsDir() {
 						for _, prune := range prunes {
 							if info.Name() == prune {
-								logf("find cache prune: %s", path)
+								glog.V(1).Infof("find cache prune: %s", path)
 								return filepath.SkipDir
 							}
 						}
@@ -240,7 +242,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 					}
 					for _, leaf := range leafNames {
 						if info.Name() == leaf {
-							logf("find cache leaf: %s", path)
+							glog.V(1).Infof("find cache leaf: %s", path)
 							leafch <- fileInfo{
 								path: path,
 								mode: info.Mode(),
@@ -251,7 +253,7 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 					return nil
 				})
 				if err != nil && err != filepath.SkipDir {
-					logf("error in adnroid find cache: %v", err)
+					glog.Warningf("error in adnroid find cache: %v", err)
 					close(c.filesch)
 					close(c.leavesch)
 					return
@@ -283,8 +285,11 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		c.leavesch <- leaves
 		traceEvent.end(leavesTe)
 		logStats("%d leaves %d dirs in find cache", nfiles, len(dirs))
+		if !glog.V(1) {
+			return
+		}
 		for i, leaf := range leaves {
-			logf("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
+			glog.Infof("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
 		}
 	}()
 
@@ -298,21 +303,24 @@ func (c *androidFindCacheT) start(prunes, leafNames []string) {
 		c.filesch <- files
 		traceEvent.end(filesTe)
 		logStats("%d files in find cache", len(files))
+		if !glog.V(1) {
+			return
+		}
 		for i, fi := range files {
-			logf("android find cache: %d: %s %v", i, fi.path, fi.mode)
+			glog.Infof("android find cache: %d: %s %v", i, fi.path, fi.mode)
 		}
 	}()
 
 	curdir, err := os.Open(".")
 	if err != nil {
-		logf("open . failed: %v", err)
+		glog.Warningf("open . failed: %v", err)
 		close(c.filesch)
 		close(c.leavesch)
 		return
 	}
 	names, err := curdir.Readdirnames(-1)
 	if err != nil {
-		logf("readdir . failed: %v", err)
+		glog.Warningf("readdir . failed: %v", err)
 		close(c.filesch)
 		close(c.leavesch)
 		return
@@ -365,7 +373,7 @@ func (c *androidFindCacheT) walk(dir string, walkFn func(int, fileInfo) error) e
 	i := sort.Search(len(c.files), func(i int) bool {
 		return c.files[i].path >= dir
 	})
-	logf("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
+	glog.V(1).Infof("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
 	start := i
 	var skipdirs []string
 Loop:
@@ -378,7 +386,7 @@ Loop:
 			continue
 		}
 		if !strings.HasPrefix(c.files[i].path, dir) {
-			logf("android find in dir cache: %s end=%d/%d", dir, i, len(c.files))
+			glog.V(1).Infof("android find in dir cache: %s end=%d/%d", dir, i, len(c.files))
 			return nil
 		}
 		if !strings.HasPrefix(c.files[i].path, dir+"/") {
@@ -392,7 +400,7 @@ Loop:
 
 		err := walkFn(i, c.files[i])
 		if err == errSkipDir {
-			logf("android find in skip dir: %s", c.files[i].path)
+			glog.V(1).Infof("android find in skip dir: %s", c.files[i].path)
 			skipdirs = append(skipdirs, c.files[i].path)
 			continue
 		}
@@ -408,7 +416,7 @@ Loop:
 // if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
 func (c *androidFindCacheT) findInDir(w evalWriter, dir string) {
 	dir = filepath.Clean(dir)
-	logf("android find in dir cache: %s", dir)
+	glog.V(1).Infof("android find in dir cache: %s", dir)
 	c.walk(dir, func(_ int, fi fileInfo) error {
 		// -not -name '.*'
 		if strings.HasPrefix(filepath.Base(fi.path), ".") {
@@ -422,7 +430,7 @@ func (c *androidFindCacheT) findInDir(w evalWriter, dir string) {
 		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
 		w.writeWordString(name)
-		logf("android find in dir cache: %s=> %s", dir, name)
+		glog.V(1).Infof("android find in dir cache: %s=> %s", dir, name)
 		return nil
 	})
 }
@@ -434,12 +442,12 @@ func (c *androidFindCacheT) findInDir(w evalWriter, dir string) {
 func (c *androidFindCacheT) findExtFilesUnder(w evalWriter, chdir, root, ext string) bool {
 	chdir = filepath.Clean(chdir)
 	dir := filepath.Join(chdir, root)
-	logf("android find %s in dir cache: %s %s", ext, chdir, root)
+	glog.V(1).Infof("android find %s in dir cache: %s %s", ext, chdir, root)
 	// check symlinks
 	var matches []int
 	err := c.walk(dir, func(i int, fi fileInfo) error {
 		if fi.mode&os.ModeSymlink == os.ModeSymlink {
-			logf("android find %s in dir cache: detect symlink %s %v", ext, c.files[i].path, c.files[i].mode)
+			glog.Warningf("android find %s in dir cache: detect symlink %s %v", ext, c.files[i].path, c.files[i].mode)
 			return fmt.Errorf("symlink %s", fi.path)
 		}
 		matches = append(matches, i)
@@ -462,7 +470,7 @@ func (c *androidFindCacheT) findExtFilesUnder(w evalWriter, chdir, root, ext str
 		}
 		name := strings.TrimPrefix(fi.path, chdir+"/")
 		w.writeWordString(name)
-		logf("android find %s in dir cache: %s=> %s", ext, dir, name)
+		glog.V(1).Infof("android find %s in dir cache: %s=> %s", ext, dir, name)
 	}
 	return true
 }
@@ -474,7 +482,7 @@ func (c *androidFindCacheT) findExtFilesUnder(w evalWriter, chdir, root, ext str
 // -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
 // -a \! -name "*~" -print )
 func (c *androidFindCacheT) findJavaResourceFileGroup(w evalWriter, dir string) {
-	logf("android find java resource in dir cache: %s", dir)
+	glog.V(1).Infof("android find java resource in dir cache: %s", dir)
 	c.walk(filepath.Clean(dir), func(_ int, fi fileInfo) error {
 		// -type d -a -name ".svn" -prune
 		if fi.mode.IsDir() && filepath.Base(fi.path) == ".svn" {
@@ -499,7 +507,7 @@ func (c *androidFindCacheT) findJavaResourceFileGroup(w evalWriter, dir string) 
 		name := strings.TrimPrefix(fi.path, dir+"/")
 		name = "./" + name
 		w.writeWordString(name)
-		logf("android find java resource in dir cache: %s=> %s", dir, name)
+		glog.V(1).Infof("android find java resource in dir cache: %s=> %s", dir, name)
 		return nil
 	})
 }
@@ -517,7 +525,7 @@ func (c *androidFindCacheT) findleaves(w evalWriter, dir, name string, prunes []
 			dir = ""
 		}
 		depth := strings.Count(dir, "/")
-		// logf("android findleaves dir=%q depth=%d dirs=%q", dir, depth, dirs)
+		// glog.V(1).Infof("android findleaves dir=%q depth=%d dirs=%q", dir, depth, dirs)
 		i := sort.Search(len(c.leaves), func(i int) bool {
 			di := strings.Count(c.leaves[i].path, "/")
 			if di != depth {
@@ -529,7 +537,7 @@ func (c *androidFindCacheT) findleaves(w evalWriter, dir, name string, prunes []
 			}
 			return c.leaves[i].path >= dir
 		})
-		logf("android findleaves dir=%q i=%d/%d", dir, i, len(c.leaves))
+		glog.V(1).Infof("android findleaves dir=%q i=%d/%d", dir, i, len(c.leaves))
 
 	Scandir:
 		for ; i < len(c.leaves); i++ {
@@ -543,7 +551,7 @@ func (c *androidFindCacheT) findleaves(w evalWriter, dir, name string, prunes []
 				if !c.leaves[i].mode.IsDir() && filepath.Base(c.leaves[i].path) == name {
 					n := "./" + c.leaves[i].path
 					found = append(found, n)
-					logf("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
+					glog.V(1).Infof("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
 					break Scandir
 				}
 			}
@@ -551,9 +559,9 @@ func (c *androidFindCacheT) findleaves(w evalWriter, dir, name string, prunes []
 				dirs = append(dirs, c.leaves[i].path)
 			}
 		}
-		// logf("android findleaves next dirs=%q", dirs)
+		// glog.V(1).Infof("android findleaves next dirs=%q", dirs)
 	}
-	logf("android findleave done")
+	glog.V(1).Infof("android findleave done")
 	sort.Strings(found)
 	for _, f := range found {
 		w.writeWordString(f)

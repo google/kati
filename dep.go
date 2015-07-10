@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 // DepNode represents a makefile rule for an output.
@@ -78,9 +80,9 @@ func newRuleTrie() *ruleTrie {
 }
 
 func (rt *ruleTrie) add(name string, r *rule) {
-	logf("rule trie: add %q %v %s", name, r.outputPatterns[0], r)
+	glog.V(1).Infof("rule trie: add %q %v %s", name, r.outputPatterns[0], r)
 	if name == "" || name[0] == '%' {
-		logf("rule trie: add entry %q %v %s", name, r.outputPatterns[0], r)
+		glog.V(1).Infof("rule trie: add entry %q %v %s", name, r.outputPatterns[0], r)
 		rt.rules = append(rt.rules, ruleTrieEntry{
 			rule:   r,
 			suffix: name,
@@ -96,7 +98,7 @@ func (rt *ruleTrie) add(name string, r *rule) {
 }
 
 func (rt *ruleTrie) lookup(name string) []*rule {
-	logf("rule trie: lookup %q", name)
+	glog.V(1).Infof("rule trie: lookup %q", name)
 	if rt == nil {
 		return nil
 	}
@@ -110,7 +112,7 @@ func (rt *ruleTrie) lookup(name string) []*rule {
 		return rules
 	}
 	rules = append(rules, rt.children[name[0]].lookup(name[1:])...)
-	logf("rule trie: lookup %q => %v", name, rules)
+	glog.V(1).Infof("rule trie: lookup %q => %v", name, rules)
 	return rules
 }
 
@@ -163,8 +165,8 @@ func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 		// TODO(ukai): should return error?
 		panic(fmt.Sprintf("FIXME: Implicit rule should have only one output but %q", outputs))
 	}
-	logf("merge? %q", db.ruleVars)
-	logf("merge? %q", outputs[0])
+	glog.V(1).Infof("merge? %q", db.ruleVars)
+	glog.V(1).Infof("merge? %q", outputs[0])
 	ivars, present := db.ruleVars[outputs[0]]
 	if !present {
 		return vars
@@ -172,7 +174,7 @@ func (db *depBuilder) mergeImplicitRuleVars(outputs []string, vars Vars) Vars {
 	if vars == nil {
 		return ivars
 	}
-	logf("merge!")
+	glog.V(1).Info("merge!")
 	v := make(Vars)
 	v.Merge(ivars)
 	v.Merge(vars)
@@ -197,10 +199,10 @@ func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
 	for i := len(irules) - 1; i >= 0; i-- {
 		irule := irules[i]
 		if !db.canPickImplicitRule(irule, output) {
-			logf("ignore implicit rule %q %s", output, irule)
+			glog.Infof("ignore implicit rule %q %s", output, irule)
 			continue
 		}
-		logf("pick implicit rule %q => %q %s", output, irule.outputPatterns, irule)
+		glog.Infof("pick implicit rule %q => %q %s", output, irule.outputPatterns, irule)
 		db.pickImplicitRuleCnt++
 		if r != nil {
 			ir := &rule{}
@@ -261,7 +263,7 @@ func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
 }
 
 func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
-	logf("Evaluating command: %s", output)
+	glog.V(1).Infof("Evaluating command: %s", output)
 	db.nodeCnt++
 	if db.nodeCnt%100 == 0 {
 		db.reportStats()
@@ -319,7 +321,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	}
 
 	var actualInputs []string
-	logf("Evaluating command: %s inputs:%q", output, rule.inputs)
+	glog.Infof("Evaluating command: %s inputs:%q", output, rule.inputs)
 	for _, input := range rule.inputs {
 		if len(rule.outputPatterns) > 0 {
 			if len(rule.outputPatterns) > 1 {
@@ -361,7 +363,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	n.ActualInputs = actualInputs
 	n.TargetSpecificVars = make(Vars)
 	for k, v := range tsvs {
-		logf("output=%s tsv %s=%s", output, k, v)
+		glog.Infof("output=%s tsv %s=%s", output, k, v)
 		n.TargetSpecificVars[k] = v
 	}
 	n.Filename = rule.filename
@@ -484,7 +486,7 @@ func (db *depBuilder) populateRules(er *evalResult) error {
 }
 
 func (db *depBuilder) reportStats() {
-	if !LogFlag && !PeriodicStatsFlag {
+	if !PeriodicStatsFlag {
 		return
 	}
 

@@ -28,6 +28,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 const (
@@ -686,7 +688,7 @@ func showSerializedGraphStats(g serializableGraph) {
 }
 
 func deserializeGraph(g serializableGraph) (*DepGraph, error) {
-	if LogFlag || StatsFlag {
+	if StatsFlag {
 		showSerializedGraphStats(g)
 	}
 	nodes, err := deserializeNodes(g)
@@ -757,13 +759,13 @@ func loadCache(makefile string, roots []string) (*DepGraph, error) {
 
 	filename := cacheFilename(makefile, roots)
 	if !exists(filename) {
-		logAlways("Cache not found")
+		glog.Warningf("Cache not found %q", filename)
 		return nil, fmt.Errorf("cache not found: %s", filename)
 	}
 
 	g, err := GOB.Load(filename)
 	if err != nil {
-		logAlways("Cache load error: %v", err)
+		glog.Warning("Cache load error %q: %v", filename, err)
 		return nil, err
 	}
 	for _, mk := range g.accessedMks {
@@ -772,22 +774,22 @@ func loadCache(makefile string, roots []string) (*DepGraph, error) {
 		}
 		if mk.State == fileNotExists {
 			if exists(mk.Filename) {
-				logAlways("Cache expired: %s", mk.Filename)
+				glog.Infof("Cache expired: %s", mk.Filename)
 				return nil, fmt.Errorf("cache expired: %s", mk.Filename)
 			}
 		} else {
 			c, err := ioutil.ReadFile(mk.Filename)
 			if err != nil {
-				logAlways("Cache expired: %s", mk.Filename)
+				glog.Infof("Cache expired: %s", mk.Filename)
 				return nil, fmt.Errorf("cache expired: %s", mk.Filename)
 			}
 			h := sha1.Sum(c)
 			if !bytes.Equal(h[:], mk.Hash[:]) {
-				logAlways("Cache expired: %s", mk.Filename)
+				glog.Infof("Cache expired: %s", mk.Filename)
 				return nil, fmt.Errorf("cache expired: %s", mk.Filename)
 			}
 		}
 	}
-	logAlways("Cache found!")
+	glog.Info("Cache found in %q", filename)
 	return g, nil
 }

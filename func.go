@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // mkFunc is a make function.
@@ -181,7 +183,7 @@ func (f *funcSubst) Eval(w evalWriter, ev *Evaluator) error {
 	from := fargs[0]
 	to := fargs[1]
 	text := fargs[2]
-	logf("subst from:%q to:%q text:%q", from, to, text)
+	glog.V(1).Infof("subst from:%q to:%q text:%q", from, to, text)
 	if len(from) == 0 {
 		w.Write(text)
 		w.Write(to)
@@ -786,12 +788,12 @@ func (f *funcRealpath) Eval(w evalWriter, ev *Evaluator) error {
 		name := string(word)
 		name, err := filepath.Abs(name)
 		if err != nil {
-			logf("abs: %v", err)
+			glog.Warningf("abs %q: %v", name, err)
 			continue
 		}
 		name, err = filepath.EvalSymlinks(name)
 		if err != nil {
-			logf("realpath: %v", err)
+			glog.Warningf("realpath %q: %v", name, err)
 			continue
 		}
 		w.writeWordString(name)
@@ -819,7 +821,7 @@ func (f *funcAbspath) Eval(w evalWriter, ev *Evaluator) error {
 		name := string(word)
 		name, err := filepath.Abs(name)
 		if err != nil {
-			logf("abs: %v", err)
+			glog.Warningf("abs %q: %v", name, err)
 			continue
 		}
 		w.writeWordString(name)
@@ -925,7 +927,7 @@ func hasNoIoInShellScript(s []byte) bool {
 	if !bytes.HasPrefix(s, []byte("echo $((")) || s[len(s)-1] != ')' {
 		return false
 	}
-	logf("has no IO - evaluate now: %s", s)
+	glog.Infof("has no IO - evaluate now: %s", s)
 	return true
 }
 
@@ -956,8 +958,8 @@ func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	cmdline := []string{shellVar, "-c", arg}
-	if LogFlag {
-		logf("shell %q", cmdline)
+	if glog.V(1) {
+		glog.Infof("shell %q", cmdline)
 	}
 	cmd := exec.Cmd{
 		Path:   cmdline[0],
@@ -968,7 +970,7 @@ func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 	out, err := cmd.Output()
 	shellStats.add(time.Since(te.t))
 	if err != nil {
-		logf("$(shell %q) failed: %q", arg, err)
+		glog.Warningf("$(shell %q) failed: %q", arg, err)
 	}
 	w.Write(formatCommandOutput(out))
 	traceEvent.end(te)
@@ -994,11 +996,11 @@ func (f *funcShell) Compact() Value {
 		// hack for android
 		for _, sb := range shBuiltins {
 			if v, ok := matchExpr(exp, sb.pattern); ok {
-				logf("shell compact apply %s for %s", sb.name, exp)
+				glog.Infof("shell compact apply %s for %s", sb.name, exp)
 				return sb.compact(f, v)
 			}
 		}
-		logf("shell compact no match: %s", exp)
+		glog.V(1).Infof("shell compact no match: %s", exp)
 	}
 	return f
 }
@@ -1017,8 +1019,8 @@ func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
 	varname := fargs[0]
 	variable := string(varname)
 	te := traceEvent.begin("call", literal(variable), traceEventMain)
-	if LogFlag {
-		logf("call %q variable %q", f.args[1], variable)
+	if glog.V(1) {
+		glog.Infof("call %q variable %q", f.args[1], variable)
 	}
 	v := ev.LookupVar(variable)
 	// Evalualte all arguments first before we modify the table.
@@ -1032,15 +1034,15 @@ func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
 	for i, arg := range fargs[1:] {
 		// f.args[2]=>args[1] will be $1.
 		args = append(args, tmpval(arg))
-		if LogFlag {
-			logf("call $%d: %q=>%q", i+1, arg, fargs[i+1])
+		if glog.V(1) {
+			glog.Infof("call $%d: %q=>%q", i+1, arg, fargs[i+1])
 		}
 	}
 	oldParams := ev.paramVars
 	ev.paramVars = args
 
 	var buf bytes.Buffer
-	if LogFlag {
+	if glog.V(1) {
 		w = &ssvWriter{Writer: io.MultiWriter(w, &buf)}
 	}
 	err = v.Eval(w, ev)
@@ -1049,8 +1051,8 @@ func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
 	}
 	ev.paramVars = oldParams
 	traceEvent.end(te)
-	if LogFlag {
-		logf("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
+	if glog.V(1) {
+		glog.Infof("call %q variable %q return %q", f.args[1], variable, buf.Bytes())
 	}
 	abuf.release()
 	return nil
@@ -1091,7 +1093,7 @@ func (f *funcEval) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	s := abuf.Bytes()
-	logf("eval %v=>%q at %s", f.args[1], s, ev.srcpos)
+	glog.V(1).Infof("eval %v=>%q at %s", f.args[1], s, ev.srcpos)
 	mk, err := parseMakefileBytes(trimSpaceBytes(s), ev.srcpos)
 	if err != nil {
 		return ev.errorf("%v", err)
@@ -1127,7 +1129,7 @@ func (f *funcEval) Compact() Value {
 					rhs = append(rhs, rhsprefix)
 				}
 				rhs = append(rhs, arg[1:]...)
-				logf("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
+				glog.V(1).Infof("eval assign %#v => lhs:%q op:%q rhs:%#v", f, lhs, op, rhs)
 				return &funcEvalAssign{
 					lhs: lhs,
 					op:  op,
@@ -1225,7 +1227,7 @@ func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	rhs := trimLeftSpaceBytes(abuf.Bytes())
-	logf("evalAssign: lhs=%q rhs=%s %q", f.lhs, f.rhs, rhs)
+	glog.V(1).Infof("evalAssign: lhs=%q rhs=%s %q", f.lhs, f.rhs, rhs)
 	var rvalue Var
 	switch f.op {
 	case ":=":
@@ -1261,8 +1263,8 @@ func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
 		}
 		rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}
 	}
-	if LogFlag {
-		logf("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
+	if glog.V(1) {
+		glog.Infof("Eval ASSIGN: %s=%q (flavor:%q)", f.lhs, rvalue, rvalue.Flavor())
 	}
 	ev.outVars.Assign(f.lhs, rvalue)
 	return nil

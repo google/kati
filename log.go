@@ -15,35 +15,17 @@
 package kati
 
 import (
-	"bytes"
 	"fmt"
-	"sync"
+
+	"github.com/golang/glog"
 )
 
-var logMu sync.Mutex
-
-func logAlways(f string, a ...interface{}) {
-	var buf bytes.Buffer
-	buf.WriteString("*kati*: ")
-	buf.WriteString(f)
-	buf.WriteByte('\n')
-	logMu.Lock()
-	fmt.Printf(buf.String(), a...)
-	logMu.Unlock()
-}
-
 func logStats(f string, a ...interface{}) {
-	if !LogFlag && !StatsFlag {
+	// TODO(ukai): vmodule?
+	if !StatsFlag {
 		return
 	}
-	logAlways(f, a...)
-}
-
-func logf(f string, a ...interface{}) {
-	if !LogFlag {
-		return
-	}
-	logAlways(f, a...)
+	glog.Infof(f, a...)
 }
 
 func warn(loc srcpos, f string, a ...interface{}) {

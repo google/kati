@@ -22,6 +22,8 @@ import (
 	"os/exec"
 	"syscall"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 type job struct {
@@ -177,7 +179,7 @@ func (wm *workerManager) handleJobs() error {
 			return nil
 		}
 		j := heap.Pop(&wm.readyQueue).(*job)
-		logf("run: %s", j.n.Output)
+		glog.V(1).Infof("run: %s", j.n.Output)
 
 		j.numDeps = -1 // Do not let other workers pick this.
 		w := wm.freeWorkers[0]
@@ -190,7 +192,7 @@ func (wm *workerManager) handleJobs() error {
 func (wm *workerManager) updateParents(j *job) {
 	for _, p := range j.parents {
 		p.numDeps--
-		logf("child: %s (%d)", p.n.Output, p.numDeps)
+		glog.V(1).Infof("child: %s (%d)", p.n.Output, p.numDeps)
 		if p.depsTs < j.outputTs {
 			p.depsTs = j.outputTs
 		}
@@ -261,7 +263,7 @@ func (wm *workerManager) maybePushToReadyQueue(j *job) {
 		return
 	}
 	heap.Push(&wm.readyQueue, j)
-	logf("ready: %s", j.n.Output)
+	glog.V(1).Infof("ready: %s", j.n.Output)
 }
 
 func (wm *workerManager) handleNewDep(j *job, neededBy *job) {
@@ -282,12 +284,12 @@ Loop:
 	for wm.hasTodo() || len(wm.busyWorkers) > 0 || len(wm.runnings) > 0 || !done {
 		select {
 		case j := <-wm.jobChan:
-			logf("wait: %s (%d)", j.n.Output, j.numDeps)
+			glog.V(1).Infof("wait: %s (%d)", j.n.Output, j.numDeps)
 			j.id = len(wm.jobs) + 1
 			wm.jobs = append(wm.jobs, j)
 			wm.maybePushToReadyQueue(j)
 		case jr := <-wm.resultChan:
-			logf("done: %s", jr.j.n.Output)
+			glog.V(1).Infof("done: %s", jr.j.n.Output)
 			delete(wm.busyWorkers, jr.w)
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
@@ -299,7 +301,7 @@ Loop:
 			}
 		case af := <-wm.newDepChan:
 			wm.handleNewDep(af.j, af.neededBy)
-			logf("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
+			glog.V(1).Infof("dep: %s (%d) %s", af.neededBy.n.Output, af.neededBy.numDeps, af.j.n.Output)
 		case done = <-wm.waitChan:
 		}
 		err = wm.handleJobs()
@@ -307,7 +309,7 @@ Loop:
 			break Loop
 		}
 
-		logf("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
+		glog.V(1).Infof("job=%d ready=%d free=%d busy=%d", len(wm.jobs)-wm.finishCnt, wm.readyQueue.Len(), len(wm.freeWorkers), len(wm.busyWorkers))
 	}
 	if !done {
 		<-wm.waitChan
