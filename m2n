@@ -95,6 +95,8 @@ fi
 
 if [ x"${targets}" != x"" ]; then
   ninja_suffix+=-$(echo ${targets} | sed 's/ /-/')
+elif [ x"${mmm}" != x"" ]; then
+  targets=all_modules
 fi
 
 if [ x"${ninja_suffix}" != x"" ]; then
