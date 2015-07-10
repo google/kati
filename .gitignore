@@ -11,6 +11,7 @@ repo/maloader/
 testcase_parse_benchmark_test.go
 bench-old.out
 bench-new.out
+ninja_test
 string_piece_test
 strutil_test
 go_src_stamp
