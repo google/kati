@@ -43,7 +43,7 @@ For example, the following is equivalent to "make cts":
     % ~/src/kati/m2n cts
     % ./ninja-cts.sh
 
-Or, if your target is built by "make", your can specify the target of ninja.
+Or, if your target is built by "make", you can specify the target of ninja.
 
     % ./ninja.sh out/host/linux-x86/bin/adb
 
