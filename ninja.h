@@ -30,5 +30,6 @@ void GenerateNinja(const char* ninja_suffix,
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);
+size_t GetGomaccPosForAndroidCompileCommand(StringPiece cmdline);
 
 #endif  // NINJA_H_

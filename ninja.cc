@@ -59,23 +59,27 @@ static bool StripPrefix(StringPiece p, StringPiece* s) {
   return true;
 }
 
-static bool IsAndroidCompileCommand(StringPiece cmd) {
-  if (!StripPrefix("prebuilts/", &cmd))
-    return false;
-  if (!StripPrefix("gcc/", &cmd) && !StripPrefix("clang/", &cmd))
-    return false;
-
-  size_t index = cmd.find(' ');
+size_t GetGomaccPosForAndroidCompileCommand(StringPiece cmdline) {
+  size_t index = cmdline.find(' ');
   if (index == string::npos)
-    return false;
-  StringPiece cc = cmd.substr(0, index);
-  if (!HasSuffix(cc, "gcc") && !HasSuffix(cc, "g++") &&
-      !HasSuffix(cc, "clang") && !HasSuffix(cc, "clang++")) {
-    return false;
+    return string::npos;
+  StringPiece cmd = cmdline.substr(0, index);
+  if (HasSuffix(cmd, "ccache")) {
+    index++;
+    size_t pos = GetGomaccPosForAndroidCompileCommand(cmdline.substr(index));
+    return pos == string::npos ? string::npos : pos + index;
+  }
+  if (!StripPrefix("prebuilts/", &cmd))
+    return string::npos;
+  if (!StripPrefix("gcc/", &cmd) && !StripPrefix("clang/", &cmd))
+    return string::npos;
+  if (!HasSuffix(cmd, "gcc") && !HasSuffix(cmd, "g++") &&
+      !HasSuffix(cmd, "clang") && !HasSuffix(cmd, "clang++")) {
+    return string::npos;
   }
 
-  cmd = cmd.substr(index);
-  return cmd.find(" -c ") != string::npos;
+  StringPiece rest = cmdline.substr(index);
+  return rest.find(" -c ") != string::npos ? 0 : string::npos;
 }
 
 static bool GetDepfileFromCommandImpl(StringPiece cmd, string* out) {
@@ -266,9 +270,12 @@ class NinjaGenerator {
       StringPiece translated = TranslateCommand(in);
       if (translated.empty()) {
         cmd_buf_ += "true";
-      } else if (g_goma_dir && IsAndroidCompileCommand(translated)) {
-        cmd_buf_.insert(cmd_start, gomacc_);
-        use_gomacc = true;
+      } else if (g_goma_dir) {
+        size_t pos = GetGomaccPosForAndroidCompileCommand(translated);
+        if (pos != string::npos) {
+          cmd_buf_.insert(cmd_start + pos, gomacc_);
+          use_gomacc = true;
+        }
       }
 
       if (c == commands.back() && c->ignore_error) {
