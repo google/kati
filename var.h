@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "ast.h"
 #include "string_piece.h"
@@ -178,6 +179,13 @@ class Vars : public unordered_map<Symbol, Var*> {
   Var* Lookup(Symbol name) const;
 
   void Assign(Symbol name, Var* v);
+
+  static const unordered_set<Symbol>& used_env_vars() {
+    return used_env_vars_;
+  }
+
+ private:
+  static unordered_set<Symbol> used_env_vars_;
 };
 
 class ScopedVar {

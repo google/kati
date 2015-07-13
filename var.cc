@@ -114,7 +114,12 @@ Var* Vars::Lookup(Symbol name) const {
   auto found = find(name);
   if (found == end())
     return kUndefined;
-  return found->second;
+  Var* v = found->second;
+  if (v->Origin() == VarOrigin::ENVIRONMENT ||
+      v->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE) {
+    used_env_vars_.insert(name);
+  }
+  return v;
 }
 
 void Vars::Assign(Symbol name, Var* v) {
@@ -133,6 +138,8 @@ void Vars::Assign(Symbol name, Var* v) {
     p.first->second = v;
   }
 }
+
+unordered_set<Symbol> Vars::used_env_vars_;
 
 ScopedVar::ScopedVar(Vars* vars, Symbol name, Var* var)
     : vars_(vars), orig_(NULL) {
