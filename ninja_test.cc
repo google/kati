@@ -24,10 +24,17 @@ namespace {
 #define ASSERT_EQ(a, b)                                                 \
   do {                                                                  \
     if ((a) != (b)) {                                                   \
-      fprintf(stderr, "Assertion failure at %s:%d: %s (which is %s) vs %s", \
-              __FILE__, __LINE__, #a, a.c_str(), #b);                   \
+      fprintf(stderr, "Assertion failure at %s:%d: %s (which is %s) vs %s\n", \
+              __FILE__, __LINE__, #a, c_str(a), #b);                    \
     }                                                                   \
   } while(0)
+
+const char* c_str(const string& s) { return s.c_str(); }
+const char* c_str(size_t v) {
+  static char buf[64];
+  sprintf(buf, "%zd", v);
+  return buf;
+}
 
 string GetDepfile(string cmd, string* new_cmd) {
   new_cmd->clear();
@@ -69,9 +76,16 @@ void TestGetDepfile() {
   assert(!g_last_error);
 }
 
+static void TestGetGomaccPosForAndroidCompileCommand() {
+  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand("prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c "), 0);
+  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand("prebuilts/misc/linux-x86/ccache/ccache prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c "), 39);
+  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand("echo foo "), string::npos);
+}
+
 }  // namespace
 
 int main() {
   g_log_no_exit = true;
   TestGetDepfile();
+  TestGetGomaccPosForAndroidCompileCommand();
 }
