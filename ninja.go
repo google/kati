@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -32,9 +33,10 @@ type ninjaGenerator struct {
 
 	ctx *execContext
 
-	ruleID  int
-	done    map[string]bool
-	gomaDir string
+	ruleID     int
+	done       map[string]bool
+	shortNames map[string][]string
+	gomaDir    string
 }
 
 var ccRE = regexp.MustCompile(`^prebuilts/(gcc|clang)/.*(gcc|g\+\+|clang|clang\+\+) .* -c `)
@@ -245,6 +247,11 @@ func (n *ninjaGenerator) emitNode(node *DepNode) error {
 		return nil
 	}
 
+	base := filepath.Base(node.Output)
+	if base != node.Output {
+		n.shortNames[base] = append(n.shortNames[base], node.Output)
+	}
+
 	runners, _, err := createRunners(n.ctx, node)
 	if err != nil {
 		return err
@@ -360,6 +367,20 @@ func (n *ninjaGenerator) generateNinja() (err error) {
 		if err != nil {
 			return err
 		}
+	}
+
+	fmt.Fprintf(n.f, "\n# shortcuts:\n")
+	var names []string
+	for name := range n.shortNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if len(n.shortNames[name]) != 1 {
+			// we generate shortcuts only for targets whose basename are unique.
+			continue
+		}
+		fmt.Fprintf(n.f, "build %s: phony %s\n", name, n.shortNames[name][0])
 	}
 	return nil
 }
