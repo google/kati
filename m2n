@@ -75,6 +75,16 @@ EOF
   esac
 done
 
+if [ x"${goma_flag}" != x ]; then
+  for k in CC_WRAPPER CXX_WRAPPER JAVAC_WRAPPER; do
+    val=$(eval echo \$$k)
+    if [ x"${val}" != x ]; then
+      echo "Note: \$$k=${val} may confuse m2n --goma, unsetting"
+      unset $k
+    fi
+  done
+fi
+
 kati=${kati_dir}/ckati
 
 ninja_suffix=
