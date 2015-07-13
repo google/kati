@@ -37,7 +37,8 @@ CXX_SRCS:= \
 	symtab.cc \
 	timeutil.cc \
 	value.cc \
-	var.cc
+	var.cc \
+	version.cc
 CXX_TEST_SRCS:= \
 	$(wildcard *_test.cc)
 CXX_OBJS:=$(CXX_SRCS:.cc=.o)
@@ -73,6 +74,9 @@ $(CXX_ALL_OBJS): %.o: %.cc
 $(CXX_TEST_EXES): $(filter-out main.o,$(CXX_OBJS))
 $(CXX_TEST_EXES): %: %.o
 	$(CXX) $^ -o $@
+
+version.cc: .git/HEAD .git/index
+	echo 'const char* kGitVersion = "$(shell git rev-parse HEAD)";' > $@
 
 test: all go_test
 	ruby runtest.rb
