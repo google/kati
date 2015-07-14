@@ -24,7 +24,7 @@
 using namespace std;
 
 class Evaluator;
-class Loc;
+struct Loc;
 
 class Evaluable {
  public:

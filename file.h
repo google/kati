@@ -22,7 +22,7 @@
 
 using namespace std;
 
-class AST;
+struct AST;
 
 class Makefile {
  public:
