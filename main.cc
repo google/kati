@@ -151,7 +151,11 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
                                   vector<AST*>* asts) {
   string bootstrap = (
       "CC:=cc\n"
+#if defined(__APPLE__)
+      "CXX:=c++\n"
+#else
       "CXX:=g++\n"
+#endif
       "AR:=ar\n"
       "MAKE:=kati\n"
       // Pretend to be GNU make 3.81, for compatibility.
