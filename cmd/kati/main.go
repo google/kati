@@ -165,6 +165,14 @@ func m2nsetup() {
 }
 
 func gomasetup() {
+	for _, k := range []string{"CC_WRAPPER", "CXX_WRAPPER", "JAVAC_WRAPPER"} {
+		v := os.Getenv(k)
+		if v != "" {
+			fmt.Printf("Note: %s=%s may confuse m2n --goma, unsetting", k, v)
+			os.Unsetenv(k)
+		}
+	}
+
 	if gomaDir == "" {
 		gomaDir = os.Getenv("GOMA_DIR")
 		if gomaDir == "" {
