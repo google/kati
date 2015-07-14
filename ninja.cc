@@ -181,12 +181,15 @@ class NinjaGenerator {
   StringPiece TranslateCommand(const char* in) {
     const size_t orig_size = cmd_buf_.size();
     bool prev_backslash = false;
+    // Set space as an initial value so the leading comment will be
+    // stripped out.
+    char prev_char = ' ';
     char quote = 0;
     bool done = false;
     for (; *in && !done; in++) {
       switch (*in) {
         case '#':
-          if (quote == 0 && !prev_backslash) {
+          if (quote == 0 && isspace(prev_char)) {
             done = true;
             break;
           }
@@ -228,6 +231,7 @@ class NinjaGenerator {
           cmd_buf_ += *in;
           prev_backslash = false;
       }
+      prev_char = *in;
     }
 
     while (true) {
