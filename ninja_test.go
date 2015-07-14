@@ -166,3 +166,37 @@ func TestGetDepFile(t *testing.T) {
 		}
 	}
 }
+
+func TestGomaCmdForAndroidCompileCmd(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want string
+		ok   bool
+	}{
+		{
+			in: "prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c ",
+			ok: true,
+		},
+		{
+			in:   "prebuilts/misc/linux-x86/ccache/ccache prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c ",
+			want: "prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c ",
+			ok:   true,
+		},
+		{
+			in: "echo foo ",
+			ok: false,
+		},
+	} {
+		got, ok := gomaCmdForAndroidCompileCmd(tc.in)
+		want := tc.want
+		if tc.want == "" {
+			want = tc.in
+		}
+		if got != want {
+			t.Errorf("gomaCmdForAndroidCompileCmd(%q)=%q, _; want=%q, _", tc.in, got, tc.want)
+		}
+		if ok != tc.ok {
+			t.Errorf("gomaCmdForAndroidCompileCmd(%q)=_, %t; want=_, %t", tc.in, ok, tc.ok)
+		}
+	}
+}

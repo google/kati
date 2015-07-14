@@ -39,8 +39,6 @@ type ninjaGenerator struct {
 	gomaDir    string
 }
 
-var ccRE = regexp.MustCompile(`^prebuilts/(gcc|clang)/.*(gcc|g\+\+|clang|clang\+\+) .* -c `)
-
 func newNinjaGenerator(g *DepGraph, gomaDir string) *ninjaGenerator {
 	ctx := newExecContext(g.vars, true)
 	return &ninjaGenerator{
@@ -164,6 +162,20 @@ func stripShellComment(s string) string {
 	return s
 }
 
+var ccRE = regexp.MustCompile(`^prebuilts/(gcc|clang)/.*(gcc|g\+\+|clang|clang\+\+) .* ?-c `)
+
+func gomaCmdForAndroidCompileCmd(cmd string) (string, bool) {
+	i := strings.Index(cmd, " ")
+	if i < 0 {
+		return cmd, false
+	}
+	driver := cmd[:i]
+	if strings.HasSuffix(driver, "ccache") {
+		return gomaCmdForAndroidCompileCmd(cmd[i+1:])
+	}
+	return cmd, ccRE.MatchString(cmd)
+}
+
 func (n *ninjaGenerator) genShellScript(runners []runner) (string, bool) {
 	useGomacc := false
 	var buf bytes.Buffer
@@ -184,9 +196,12 @@ func (n *ninjaGenerator) genShellScript(runners []runner) (string, bool) {
 		if cmd == "" {
 			cmd = "true"
 		}
-		if n.gomaDir != "" && ccRE.MatchString(cmd) {
-			cmd = fmt.Sprintf("%s/gomacc %s", n.gomaDir, cmd)
-			useGomacc = true
+		if n.gomaDir != "" {
+			rcmd, ok := gomaCmdForAndroidCompileCmd(cmd)
+			if ok {
+				cmd = fmt.Sprintf("%s/gomacc %s", n.gomaDir, rcmd)
+				useGomacc = true
+			}
 		}
 
 		needsSubShell := i > 0 || len(runners) > 1
