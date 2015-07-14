@@ -1,5 +1,11 @@
 # TODO(go): This test is only for ckati.
 
+ifeq ($(shell uname),Darwin)
+USE_GNU_FIND:=
+else
+USE_GNU_FIND:=1
+endif
+
 define run_find
 @echo $$ '$(strip $(1))'
 @echo $(sort $(shell $(1)))
@@ -23,11 +29,13 @@ test2:
 	@echo no options
 	$(call run_find, find testdir)
 	$(call run_find, find .)
+ifeq ($(USE_GNU_FIND),1)
 	$(call run_find, find ./)
 	$(call run_find, find .///)
 	$(call run_find, find )
 	$(call run_find, find ./.)
 	$(call run_find, find ././)
+endif
 	$(call run_find, find testdir/../testdir)
 	@echo print
 	$(call run_find, find testdir -print)
