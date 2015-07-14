@@ -126,8 +126,10 @@ static void Init() {
   if (g_makefile == NULL) {
     if (Exists("GNUmakefile")) {
       g_makefile = "GNUmakefile";
+#if !defined(__APPLE__)
     } else if (Exists("makefile")) {
       g_makefile = "makefile";
+#endif
     } else if (Exists("Makefile")) {
       g_makefile = "Makefile";
     } else {
