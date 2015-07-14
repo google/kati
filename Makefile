@@ -52,7 +52,7 @@ CXXFLAGS+=-O -DNOLOG
 all: kati ckati $(CXX_TEST_EXES)
 
 kati: go_src_stamp
-	GOPATH=$$(pwd)/out:$${GOPATH} go install github.com/google/kati/cmd/kati
+	GOPATH=$$(pwd)/out:$${GOPATH} go install -ldflags "-X github.com/google/kati.gitVersion $(shell git rev-parse HEAD)" github.com/google/kati/cmd/kati
 	cp out/bin/kati $@
 
 go_src_stamp: $(GO_SRCS) cmd/*/*.go
