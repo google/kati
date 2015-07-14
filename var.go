@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Var is an interface of make variable.
@@ -285,9 +286,15 @@ func (undefinedVar) AppendVar(_ *Evaluator, val Value) (Var, error) {
 // Vars is a map for make variables.
 type Vars map[string]Var
 
+// usedEnvs tracks what environment variables are used.
+var usedEnvs = map[string]bool{}
+
 // Lookup looks up named make variable.
 func (vt Vars) Lookup(name string) Var {
 	if v, ok := vt[name]; ok {
+		if strings.HasPrefix(v.Origin(), "environment") {
+			usedEnvs[name] = true
+		}
 		return v
 	}
 	return undefinedVar{}
