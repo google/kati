@@ -15,3 +15,4 @@ ninja_test
 string_piece_test
 strutil_test
 go_src_stamp
+version.cc
