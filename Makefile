@@ -76,7 +76,9 @@ $(CXX_TEST_EXES): %: %.o
 	$(CXX) $^ -o $@
 
 version.cc: .git/HEAD .git/index
-	echo 'const char* kGitVersion = "$(shell git rev-parse HEAD)";' > $@
+	echo '// +build ignore' > $@
+	echo >> $@
+	echo 'const char* kGitVersion = "$(shell git rev-parse HEAD)";' >> $@
 
 test: all go_test
 	ruby runtest.rb
