@@ -22,7 +22,7 @@
 
 using namespace std;
 
-class DepNode;
+struct DepNode;
 class Evaluator;
 
 void GenerateNinja(const char* ninja_suffix,

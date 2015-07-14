@@ -19,7 +19,7 @@
 
 using namespace std;
 
-class DepNode;
+struct DepNode;
 class Evaluator;
 
 void Exec(const vector<DepNode*>& roots, Evaluator* ev);
