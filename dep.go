@@ -363,7 +363,9 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 	n.ActualInputs = actualInputs
 	n.TargetSpecificVars = make(Vars)
 	for k, v := range tsvs {
-		glog.Infof("output=%s tsv %s=%s", output, k, v)
+		if glog.V(1) {
+			glog.Infof("output=%s tsv %s=%s", output, k, v)
+		}
 		n.TargetSpecificVars[k] = v
 	}
 	n.Filename = rule.filename
