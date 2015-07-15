@@ -35,7 +35,7 @@ func TestStripShellComment(t *testing.T) {
 		},
 		{
 			in:   `foo '\'# bar'`,
-			want: `foo '\'`,
+			want: `foo '\'# bar'`, // unbalanced '
 		},
 		{
 			in:   `foo "# bar"`,
@@ -47,7 +47,7 @@ func TestStripShellComment(t *testing.T) {
 		},
 		{
 			in:   `foo "\\"# bar"`,
-			want: `foo "\\"`,
+			want: `foo "\\"# bar"`, // unbalanced "
 		},
 		{
 			in:   "foo `# bar`",
@@ -55,11 +55,11 @@ func TestStripShellComment(t *testing.T) {
 		},
 		{
 			in:   "foo `\\`# bar`",
-			want: "foo `\\`# bar`",
+			want: "foo `\\`# bar`", // unbalanced `
 		},
 		{
 			in:   "foo `\\\\`# bar`",
-			want: "foo `\\\\`",
+			want: "foo `\\\\`# bar`",
 		},
 	} {
 		got := stripShellComment(tc.in)
