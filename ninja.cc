@@ -223,14 +223,19 @@ class NinjaGenerator {
           break;
 
         case '\\':
-          prev_backslash = !prev_backslash;
           cmd_buf_ += '\\';
           break;
 
         default:
           cmd_buf_ += *in;
-          prev_backslash = false;
       }
+
+      if (*in == '\\') {
+        prev_backslash = !prev_backslash;
+      } else {
+        prev_backslash = false;
+      }
+
       prev_char = *in;
     }
 
