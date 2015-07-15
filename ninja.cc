@@ -415,7 +415,7 @@ class NinjaGenerator {
 
     fprintf(fp_, "\n# shortcuts:\n");
     for (auto p : short_names_) {
-      if (!p.second.empty() && !done_.count(p.second))
+      if (!p.second.empty() && !done_.count(p.first))
         fprintf(fp_, "build %s: phony %s\n", p.first.c_str(), p.second.c_str());
     }
 
