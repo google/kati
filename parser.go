@@ -437,7 +437,7 @@ func (p *parser) parseElse(data []byte) {
 		return
 	}
 	p.numIfNest = 0
-	warnNoPrefix(p.srcpos(), "extraneous text after `else` directive")
+	warnNoPrefix(p.srcpos(), "extraneous text after `else' directive")
 	return
 }
 
@@ -460,6 +460,9 @@ func (p *parser) parseEndif(data []byte) {
 				p.outStmts = &state.ast.trueStmts
 			}
 		}
+	}
+	if len(trimSpaceBytes(data)) > 0 {
+		warnNoPrefix(p.srcpos(), "extraneous text after `endif' directive")
 	}
 	return
 }

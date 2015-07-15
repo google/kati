@@ -1,4 +1,4 @@
-# TODO: fix error message. not only else, but also endif
+# TODO(c): should fail with "*** No targets."
 
 ifdef foo
 else foo
