@@ -105,6 +105,7 @@ type evalResult struct {
 	ruleVars    map[string]Vars
 	accessedMks []*accessedMakefile
 	exports     map[string]bool
+	vpaths      searchPaths
 }
 
 type srcpos struct {
@@ -159,6 +160,7 @@ type Evaluator struct {
 	hasIO        bool
 	cache        *accessCache
 	exports      map[string]bool
+	vpaths       []vpath
 
 	srcpos
 }
@@ -566,6 +568,53 @@ func (ev *Evaluator) evalExport(ast *exportAST) error {
 	return nil
 }
 
+func (ev *Evaluator) evalVpath(ast *vpathAST) error {
+	ev.lastRule = nil
+	ev.srcpos = ast.srcpos
+
+	var ebuf evalBuffer
+	ebuf.resetSep()
+	err := ast.expr.Eval(&ebuf, ev)
+	if err != nil {
+		return ast.errorf("%v\n expr:%s", err, ast.expr)
+	}
+	ws := newWordScanner(ebuf.Bytes())
+	if !ws.Scan() {
+		ev.vpaths = nil
+		return nil
+	}
+	pat := string(ws.Bytes())
+	if !ws.Scan() {
+		vpaths := ev.vpaths
+		ev.vpaths = nil
+		for _, v := range vpaths {
+			if v.pattern == pat {
+				continue
+			}
+			ev.vpaths = append(ev.vpaths, v)
+		}
+		return nil
+	}
+	// The search path, DIRECTORIES, is a list of directories to be
+	// searched, separated by colons (semi-colons on MS-DOS and
+	// MS-Windows) or blanks, just like the search path used in the
+	// `VPATH' variable.
+	var dirs []string
+	for {
+		for _, dir := range bytes.Split(ws.Bytes(), []byte{':'}) {
+			dirs = append(dirs, string(dir))
+		}
+		if !ws.Scan() {
+			break
+		}
+	}
+	ev.vpaths = append(ev.vpaths, vpath{
+		pattern: pat,
+		dirs:    dirs,
+	})
+	return nil
+}
+
 func (ev *Evaluator) eval(stmt ast) error {
 	return stmt.eval(ev)
 }
@@ -593,11 +642,32 @@ func eval(mk makefile, vars Vars, useCache bool) (er *evalResult, err error) {
 		}
 	}
 
+	vpaths := searchPaths{
+		vpaths: ev.vpaths,
+	}
+	v, found := ev.outVars["VPATH"]
+	if found {
+		wb := newWbuf()
+		err := v.Eval(wb, ev)
+		if err != nil {
+			return nil, err
+		}
+		// In the 'VPATH' variable, directory names are separated
+		// by colons or blanks. (on windows, semi-colons)
+		for _, word := range wb.words {
+			for _, dir := range bytes.Split(word, []byte{':'}) {
+				vpaths.dirs = append(vpaths.dirs, string(dir))
+			}
+		}
+	}
+	glog.Infof("vpaths: %#v", vpaths)
+
 	return &evalResult{
 		vars:        ev.outVars,
 		rules:       ev.outRules,
 		ruleVars:    ev.outRuleVars,
 		accessedMks: ev.cache.Slice(),
 		exports:     ev.exports,
+		vpaths:      vpaths,
 	}, nil
 }

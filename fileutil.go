@@ -15,7 +15,6 @@
 package kati
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 )
@@ -28,31 +27,36 @@ func exists(filename string) bool {
 	return true
 }
 
-func existsInVPATH(ev *Evaluator, target string) (string, bool) {
+type vpath struct {
+	pattern string
+	dirs    []string
+}
+
+type searchPaths struct {
+	vpaths []vpath  // vpath directives
+	dirs   []string // VPATH variable
+}
+
+func (s searchPaths) exists(target string) (string, bool) {
 	if exists(target) {
 		return target, true
 	}
-	vpath, found := ev.vars["VPATH"]
-	if !found {
-		return target, false
-	}
-	// TODO(ukai): support vpath directive (pattern vpath).
-	// TODO(ukai): ok to cache vpath value?
-	wb := newWbuf()
-	err := vpath.Eval(wb, ev)
-	if err != nil {
-		return target, false
-	}
-	// In the 'VPATH' variable, directory names are separated by colons
-	// or blanks. (on windows, semi-colons)
-	for _, word := range wb.words {
-		for _, dir := range bytes.Split(word, []byte{':'}) {
-			vtarget := filepath.Join(string(dir), target)
+	for _, vpath := range s.vpaths {
+		if !matchPattern(vpath.pattern, target) {
+			continue
+		}
+		for _, dir := range vpath.dirs {
+			vtarget := filepath.Join(dir, target)
 			if exists(vtarget) {
 				return vtarget, true
 			}
 		}
 	}
-	wb.release()
+	for _, dir := range s.dirs {
+		vtarget := filepath.Join(dir, target)
+		if exists(vtarget) {
+			return vtarget, true
+		}
+	}
 	return target, false
 }

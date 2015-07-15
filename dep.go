@@ -52,6 +52,7 @@ type depBuilder struct {
 	firstRule   *rule
 	vars        Vars
 	ev          *Evaluator
+	vpaths      searchPaths
 	done        map[string]*DepNode
 	phony       map[string]bool
 
@@ -142,7 +143,7 @@ func (db *depBuilder) exists(target string) bool {
 	if db.phony[target] {
 		return true
 	}
-	_, ok := existsInVPATH(db.ev, target)
+	_, ok := db.vpaths.exists(target)
 	return ok
 }
 
@@ -507,6 +508,7 @@ func newDepBuilder(er *evalResult, vars Vars) (*depBuilder, error) {
 		suffixRules:   make(map[string][]*rule),
 		vars:          vars,
 		ev:            NewEvaluator(vars),
+		vpaths:        er.vpaths,
 		done:          make(map[string]*DepNode),
 		phony:         make(map[string]bool),
 	}

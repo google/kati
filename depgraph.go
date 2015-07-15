@@ -30,6 +30,7 @@ type DepGraph struct {
 	vars        Vars
 	accessedMks []*accessedMakefile
 	exports     map[string]bool
+	vpaths      searchPaths
 }
 
 // Nodes returns all rules.
@@ -167,6 +168,7 @@ func Load(req LoadReq) (*DepGraph, error) {
 		vars:        vars,
 		accessedMks: accessedMks,
 		exports:     er.exports,
+		vpaths:      er.vpaths,
 	}
 	if req.EagerEvalCommand {
 		startTime := time.Now()

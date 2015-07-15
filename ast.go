@@ -162,3 +162,16 @@ func (ast *exportAST) show() {
 	// TODO
 	glog.Info("export")
 }
+
+type vpathAST struct {
+	srcpos
+	expr Value
+}
+
+func (ast *vpathAST) eval(ev *Evaluator) error {
+	return ev.evalVpath(ast)
+}
+
+func (ast *vpathAST) show() {
+	glog.Infof("vpath %s", ast.expr.String())
+}

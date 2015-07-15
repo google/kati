@@ -1,6 +1,6 @@
-# TODO: Implement vpath.
+# TODO(c): Implement vpath.
 
-vpath dir %.c
+vpath %.c dir
 
 test: bar
 

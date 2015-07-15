@@ -28,16 +28,18 @@ type execContext struct {
 
 	mu     sync.Mutex
 	ev     *Evaluator
+	vpaths searchPaths
 	output string
 	inputs []string
 }
 
-func newExecContext(vars Vars, avoidIO bool) *execContext {
+func newExecContext(vars Vars, vpaths searchPaths, avoidIO bool) *execContext {
 	ev := NewEvaluator(vars)
 	ev.avoidIO = avoidIO
 
 	ctx := &execContext{
-		ev: ev,
+		ev:     ev,
+		vpaths: vpaths,
 	}
 	av := autoVar{ctx: ctx}
 	for k, v := range map[string]Var{
@@ -329,7 +331,7 @@ func createRunners(ctx *execContext, n *DepNode) ([]runner, bool, error) {
 
 func evalCommands(nodes []*DepNode, vars Vars) error {
 	ioCnt := 0
-	ectx := newExecContext(vars, true)
+	ectx := newExecContext(vars, searchPaths{}, true)
 	for i, n := range nodes {
 		runners, hasIO, err := createRunners(ectx, n)
 		if err != nil {
