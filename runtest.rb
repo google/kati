@@ -109,6 +109,8 @@ def normalize_kati_log(output)
   output.gsub!(/[`'"]/, '"')
   output.gsub!(/(: )(?:open )?(\S+): [Nn](o such file or directory)\nNOTE:.*/,
                "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
+  output.gsub!(/\/bin\/sh: ([^:]*): command not found/,
+               "\\1: Command not found")
   output
 end
 
