@@ -137,6 +137,9 @@ func stripShellComment(s string) string {
 		// Fast path.
 		return s
 	}
+	// set space as an initial value so the leading comment will be
+	// stripped out.
+	lastch := rune(' ')
 	var escape bool
 	var quote rune
 	for i, c := range s {
@@ -145,7 +148,7 @@ func stripShellComment(s string) string {
 				quote = 0
 			}
 		} else if !escape {
-			if c == '#' {
+			if c == '#' && isWhitespace(lastch) {
 				return s[:i]
 			} else if c == '\'' || c == '"' || c == '`' {
 				quote = c
@@ -158,6 +161,7 @@ func stripShellComment(s string) string {
 		} else {
 			escape = false
 		}
+		lastch = c
 	}
 	return s
 }
