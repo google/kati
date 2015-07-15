@@ -307,8 +307,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 		ws := newWordScanner(line)
 		if ws.Scan() {
 			if string(ws.Bytes()) == "override" {
-				// not fatal error?
-				fmt.Printf("%s: invalid %q directive\n", ast.srcpos, "override")
+				warnNoPrefix(ast.srcpos, "invalid `override' directive")
 				return nil
 			}
 		}
