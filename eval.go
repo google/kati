@@ -304,6 +304,14 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	r := &rule{srcpos: ast.srcpos}
 	assign, err := r.parse(line, ast.assign, rhs)
 	if err != nil {
+		ws := newWordScanner(line)
+		if ws.Scan() {
+			if string(ws.Bytes()) == "override" {
+				// not fatal error?
+				fmt.Printf("%s: invalid %q directive\n", ast.srcpos, "override")
+				return nil
+			}
+		}
 		return ast.error(err)
 	}
 	abuf.release()
@@ -562,8 +570,12 @@ func (ev *Evaluator) evalExport(ast *exportAST) error {
 	if err != nil {
 		return ast.errorf("%v\n expr:%s", err, v)
 	}
-	for _, n := range splitSpacesBytes(buf.Bytes()) {
-		ev.exports[string(n)] = ast.export
+	if ast.hasEqual {
+		ev.exports[string(trimSpaceBytes(buf.Bytes()))] = ast.export
+	} else {
+		for _, n := range splitSpacesBytes(buf.Bytes()) {
+			ev.exports[string(n)] = ast.export
+		}
 	}
 	return nil
 }

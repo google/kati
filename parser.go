@@ -564,6 +564,7 @@ func overrideDirective(p *parser, data []byte) {
 	line = append(line, []byte("override ")...)
 	line = append(line, data...)
 	p.handleRuleOrAssign(line)
+	// TODO(ukai): evaluate now to detect invalid "override" directive here?
 }
 
 func handleExport(p *parser, data []byte, export bool) (hasEqual bool) {
@@ -576,10 +577,10 @@ func handleExport(p *parser, data []byte, export bool) (hasEqual bool) {
 		}
 		data = data[:i]
 	}
-
 	east := &exportAST{
-		expr:   data,
-		export: export,
+		expr:     data,
+		hasEqual: hasEqual,
+		export:   export,
 	}
 	east.srcpos = p.srcpos()
 	glog.V(1).Infof("export %v", east)
