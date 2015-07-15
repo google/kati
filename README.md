@@ -40,10 +40,9 @@ Note ./ninja.sh passes all parameters to ninja.
 
 For example, the following is equivalent to "make cts":
 
-    % ~/src/kati/m2n cts
-    % ./ninja-cts.sh
+    % ./ninja.sh cts
 
-Or, if your target is built by "make", you can specify the target of ninja.
+Or, if you know the path you want, you can do:
 
     % ./ninja.sh out/host/linux-x86/bin/adb
 
