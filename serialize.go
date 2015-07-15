@@ -27,6 +27,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -459,7 +460,7 @@ func deserializeVar(sv serializableVar) (r Value, err error) {
 
 	case "simple":
 		return &simpleVar{
-			value:  sv.V,
+			value:  strings.Split(sv.V, " "),
 			origin: sv.Origin,
 		}, nil
 	case "recursive":

@@ -1242,7 +1242,7 @@ func (f *funcEvalAssign) Eval(w evalWriter, ev *Evaluator) error {
 		if err != nil {
 			return err
 		}
-		rvalue = &simpleVar{value: vbuf.String(), origin: "file"}
+		rvalue = &simpleVar{value: []string{vbuf.String()}, origin: "file"}
 		vbuf.release()
 	case "=":
 		rvalue = &recursiveVar{expr: tmpval(rhs), origin: "file"}

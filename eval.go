@@ -578,7 +578,7 @@ func eval(mk makefile, vars Vars, useCache bool) (er *evalResult, err error) {
 
 	makefileList := vars.Lookup("MAKEFILE_LIST")
 	if !makefileList.IsDefined() {
-		makefileList = &simpleVar{value: "", origin: "file"}
+		makefileList = &simpleVar{value: []string{""}, origin: "file"}
 	}
 	makefileList, err = makefileList.Append(ev, mk.filename)
 	if err != nil {
