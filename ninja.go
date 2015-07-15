@@ -42,11 +42,12 @@ type ninjaGenerator struct {
 func newNinjaGenerator(g *DepGraph, gomaDir string) *ninjaGenerator {
 	ctx := newExecContext(g.vars, true)
 	return &ninjaGenerator{
-		nodes:   g.nodes,
-		exports: g.exports,
-		ctx:     ctx,
-		done:    make(map[string]bool),
-		gomaDir: gomaDir,
+		nodes:      g.nodes,
+		exports:    g.exports,
+		ctx:        ctx,
+		done:       make(map[string]bool),
+		shortNames: make(map[string][]string),
+		gomaDir:    gomaDir,
 	}
 }
 
