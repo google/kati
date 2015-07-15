@@ -50,9 +50,9 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) (Var, error) {
 	case ":=":
 		switch v := ast.rhs.(type) {
 		case literal:
-			return &simpleVar{value: v.String(), origin: origin}, nil
+			return &simpleVar{value: []string{v.String()}, origin: origin}, nil
 		case tmpval:
-			return &simpleVar{value: v.String(), origin: origin}, nil
+			return &simpleVar{value: []string{v.String()}, origin: origin}, nil
 		default:
 			var buf evalBuffer
 			buf.resetSep()
@@ -60,7 +60,7 @@ func (ast *assignAST) evalRHS(ev *Evaluator, lhs string) (Var, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &simpleVar{value: buf.String(), origin: origin}, nil
+			return &simpleVar{value: []string{buf.String()}, origin: origin}, nil
 		}
 	case "=":
 		return &recursiveVar{expr: ast.rhs, origin: origin}, nil

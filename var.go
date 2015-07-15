@@ -89,7 +89,9 @@ func (v *targetSpecificVar) dump(d *dumpbuf) {
 }
 
 type simpleVar struct {
-	value  string
+	// space separated. note that each string may contain spaces, so
+	// it is not word list.
+	value  []string
 	origin string
 }
 
@@ -97,21 +99,31 @@ func (v *simpleVar) Flavor() string  { return "simple" }
 func (v *simpleVar) Origin() string  { return v.origin }
 func (v *simpleVar) IsDefined() bool { return true }
 
-func (v *simpleVar) String() string { return v.value }
+func (v *simpleVar) String() string { return strings.Join(v.value, " ") }
 func (v *simpleVar) Eval(w evalWriter, ev *Evaluator) error {
-	io.WriteString(w, v.value)
+	space := false
+	for _, v := range v.value {
+		if space {
+			writeByte(w, ' ')
+		}
+		io.WriteString(w, v)
+		space = true
+	}
 	return nil
 }
 func (v *simpleVar) serialize() serializableVar {
 	return serializableVar{
 		Type:   "simple",
-		V:      v.value,
+		V:      v.String(),
 		Origin: v.origin,
 	}
 }
 func (v *simpleVar) dump(d *dumpbuf) {
 	d.Byte(valueTypeSimple)
-	d.Str(v.value)
+	d.Int(len(v.value))
+	for _, v := range v.value {
+		d.Str(v)
+	}
 	d.Str(v.origin)
 }
 
@@ -121,26 +133,22 @@ func (v *simpleVar) Append(ev *Evaluator, s string) (Var, error) {
 		return nil, err
 	}
 	abuf := newEbuf()
-	io.WriteString(abuf, v.value)
-	writeByte(abuf, ' ')
 	err = val.Eval(abuf, ev)
 	if err != nil {
 		return nil, err
 	}
-	v.value = abuf.String()
+	v.value = append(v.value, abuf.String())
 	abuf.release()
 	return v, nil
 }
 
 func (v *simpleVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
 	abuf := newEbuf()
-	io.WriteString(abuf, v.value)
-	writeByte(abuf, ' ')
 	err := val.Eval(abuf, ev)
 	if err != nil {
 		return nil, err
 	}
-	v.value = abuf.String()
+	v.value = append(v.value, abuf.String())
 	abuf.release()
 	return v, nil
 }
@@ -170,31 +178,29 @@ func (v *automaticVar) Append(ev *Evaluator, s string) (Var, error) {
 	if err != nil {
 		return nil, err
 	}
-	var buf evalBuffer
-	buf.Write(v.value)
-	buf.WriteByte(' ')
-	buf.resetSep()
-	err = val.Eval(&buf, ev)
+	abuf := newEbuf()
+	err = val.Eval(abuf, ev)
 	if err != nil {
 		return nil, err
 	}
+	value := []string{string(v.value), abuf.String()}
+	abuf.release()
 	return &simpleVar{
-		value:  buf.String(),
+		value:  value,
 		origin: "file",
 	}, nil
 }
 
 func (v *automaticVar) AppendVar(ev *Evaluator, val Value) (Var, error) {
-	var buf evalBuffer
-	buf.Write(v.value)
-	buf.WriteByte(' ')
-	buf.resetSep()
-	err := val.Eval(&buf, ev)
+	abuf := newEbuf()
+	err := val.Eval(abuf, ev)
 	if err != nil {
 		return nil, err
 	}
+	value := []string{string(v.value), abuf.String()}
+	abuf.release()
 	return &simpleVar{
-		value:  buf.String(),
+		value:  value,
 		origin: "file",
 	}, nil
 }
