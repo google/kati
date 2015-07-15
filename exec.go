@@ -44,7 +44,7 @@ type Executor struct {
 }
 
 func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
-	output, _ := existsInVPATH(ex.ctx.ev, n.Output)
+	output, _ := ex.ctx.vpaths.exists(n.Output)
 	if neededBy != nil {
 		glog.V(1).Infof("MakeJob: %s for %s", output, neededBy.n.Output)
 	}
@@ -92,8 +92,7 @@ func (ex *Executor) makeJobs(n *DepNode, neededBy *job) error {
 		deps = append(deps, d)
 	}
 	for _, d := range n.OrderOnlys {
-		// need lock for ex.ctx.ev?
-		if _, ok := existsInVPATH(ex.ctx.ev, d.Output); ok {
+		if _, ok := ex.ctx.vpaths.exists(d.Output); ok {
 			j.numDeps--
 			continue
 		}
@@ -154,7 +153,7 @@ func NewExecutor(opt *ExecutorOpt) (*Executor, error) {
 
 // Exec executes to build roots.
 func (ex *Executor) Exec(g *DepGraph) error {
-	ex.ctx = newExecContext(g.vars, false)
+	ex.ctx = newExecContext(g.vars, g.vpaths, false)
 
 	// TODO: Handle target specific variables.
 	for name, export := range g.exports {

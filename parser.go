@@ -471,6 +471,21 @@ func (p *parser) parseDefine(data []byte) {
 	return
 }
 
+func (p *parser) parseVpath(data []byte) {
+	vline, _ := removeComment(concatline(data))
+	vline = trimLeftSpaceBytes(vline)
+	v, _, err := parseExpr(vline, nil, parseOp{})
+	if err != nil {
+		p.err = p.srcpos().errorf("parse error %q: %v", string(vline), err)
+		return
+	}
+	vast := &vpathAST{
+		expr: v,
+	}
+	vast.srcpos = p.srcpos()
+	p.addStatement(vast)
+}
+
 type directiveFunc func(*parser, []byte)
 
 var makeDirectives map[string]directiveFunc
@@ -490,6 +505,7 @@ func init() {
 		"override": overrideDirective,
 		"export":   exportDirective,
 		"unexport": unexportDirective,
+		"vpath":    vpathDirective,
 	}
 }
 
@@ -593,6 +609,10 @@ func exportDirective(p *parser, data []byte) {
 func unexportDirective(p *parser, data []byte) {
 	handleExport(p, data, false)
 	return
+}
+
+func vpathDirective(p *parser, data []byte) {
+	p.parseVpath(data)
 }
 
 func (p *parser) parse() (mk makefile, err error) {

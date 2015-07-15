@@ -40,7 +40,7 @@ type ninjaGenerator struct {
 }
 
 func newNinjaGenerator(g *DepGraph, gomaDir string) *ninjaGenerator {
-	ctx := newExecContext(g.vars, true)
+	ctx := newExecContext(g.vars, g.vpaths, true)
 	return &ninjaGenerator{
 		nodes:      g.nodes,
 		exports:    g.exports,
