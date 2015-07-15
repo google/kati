@@ -300,7 +300,9 @@ func createRunners(ctx *execContext, n *DepNode) ([]runner, bool, error) {
 		restore := ctx.ev.vars.save(k)
 		defer restore()
 		ctx.ev.vars[k] = v
-		glog.Infof("set tsv: %s=%s", k, v)
+		if glog.V(1) {
+			glog.Infof("set tsv: %s=%s", k, v)
+		}
 	}
 
 	ctx.ev.filename = n.Filename
