@@ -1,21 +1,14 @@
-# TODO: Fix - "override export define C" is invalid "override" directive.
+# TODO(c): it overrides "export A" and exports(?) "override B"
 
-override export A:=PASS_A
-export override B:=PASS_B
-override export define C
-PASS_C
-endef
-override export define D
-PASS_D
-endef
+override export A:=override_A
+export override B:=export_B
 
-A:=FAIL_A
-B:=FAIL_B
-C:=FAIL_C
-D:=FAIL_D
+A:=make_A
+B:=make_B
 
 test:
 	echo $$A
 	echo $$B
-	echo $$C
-	echo $$D
+	echo $(export A)
+	echo $(override B)
+	env | grep 'override B'

@@ -150,8 +150,9 @@ func (ast *ifAST) show() {
 
 type exportAST struct {
 	srcpos
-	expr   []byte
-	export bool
+	expr     []byte
+	hasEqual bool
+	export   bool
 }
 
 func (ast *exportAST) eval(ev *Evaluator) error {
