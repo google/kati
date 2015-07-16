@@ -17,6 +17,7 @@ package kati
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/golang/glog"
@@ -532,6 +533,12 @@ func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 			return nil, fmt.Errorf("*** No targets.")
 		}
 		targets = append(targets, db.firstRule.outputs[0])
+		var phonys []string
+		for t := range db.phony {
+			phonys = append(phonys, t)
+		}
+		sort.Strings(phonys)
+		targets = append(targets, phonys...)
 	}
 
 	logStats("%d variables", len(db.vars))
