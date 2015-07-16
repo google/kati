@@ -169,6 +169,7 @@ class NinjaGenerator {
   }
 
   void Generate(const vector<DepNode*>& nodes, bool build_all_targets) {
+    arg_max_ = sysconf(_SC_ARG_MAX);
     GenerateShell();
     GenerateNinja(nodes, build_all_targets);
   }
@@ -336,9 +337,7 @@ class NinjaGenerator {
       use_local_pool |= GenShellScript(commands);
       EmitDepfile();
 
-      // It seems Linux is OK with ~130kB.
-      // TODO: Find this number automatically.
-      if (cmd_buf_.size() > 100 * 1000) {
+      if (cmd_buf_.size() > arg_max_/2) {
         fprintf(fp_, " rspfile = $out.rsp\n");
         fprintf(fp_, " rspfile_content = %s\n", cmd_buf_.c_str());
         fprintf(fp_, " command = sh $out.rsp\n");
@@ -460,6 +459,7 @@ class NinjaGenerator {
   string gomacc_;
   string ninja_suffix_;
   unordered_map<Symbol, Symbol> short_names_;
+  size_t arg_max_;
 };
 
 void GenerateNinja(const char* ninja_suffix,
