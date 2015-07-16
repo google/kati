@@ -54,6 +54,7 @@ var (
 	queryFlag           string
 	eagerCmdEvalFlag    bool
 	generateNinja       bool
+	ninjaSuffix         string
 	gomaDir             string
 	findCachePrunes     string
 	findCacheLeafNames  string
@@ -82,6 +83,7 @@ func init() {
 	flag.StringVar(&queryFlag, "query", "", "Show the target info")
 	flag.BoolVar(&eagerCmdEvalFlag, "eager_cmd_eval", false, "Eval commands first.")
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
+	flag.StringVar(&ninjaSuffix, "ninja_suffix", "", "suffix for ninja files.")
 	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
 
 	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
@@ -297,7 +299,10 @@ func katiMain(args []string) error {
 	}
 
 	if generateNinja {
-		return kati.GenerateNinja(g, gomaDir)
+		n := kati.NinjaGenerator{
+			GomaDir: gomaDir,
+		}
+		return n.Save(g, ninjaSuffix, req.Targets)
 	}
 
 	if syntaxCheckOnlyFlag {

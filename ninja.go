@@ -26,7 +26,11 @@ import (
 	"time"
 )
 
-type ninjaGenerator struct {
+// NinjaGenerator generates ninja build files from DepGraph.
+type NinjaGenerator struct {
+	// GomaDir is goma directory.  If empty, goma will not be used.
+	GomaDir string
+
 	f       *os.File
 	nodes   []*DepNode
 	exports map[string]bool
@@ -36,19 +40,14 @@ type ninjaGenerator struct {
 	ruleID     int
 	done       map[string]bool
 	shortNames map[string][]string
-	gomaDir    string
 }
 
-func newNinjaGenerator(g *DepGraph, gomaDir string) *ninjaGenerator {
-	ctx := newExecContext(g.vars, g.vpaths, true)
-	return &ninjaGenerator{
-		nodes:      g.nodes,
-		exports:    g.exports,
-		ctx:        ctx,
-		done:       make(map[string]bool),
-		shortNames: make(map[string][]string),
-		gomaDir:    gomaDir,
-	}
+func (n *NinjaGenerator) init(g *DepGraph) {
+	n.nodes = g.nodes
+	n.exports = g.exports
+	n.ctx = newExecContext(g.vars, g.vpaths, true)
+	n.done = make(map[string]bool)
+	n.shortNames = make(map[string][]string)
 }
 
 func getDepfileImpl(ss string) (string, error) {
@@ -181,7 +180,7 @@ func gomaCmdForAndroidCompileCmd(cmd string) (string, bool) {
 	return cmd, ccRE.MatchString(cmd)
 }
 
-func (n *ninjaGenerator) genShellScript(runners []runner) (string, bool) {
+func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 	useGomacc := false
 	var buf bytes.Buffer
 	for i, r := range runners {
@@ -201,10 +200,10 @@ func (n *ninjaGenerator) genShellScript(runners []runner) (string, bool) {
 		if cmd == "" {
 			cmd = "true"
 		}
-		if n.gomaDir != "" {
+		if n.GomaDir != "" {
 			rcmd, ok := gomaCmdForAndroidCompileCmd(cmd)
 			if ok {
-				cmd = fmt.Sprintf("%s/gomacc %s", n.gomaDir, rcmd)
+				cmd = fmt.Sprintf("%s/gomacc %s", n.GomaDir, rcmd)
 				useGomacc = true
 			}
 		}
@@ -225,16 +224,16 @@ func (n *ninjaGenerator) genShellScript(runners []runner) (string, bool) {
 			buf.WriteByte(')')
 		}
 	}
-	return buf.String(), n.gomaDir != "" && !useGomacc
+	return buf.String(), n.GomaDir != "" && !useGomacc
 }
 
-func (n *ninjaGenerator) genRuleName() string {
+func (n *NinjaGenerator) genRuleName() string {
 	ruleName := fmt.Sprintf("rule%d", n.ruleID)
 	n.ruleID++
 	return ruleName
 }
 
-func (n *ninjaGenerator) emitBuild(output, rule, dep string) {
+func (n *NinjaGenerator) emitBuild(output, rule, dep string) {
 	fmt.Fprintf(n.f, "build %s: %s%s\n", output, rule, dep)
 }
 
@@ -257,7 +256,7 @@ func getDepString(node *DepNode) string {
 	return dep
 }
 
-func (n *ninjaGenerator) emitNode(node *DepNode) error {
+func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	if n.done[node.Output] {
 		return nil
 	}
@@ -328,8 +327,8 @@ func (n *ninjaGenerator) emitNode(node *DepNode) error {
 	return nil
 }
 
-func (n *ninjaGenerator) generateShell() (err error) {
-	f, err := os.Create("ninja.sh")
+func (n *NinjaGenerator) generateShell(suffix string) (err error) {
+	f, err := os.Create(fmt.Sprintf("ninja%s.sh", suffix))
 	if err != nil {
 		return err
 	}
@@ -352,7 +351,7 @@ func (n *ninjaGenerator) generateShell() (err error) {
 			fmt.Fprintf(f, "unset %s\n", name)
 		}
 	}
-	if n.gomaDir == "" {
+	if n.GomaDir == "" {
 		fmt.Fprintln(f, `exec ninja "$@"`)
 	} else {
 		fmt.Fprintln(f, `exec ninja -j300 "$@"`)
@@ -361,8 +360,8 @@ func (n *ninjaGenerator) generateShell() (err error) {
 	return f.Chmod(0755)
 }
 
-func (n *ninjaGenerator) generateNinja() (err error) {
-	f, err := os.Create("build.ninja")
+func (n *NinjaGenerator) generateNinja(suffix, defaultTarget string) (err error) {
+	f, err := os.Create(fmt.Sprintf("build%s.ninja", suffix))
 	if err != nil {
 		return err
 	}
@@ -394,7 +393,7 @@ func (n *ninjaGenerator) generateNinja() (err error) {
 		fmt.Fprintf(n.f, "\n")
 	}
 
-	if n.gomaDir != "" {
+	if n.GomaDir != "" {
 		fmt.Fprintf(n.f, "pool local_pool\n")
 		fmt.Fprintf(n.f, " depth = %d\n", runtime.NumCPU())
 	}
@@ -404,6 +403,10 @@ func (n *ninjaGenerator) generateNinja() (err error) {
 		if err != nil {
 			return err
 		}
+	}
+
+	if defaultTarget != "" {
+		fmt.Fprintf(n.f, "\ndefault %s\n", defaultTarget)
 	}
 
 	fmt.Fprintf(n.f, "\n# shortcuts:\n")
@@ -422,15 +425,19 @@ func (n *ninjaGenerator) generateNinja() (err error) {
 	return nil
 }
 
-// GenerateNinja generates build.ninja from DepGraph.
-func GenerateNinja(g *DepGraph, gomaDir string) error {
+// Save generates build.ninja from DepGraph.
+func (n *NinjaGenerator) Save(g *DepGraph, suffix string, targets []string) error {
 	startTime := time.Now()
-	n := newNinjaGenerator(g, gomaDir)
-	err := n.generateShell()
+	n.init(g)
+	err := n.generateShell(suffix)
 	if err != nil {
 		return err
 	}
-	err = n.generateNinja()
+	var defaultTarget string
+	if len(targets) == 0 && len(g.nodes) > 0 {
+		defaultTarget = g.nodes[0].Output
+	}
+	err = n.generateNinja(suffix, defaultTarget)
 	if err != nil {
 		return err
 	}
