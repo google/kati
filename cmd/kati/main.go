@@ -321,7 +321,7 @@ func katiMain(args []string) error {
 	if err != nil {
 		return err
 	}
-	err = ex.Exec(g)
+	err = ex.Exec(g, req.Targets)
 	if err != nil {
 		return err
 	}
