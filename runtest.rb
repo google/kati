@@ -16,18 +16,27 @@
 
 require 'fileutils'
 
-if ARGV[0] == '-s'
-  test_serialization = true
-  ARGV.shift
-elsif ARGV[0] == '-c'
-  ckati = true
-  ARGV.shift
-  ENV['KATI_VARIANT'] = 'c'
+while true
+  if ARGV[0] == '-s'
+    test_serialization = true
+    ARGV.shift
+  elsif ARGV[0] == '-c'
+    ckati = true
+    ARGV.shift
+    ENV['KATI_VARIANT'] = 'c'
+  elsif ARGV[0] == '-n'
+    via_ninja = true
+    ARGV.shift
+  else
+    break
+  end
 end
 
 def get_output_filenames
   files = Dir.glob('*')
   files.delete('Makefile')
+  files.delete('build.ninja')
+  files.delete('ninja.sh')
   files.delete('gmon.out')
   files.reject!{|f|f =~ /\.json$/}
   files.reject!{|f|f =~ /^kati\.*/}
@@ -77,6 +86,11 @@ def run_in_testdir(test_filename)
   Dir.chdir(dir) do
     yield name
   end
+end
+
+def normalize_ninja_log(log)
+  log.gsub!(/^\[\d+\/\d+\] .*\n/, '')
+  log
 end
 
 def normalize_make_log(expected)
@@ -145,7 +159,12 @@ run_make_test = proc do |mk|
 
     cleanup
     testcases.each do |tc|
-      res = `make #{tc} 2>&1`
+      cmd = 'make'
+      if via_ninja
+        cmd += ' -s'
+      end
+      cmd += " #{tc} 2>&1"
+      res = `#{cmd}`
       res = normalize_make_log(res)
       expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
@@ -155,11 +174,18 @@ run_make_test = proc do |mk|
     cleanup
     testcases.each do |tc|
       json = "#{tc.empty? ? 'test' : tc}"
-      cmd = "../../kati -save_json=#{json}.json -log_dir=. #{tc} 2>&1"
+      cmd = "../../kati -save_json=#{json}.json -log_dir=."
       if ckati
-        cmd = "../../ckati --use_find_emulator #{tc} 2>&1"
+        cmd = "../../ckati --use_find_emulator"
       end
+      if via_ninja
+        cmd += ' --ninja'
+      end
+      cmd += " #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
+      if via_ninja && File.exist?('build.ninja')
+        res += normalize_ninja_log(IO.popen('ninja -j1 -v', 'r:binary', &:read))
+      end
       res = normalize_kati_log(res)
       output += "=== #{tc} ===\n" + res
       output_files = get_output_filenames
