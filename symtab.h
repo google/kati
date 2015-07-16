@@ -22,7 +22,7 @@
 
 using namespace std;
 
-extern vector<string*>* g_symbols;
+extern vector<string>* g_symbols;
 
 class Symtab;
 
@@ -34,7 +34,7 @@ class Symbol {
   }
 
   const string& str() const {
-    return *((*g_symbols)[v_]);
+    return (*g_symbols)[v_];
   }
 
   const char* c_str() const {
