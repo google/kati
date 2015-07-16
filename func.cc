@@ -422,9 +422,23 @@ static string SortWordsInString(StringPiece s) {
 }
 #endif
 
+
+// A hack for Android build. We need to evaluate things like $((3+4))
+// when we emit ninja file, because the result of such expressions
+// will be passed to other make functions.
+// TODO: Maybe we should introduce a helper binary which evaluate
+// make expressions at ninja-time.
+static bool HasNoIoInShellScript(const string& cmd) {
+  if (cmd.empty())
+    return true;
+  if (HasPrefix(cmd, "echo $((") && cmd[cmd.size()-1] == ')')
+    return true;
+  return false;
+}
+
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
-  if (ev->avoid_io()) {
+  if (ev->avoid_io() && !HasNoIoInShellScript(*cmd)) {
     *s += "$(";
     *s += *cmd;
     *s += ")";
