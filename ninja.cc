@@ -336,7 +336,7 @@ class NinjaGenerator {
       use_local_pool |= GenShellScript(commands);
       EmitDepfile();
 
-      // It seems Linux is OK with ~130kB.
+      // It seems Linux is OK with ~130kB and Mac's limit is ~250kB.
       // TODO: Find this number automatically.
       if (cmd_buf_.size() > 100 * 1000) {
         fprintf(fp_, " rspfile = $out.rsp\n");
