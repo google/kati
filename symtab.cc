@@ -23,7 +23,7 @@
 #include "log.h"
 #include "strutil.h"
 
-vector<string>* g_symbols;
+vector<string*>* g_symbols;
 
 Symbol kEmptySym = Symbol(Symbol::IsUninitialized());
 Symbol kShellSym = Symbol(Symbol::IsUninitialized());
@@ -53,14 +53,19 @@ class Symtab {
     kShellSym = Intern("SHELL");
   }
 
+  ~Symtab() {
+    for (string* s : symbols_)
+      delete s;
+  }
+
   Symbol InternImpl(StringPiece s) {
     auto found = symtab_.find(s);
     if (found != symtab_.end()) {
       return found->second;
     }
-    symbols_.push_back(s.as_string());
+    symbols_.push_back(new string(s.data(), s.size()));
     Symbol sym = Symbol(symtab_.size());
-    bool ok = symtab_.emplace(symbols_.back(), sym).second;
+    bool ok = symtab_.emplace(*symbols_.back(), sym).second;
     CHECK(ok);
     return sym;
   }
@@ -74,7 +79,7 @@ class Symtab {
 
  private:
   unordered_map<StringPiece, Symbol> symtab_;
-  vector<string> symbols_;
+  vector<string*> symbols_;
 };
 
 static Symtab* g_symtab;
