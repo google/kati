@@ -191,8 +191,10 @@ class NinjaGenerator {
         case '#':
           if (quote == 0 && isspace(prev_char)) {
             done = true;
-            break;
+          } else {
+            cmd_buf_ += *in;
           }
+          break;
 
         case '\'':
         case '"':
