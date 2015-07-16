@@ -151,8 +151,8 @@ func NewExecutor(opt *ExecutorOpt) (*Executor, error) {
 	return ex, nil
 }
 
-// Exec executes to build roots.
-func (ex *Executor) Exec(g *DepGraph) error {
+// Exec executes to build targets, or first target in DepGraph.
+func (ex *Executor) Exec(g *DepGraph, targets []string) error {
 	ex.ctx = newExecContext(g.vars, g.vpaths, false)
 
 	// TODO: Handle target specific variables.
@@ -169,7 +169,24 @@ func (ex *Executor) Exec(g *DepGraph) error {
 	}
 
 	startTime := time.Now()
-	for _, root := range g.nodes {
+	var nodes []*DepNode
+	if len(targets) == 0 {
+		if len(g.nodes) > 0 {
+			nodes = append(nodes, g.nodes[0])
+		}
+	} else {
+		m := make(map[string]*DepNode)
+		for _, n := range g.nodes {
+			m[n.Output] = n
+		}
+		for _, t := range targets {
+			n := m[t]
+			if n != nil {
+				nodes = append(nodes, n)
+			}
+		}
+	}
+	for _, root := range nodes {
 		err := ex.makeJobs(root, nil)
 		if err != nil {
 			break
