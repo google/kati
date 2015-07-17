@@ -253,15 +253,10 @@ class NinjaGenerator {
   }
 
   bool GetDescriptionFromCommand(StringPiece cmd, string *out) {
-    cmd = TrimSpace(cmd);
-
     if (!HasPrefix(cmd, "echo ")) {
       return false;
     }
     cmd = cmd.substr(5, cmd.size());
-
-    cmd_buf_.clear();
-    cmd = TranslateCommand(cmd.as_string().c_str());
 
     bool prev_backslash = false;
     char quote = 0;
@@ -306,7 +301,8 @@ class NinjaGenerator {
     return true;
   }
 
-  bool GenShellScript(const vector<Command*>& commands) {
+  bool GenShellScript(const vector<Command*>& commands, string* description) {
+    bool got_descritpion = false;
     bool use_gomacc = false;
     bool should_ignore_error = false;
     cmd_buf_.clear();
@@ -334,6 +330,12 @@ class NinjaGenerator {
 
       size_t cmd_start = cmd_buf_.size();
       StringPiece translated = TranslateCommand(in);
+      if (g_detect_android_echo && !got_descritpion && !c->echo &&
+          GetDescriptionFromCommand(translated, description)) {
+        got_descritpion = true;
+        cmd_buf_.resize(cmd_start);
+        translated.clear();
+      }
       if (translated.empty()) {
         cmd_buf_ += "true";
       } else if (g_goma_dir) {
@@ -394,13 +396,8 @@ class NinjaGenerator {
       fprintf(fp_, "rule %s\n", rule_name.c_str());
 
       string description = "build $out";
-      if (g_detect_android_echo &&
-          GetDescriptionFromCommand(*(commands[0]->cmd), &description)) {
-        commands[0]->cmd->assign("true");
-      }
+      use_local_pool |= GenShellScript(commands, &description);
       fprintf(fp_, " description = %s\n", description.c_str());
-
-      use_local_pool |= GenShellScript(commands);
       EmitDepfile();
 
       // It seems Linux is OK with ~130kB and Mac's limit is ~250kB.
