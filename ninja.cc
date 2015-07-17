@@ -394,7 +394,8 @@ class NinjaGenerator {
       fprintf(fp_, "rule %s\n", rule_name.c_str());
 
       string description = "build $out";
-      if (GetDescriptionFromCommand(*(commands[0]->cmd), &description)) {
+      if (g_detect_android_echo &&
+          GetDescriptionFromCommand(*(commands[0]->cmd), &description)) {
         commands[0]->cmd->assign("true");
       }
       fprintf(fp_, " description = %s\n", description.c_str());
