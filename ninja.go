@@ -420,6 +420,9 @@ func (n *NinjaGenerator) generateNinja(suffix, defaultTarget string) (err error)
 	fmt.Fprintf(n.f, "\n# shortcuts:\n")
 	var names []string
 	for name := range n.shortNames {
+		if n.done[name] {
+			continue
+		}
 		names = append(names, name)
 	}
 	sort.Strings(names)
