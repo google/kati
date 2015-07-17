@@ -264,6 +264,22 @@ func (db *depBuilder) pickRule(output string) (*rule, Vars, bool) {
 	return r, vars, r != nil
 }
 
+func expandInputs(rule *rule, output string) []string {
+	var inputs []string
+	for _, input := range rule.inputs {
+		if len(rule.outputPatterns) > 0 {
+			if len(rule.outputPatterns) != 1 {
+				panic(fmt.Sprintf("FIXME: multiple output pattern is not supported yet"))
+			}
+			input = intern(rule.outputPatterns[0].subst(input, output))
+		} else if rule.isSuffixRule {
+			input = intern(replaceSuffix(output, input))
+		}
+		inputs = append(inputs, input)
+	}
+	return inputs
+}
+
 func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*DepNode, error) {
 	glog.V(1).Infof("Evaluating command: %s", output)
 	db.nodeCnt++
@@ -322,19 +338,9 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 		}()
 	}
 
-	var actualInputs []string
-	glog.Infof("Evaluating command: %s inputs:%q", output, rule.inputs)
-	for _, input := range rule.inputs {
-		if len(rule.outputPatterns) > 0 {
-			if len(rule.outputPatterns) > 1 {
-				panic(fmt.Sprintf("FIXME: multiple output pattern is not supported yet"))
-			}
-			input = intern(rule.outputPatterns[0].subst(input, output))
-		} else if rule.isSuffixRule {
-			input = intern(replaceSuffix(output, input))
-		}
-		actualInputs = append(actualInputs, input)
-
+	inputs := expandInputs(rule, output)
+	glog.Infof("Evaluating command: %s inputs:%q => %q", output, rule.inputs, inputs)
+	for _, input := range inputs {
 		db.trace = append(db.trace, input)
 		ni, err := db.buildPlan(input, output, tsvs)
 		db.trace = db.trace[0 : len(db.trace)-1]
@@ -362,7 +368,7 @@ func (db *depBuilder) buildPlan(output string, neededBy string, tsvs Vars) (*Dep
 
 	n.HasRule = true
 	n.Cmds = rule.cmds
-	n.ActualInputs = actualInputs
+	n.ActualInputs = inputs
 	n.TargetSpecificVars = make(Vars)
 	for k, v := range tsvs {
 		if glog.V(1) {
@@ -434,11 +440,33 @@ func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) (*rule, erro
 	return mr, nil
 }
 
+// expandPattern expands static pattern (target: target-pattern: prereq-pattern).
+
+func expandPattern(r *rule) {
+	if len(r.outputs) == 0 {
+		return
+	}
+	if len(r.outputPatterns) != 1 {
+		return
+	}
+	pat := r.outputPatterns[0]
+	var inputs []string
+	for _, output := range r.outputs {
+		for _, input := range r.inputs {
+			inputs = append(inputs, intern(pat.subst(input, output)))
+		}
+	}
+	glog.V(1).Infof("expand static pattern: outputs=%q inputs=%q -> %q", r.outputs, r.inputs, inputs)
+	r.outputPatterns = nil
+	r.inputs = inputs
+}
+
 func (db *depBuilder) populateExplicitRule(r *rule) error {
 	// It seems rules with no outputs are siliently ignored.
 	if len(r.outputs) == 0 {
 		return nil
 	}
+	expandPattern(r)
 	for _, output := range r.outputs {
 		output = trimLeadingCurdir(output)
 
