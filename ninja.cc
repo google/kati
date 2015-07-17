@@ -252,6 +252,60 @@ class NinjaGenerator {
                        cmd_buf_.size() - orig_size);
   }
 
+  bool GetDescriptionFromCommand(StringPiece cmd, string *out) {
+    cmd = TrimSpace(cmd);
+
+    if (!HasPrefix(cmd, "echo ")) {
+      return false;
+    }
+    cmd = cmd.substr(5, cmd.size());
+
+    cmd_buf_.clear();
+    cmd = TranslateCommand(cmd.as_string().c_str());
+
+    bool prev_backslash = false;
+    char quote = 0;
+    string out_buf;
+
+    // Strip outer quotes, and fail if it is not a single echo command
+    for (StringPiece::iterator in = cmd.begin(); in != cmd.end(); in++) {
+      if (prev_backslash) {
+        prev_backslash = false;
+        out_buf += *in;
+      } else if (*in == '\\') {
+        prev_backslash = true;
+        out_buf += *in;
+      } else if (quote) {
+        if (*in == quote) {
+          quote = 0;
+        } else {
+          out_buf += *in;
+        }
+      } else {
+        switch (*in) {
+        case '\'':
+        case '"':
+        case '`':
+          quote = *in;
+          break;
+
+        case '<':
+        case '>':
+        case '&':
+        case '|':
+        case ';':
+          return false;
+
+        default:
+          out_buf += *in;
+        }
+      }
+    }
+
+    *out = out_buf;
+    return true;
+  }
+
   bool GenShellScript(const vector<Command*>& commands) {
     bool use_gomacc = false;
     bool should_ignore_error = false;
@@ -338,7 +392,12 @@ class NinjaGenerator {
     if (!commands.empty()) {
       rule_name = GenRuleName();
       fprintf(fp_, "rule %s\n", rule_name.c_str());
-      fprintf(fp_, " description = build $out\n");
+
+      string description = "build $out";
+      if (GetDescriptionFromCommand(*(commands[0]->cmd), &description)) {
+        commands[0]->cmd->assign("true");
+      }
+      fprintf(fp_, " description = %s\n", description.c_str());
 
       use_local_pool |= GenShellScript(commands);
       EmitDepfile();
