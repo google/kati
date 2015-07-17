@@ -263,6 +263,11 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	n.done[node.Output] = true
 
 	if len(node.Cmds) == 0 && len(node.Deps) == 0 && len(node.OrderOnlys) == 0 && !node.IsPhony {
+		if _, ok := n.ctx.vpaths.exists(node.Output); ok {
+			return nil
+		}
+		n.emitBuild(node.Output, "phony", "")
+		fmt.Fprintln(n.f)
 		return nil
 	}
 
