@@ -90,6 +90,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (!strcmp(arg, "--detect_android_echo")) {
+      g_detect_android_echo = true;
     } else if (ParseCommandLineOptionWithArg(
         "-j", argv, &i, &num_jobs_str)) {
       g_num_jobs = strtol(num_jobs_str, NULL, 10);
