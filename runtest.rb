@@ -120,6 +120,7 @@ def normalize_kati_log(output)
   output = move_circular_dep(output)
   # kati specific log messages.
   output.gsub!(/^\*kati\*.*\n/, '')
+  output.gsub!(/^c?kati: /, '')
   output.gsub!(/[`'"]/, '"')
   output.gsub!(/(: )(?:open )?(\S+): [Nn](o such file or directory)\nNOTE:.*/,
                "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")

@@ -192,7 +192,12 @@ func (ex *Executor) Exec(g *DepGraph, targets []string) error {
 			break
 		}
 	}
-	err := ex.wm.Wait()
+	n, err := ex.wm.Wait()
 	logStats("exec time: %q", time.Since(startTime))
+	if n == 0 {
+		for _, root := range nodes {
+			fmt.Printf("kati: Nothing to be done for `%s'.\n", root.Output)
+		}
+	}
 	return err
 }
