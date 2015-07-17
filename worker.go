@@ -26,6 +26,10 @@ import (
 	"github.com/golang/glog"
 )
 
+var (
+	errNothingDone = errors.New("nothing done")
+)
+
 type job struct {
 	n        *DepNode
 	ex       *Executor
@@ -134,7 +138,7 @@ func (j *job) build() error {
 
 	if !j.n.HasRule {
 		if j.outputTs >= 0 || j.n.IsPhony {
-			return nil
+			return errNothingDone
 		}
 		if len(j.parents) == 0 {
 			return fmt.Errorf("*** No rule to make target %q.", j.n.Output)
@@ -144,7 +148,7 @@ func (j *job) build() error {
 
 	if j.outputTs >= j.depsTs {
 		// TODO: stats.
-		return nil
+		return errNothingDone
 	}
 
 	rr, err := j.createRunners()
@@ -217,6 +221,7 @@ type workerManager struct {
 	runnings    map[string]*job
 
 	finishCnt int
+	skipCnt   int
 }
 
 func newWorkerManager(numJobs int) (*workerManager, error) {
@@ -295,6 +300,10 @@ Loop:
 			wm.freeWorkers = append(wm.freeWorkers, jr.w)
 			wm.updateParents(jr.j)
 			wm.finishCnt++
+			if jr.err == errNothingDone {
+				wm.skipCnt++
+				jr.err = nil
+			}
 			if jr.err != nil {
 				err = jr.err
 				close(wm.stopChan)
@@ -348,7 +357,8 @@ func (wm *workerManager) ReportNewDep(j *job, neededBy *job) {
 	}
 }
 
-func (wm *workerManager) Wait() error {
+func (wm *workerManager) Wait() (int, error) {
 	wm.waitChan <- true
-	return <-wm.doneChan
+	err := <-wm.doneChan
+	return wm.finishCnt - wm.skipCnt, err
 }
