@@ -84,8 +84,9 @@ size_t GetGomaccPosForAndroidCompileCommand(StringPiece cmdline) {
 }
 
 static bool GetDepfileFromCommandImpl(StringPiece cmd, string* out) {
-  if (cmd.find(StringPiece(" -MD ")) == string::npos &&
-      cmd.find(StringPiece(" -MMD ")) == string::npos) {
+  if ((cmd.find(StringPiece(" -MD ")) == string::npos &&
+       cmd.find(StringPiece(" -MMD ")) == string::npos) ||
+      cmd.find(StringPiece(" -c ")) == string::npos) {
     return false;
   }
 
@@ -143,11 +144,11 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
     return false;
   }
 
-  *cmd += " && cp ";
+  *cmd += "&& cp ";
   *cmd += *out;
   *cmd += ' ';
   *cmd += *out;
-  *cmd += ".tmp";
+  *cmd += ".tmp ";
   *out += ".tmp";
   return true;
 }
