@@ -63,6 +63,13 @@ EOF
       shift
       ;;
 
+    --lunch)
+      shift;
+      lunch="$1"
+      extra_flags+=" --error_on_env_change"
+      shift
+      ;;
+
     -*)
       extra_flags+=" $1"
       shift
@@ -90,6 +97,12 @@ kati=${kati_dir}/ckati
 ninja_suffix=
 ninja_suffix_flag=
 
+if [ x"${lunch}" != x"" ]; then
+  source build/envsetup.sh
+  lunch ${lunch}
+  ninja_suffix=-${lunch}
+fi
+
 if [ x"${mmm}" != x"" ]; then
   mk="${mmm}/Android.mk"
   if [ ! -f ${mk} ]; then
@@ -100,7 +113,7 @@ if [ x"${mmm}" != x"" ]; then
   export ONE_SHOT_MAKEFILE=${mk}
   echo ONE_SHOT_MAKEFILE=${ONE_SHOT_MAKEFILE}
 
-  ninja_suffix=-mmm-${mmm}
+  ninja_suffix+=-mmm-${mmm}
 fi
 
 if [ x"${targets}" != x"" ]; then
@@ -112,6 +125,10 @@ fi
 if [ x"${ninja_suffix}" != x"" ]; then
   ninja_suffix=$(echo ${ninja_suffix} | sed 'y/\//_/')
   ninja_suffix_flag=--ninja_suffix=${ninja_suffix}
+fi
+
+if [ x"${lunch}" != x"" ]; then
+  printconfig | grep -v '^=' > .kati_lunch${ninja_suffix}
 fi
 
 ${kati} --ninja ${ninja_suffix_flag} --ignore_optional_include=out/%.P --use_find_emulator --detect_android_echo ${goma_flag} ${extra_flags} ${targets}
