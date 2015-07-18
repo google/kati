@@ -424,16 +424,36 @@ class NinjaGenerator {
     }
   }
 
+  string EscapeBuildTarget(Symbol s) {
+    if (s.str().find_first_of("$: ") == string::npos)
+      return s.str();
+    string r;
+    for (char c : s.str()) {
+      switch (c) {
+        case '$':
+        case ':':
+        case ' ':
+          r += '$';
+          // fall through.
+        default:
+          r += c;
+      }
+    }
+    return r;
+  }
+
   void EmitBuild(DepNode* node, const string& rule_name) {
-    fprintf(fp_, "build %s: %s", node->output.c_str(), rule_name.c_str());
+    fprintf(fp_, "build %s: %s",
+            EscapeBuildTarget(node->output).c_str(),
+            rule_name.c_str());
     vector<Symbol> order_onlys;
     for (DepNode* d : node->deps) {
-      fprintf(fp_, " %s", d->output.c_str());
+      fprintf(fp_, " %s", EscapeBuildTarget(d->output).c_str());
     }
     if (!node->order_onlys.empty()) {
       fprintf(fp_, " ||");
       for (DepNode* d : node->order_onlys) {
-        fprintf(fp_, " %s", d->output.c_str());
+        fprintf(fp_, " %s", EscapeBuildTarget(d->output).c_str());
       }
     }
     fprintf(fp_, "\n");
