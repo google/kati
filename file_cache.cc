@@ -53,6 +53,11 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
     return result;
   }
 
+  virtual void GetAllFilenames(unordered_set<string>* out) override {
+    for (const auto& p : cache_)
+      out->insert(p.first);
+  }
+
 private:
   unordered_map<string, Makefile*> cache_;
 };

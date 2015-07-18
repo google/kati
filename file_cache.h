@@ -17,6 +17,8 @@
 
 #include <string>
 
+#include <unordered_set>
+
 using namespace std;
 
 class Makefile;
@@ -26,6 +28,7 @@ class MakefileCacheManager {
   virtual ~MakefileCacheManager();
 
   virtual Makefile* ReadMakefile(const string& filename) = 0;
+  virtual void GetAllFilenames(unordered_set<string>* out) = 0;
 
   static MakefileCacheManager* Get();
 

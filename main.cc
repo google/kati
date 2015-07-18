@@ -105,6 +105,10 @@ static void ParseCommandLine(int argc, char* argv[],
         "--ninja_dir", argv, &i, &g_ninja_dir)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       g_use_find_emulator = true;
+    } else if (!strcmp(arg, "--gen_regen_rule")) {
+      // TODO: Make this default once we have removed unnecessary
+      // command line change from Android build.
+      g_gen_regen_rule = true;
     } else if (ParseCommandLineOptionWithArg(
         "--goma_dir", argv, &i, &g_goma_dir)) {
     } else if (ParseCommandLineOptionWithArg(
@@ -209,7 +213,8 @@ static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
 }
 
 static int Run(const vector<Symbol>& targets,
-               const vector<StringPiece>& cl_vars) {
+               const vector<StringPiece>& cl_vars,
+               const string& orig_args) {
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
   Vars* vars = new Vars();
@@ -262,7 +267,8 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(g_ninja_suffix, g_ninja_dir, nodes, ev, !targets.empty());
+    GenerateNinja(g_ninja_suffix, g_ninja_dir, nodes, ev, !targets.empty(),
+                  orig_args);
     return 0;
   }
 
@@ -282,13 +288,19 @@ static int Run(const vector<Symbol>& targets,
 
 int main(int argc, char* argv[]) {
   Init();
+  string orig_args;
+  for (int i = 0; i < argc; i++) {
+    if (i)
+      orig_args += ' ';
+    orig_args += argv[i];
+  }
   vector<Symbol> targets;
   vector<StringPiece> cl_vars;
   ParseCommandLine(argc, argv, &targets, &cl_vars);
   // This depends on command line flags.
   if (g_use_find_emulator)
     InitFindEmulator();
-  int r = Run(targets, cl_vars);
+  int r = Run(targets, cl_vars, orig_args);
   Quit();
   return r;
 }

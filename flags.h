@@ -21,5 +21,6 @@ extern const char* g_ignore_optional_include_pattern;
 extern const char* g_goma_dir;
 extern int g_num_jobs;
 extern bool g_detect_android_echo;
+extern bool g_gen_regen_rule;
 
 #endif  // FLAGS_H_

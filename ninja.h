@@ -29,7 +29,8 @@ void GenerateNinja(const char* ninja_suffix,
                    const char* ninja_dir,
                    const vector<DepNode*>& nodes,
                    Evaluator* ev,
-                   bool build_all_targets);
+                   bool build_all_targets,
+                   const string& orig_args);
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);
