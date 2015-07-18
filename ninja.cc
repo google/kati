@@ -479,6 +479,7 @@ class NinjaGenerator {
     }
     fprintf(fp_, " && (diff $out.tmp $out || mv $out.tmp $out)\n");
     fprintf(fp_, " restat = 1\n");
+    fprintf(fp_, " generator = 1\n");
     fprintf(fp_, " description = Update $out\n");
     fprintf(fp_, "build %s: regen_envlist .always_build\n\n",
             GetEnvlistFilename().c_str());
