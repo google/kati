@@ -27,6 +27,7 @@
 #include "command.h"
 #include "dep.h"
 #include "eval.h"
+#include "file_cache.h"
 #include "flags.h"
 #include "log.h"
 #include "string_piece.h"
@@ -169,9 +170,11 @@ class NinjaGenerator {
     ev_->set_avoid_io(false);
   }
 
-  void Generate(const vector<DepNode*>& nodes, bool build_all_targets) {
+  void Generate(const vector<DepNode*>& nodes,
+                bool build_all_targets,
+                const string& orig_args) {
     GenerateShell();
-    GenerateNinja(nodes, build_all_targets);
+    GenerateNinja(nodes, build_all_targets, orig_args);
   }
 
  private:
@@ -447,7 +450,9 @@ class NinjaGenerator {
     return StringPrintf("ninja%s.sh", ninja_suffix_.c_str());
   }
 
-  void GenerateNinja(const vector<DepNode*>& nodes, bool build_all_targets) {
+  void GenerateNinja(const vector<DepNode*>& nodes,
+                     bool build_all_targets,
+                     const string& orig_args) {
     fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
       PERROR("fopen(build.ninja) failed");
@@ -468,6 +473,18 @@ class NinjaGenerator {
       fprintf(fp_, "pool local_pool\n");
       fprintf(fp_, " depth = %d\n", g_num_jobs);
     }
+
+    fprintf(fp_, "rule regen_ninja\n");
+    fprintf(fp_, " command = %s\n", orig_args.c_str());
+    fprintf(fp_, " generator = 1\n");
+    fprintf(fp_, " description = Regenerate ninja files due to dependency\n");
+    fprintf(fp_, "build %s: regen_ninja", GetNinjaFilename().c_str());
+    unordered_set<string> makefiles;
+    MakefileCacheManager::Get()->GetAllFilenames(&makefiles);
+    for (const string& makefile : makefiles) {
+      fprintf(fp_, " %.*s", SPF(makefile));
+    }
+    fprintf(fp_, "\n");
 
     for (DepNode* node : nodes) {
       EmitNode(node);
@@ -533,7 +550,8 @@ class NinjaGenerator {
 void GenerateNinja(const char* ninja_suffix,
                    const vector<DepNode*>& nodes,
                    Evaluator* ev,
-                   bool build_all_targets) {
+                   bool build_all_targets,
+                   const string& orig_args) {
   NinjaGenerator ng(ninja_suffix, ev);
-  ng.Generate(nodes, build_all_targets);
+  ng.Generate(nodes, build_all_targets, orig_args);
 }
