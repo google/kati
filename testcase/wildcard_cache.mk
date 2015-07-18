@@ -4,6 +4,8 @@ files = $(wildcard *,*)
 # if make starts without foo,bar, expect foo,bar, but it will be empty.
 test: foo,bar
 	echo $(files)
+# TODO: Fix this. Maybe $(wildcard) always runs at eval-phase.
+#	echo $(wildcard foo*)
 
 # first $(files) will be empty since no foo,bar exists.
 # second $(files) expects foo, but empty.
