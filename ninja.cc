@@ -525,6 +525,8 @@ class NinjaGenerator {
     for (const string& makefile : makefiles) {
       fprintf(fp_, " %.*s", SPF(makefile));
     }
+    // TODO: Add dependencies to directories read by $(wildcard)
+    // or $(shell find).
     if (!used_envs_.empty())
       fprintf(fp_, " %s", GetEnvlistFilename().c_str());
     fprintf(fp_, "\n\n");
