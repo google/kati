@@ -511,7 +511,7 @@ class NinjaGenerator {
 
     fprintf(fp, "exec ninja -f %s ", GetNinjaFilename().c_str());
     if (g_goma_dir) {
-      fprintf(fp, "-j300 ");
+      fprintf(fp, "-j500 ");
     }
     fprintf(fp, "\"$@\"\n");
 
