@@ -541,7 +541,11 @@ class NinjaGenerator {
       fprintf(fp_, " && echo %s=$$%s >> $out.tmp",
               p.first.c_str(), p.first.c_str());
     }
-    fprintf(fp_, " && (diff $out.tmp $out || mv $out.tmp $out)\n");
+    if (g_error_on_env_change) {
+      fprintf(fp_, " && (diff $out.tmp $out || (echo Environment variable changes are detected && false))\n");
+    } else {
+      fprintf(fp_, " && (diff $out.tmp $out || mv $out.tmp $out)\n");
+    }
     fprintf(fp_, " restat = 1\n");
     fprintf(fp_, " generator = 1\n");
     fprintf(fp_, " description = Update $out\n");
@@ -559,6 +563,10 @@ class NinjaGenerator {
 
   string GetEnvlistFilename() const {
     return StringPrintf(".kati_env%s", ninja_suffix_.c_str());
+  }
+
+  string GetLunchFilename() const {
+    return StringPrintf(".kati_lunch%s", ninja_suffix_.c_str());
   }
 
   void GenerateNinja(const vector<DepNode*>& nodes,
@@ -617,6 +625,12 @@ class NinjaGenerator {
     fprintf(fp, "\n");
     if (ninja_dir_ == ".")
       fprintf(fp, "cd $(dirname \"$0\")\n");
+    if (!ninja_suffix_.empty()) {
+      fprintf(fp, "if [ -f %s ]; then\n export $(cat %s)\nfi\n",
+              GetEnvlistFilename().c_str(), GetEnvlistFilename().c_str());
+      fprintf(fp, "if [ -f %s ]; then\n export $(cat %s)\nfi\n",
+              GetLunchFilename().c_str(), GetLunchFilename().c_str());
+    }
 
     for (const auto& p : ev_->exports()) {
       if (p.second) {
