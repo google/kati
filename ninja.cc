@@ -158,6 +158,7 @@ class NinjaGenerator {
   NinjaGenerator(const char* ninja_suffix, Evaluator* ev)
       : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0) {
     ev_->set_avoid_io(true);
+    shell_ = ev->EvalVar(kShellSym);
     if (g_goma_dir)
       gomacc_ = StringPrintf("%s/gomacc ", g_goma_dir);
     if (ninja_suffix) {
@@ -406,9 +407,9 @@ class NinjaGenerator {
       if (cmd_buf_.size() > 100 * 1000) {
         fprintf(fp_, " rspfile = $out.rsp\n");
         fprintf(fp_, " rspfile_content = %s\n", cmd_buf_.c_str());
-        fprintf(fp_, " command = sh $out.rsp\n");
+        fprintf(fp_, " command = %s $out.rsp\n", shell_->c_str());
       } else {
-        fprintf(fp_, " command = %s\n", cmd_buf_.c_str());
+        fprintf(fp_, " command = %s -c \"%s\"\n", shell_->c_str(), EscapeShell(cmd_buf_).c_str());
       }
     }
 
@@ -437,6 +438,37 @@ class NinjaGenerator {
           // fall through.
         default:
           r += c;
+      }
+    }
+    return r;
+  }
+
+  string EscapeShell(string s) {
+    if (s.find_first_of("$`!\\\"") == string::npos)
+      return s;
+    string r;
+    bool lastDollar = false;
+    for (char c : s) {
+      switch (c) {
+        case '$':
+          if (lastDollar) {
+            r += c;
+            lastDollar = false;
+          } else {
+            r += '\\';
+            r += c;
+            lastDollar = true;
+          }
+          break;
+        case '`':
+        case '"':
+        case '!':
+        case '\\':
+          r += '\\';
+          // fall through.
+        default:
+          r += c;
+          lastDollar = false;
       }
     }
     return r;
@@ -548,6 +580,7 @@ class NinjaGenerator {
   string gomacc_;
   string ninja_suffix_;
   unordered_map<Symbol, Symbol> short_names_;
+  shared_ptr<string> shell_;
 };
 
 void GenerateNinja(const char* ninja_suffix,
