@@ -56,6 +56,7 @@ var (
 	generateNinja       bool
 	ninjaSuffix         string
 	gomaDir             string
+	detectAndroidEcho   bool
 	findCachePrunes     string
 	findCacheLeafNames  string
 	shellDate           string
@@ -85,6 +86,7 @@ func init() {
 	flag.BoolVar(&generateNinja, "ninja", false, "Generate build.ninja.")
 	flag.StringVar(&ninjaSuffix, "ninja_suffix", "", "suffix for ninja files.")
 	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
+	flag.BoolVar(&detectAndroidEcho, "detect_android_echo", false, "detect echo as ninja description.")
 
 	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
 		"space separated prune directories for find cache.")
@@ -300,7 +302,8 @@ func katiMain(args []string) error {
 
 	if generateNinja {
 		n := kati.NinjaGenerator{
-			GomaDir: gomaDir,
+			GomaDir:           gomaDir,
+			DetectAndroidEcho: detectAndroidEcho,
 		}
 		return n.Save(g, ninjaSuffix, req.Targets)
 	}
