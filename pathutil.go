@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -31,12 +30,32 @@ import (
 )
 
 type wildcardCacheT struct {
-	mu sync.Mutex
-	m  map[string][]string
+	mu     sync.Mutex
+	dirent map[string][]string
 }
 
 var wildcardCache = &wildcardCacheT{
-	m: make(map[string][]string),
+	dirent: make(map[string][]string),
+}
+
+func (w *wildcardCacheT) dirs() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return len(w.dirent)
+}
+
+func (w *wildcardCacheT) files() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	n := 0
+	for _, names := range w.dirent {
+		n += len(names)
+	}
+	return n
+}
+
+func hasWildcardMeta(pat string) bool {
+	return strings.IndexAny(pat, "*?[") >= 0
 }
 
 func wildcardUnescape(pat string) string {
@@ -45,98 +64,96 @@ func wildcardUnescape(pat string) string {
 		if pat[i] == '\\' && i+1 < len(pat) {
 			switch pat[i+1] {
 			case '*', '?', '[', '\\':
-				writeByte(&buf, pat[i])
-			default:
-				i++
+				buf.WriteByte(pat[i])
 			}
+			continue
 		}
-		writeByte(&buf, pat[i])
+		buf.WriteByte(pat[i])
 	}
 	return buf.String()
 }
 
-func wildcardGlob(pat string) ([]string, error) {
-	// TODO(ukai): use find cache for glob if exists.
-	pat = wildcardUnescape(pat)
-	pattern := filepath.Clean(pat)
-	if pattern != pat {
-		// For some reason, go's Glob normalizes
-		// foo/../bar to bar.
-		i := strings.IndexAny(pattern, "*?[")
-		if i < 0 {
-			// no wildcard. if any files matched with pattern,
-			// return pat.
-			_, err := os.Stat(pat)
-			if err != nil {
-				return nil, nil
-			}
-			return []string{pat}, nil
-		}
-		if strings.Contains(pattern[i+1:], "..") {
-			// We ask shell to expand a glob to avoid this.
-			cmdline := []string{"/bin/sh", "-c", "/bin/ls -d " + pat}
-			cmd := exec.Cmd{
-				Path: cmdline[0],
-				Args: cmdline,
-			}
-			// Ignore errors.
-			out, _ := cmd.Output()
-			ws := newWordScanner(out)
-			var files []string
-			for ws.Scan() {
-				files = append(files, string(ws.Bytes()))
-			}
-			return files, nil
-		}
-		// prefix + meta + suffix, and suffix doesn't have '..'
-		prefix := pattern[:i]
-		i = strings.IndexAny(pat, "*?[")
-		if i < 0 {
-			return nil, fmt.Errorf("wildcard metachar mismatch? pattern=%q pat=%q", pattern, pat)
-		}
-		oprefix := pat[:i]
-		matched, err := filepath.Glob(pattern)
+func (w *wildcardCacheT) readdirnames(dir string) []string {
+	if dir == "" {
+		dir = "."
+	}
+	w.mu.Lock()
+	names, ok := w.dirent[dir]
+	w.mu.Unlock()
+	if ok {
+		return names
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		w.mu.Lock()
+		w.dirent[dir] = nil
+		w.mu.Unlock()
+		return nil
+	}
+	defer d.Close()
+	names, _ = d.Readdirnames(-1)
+	sort.Strings(names)
+	w.mu.Lock()
+	w.dirent[dir] = names
+	w.mu.Unlock()
+	return names
+}
+
+// glob searches for files matching pattern in the directory dir
+// and appends them to matches. ignore I/O errors.
+func (w *wildcardCacheT) glob(dir, pattern string, matches []string) ([]string, error) {
+	names := w.readdirnames(dir)
+	if dir != "" {
+		dir += string(filepath.Separator)
+	}
+	for _, n := range names {
+		matched, err := filepath.Match(pattern, n)
 		if err != nil {
 			return nil, err
 		}
-		var files []string
-		for _, m := range matched {
-			file := oprefix + strings.TrimPrefix(m, prefix)
-			_, err := os.Stat(file)
-			if err != nil {
-				continue
-			}
-			files = append(files, file)
+		if matched {
+			matches = append(matches, dir+n)
 		}
-		return files, nil
 	}
-	return filepath.Glob(pat)
+	return matches, nil
+}
+
+func (w *wildcardCacheT) Glob(pat string) ([]string, error) {
+	// TODO(ukai): use find cache for glob if exists
+	// or use wildcardCache for find cache.
+	pat = wildcardUnescape(pat)
+	dir, file := filepath.Split(pat)
+	switch dir {
+	case "", string(filepath.Separator):
+		// nothing
+	default:
+		dir = dir[0 : len(dir)-1] // chop off trailing separator
+	}
+	if !hasWildcardMeta(dir) {
+		return w.glob(dir, file, nil)
+	}
+
+	m, err := w.Glob(dir)
+	if err != nil {
+		return nil, err
+	}
+	var matches []string
+	for _, d := range m {
+		matches, err = w.glob(d, file, matches)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return matches, nil
 }
 
 func wildcard(w evalWriter, pat string) error {
-	if UseWildcardCache {
-		// TODO(ukai): make sure it didn't chdir?
-		wildcardCache.mu.Lock()
-		files, ok := wildcardCache.m[pat]
-		wildcardCache.mu.Unlock()
-		if ok {
-			for _, file := range files {
-				w.writeWordString(file)
-			}
-			return nil
-		}
-	}
-	files, err := wildcardGlob(pat)
+	files, err := wildcardCache.Glob(pat)
 	if err != nil {
 		return err
 	}
 	for _, file := range files {
 		w.writeWordString(file)
-	}
-	if UseWildcardCache {
-		wildcardCache.mu.Lock()
-		wildcardCache.m[pat] = files
-		wildcardCache.mu.Unlock()
 	}
 	return nil
 }

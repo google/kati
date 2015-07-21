@@ -1,11 +1,10 @@
-# maybe, make has wildcard cache at startup time?
+# TODO(c): Fix this. Maybe $(wildcard) always runs at eval-phase.
 files = $(wildcard *,*)
 
-# if make starts without foo,bar, expect foo,bar, but it will be empty.
+# if make starts without foo,bar, it will be empty, although expect foo,bar.
 test: foo,bar
 	echo $(files)
-# TODO: Fix this. Maybe $(wildcard) always runs at eval-phase.
-#	echo $(wildcard foo*)
+	echo $(wildcard foo*)
 
 # first $(files) will be empty since no foo,bar exists.
 # second $(files) expects foo, but empty.

@@ -23,7 +23,6 @@ var (
 	DryRunFlag bool
 
 	UseFindCache     bool
-	UseWildcardCache bool
 	UseShellBuiltins bool
 
 	IgnoreOptionalInclude string
