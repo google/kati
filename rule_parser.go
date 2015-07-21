@@ -77,15 +77,31 @@ func (r *rule) cmdpos() srcpos {
 }
 
 func isPatternRule(s []byte) (pattern, bool) {
-	i := bytes.IndexByte(s, '%')
+	i := findLiteralChar(s, '%', 0)
 	if i < 0 {
 		return pattern{}, false
 	}
 	return pattern{prefix: string(s[:i]), suffix: string(s[i+1:])}, true
 }
 
+func unescapeInput(s []byte) []byte {
+	// only "\ ", "\=" becoms " ", "=" respectively?
+	// other \-escape, such as "\:" keeps "\:".
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' {
+			continue
+		}
+		if i+1 < len(s) && s[i+1] == ' ' || s[i+1] == '=' {
+			copy(s[i:], s[i+1:])
+			s = s[:len(s)-1]
+		}
+	}
+	return s
+}
+
 func (r *rule) parseInputs(s []byte) {
 	ws := newWordScanner(s)
+	ws.esc = true
 	isOrderOnly := false
 	for ws.Scan() {
 		input := ws.Bytes()
@@ -93,6 +109,7 @@ func (r *rule) parseInputs(s []byte) {
 			isOrderOnly = true
 			continue
 		}
+		input = unescapeInput(input)
 		if isOrderOnly {
 			r.orderOnlyInputs = append(r.orderOnlyInputs, internBytes(input))
 		} else {
@@ -197,7 +214,7 @@ func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, erro
 		r.cmds = append(r.cmds, string(rest[index+1:]))
 		rest = rest[:index-1]
 	}
-	index = bytes.IndexByte(rest, ':')
+	index = findLiteralChar(rest, ':', 0)
 	if index < 0 {
 		r.parseInputs(rest)
 		return nil, nil

@@ -77,9 +77,10 @@ func splitSpacesBytes(s []byte) (r [][]byte) {
 
 // TODO(ukai): use bufio.Scanner?
 type wordScanner struct {
-	in []byte
-	s  int // word starts
-	i  int // current pos
+	in  []byte
+	s   int  // word starts
+	i   int  // current pos
+	esc bool // handle \-escape
 }
 
 func newWordScanner(in []byte) *wordScanner {
@@ -105,6 +106,10 @@ func (ws *wordScanner) Scan() bool {
 		return false
 	}
 	for ws.i = ws.s; ws.i < len(ws.in); ws.i++ {
+		if ws.esc && ws.in[ws.i] == '\\' {
+			ws.i++
+			continue
+		}
 		if wsbytes[ws.in[ws.i]] {
 			break
 		}
