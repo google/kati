@@ -196,7 +196,7 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 		cmd = strings.Replace(cmd, "\\\n", "", -1)
 		cmd = strings.TrimRight(cmd, " \t\n;")
 		cmd = strings.Replace(cmd, "$", "$$", -1)
-		cmd = strings.Replace(cmd, "\t", " ", -1)
+
 		if cmd == "" {
 			cmd = "true"
 		}
