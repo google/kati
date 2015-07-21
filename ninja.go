@@ -30,6 +30,8 @@ import (
 type NinjaGenerator struct {
 	// GomaDir is goma directory.  If empty, goma will not be used.
 	GomaDir string
+	// DetectAndroidEcho detects echo as description.
+	DetectAndroidEcho bool
 
 	f       *os.File
 	nodes   []*DepNode
@@ -143,7 +145,7 @@ func stripShellComment(s string) string {
 	var escape bool
 	var quote rune
 	for i, c := range s {
-		if quote > 0 {
+		if quote != 0 {
 			if quote == c && (quote == '\'' || !escape) {
 				quote = 0
 			}
@@ -180,8 +182,50 @@ func gomaCmdForAndroidCompileCmd(cmd string) (string, bool) {
 	return cmd, ccRE.MatchString(cmd)
 }
 
-func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
-	useGomacc := false
+func descriptionFromCmd(cmd string) (string, bool) {
+	if !strings.HasPrefix(cmd, "echo") || !isWhitespace(rune(cmd[4])) {
+		return "", false
+	}
+	echoarg := cmd[5:]
+
+	// strip outer quotes, and fail if it is not a single echo command.
+	var buf bytes.Buffer
+	var escape bool
+	var quote rune
+	for _, c := range echoarg {
+		if escape {
+			escape = false
+			buf.WriteRune(c)
+			continue
+		}
+		if c == '\\' {
+			escape = true
+			buf.WriteRune(c)
+			continue
+		}
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+				continue
+			}
+			buf.WriteRune(c)
+			continue
+		}
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '<', '>', '&', '|', ';':
+			return "", false
+		default:
+			buf.WriteRune(c)
+		}
+	}
+	return buf.String(), true
+}
+
+func (n *NinjaGenerator) genShellScript(runners []runner) (cmd string, desc string, useLocalPool bool) {
+	const defaultDesc = "build $out"
+	var useGomacc bool
 	var buf bytes.Buffer
 	for i, r := range runners {
 		if i > 0 {
@@ -196,7 +240,6 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 		cmd = strings.Replace(cmd, "\\\n", "", -1)
 		cmd = strings.TrimRight(cmd, " \t\n;")
 		cmd = strings.Replace(cmd, "$", "$$", -1)
-
 		if cmd == "" {
 			cmd = "true"
 		}
@@ -207,7 +250,13 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 				useGomacc = true
 			}
 		}
-
+		if n.DetectAndroidEcho && desc == "" {
+			d, ok := descriptionFromCmd(cmd)
+			if ok {
+				desc = d
+				cmd = "true"
+			}
+		}
 		needsSubShell := i > 0 || len(runners) > 1
 		if cmd[0] == '(' {
 			needsSubShell = false
@@ -224,7 +273,10 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (string, bool) {
 			buf.WriteByte(')')
 		}
 	}
-	return buf.String(), n.GomaDir != "" && !useGomacc
+	if desc == "" {
+		desc = defaultDesc
+	}
+	return buf.String(), desc, n.GomaDir != "" && !useGomacc
 }
 
 func (n *NinjaGenerator) genRuleName() string {
@@ -286,12 +338,12 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		ruleName = n.genRuleName()
 		fmt.Fprintf(n.f, "\n# rule for %s\n", node.Output)
 		fmt.Fprintf(n.f, "rule %s\n", ruleName)
-		fmt.Fprintf(n.f, " description = build $out\n")
 
-		ss, ulp := n.genShellScript(runners)
+		ss, desc, ulp := n.genShellScript(runners)
 		if ulp {
 			useLocalPool = true
 		}
+		fmt.Fprintf(n.f, " description = %s\n", desc)
 		cmdline, depfile, err := getDepfile(ss)
 		if err != nil {
 			return err
