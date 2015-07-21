@@ -414,7 +414,7 @@ func (n *NinjaGenerator) generateShell(suffix string) (err error) {
 	if n.GomaDir == "" {
 		fmt.Fprintln(f, `exec ninja "$@"`)
 	} else {
-		fmt.Fprintln(f, `exec ninja -j300 "$@"`)
+		fmt.Fprintln(f, `exec ninja -j500 "$@"`)
 	}
 
 	return f.Chmod(0755)
