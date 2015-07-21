@@ -286,17 +286,33 @@ func (n *NinjaGenerator) genRuleName() string {
 }
 
 func (n *NinjaGenerator) emitBuild(output, rule, dep string) {
-	fmt.Fprintf(n.f, "build %s: %s%s\n", output, rule, dep)
+	fmt.Fprintf(n.f, "build %s: %s%s\n", escapeBuildTarget(output), rule, dep)
+}
+
+func escapeBuildTarget(s string) string {
+	i := strings.IndexAny(s, "$: ")
+	if i < 0 {
+		return s
+	}
+	var buf bytes.Buffer
+	for _, c := range s {
+		switch c {
+		case '$', ':', ' ':
+			buf.WriteByte('$')
+		}
+		buf.WriteRune(c)
+	}
+	return buf.String()
 }
 
 func getDepString(node *DepNode) string {
 	var deps []string
 	for _, d := range node.Deps {
-		deps = append(deps, d.Output)
+		deps = append(deps, escapeBuildTarget(d.Output))
 	}
 	var orderOnlys []string
 	for _, d := range node.OrderOnlys {
-		orderOnlys = append(orderOnlys, d.Output)
+		orderOnlys = append(orderOnlys, escapeBuildTarget(d.Output))
 	}
 	dep := ""
 	if len(deps) > 0 {
