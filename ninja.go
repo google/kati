@@ -54,7 +54,7 @@ func (n *NinjaGenerator) init(g *DepGraph) {
 
 func getDepfileImpl(ss string) (string, error) {
 	tss := ss + " "
-	if !strings.Contains(tss, " -MD ") && !strings.Contains(tss, " -MMD ") {
+	if (!strings.Contains(tss, " -MD ") && !strings.Contains(tss, " -MMD ")) || !strings.Contains(tss, " -c ") {
 		return "", nil
 	}
 

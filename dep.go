@@ -442,23 +442,28 @@ func mergeRules(oldRule, r *rule, output string, isSuffixRule bool) (*rule, erro
 
 // expandPattern expands static pattern (target: target-pattern: prereq-pattern).
 
-func expandPattern(r *rule) {
+func expandPattern(r *rule) []*rule {
 	if len(r.outputs) == 0 {
-		return
+		return []*rule{r}
 	}
 	if len(r.outputPatterns) != 1 {
-		return
+		return []*rule{r}
 	}
+	var rules []*rule
 	pat := r.outputPatterns[0]
-	var inputs []string
 	for _, output := range r.outputs {
+		nr := new(rule)
+		*nr = *r
+		nr.outputs = []string{output}
+		nr.outputPatterns = nil
+		nr.inputs = nil
 		for _, input := range r.inputs {
-			inputs = append(inputs, intern(pat.subst(input, output)))
+			nr.inputs = append(nr.inputs, intern(pat.subst(input, output)))
 		}
+		rules = append(rules, nr)
 	}
-	glog.V(1).Infof("expand static pattern: outputs=%q inputs=%q -> %q", r.outputs, r.inputs, inputs)
-	r.outputPatterns = nil
-	r.inputs = inputs
+	glog.V(1).Infof("expand static pattern: outputs=%q inputs=%q -> %q", r.outputs, r.inputs, rules)
+	return rules
 }
 
 func (db *depBuilder) populateExplicitRule(r *rule) error {
@@ -466,7 +471,6 @@ func (db *depBuilder) populateExplicitRule(r *rule) error {
 	if len(r.outputs) == 0 {
 		return nil
 	}
-	expandPattern(r)
 	for _, output := range r.outputs {
 		output = trimLeadingCurdir(output)
 
@@ -505,15 +509,16 @@ func (db *depBuilder) populateRules(er *evalResult) error {
 		for i, orderOnlyInput := range r.orderOnlyInputs {
 			r.orderOnlyInputs[i] = trimLeadingCurdir(orderOnlyInput)
 		}
-		err := db.populateExplicitRule(r)
-		if err != nil {
-			return err
-		}
-		if len(r.outputs) == 0 {
-			db.populateImplicitRule(r)
+		for _, r := range expandPattern(r) {
+			err := db.populateExplicitRule(r)
+			if err != nil {
+				return err
+			}
+			if len(r.outputs) == 0 {
+				db.populateImplicitRule(r)
+			}
 		}
 	}
-
 	return nil
 }
 
