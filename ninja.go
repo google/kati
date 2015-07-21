@@ -239,7 +239,7 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (cmd string, desc stri
 		cmd = trimLeftSpace(cmd)
 		cmd = strings.Replace(cmd, "\\\n", "", -1)
 		cmd = strings.TrimRight(cmd, " \t\n;")
-		cmd = strings.Replace(cmd, "$", "$$", -1)
+		cmd = strings.Replace(cmd, "$", "$$", -1) // for ninja
 		if cmd == "" {
 			cmd = "true"
 		}
@@ -324,6 +324,33 @@ func getDepString(node *DepNode) string {
 	return dep
 }
 
+func escapeShell(s string) string {
+	i := strings.IndexAny(s, "$`!\\\"")
+	if i < 0 {
+		return s
+	}
+	var buf bytes.Buffer
+	var lastDollar bool
+	for _, c := range s {
+		switch c {
+		case '$':
+			if lastDollar {
+				buf.WriteRune(c)
+				lastDollar = false
+				continue
+			}
+			buf.WriteString(`\$`)
+			lastDollar = true
+			continue
+		case '`', '"', '!', '\\':
+			buf.WriteByte('\\')
+		}
+		buf.WriteRune(c)
+		lastDollar = false
+	}
+	return buf.String()
+}
+
 func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	if n.done[node.Output] {
 		return nil
@@ -371,13 +398,13 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		// It seems Linux is OK with ~130kB.
 		// TODO: Find this number automatically.
 		ArgLenLimit := 100 * 1000
-		if len(ss) > ArgLenLimit {
+		if len(cmdline) > ArgLenLimit {
 			fmt.Fprintf(n.f, " rspfile = $out.rsp\n")
-			fmt.Fprintf(n.f, " rspfile_content = %s\n", ss)
-			ss = "sh $out.rsp"
+			fmt.Fprintf(n.f, " rspfile_content = %s\n", cmdline)
+			fmt.Fprintf(n.f, " command = %s $out.rsp\n", n.ctx.shell)
+		} else {
+			fmt.Fprintf(n.f, " command = %s -c \"%s\"\n", n.ctx.shell, escapeShell(cmdline))
 		}
-		fmt.Fprintf(n.f, " command = %s\n", cmdline)
-
 	}
 	n.emitBuild(node.Output, ruleName, getDepString(node))
 	if useLocalPool {
