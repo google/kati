@@ -26,6 +26,7 @@ struct DepNode;
 class Evaluator;
 
 void GenerateNinja(const char* ninja_suffix,
+                   const char* ninja_dir,
                    const vector<DepNode*>& nodes,
                    Evaluator* ev,
                    bool build_all_targets);
