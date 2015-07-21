@@ -102,7 +102,6 @@ func init() {
 
 	// TODO: Make this default.
 	flag.BoolVar(&kati.UseFindCache, "use_find_cache", false, "Use find cache.")
-	flag.BoolVar(&kati.UseWildcardCache, "use_wildcard_cache", true, "Use wildcard cache.")
 	flag.BoolVar(&kati.UseShellBuiltins, "use_shell_builtins", true, "Use shell builtins")
 	flag.StringVar(&kati.IgnoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
 }

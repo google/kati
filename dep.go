@@ -574,10 +574,13 @@ func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 		targets = append(targets, phonys...)
 	}
 
-	logStats("%d variables", len(db.vars))
-	logStats("%d explicit rules", len(db.rules))
-	logStats("%d implicit rules", db.implicitRules.size())
-	logStats("%d suffix rules", len(db.suffixRules))
+	if StatsFlag {
+		logStats("%d variables", len(db.vars))
+		logStats("%d explicit rules", len(db.rules))
+		logStats("%d implicit rules", db.implicitRules.size())
+		logStats("%d suffix rules", len(db.suffixRules))
+		logStats("%d dirs %d files", wildcardCache.dirs(), wildcardCache.files())
+	}
 
 	var nodes []*DepNode
 	for _, target := range targets {

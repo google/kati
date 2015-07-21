@@ -574,15 +574,7 @@ func (f *funcWildcard) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	te := traceEvent.begin("wildcard", tmpval(wb.Bytes()), traceEventMain)
-	if ev.avoidIO && !UseWildcardCache {
-		ev.hasIO = true
-		io.WriteString(w, "$(/bin/ls -d ")
-		w.Write(wb.Bytes())
-		io.WriteString(w, " 2> /dev/null)")
-		wb.release()
-		traceEvent.end(te)
-		return nil
-	}
+	// need to handle avoidIO here?
 	t := time.Now()
 	for _, word := range wb.words {
 		pat := string(word)
