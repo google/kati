@@ -427,8 +427,16 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	return nil
 }
 
+func (n *NinjaGenerator) shName(suffix string) string {
+	return fmt.Sprintf("ninja%s.sh", suffix)
+}
+
+func (n *NinjaGenerator) ninjaName(suffix string) string {
+	return fmt.Sprintf("build%s.ninja", suffix)
+}
+
 func (n *NinjaGenerator) generateShell(suffix string) (err error) {
-	f, err := os.Create(fmt.Sprintf("ninja%s.sh", suffix))
+	f, err := os.Create(n.shName(suffix))
 	if err != nil {
 		return err
 	}
@@ -455,16 +463,16 @@ func (n *NinjaGenerator) generateShell(suffix string) (err error) {
 		}
 	}
 	if n.GomaDir == "" {
-		fmt.Fprintln(f, `exec ninja "$@"`)
+		fmt.Fprintf(f, `exec ninja -f %s "$@"`+"\n", n.ninjaName(suffix))
 	} else {
-		fmt.Fprintln(f, `exec ninja -j500 "$@"`)
+		fmt.Fprintf(f, `exec ninja -f %s -j500 "$@"`+"\n", n.ninjaName(suffix))
 	}
 
 	return f.Chmod(0755)
 }
 
 func (n *NinjaGenerator) generateNinja(suffix, defaultTarget string) (err error) {
-	f, err := os.Create(fmt.Sprintf("build%s.ninja", suffix))
+	f, err := os.Create(n.ninjaName(suffix))
 	if err != nil {
 		return err
 	}
