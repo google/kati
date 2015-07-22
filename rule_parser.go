@@ -99,6 +99,17 @@ func unescapeInput(s []byte) []byte {
 	return s
 }
 
+func unescapeTarget(s []byte) []byte {
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' {
+			continue
+		}
+		copy(s[i:], s[i+1:])
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
 func (r *rule) parseInputs(s []byte) {
 	ws := newWordScanner(s)
 	ws.esc = true
@@ -166,13 +177,14 @@ func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, erro
 	}
 	r.outputs = []string{}
 
-	index := bytes.IndexByte(line, ':')
+	index := findLiteralChar(line, ':', 0)
 	if index < 0 {
 		return nil, errors.New("*** missing separator.")
 	}
 
 	first := line[:index]
 	ws := newWordScanner(first)
+	ws.esc = true
 	pat, isFirstPattern := isPatternRule(first)
 	if isFirstPattern {
 		n := 0
@@ -185,7 +197,7 @@ func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, erro
 		r.outputPatterns = []pattern{pat}
 	} else {
 		for ws.Scan() {
-			r.outputs = append(r.outputs, internBytes(ws.Bytes()))
+			r.outputs = append(r.outputs, internBytes(unescapeTarget(ws.Bytes())))
 		}
 	}
 
