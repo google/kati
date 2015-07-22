@@ -457,7 +457,7 @@ func (n *NinjaGenerator) generateShell(suffix string) (err error) {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(f, "export %s=%s\n", name, v)
+			fmt.Fprintf(f, "export %s=%q\n", name, v)
 		} else {
 			fmt.Fprintf(f, "unset %s\n", name)
 		}
