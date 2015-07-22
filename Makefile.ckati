@@ -1,0 +1,109 @@
+# Copyright 2015 Google Inc. All rights reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Find source file location from path to this Makefile
+KATI_SRC_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+
+# Set defaults if they weren't set by the including Makefile
+KATI_CXX ?= $(CXX)
+KATI_LD ?= $(CXX)
+KATI_INTERMEDIATES_PATH ?= .
+KATI_BIN_PATH ?= .
+
+KATI_CXX_SRCS := \
+	ast.cc \
+	command.cc \
+	dep.cc \
+	eval.cc \
+	exec.cc \
+	file.cc \
+	file_cache.cc \
+	fileutil.cc \
+	find.cc \
+	flags.cc \
+	func.cc \
+	log.cc \
+	main.cc \
+	ninja.cc \
+	parser.cc \
+	rule.cc \
+	stats.cc \
+	string_piece.cc \
+	stringprintf.cc \
+	strutil.cc \
+	symtab.cc \
+	timeutil.cc \
+	value.cc \
+	var.cc
+
+KATI_CXX_GENERATED_SRCS := \
+	version.cc
+
+KATI_CXX_SRCS := $(addprefix $(KATI_SRC_PATH)/,$(KATI_CXX_SRCS))
+KATI_CXX_TEST_SRCS:= $(wildcard $(KATI_SRC_PATH)/*_test.cc)
+
+KATI_CXX_OBJS := $(patsubst $(KATI_SRC_PATH)/%.cc,$(KATI_INTERMEDIATES_PATH)/%.o,\
+	$(KATI_CXX_SRCS))
+KATI_CXX_GENERATED_OBJS := $(patsubst %.cc,$(KATI_INTERMEDIATES_PATH)/%.o,\
+	$(KATI_CXX_GENERATED_SRCS))
+KATI_CXX_TEST_OBJS := $(patsubst $(KATI_SRC_PATH)/%.cc,$(KATI_INTERMEDIATES_PATH)/%.o,\
+	$(KATI_CXX_TEST_SRCS))
+
+KATI_CXX_TEST_EXES := $(patsubst $(KATI_INTERMEDIATES_PATH)/%.o,$(KATI_BIN_PATH)/%,\
+	$(KATI_CXX_TEST_OBJS))
+
+KATI_CXXFLAGS := -g -W -Wall -MMD -MP
+KATI_CXXFLAGS += -O -DNOLOG
+#KATI_CXXFLAGS += -pg
+
+# Rule to build ckati into KATI_BIN_PATH
+$(KATI_BIN_PATH)/ckati: $(KATI_CXX_OBJS) $(KATI_CXX_GENERATED_OBJS)
+	@mkdir -p $(dir $@)
+	$(KATI_LD) -std=c++11 $(KATI_CXXFLAGS) -o $@ $^
+
+# Rule to build normal source files into object files in KATI_INTERMEDIATES_PATH
+$(KATI_CXX_OBJS) $(KATI_CXX_TEST_OBJS): $(KATI_INTERMEDIATES_PATH)/%.o: $(KATI_SRC_PATH)/%.cc
+	@mkdir -p $(dir $@)
+	$(KATI_CXX) -c -std=c++11 $(KATI_CXXFLAGS) -o $@ $<
+
+# Rule to build generated source files into object files in KATI_INTERMEDIATES_PATH
+$(KATI_CXX_GENERATED_OBJS): $(KATI_INTERMEDIATES_PATH)/%.o: $(KATI_INTERMEDIATES_PATH)/%.cc
+	@mkdir -p $(dir $@)
+	$(KATI_CXX) -c -std=c++11 $(KATI_CXXFLAGS) -o $@ $<
+
+ckati_tests: $(KATI_CXX_TEST_EXES)
+
+# Rule to build tests using *_test.cc and all normal *.cc files except main.cc
+$(KATI_CXX_TEST_EXES): $(filter-out $(KATI_INTERMEDIATES_PATH)/main.o,$(KATI_CXX_OBJS)) $(KATI_CXX_GENERATED_OBJS)
+$(KATI_CXX_TEST_EXES): $(KATI_BIN_PATH)/%: $(KATI_INTERMEDIATES_PATH)/%.o
+	$(KATI_LD) $^ -o $@
+
+# Rule to generate version.cc
+KATI_GIT_DIR := $(shell cd $(KATI_SRC_PATH) && git rev-parse --show-toplevel)
+$(KATI_INTERMEDIATES_PATH)/version.cc: $(KATI_GIT_DIR)/.git/HEAD $(KATI_GIT_DIR)/.git/index
+	@mkdir -p $(dir $@)
+	echo '// +build ignore' > $@
+	echo >> $@
+	echo 'const char* kGitVersion = "$(shell git rev-parse HEAD)";' >> $@
+
+ckati_clean:
+	rm -rf $(KATI_INTERMEDIATES_PATH)/ckati
+	rm -rf $(KATI_INTERMEDIATES_PATH)/*.o
+	rm -rf $(KATI_INTERMEDIATES_PATH)/*.d
+	rm -rf $(KATI_INTERMEDIATES_PATH)/version.cc
+	rm -rf $(KATI_CXX_TEST_EXES)
+
+.PHONY: ckati_clean
+
+-include $(KATI_INTERMEDIATES_PATH)/*.d
