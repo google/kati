@@ -285,8 +285,14 @@ func (n *NinjaGenerator) genRuleName() string {
 	return ruleName
 }
 
-func (n *NinjaGenerator) emitBuild(output, rule, dep string) {
-	fmt.Fprintf(n.f, "build %s: %s%s\n", escapeBuildTarget(output), rule, dep)
+func (n *NinjaGenerator) emitBuild(output, rule, inputs, orderOnlys string) {
+	fmt.Fprintf(n.f, "build %s: %s", escapeBuildTarget(output), rule)
+	if inputs != "" {
+		fmt.Fprintf(n.f, " %s", inputs)
+	}
+	if orderOnlys != "" {
+		fmt.Fprintf(n.f, " || %s", orderOnlys)
+	}
 }
 
 func escapeBuildTarget(s string) string {
@@ -305,23 +311,27 @@ func escapeBuildTarget(s string) string {
 	return buf.String()
 }
 
-func getDepString(node *DepNode) string {
+func getDepString(node *DepNode) (string, string) {
 	var deps []string
+	seen := make(map[string]bool)
 	for _, d := range node.Deps {
-		deps = append(deps, escapeBuildTarget(d.Output))
+		t := escapeBuildTarget(d.Output)
+		if seen[t] {
+			continue
+		}
+		deps = append(deps, t)
+		seen[t] = true
 	}
 	var orderOnlys []string
 	for _, d := range node.OrderOnlys {
-		orderOnlys = append(orderOnlys, escapeBuildTarget(d.Output))
+		t := escapeBuildTarget(d.Output)
+		if seen[t] {
+			continue
+		}
+		orderOnlys = append(orderOnlys, t)
+		seen[t] = true
 	}
-	dep := ""
-	if len(deps) > 0 {
-		dep += fmt.Sprintf(" %s", strings.Join(deps, " "))
-	}
-	if len(orderOnlys) > 0 {
-		dep += fmt.Sprintf(" || %s", strings.Join(orderOnlys, " "))
-	}
-	return dep
+	return strings.Join(deps, " "), strings.Join(orderOnlys, " ")
 }
 
 func escapeShell(s string) string {
@@ -361,7 +371,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		if _, ok := n.ctx.vpaths.exists(node.Output); ok {
 			return nil
 		}
-		n.emitBuild(node.Output, "phony", "")
+		n.emitBuild(node.Output, "phony", "", "")
 		fmt.Fprintln(n.f)
 		return nil
 	}
@@ -377,6 +387,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	}
 	ruleName := "phony"
 	useLocalPool := false
+	inputs, orderOnlys := getDepString(node)
 	if len(runners) > 0 {
 		ruleName = n.genRuleName()
 		fmt.Fprintf(n.f, "\n# rule for %s\n", node.Output)
@@ -400,13 +411,22 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		ArgLenLimit := 100 * 1000
 		if len(cmdline) > ArgLenLimit {
 			fmt.Fprintf(n.f, " rspfile = $out.rsp\n")
+			if inputs != "" {
+				cmdline = strings.Replace(cmdline, inputs, "$in", -1)
+			}
+			cmdline = strings.Replace(cmdline, node.Output, "$out", -1)
 			fmt.Fprintf(n.f, " rspfile_content = %s\n", cmdline)
 			fmt.Fprintf(n.f, " command = %s $out.rsp\n", n.ctx.shell)
 		} else {
-			fmt.Fprintf(n.f, " command = %s -c \"%s\"\n", n.ctx.shell, escapeShell(cmdline))
+			cmdline = escapeShell(cmdline)
+			if inputs != "" {
+				cmdline = strings.Replace(cmdline, escapeShell(inputs), "$in", -1)
+			}
+			cmdline = strings.Replace(cmdline, escapeShell(node.Output), "$out", -1)
+			fmt.Fprintf(n.f, " command = %s -c \"%s\"\n", n.ctx.shell, cmdline)
 		}
 	}
-	n.emitBuild(node.Output, ruleName, getDepString(node))
+	n.emitBuild(node.Output, ruleName, inputs, orderOnlys)
 	if useLocalPool {
 		fmt.Fprintf(n.f, " pool = local_pool\n")
 	}
@@ -509,6 +529,8 @@ func (n *NinjaGenerator) generateNinja(suffix, defaultTarget string) (err error)
 		fmt.Fprintf(n.f, " depth = %d\n", runtime.NumCPU())
 	}
 
+	// defining $out for $@ and $in for $^ here doesn't work well,
+	// because these texts will be processed in escapeShell...
 	for _, node := range n.nodes {
 		err := n.emitNode(node)
 		if err != nil {
