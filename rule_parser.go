@@ -77,7 +77,7 @@ func (r *rule) cmdpos() srcpos {
 }
 
 func isPatternRule(s []byte) (pattern, bool) {
-	i := findLiteralChar(s, '%', 0)
+	i := findLiteralChar(s, '%', 0, noSkipVar)
 	if i < 0 {
 		return pattern{}, false
 	}
@@ -160,7 +160,9 @@ func (r *rule) parseVar(s []byte, rhs expr) (*assignAST, error) {
 }
 
 // parse parses rule line.
-// line is rule line until '=', or before ';'
+// line is rule line until '=', or before ';'.
+// line was already expaned, so probably no need to skip var $(xxx) when
+// finding literal char. i.e. $ is parsed as literal '$'.
 // assign is not nil, if line was known as target specific var '<xxx>: <v>=<val>'
 // rhs is not nil, if line ended with '=' (target specific var after evaluated)
 func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, error) {
@@ -177,7 +179,7 @@ func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, erro
 	}
 	r.outputs = []string{}
 
-	index := findLiteralChar(line, ':', 0)
+	index := findLiteralChar(line, ':', 0, noSkipVar)
 	if index < 0 {
 		return nil, errors.New("*** missing separator.")
 	}
@@ -226,7 +228,7 @@ func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, erro
 		r.cmds = append(r.cmds, string(rest[index+1:]))
 		rest = rest[:index-1]
 	}
-	index = findLiteralChar(rest, ':', 0)
+	index = findLiteralChar(rest, ':', 0, noSkipVar)
 	if index < 0 {
 		r.parseInputs(rest)
 		return nil, nil

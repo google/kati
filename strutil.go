@@ -281,7 +281,14 @@ func firstWord(line []byte) ([]byte, []byte) {
 	return line, nil
 }
 
-func findLiteralChar(s []byte, stop1, stop2 byte) int {
+type findCharOption int
+
+const (
+	noSkipVar findCharOption = iota
+	skipVar
+)
+
+func findLiteralChar(s []byte, stop1, stop2 byte, op findCharOption) int {
 	i := 0
 	for {
 		var ch byte
@@ -297,7 +304,7 @@ func findLiteralChar(s []byte, stop1, stop2 byte) int {
 			if ch == stop2 {
 				break
 			}
-			if ch == '$' {
+			if op == skipVar && ch == '$' {
 				break
 			}
 			i++

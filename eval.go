@@ -259,7 +259,9 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	ev.lastRule = nil
 	ev.srcpos = ast.srcpos
 
-	glog.V(1).Infof("maybe rule %s: %q assign:%v", ev.srcpos, ast.expr, ast.assign)
+	if glog.V(1) {
+		glog.Infof("maybe rule %s: %q assign:%v", ev.srcpos, ast.expr, ast.assign)
+	}
 
 	abuf := newEbuf()
 	aexpr := toExpr(ast.expr)
@@ -277,7 +279,7 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 			abuf.Write(b)
 			continue
 		}
-		eq := findLiteralChar(b, '=', 0)
+		eq := findLiteralChar(b, '=', 0, skipVar)
 		if eq >= 0 {
 			abuf.Write(b[:eq+1])
 			if eq+1 < len(b) {
@@ -302,6 +304,9 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 
 	line := abuf.Bytes()
 	r := &rule{srcpos: ast.srcpos}
+	if glog.V(1) {
+		glog.Infof("rule? %s: %q assign:%v rhs:%s", r.srcpos, line, ast.assign, rhs)
+	}
 	assign, err := r.parse(line, ast.assign, rhs)
 	if err != nil {
 		ws := newWordScanner(line)
