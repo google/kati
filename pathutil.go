@@ -58,6 +58,10 @@ func hasWildcardMeta(pat string) bool {
 	return strings.IndexAny(pat, "*?[") >= 0
 }
 
+func hasWildcardMetaByte(pat []byte) bool {
+	return bytes.IndexAny(pat, "*?[") >= 0
+}
+
 func wildcardUnescape(pat string) string {
 	var buf bytes.Buffer
 	for i := 0; i < len(pat); i++ {
@@ -73,10 +77,29 @@ func wildcardUnescape(pat string) string {
 	return buf.String()
 }
 
-func (w *wildcardCacheT) readdirnames(dir string) []string {
-	if dir == "" {
-		dir = "."
+func filepathClean(path string) string {
+	if path == "" {
+		return "."
 	}
+	dir, file := filepath.Split(path)
+	if dir == "" {
+		return file
+	}
+	if dir == string(filepath.Separator) {
+		return dir + file
+	}
+	dir = strings.TrimRight(dir, string(filepath.Separator))
+	dir = filepathClean(dir)
+	if file == "." {
+		return dir
+	}
+	// TODO(ukai): when file == "..", and dir is not symlink,
+	// we can remove "..".
+	return dir + string(filepath.Separator) + file
+}
+
+func (w *wildcardCacheT) readdirnames(dir string) []string {
+	dir = filepathClean(dir)
 	w.mu.Lock()
 	names, ok := w.dirent[dir]
 	w.mu.Unlock()
@@ -103,8 +126,11 @@ func (w *wildcardCacheT) readdirnames(dir string) []string {
 // and appends them to matches. ignore I/O errors.
 func (w *wildcardCacheT) glob(dir, pattern string, matches []string) ([]string, error) {
 	names := w.readdirnames(dir)
-	if dir != "" {
-		dir += string(filepath.Separator)
+	switch dir {
+	case "", string(filepath.Separator):
+		// nothing
+	default:
+		dir += string(filepath.Separator) // add trailing separator back
 	}
 	for _, n := range names {
 		matched, err := filepath.Match(pattern, n)
@@ -119,6 +145,7 @@ func (w *wildcardCacheT) glob(dir, pattern string, matches []string) ([]string, 
 }
 
 func (w *wildcardCacheT) Glob(pat string) ([]string, error) {
+	// TODO(ukai): expand ~ to user's home directory.
 	// TODO(ukai): use find cache for glob if exists
 	// or use wildcardCache for find cache.
 	pat = wildcardUnescape(pat)
@@ -127,7 +154,7 @@ func (w *wildcardCacheT) Glob(pat string) ([]string, error) {
 	case "", string(filepath.Separator):
 		// nothing
 	default:
-		dir = dir[0 : len(dir)-1] // chop off trailing separator
+		dir = dir[:len(dir)-1] // chop off trailing separator
 	}
 	if !hasWildcardMeta(dir) {
 		return w.glob(dir, file, nil)

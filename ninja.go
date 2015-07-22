@@ -558,6 +558,8 @@ func (n *NinjaGenerator) generateNinja(suffix, defaultTarget string) (err error)
 		}
 		fmt.Fprintf(n.f, "build %s: phony %s\n", name, n.shortNames[name][0])
 	}
+	// TODO(ukai): regenerate build.ninja when Makefile or dir used for
+	// wildcard is newer than build.ninja?
 	return nil
 }
 

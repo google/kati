@@ -113,18 +113,29 @@ func unescapeTarget(s []byte) []byte {
 func (r *rule) parseInputs(s []byte) {
 	ws := newWordScanner(s)
 	ws.esc = true
-	isOrderOnly := false
+	add := func(t string) {
+		r.inputs = append(r.inputs, t)
+	}
 	for ws.Scan() {
 		input := ws.Bytes()
 		if len(input) == 1 && input[0] == '|' {
-			isOrderOnly = true
+			add = func(t string) {
+				r.orderOnlyInputs = append(r.orderOnlyInputs, t)
+			}
 			continue
 		}
 		input = unescapeInput(input)
-		if isOrderOnly {
-			r.orderOnlyInputs = append(r.orderOnlyInputs, internBytes(input))
-		} else {
-			r.inputs = append(r.inputs, internBytes(input))
+		if !hasWildcardMetaByte(input) {
+			add(internBytes(input))
+			continue
+		}
+		m, _ := wildcardCache.Glob(string(input))
+		if len(m) == 0 {
+			add(internBytes(input))
+			continue
+		}
+		for _, t := range m {
+			add(intern(t))
 		}
 	}
 }
@@ -199,6 +210,7 @@ func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, erro
 		r.outputPatterns = []pattern{pat}
 	} else {
 		for ws.Scan() {
+			// TODO(ukai): expand raw wildcard for output. any usage?
 			r.outputs = append(r.outputs, internBytes(unescapeTarget(ws.Bytes())))
 		}
 	}
