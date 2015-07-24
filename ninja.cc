@@ -425,7 +425,8 @@ class NinjaGenerator {
         fprintf(fp_, " rspfile_content = %s\n", cmd_buf_.c_str());
         fprintf(fp_, " command = %s $out.rsp\n", shell_->c_str());
       } else {
-        fprintf(fp_, " command = %s -c \"%s\"\n", shell_->c_str(), EscapeShell(cmd_buf_).c_str());
+        fprintf(fp_, " command = %s -c \"%s\"\n",
+                shell_->c_str(), EscapeShell(cmd_buf_).c_str());
       }
     }
 
@@ -507,10 +508,6 @@ class NinjaGenerator {
     fprintf(fp_, "\n");
   }
 
-  string GetNinjaDirectory() const {
-    return ninja_dir_;
-  }
-
   void EmitRegenRules(const string& orig_args) {
     if (!g_gen_regen_rule)
       return;
@@ -542,23 +539,27 @@ class NinjaGenerator {
               p.first.c_str(), p.first.c_str());
     }
     if (g_error_on_env_change) {
-      fprintf(fp_, " && (diff $out.tmp $out || (echo Environment variable changes are detected && false))\n");
+      fprintf(fp_,
+              " && (diff $out.tmp $out || "
+              "(echo Environment variable changes are detected && false))\n");
     } else {
       fprintf(fp_, " && (diff $out.tmp $out || mv $out.tmp $out)\n");
     }
     fprintf(fp_, " restat = 1\n");
     fprintf(fp_, " generator = 1\n");
-    fprintf(fp_, " description = Update $out\n");
+    fprintf(fp_, " description = Check $out\n");
     fprintf(fp_, "build %s: regen_envlist .always_build\n\n",
             GetEnvlistFilename().c_str());
   }
 
   string GetNinjaFilename() const {
-    return StringPrintf("%s/build%s.ninja", ninja_dir_.c_str(), ninja_suffix_.c_str());
+    return StringPrintf("%s/build%s.ninja",
+                        ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
   string GetShellScriptFilename() const {
-    return StringPrintf("%s/ninja%s.sh", ninja_dir_.c_str(), ninja_suffix_.c_str());
+    return StringPrintf("%s/ninja%s.sh",
+                        ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
   string GetEnvlistFilename() const {
