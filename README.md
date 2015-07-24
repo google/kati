@@ -1,23 +1,21 @@
-kati
-====
+# kati
 
 kati is an experimental GNU make clone.
 The main goal of this tool is to speed-up incremental build of Android.
 
-How to use for Android
-----------------------
+## How to use for Android
 
 Currently, kati does not offer a faster build by itself. It instead converts
 your Makefile to a ninja file.
 
-Set up kati:
+- Set up kati:
 
     % cd ~/src
     % git clone https://github.com/google/kati
     % cd kati
     % make
 
-Build Android:
+- Build Android:
 
     % cd <android-directory>
     % source build/envsetup.sh
@@ -27,8 +25,7 @@ Build Android:
 
 You need ninja in your $PATH.
 
-More usage examples
--------------------
+## More usage examples
 
 ### "make clean"
 
