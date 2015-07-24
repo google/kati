@@ -563,11 +563,13 @@ class NinjaGenerator {
   }
 
   string GetEnvlistFilename() const {
-    return StringPrintf(".kati_env%s", ninja_suffix_.c_str());
+    return StringPrintf("%s/.kati_env%s",
+                        ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
   string GetLunchFilename() const {
-    return StringPrintf(".kati_lunch%s", ninja_suffix_.c_str());
+    return StringPrintf("%s/.kati_lunch%s",
+                        ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
   void GenerateNinja(const vector<DepNode*>& nodes,
