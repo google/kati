@@ -1,3 +1,5 @@
+# TODO(ninja): Fix
+
 SHELL:=/bin/bash
 
 define func

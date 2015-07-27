@@ -1,3 +1,5 @@
+# TODO(ninja): Fix
+
 .PHONY: foo
 	echo PASS phony foo
 .PHONY: bar

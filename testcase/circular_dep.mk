@@ -1,3 +1,5 @@
+# TODO(ninja): Fix?
+
 test: self loop not_circular1 not_circular2
 	echo PASS
 

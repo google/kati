@@ -131,12 +131,21 @@ end
 
 run_make_test = proc do |mk|
   c = File.read(mk)
-  expected_failure = c =~ /\A# TODO(?:\((go|c)\))?/
-  if $1
-    if $1 == 'go' && ckati
-      expected_failure = false
-    elsif $1 == 'c' && !ckati
-      expected_failure = false
+  expected_failure = false
+  if c =~ /\A# TODO(?:\(([a-z|]+)\))?/
+    if $1
+      todos = $1.split('|')
+      if todos.include?('go') && !ckati
+        expected_failure = true
+      end
+      if todos.include?('c') && ckati
+        expected_failure = true
+      end
+      if todos.include?('ninja') && via_ninja
+        expected_failure = true
+      end
+    else
+      expected_failure = true
     end
   end
 
@@ -185,7 +194,8 @@ run_make_test = proc do |mk|
       cmd += " #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
       if via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
-        res += normalize_ninja_log(IO.popen('./ninja.sh -j1 -v', 'r:binary', &:read))
+        log = IO.popen('./ninja.sh -j1 -v 2>&1', 'r:binary', &:read)
+        res += normalize_ninja_log(log)
       end
       res = normalize_kati_log(res)
       output += "=== #{tc} ===\n" + res

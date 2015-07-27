@@ -13,6 +13,7 @@ tdir/tfile: adir/afile bdir/bfile
 	echo $(^F)
 	echo $(+D)
 	echo $(+F)
+	mkdir -p tdir # for ninja.
 
 tfile: afile bfile
 	echo $(@D)

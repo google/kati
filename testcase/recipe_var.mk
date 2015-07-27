@@ -1,3 +1,5 @@
+# TODO(ninja): Fix
+
 foo=FAIL
 
 $$:

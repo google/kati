@@ -234,10 +234,6 @@ class NinjaGenerator {
           *cmd_buf += "$$";
           break;
 
-        case '\t':
-          *cmd_buf += ' ';
-          break;
-
         case '\n':
           if (prev_backslash) {
             (*cmd_buf)[cmd_buf->size()-1] = ' ';

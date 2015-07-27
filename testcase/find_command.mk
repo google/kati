@@ -1,4 +1,4 @@
-# TODO(go): This test is only for ckati.
+# TODO(go|ninja): This test is only for ckati. Also fix this for ninja.
 
 ifeq ($(shell uname),Darwin)
 USE_GNU_FIND:=
