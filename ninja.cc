@@ -38,9 +38,16 @@
 #include "var.h"
 #include "version.h"
 
+static size_t FindCommandLineFlag(StringPiece cmd, StringPiece name) {
+  const size_t found = cmd.find(name);
+  if (found == string::npos || found == 0)
+    return string::npos;
+  return found;
+}
+
 static StringPiece FindCommandLineFlagWithArg(StringPiece cmd,
                                               StringPiece name) {
-  size_t index = cmd.find(name);
+  size_t index = FindCommandLineFlag(cmd, name);
   if (index == string::npos)
     return StringPiece();
 
@@ -51,8 +58,7 @@ static StringPiece FindCommandLineFlagWithArg(StringPiece cmd,
     index = val.find(name);
   }
 
-  index = val.find(' ');
-  CHECK(index != string::npos);
+  index = val.find_first_of(" \t");
   return val.substr(0, index);
 }
 
@@ -87,19 +93,19 @@ size_t GetGomaccPosForAndroidCompileCommand(StringPiece cmdline) {
 }
 
 static bool GetDepfileFromCommandImpl(StringPiece cmd, string* out) {
-  if ((cmd.find(StringPiece(" -MD ")) == string::npos &&
-       cmd.find(StringPiece(" -MMD ")) == string::npos) ||
-      cmd.find(StringPiece(" -c ")) == string::npos) {
+  if ((FindCommandLineFlag(cmd, " -MD") == string::npos &&
+       FindCommandLineFlag(cmd, " -MMD") == string::npos) ||
+      FindCommandLineFlag(cmd, " -c") == string::npos) {
     return false;
   }
 
-  StringPiece mf = FindCommandLineFlagWithArg(cmd, StringPiece(" -MF "));
+  StringPiece mf = FindCommandLineFlagWithArg(cmd, " -MF");
   if (!mf.empty()) {
     mf.AppendToString(out);
     return true;
   }
 
-  StringPiece o = FindCommandLineFlagWithArg(cmd, StringPiece(" -o "));
+  StringPiece o = FindCommandLineFlagWithArg(cmd, " -o");
   if (o.empty()) {
     ERROR("Cannot find the depfile in %s", cmd.as_string().c_str());
     return false;
@@ -112,8 +118,6 @@ static bool GetDepfileFromCommandImpl(StringPiece cmd, string* out) {
 
 bool GetDepfileFromCommand(string* cmd, string* out) {
   CHECK(!cmd->empty());
-  CHECK((*cmd)[cmd->size()-1] == ' ');
-
   if (!GetDepfileFromCommandImpl(*cmd, out))
     return false;
 
