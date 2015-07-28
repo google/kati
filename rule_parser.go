@@ -177,12 +177,6 @@ func (r *rule) parseVar(s []byte, rhs expr) (*assignAST, error) {
 // assign is not nil, if line was known as target specific var '<xxx>: <v>=<val>'
 // rhs is not nil, if line ended with '=' (target specific var after evaluated)
 func (r *rule) parse(line []byte, assign *assignAST, rhs expr) (*assignAST, error) {
-	var removed bool
-	line, removed = removeComment(line)
-	if removed {
-		rhs = nil
-		line = trimRightSpaceBytes(line)
-	}
 	line = trimLeftSpaceBytes(line)
 	// See semicolon.mk.
 	if rhs == nil && (len(line) == 0 || line[0] == ';') {

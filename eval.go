@@ -272,8 +272,18 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 	var rhs expr
 	semi := ast.semi
 	for i, v := range aexpr {
+		var hashFound bool
 		var buf evalBuffer
 		buf.resetSep()
+		switch v.(type) {
+		case literal, tmpval:
+			s := v.String()
+			i := strings.Index(s, "#")
+			if i >= 0 {
+				hashFound = true
+				v = tmpval(trimRightSpaceBytes([]byte(s[:i])))
+			}
+		}
 		err := v.Eval(&buf, ev)
 		if err != nil {
 			return err
@@ -304,6 +314,9 @@ func (ev *Evaluator) evalMaybeRule(ast *maybeRuleAST) error {
 			break
 		}
 		abuf.Write(b)
+		if hashFound {
+			break
+		}
 	}
 
 	line := abuf.Bytes()
