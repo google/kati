@@ -207,12 +207,12 @@ class NinjaGenerator {
     // stripped out.
     char prev_char = ' ';
     char quote = 0;
-    bool done = false;
-    for (; *in && !done; in++) {
+    for (; *in; in++) {
       switch (*in) {
         case '#':
           if (quote == 0 && isspace(prev_char)) {
-            done = true;
+            while (in[1] && *in != '\n')
+              in++;
           } else {
             *cmd_buf += *in;
           }

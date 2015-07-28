@@ -40,6 +40,60 @@
 
 namespace {
 
+// TODO: This code is very similar to
+// NinjaGenerator::TranslateCommand. Factor them out.
+shared_ptr<string> StripShellComment(shared_ptr<string> cmd) {
+  if (cmd->find('#') == string::npos)
+    return cmd;
+
+  shared_ptr<string> res = make_shared<string>();
+  bool prev_backslash = false;
+  // Set space as an initial value so the leading comment will be
+  // stripped out.
+  char prev_char = ' ';
+  char quote = 0;
+  bool done = false;
+  const char* in = cmd->c_str();
+  for (; *in && !done; in++) {
+    switch (*in) {
+      case '#':
+        if (quote == 0 && isspace(prev_char)) {
+          while (*in && *in != '\n')
+            in++;
+          break;
+        }
+
+      case '\'':
+      case '"':
+      case '`':
+        if (quote) {
+          if (quote == *in)
+            quote = 0;
+        } else if (!prev_backslash) {
+          quote = *in;
+        }
+        *res += *in;
+        break;
+
+      case '\\':
+        *res += '\\';
+        break;
+
+      default:
+        *res += *in;
+    }
+
+    if (*in == '\\') {
+      prev_backslash = !prev_backslash;
+    } else {
+      prev_backslash = false;
+    }
+
+    prev_char = *in;
+  }
+  return res;
+}
+
 void PatsubstFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> pat_str = args[0]->Eval(ev);
   shared_ptr<string> repl = args[1]->Eval(ev);
@@ -437,7 +491,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io() && !HasNoIoInShellScript(*cmd)) {
     *s += "$(";
-    *s += *cmd;
+    *s += *StripShellComment(cmd);
     *s += ")";
     return;
   }

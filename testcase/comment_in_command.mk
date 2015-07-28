@@ -1,5 +1,3 @@
-# TODO(c-ninja): Fix
-
 MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
 
 test1:
@@ -19,7 +17,11 @@ make3:
 test3: $(shell echo foo #)
 
 test4:
-	echo $(shell echo OK #)
+	echo $(shell echo OK # FAIL \
+	FAIL2)
+
+test5:
+	echo $(shell echo $$(echo PASS))
 
 foo:
 	echo OK
