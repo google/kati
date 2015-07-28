@@ -253,13 +253,8 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   COLLECT_STATS("func wildcard time");
   shared_ptr<string> pat = args[0]->Eval(ev);
-  if (ev->avoid_io()) {
-    *s += "$(/bin/ls -d ";
-    *s += *pat;
-    *s += " 2> /dev/null)";
-    return;
-  }
-
+  // Note GNU make does not delay the execution of $(wildcard) so we
+  // do not need to check avoid_io here.
   WordWriter ww(s);
   vector<string>* files;
   for (StringPiece tok : WordScanner(*pat)) {

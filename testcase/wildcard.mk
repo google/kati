@@ -1,5 +1,3 @@
-# TODO(ninja): Fix
-
 MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
 
 files = $(wildcard M*)

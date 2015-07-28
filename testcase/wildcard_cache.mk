@@ -12,3 +12,9 @@ foo,bar:
 	echo $(files)
 	touch foo,bar
 	echo $(files)
+
+$(shell mkdir dir)
+$(info $(wildcard dir/not_exist))
+$(shell touch dir/file)
+# This should show nothing.
+$(info $(wildcard dir/file))
