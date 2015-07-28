@@ -1,5 +1,3 @@
-# TODO(ninja): Fix
-
 foo = $(realpath ./foo)
 bar = $(realpath ./bar)
 

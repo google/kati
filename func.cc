@@ -329,7 +329,9 @@ void AddprefixFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void RealpathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> text = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    *s += "KATI_TODO(realpath)";
+    *s += "$(realpath ";
+    *s += *text;
+    *s += " 2> /dev/null)";
     return;
   }
 
