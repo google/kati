@@ -485,7 +485,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 }
 
 void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
-  static const char* tmpvar_names[] = {
+  static const string tmpvar_names[] = {
     "0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9"
   };
 
@@ -499,9 +499,17 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
   vector<unique_ptr<ScopedVar>> sv;
   for (size_t i = 1; i < args.size(); i++) {
+    string s;
+    StringPiece tmpvar_name;
+    if (i < sizeof(tmpvar_names)/sizeof(tmpvar_names[0])) {
+      tmpvar_name = tmpvar_names[i];
+    } else {
+      s = StringPrintf("%d", i);
+      tmpvar_name = s;
+    }
     sv.push_back(move(unique_ptr<ScopedVar>(
         new ScopedVar(ev->mutable_vars(),
-                      Intern(tmpvar_names[i]), av[i-1].get()))));
+                      Intern(tmpvar_name), av[i-1].get()))));
   }
   func->Eval(ev, s);
 }
