@@ -31,11 +31,12 @@ import (
 type nodeState int
 
 const (
-	nodeInit  nodeState = iota // not visited
-	nodeVisit                  // visited
-	nodeFile                   // visited & file exists
-	nodeAlias                  // visited & alias for other target
-	nodeBuild                  // visited & build emitted
+	nodeInit    nodeState = iota // not visited
+	nodeVisit                    // visited
+	nodeFile                     // visited & file exists
+	nodeAlias                    // visited & alias for other target
+	nodeMissing                  // visited & no target for this output
+	nodeBuild                    // visited & build emitted
 )
 
 func (s nodeState) String() string {
@@ -48,6 +49,8 @@ func (s nodeState) String() string {
 		return "node-file"
 	case nodeAlias:
 		return "node-alias"
+	case nodeMissing:
+		return "node-missing"
 	case nodeBuild:
 		return "node-build"
 	default:
@@ -440,6 +443,9 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 				n.done[node.Output] = nodeAlias
 				return nil
 			}
+		}
+		if node.Filename == "" {
+			n.done[node.Output] = nodeMissing
 		}
 		return nil
 	}
