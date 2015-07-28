@@ -47,7 +47,10 @@ type NinjaGenerator struct {
 
 	ctx *execContext
 
-	ruleID     int
+	ruleID int
+	// true: rule emitted
+	// false: visited, but no rule emitted
+	// undef: not visited yet
 	done       map[string]bool
 	shortNames map[string][]string
 }
@@ -392,15 +395,16 @@ func (n *NinjaGenerator) ninjaVars(s string, nv [][]string, esc func(string) str
 }
 
 func (n *NinjaGenerator) emitNode(node *DepNode) error {
-	if n.done[node.Output] {
+	if _, found := n.done[node.Output]; found {
 		return nil
 	}
-	n.done[node.Output] = true
+	n.done[node.Output] = false
 
 	if len(node.Cmds) == 0 && len(node.Deps) == 0 && len(node.OrderOnlys) == 0 && !node.IsPhony {
 		if _, ok := n.ctx.vpaths.exists(node.Output); ok {
 			return nil
 		}
+		n.done[node.Output] = true
 		n.emitBuild(node.Output, "phony", "", "")
 		fmt.Fprintln(n.f)
 		return nil
@@ -459,6 +463,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		fmt.Fprintf(n.f, " pool = local_pool\n")
 	}
 	fmt.Fprintf(n.f, "\n")
+	n.done[node.Output] = true
 
 	for _, d := range node.Deps {
 		err := n.emitNode(d)
@@ -649,7 +654,7 @@ func (n *NinjaGenerator) generateNinja(defaultTarget string) (err error) {
 		}
 	}
 
-	if defaultTarget != "" {
+	if defaultTarget != "" && n.done[defaultTarget] {
 		fmt.Fprintf(n.f, "\ndefault %s\n", escapeNinja(defaultTarget))
 	}
 

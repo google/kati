@@ -1,4 +1,3 @@
-# TODO(c|go-ninja): Show something like "nothing to be done"
-# go-ninja: unknown target "Makefile"
+# TODO(c): Show something like "nothing to be done"
 
 Makefile:
