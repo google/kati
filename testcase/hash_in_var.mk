@@ -1,4 +1,4 @@
-# TODO(go): Fix.
+# TODO(go): Fix - remove comment more earlier?
 
 $(shell mkdir -p tmp)
 file = $(shell echo tmp/test\#.ext)
