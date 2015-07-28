@@ -641,9 +641,9 @@ class NinjaGenerator {
     for (const auto& p : ev_->exports()) {
       if (p.second) {
         shared_ptr<string> val = ev_->EvalVar(p.first);
-        fprintf(fp, "export %s=%s\n", p.first.c_str(), val->c_str());
+        fprintf(fp, "export '%s'='%s'\n", p.first.c_str(), val->c_str());
       } else {
-        fprintf(fp, "unset %s\n", p.first.c_str());
+        fprintf(fp, "unset '%s'\n", p.first.c_str());
       }
     }
 

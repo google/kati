@@ -1,5 +1,3 @@
-# TODO(c-ninja): Fix
-
 test: foo bar
 
 empty:=
