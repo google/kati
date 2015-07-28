@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // NinjaGenerator generates ninja build files from DepGraph.
@@ -554,14 +556,17 @@ func (n *NinjaGenerator) generateShell() (err error) {
 		fmt.Fprintf(f, "if [ -f %s ]; then\n export $(cat %s)\nfi\n", n.envlistName(), n.envlistName())
 	}
 	for name, export := range n.exports {
+		// export "a b"=c will error on bash
+		// bash: export `a b=c': not a valid identifier
+		if strings.ContainsAny(name, " \t\n\r") {
+			glog.V(1).Infof("ignore export %q (export:%t)", name, export)
+			continue
+		}
 		if export {
 			v, err := n.ctx.ev.EvaluateVar(name)
 			if err != nil {
 				return err
 			}
-			// TODO(ukai): if name contains space, ignore it?
-			// export "a b"=c will error on bash
-			// bash: export `a b=c': not a valid identifier
 			fmt.Fprintf(f, "export %q=%q\n", name, v)
 		} else {
 			fmt.Fprintf(f, "unset %q\n", name)
