@@ -1,5 +1,3 @@
-# TODO(go-ninja): Fix - KATI_TODO(realpath)
-
 foo = $(realpath ./foo)
 bar = $(realpath ./bar)
 

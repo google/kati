@@ -766,16 +766,18 @@ func (f *funcRealpath) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	if ev.avoidIO {
-		io.WriteString(w, "KATI_TODO(realpath)")
-		ev.hasIO = true
-		return nil
-	}
 	wb := newWbuf()
 	err = f.args[1].Eval(wb, ev)
 	if err != nil {
 		return err
 	}
+	if ev.avoidIO {
+		fmt.Fprintf(w, "$(realpath %s 2>/dev/null)", string(wb.Bytes()))
+		ev.hasIO = true
+		wb.release()
+		return nil
+	}
+
 	t := time.Now()
 	for _, word := range wb.words {
 		name := string(word)
