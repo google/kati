@@ -525,7 +525,7 @@ func (n *NinjaGenerator) generateEnvlist() (err error) {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(f, "%s=%s\n", k, v)
+		fmt.Fprintf(f, "%q=%q\n", k, v)
 	}
 	return nil
 }
@@ -555,9 +555,12 @@ func (n *NinjaGenerator) generateShell() (err error) {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(f, "export %s=%q\n", name, v)
+			// TODO(ukai): if name contains space, ignore it?
+			// export "a b"=c will error on bash
+			// bash: export `a b=c': not a valid identifier
+			fmt.Fprintf(f, "export %q=%q\n", name, v)
 		} else {
-			fmt.Fprintf(f, "unset %s\n", name)
+			fmt.Fprintf(f, "unset %q\n", name)
 		}
 	}
 	if n.GomaDir == "" {
@@ -597,7 +600,7 @@ func (n *NinjaGenerator) generateNinja(defaultTarget string) (err error) {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(n.f, "# %s=%s\n", name, v)
+			fmt.Fprintf(n.f, "# %q=%q\n", name, v)
 		}
 		fmt.Fprintf(n.f, "\n")
 	}
