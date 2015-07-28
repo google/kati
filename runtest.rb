@@ -90,6 +90,7 @@ end
 
 def normalize_ninja_log(log, mk)
   log.gsub!(/^\[\d+\/\d+\] .*\n/, '')
+  log.gsub!(/^ninja: no work to do\.\n/, '')
   if mk =~ /err_error_in_recipe.mk/
     # This test expects ninja fails. Strip ninja specific error logs.
     log.gsub!(/^FAILED: .*\n/, '')
