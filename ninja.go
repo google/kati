@@ -382,8 +382,9 @@ func (n *NinjaGenerator) ninjaVars(s string, nv [][]string, esc func(string) str
 		if v == "" {
 			continue
 		}
-		if strings.Contains(v, "/./") || strings.Contains(v, "/../") {
-			// ninja will normalize this, so keep it as is
+		if strings.Contains(v, "/./") || strings.Contains(v, "/../") || strings.Contains(v, "$") {
+			// ninja will normalize paths (/./, /../), so keep it as is
+			// ninja will emit quoted string for $
 			continue
 		}
 		if esc != nil {
