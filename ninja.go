@@ -28,6 +28,33 @@ import (
 	"github.com/golang/glog"
 )
 
+type nodeState int
+
+const (
+	nodeInit  nodeState = iota // not visited
+	nodeVisit                  // visited
+	nodeFile                   // visited & file exists
+	nodeAlias                  // visited & alias for other target
+	nodeBuild                  // visited & build emitted
+)
+
+func (s nodeState) String() string {
+	switch s {
+	case nodeInit:
+		return "node-init"
+	case nodeVisit:
+		return "node-visit"
+	case nodeFile:
+		return "node-file"
+	case nodeAlias:
+		return "node-alias"
+	case nodeBuild:
+		return "node-build"
+	default:
+		return fmt.Sprintf("node-unknown[%d]", int(s))
+	}
+}
+
 // NinjaGenerator generates ninja build files from DepGraph.
 type NinjaGenerator struct {
 	// Args is original arguments to generate the ninja file.
@@ -47,11 +74,8 @@ type NinjaGenerator struct {
 
 	ctx *execContext
 
-	ruleID int
-	// true: rule emitted
-	// false: visited, but no rule emitted
-	// undef: not visited yet
-	done       map[string]bool
+	ruleID     int
+	done       map[string]nodeState
 	shortNames map[string][]string
 }
 
@@ -59,7 +83,7 @@ func (n *NinjaGenerator) init(g *DepGraph) {
 	n.nodes = g.nodes
 	n.exports = g.exports
 	n.ctx = newExecContext(g.vars, g.vpaths, true)
-	n.done = make(map[string]bool)
+	n.done = make(map[string]nodeState)
 	n.shortNames = make(map[string][]string)
 }
 
@@ -399,15 +423,22 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	if _, found := n.done[node.Output]; found {
 		return nil
 	}
-	n.done[node.Output] = false
+	n.done[node.Output] = nodeVisit
 
 	if len(node.Cmds) == 0 && len(node.Deps) == 0 && len(node.OrderOnlys) == 0 && !node.IsPhony {
 		if _, ok := n.ctx.vpaths.exists(node.Output); ok {
+			n.done[node.Output] = nodeFile
 			return nil
 		}
-		n.done[node.Output] = true
-		n.emitBuild(node.Output, "phony", "", "")
-		fmt.Fprintln(n.f)
+		o := filepath.Clean(node.Output)
+		if o != node.Output {
+			// if normalized target has been done, it marks as alias.
+			if s, found := n.done[o]; found {
+				glog.V(1).Infof("node %s=%s => %s=alias", o, s, node.Output)
+				n.done[node.Output] = nodeAlias
+				return nil
+			}
+		}
 		return nil
 	}
 
@@ -464,19 +495,21 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		fmt.Fprintf(n.f, " pool = local_pool\n")
 	}
 	fmt.Fprintf(n.f, "\n")
-	n.done[node.Output] = true
+	n.done[node.Output] = nodeBuild
 
 	for _, d := range node.Deps {
 		err := n.emitNode(d)
 		if err != nil {
 			return err
 		}
+		glog.V(1).Infof("node %s dep node %q %s", node.Output, d.Output, n.done[d.Output])
 	}
 	for _, d := range node.OrderOnlys {
 		err := n.emitNode(d)
 		if err != nil {
 			return err
 		}
+		glog.V(1).Infof("node %s order node %q %s", node.Output, d.Output, n.done[d.Output])
 	}
 	return nil
 }
@@ -653,27 +686,51 @@ func (n *NinjaGenerator) generateNinja(defaultTarget string) (err error) {
 		if err != nil {
 			return err
 		}
+		glog.V(1).Infof("node %q %s", node.Output, n.done[node.Output])
 	}
 
-	if defaultTarget != "" && n.done[defaultTarget] {
+	// emit phony targets for visited nodes that are
+	//  - not existing file
+	//  - not alias for other targets.
+	var nodes []string
+	for node, state := range n.done {
+		if state != nodeVisit {
+			continue
+		}
+		nodes = append(nodes, node)
+	}
+	if len(nodes) > 0 {
+		fmt.Fprintln(n.f)
+		sort.Strings(nodes)
+		for _, node := range nodes {
+			n.emitBuild(node, "phony", "", "")
+			fmt.Fprintln(n.f)
+			n.done[node] = nodeBuild
+		}
+	}
+
+	// emit default if the target was emitted.
+	if defaultTarget != "" && n.done[defaultTarget] == nodeBuild {
 		fmt.Fprintf(n.f, "\ndefault %s\n", escapeNinja(defaultTarget))
 	}
 
-	fmt.Fprintf(n.f, "\n# shortcuts:\n")
 	var names []string
 	for name := range n.shortNames {
-		if n.done[name] {
+		if n.done[name] != nodeInit {
 			continue
 		}
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
 		if len(n.shortNames[name]) != 1 {
 			// we generate shortcuts only for targets whose basename are unique.
 			continue
 		}
-		fmt.Fprintf(n.f, "build %s: phony %s\n", name, n.shortNames[name][0])
+		names = append(names, name)
+	}
+	if len(names) > 0 {
+		fmt.Fprintf(n.f, "\n# shortcuts:\n")
+		sort.Strings(names)
+		for _, name := range names {
+			fmt.Fprintf(n.f, "build %s: phony %s\n", name, n.shortNames[name][0])
+		}
 	}
 	return nil
 }
