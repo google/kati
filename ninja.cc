@@ -609,7 +609,8 @@ class NinjaGenerator {
 
     if (!build_all_targets) {
       CHECK(!nodes.empty());
-      fprintf(fp_, "\ndefault %s\n", nodes.front()->output.c_str());
+      fprintf(fp_, "\ndefault %s\n",
+              EscapeBuildTarget(nodes.front()->output).c_str());
     }
 
     fprintf(fp_, "\n# shortcuts:\n");
