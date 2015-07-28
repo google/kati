@@ -236,7 +236,7 @@ class NinjaGenerator {
 
         case '\n':
           if (prev_backslash) {
-            (*cmd_buf)[cmd_buf->size()-1] = ' ';
+            cmd_buf->resize(cmd_buf->size()-1);
           } else {
             *cmd_buf += ' ';
           }
