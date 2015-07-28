@@ -272,12 +272,14 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (cmd string, desc stri
 		}
 		cmd := stripShellComment(r.cmd)
 		cmd = trimLeftSpace(cmd)
+		cmd = strings.Replace(cmd, "\\\n\t", "", -1)
 		cmd = strings.Replace(cmd, "\\\n", "", -1)
 		cmd = strings.TrimRight(cmd, " \t\n;")
 		cmd = escapeNinja(cmd)
 		if cmd == "" {
 			cmd = "true"
 		}
+		glog.V(2).Infof("cmd %q=>%q", r.cmd, cmd)
 		if n.GomaDir != "" {
 			rcmd, ok := gomaCmdForAndroidCompileCmd(cmd)
 			if ok {

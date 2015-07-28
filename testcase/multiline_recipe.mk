@@ -1,4 +1,4 @@
-# TODO(c|go-ninja): fix test6 - \t$${empty} should be empty.
+# TODO(c): fix test6 - \t$${empty} should be empty.
 MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
 ifeq ($(MAKEVER),4)
 AT=@
