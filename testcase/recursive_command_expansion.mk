@@ -1,3 +1,5 @@
+unexport A
+
 A="$${A}"
 B=$(A)
 
