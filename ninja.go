@@ -245,7 +245,7 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (cmd string, desc stri
 		cmd = trimLeftSpace(cmd)
 		cmd = strings.Replace(cmd, "\\\n", "", -1)
 		cmd = strings.TrimRight(cmd, " \t\n;")
-		cmd = strings.Replace(cmd, "$", "$$", -1) // for ninja
+		cmd = escapeNinja(cmd)
 		if cmd == "" {
 			cmd = "true"
 		}
@@ -340,6 +340,10 @@ func getDepString(node *DepNode) (string, string) {
 	return strings.Join(deps, " "), strings.Join(orderOnlys, " ")
 }
 
+func escapeNinja(s string) string {
+	return strings.Replace(s, "$", "$$", -1)
+}
+
 func escapeShell(s string) string {
 	i := strings.IndexAny(s, "$`!\\\"")
 	if i < 0 {
@@ -396,7 +400,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	inputs, orderOnlys := getDepString(node)
 	if len(runners) > 0 {
 		ruleName = n.genRuleName()
-		fmt.Fprintf(n.f, "\n# rule for %s\n", node.Output)
+		fmt.Fprintf(n.f, "\n# rule for %q\n", node.Output)
 		fmt.Fprintf(n.f, "rule %s\n", ruleName)
 
 		ss, desc, ulp := n.genShellScript(runners)
@@ -418,17 +422,17 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		if len(cmdline) > ArgLenLimit {
 			fmt.Fprintf(n.f, " rspfile = $out.rsp\n")
 			if inputs != "" {
-				cmdline = strings.Replace(cmdline, inputs, "$in", -1)
+				cmdline = strings.Replace(cmdline, inputs, "${in}", -1)
 			}
-			cmdline = strings.Replace(cmdline, node.Output, "$out", -1)
+			cmdline = strings.Replace(cmdline, escapeNinja(node.Output), "${out}", -1)
 			fmt.Fprintf(n.f, " rspfile_content = %s\n", cmdline)
 			fmt.Fprintf(n.f, " command = %s $out.rsp\n", n.ctx.shell)
 		} else {
 			cmdline = escapeShell(cmdline)
 			if inputs != "" {
-				cmdline = strings.Replace(cmdline, escapeShell(inputs), "$in", -1)
+				cmdline = strings.Replace(cmdline, escapeShell(inputs), "${in}", -1)
 			}
-			cmdline = strings.Replace(cmdline, escapeShell(node.Output), "$out", -1)
+			cmdline = strings.Replace(cmdline, escapeShell(escapeNinja(node.Output)), "${out}", -1)
 			fmt.Fprintf(n.f, " command = %s -c \"%s\"\n", n.ctx.shell, cmdline)
 		}
 	}
@@ -625,7 +629,7 @@ func (n *NinjaGenerator) generateNinja(defaultTarget string) (err error) {
 	}
 
 	if defaultTarget != "" {
-		fmt.Fprintf(n.f, "\ndefault %s\n", defaultTarget)
+		fmt.Fprintf(n.f, "\ndefault %s\n", escapeNinja(defaultTarget))
 	}
 
 	fmt.Fprintf(n.f, "\n# shortcuts:\n")
