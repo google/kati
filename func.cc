@@ -534,30 +534,33 @@ void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   *s += var->Flavor();
 }
 
-void InfoFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    *s += "KATI_TODO(info)";
+    ev->add_delayed_output_command(StringPrintf("echo '%s'", a->c_str()));
     return;
   }
   printf("%s\n", a->c_str());
   fflush(stdout);
 }
 
-void WarningFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+void WarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    *s += "KATI_TODO(warning)";
+    ev->add_delayed_output_command(
+        StringPrintf("echo '%s:%d: %s' 2>&1", LOCF(ev->loc()), a->c_str()));
     return;
   }
   printf("%s:%d: %s\n", LOCF(ev->loc()), a->c_str());
   fflush(stdout);
 }
 
-void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   shared_ptr<string> a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    *s += "KATI_TODO(error)";
+    ev->add_delayed_output_command(
+        StringPrintf("echo '%s:%d: *** %s.' 2>&1 && false",
+                     LOCF(ev->loc()), a->c_str()));
     return;
   }
   ev->Error(StringPrintf("*** %s.", a->c_str()));

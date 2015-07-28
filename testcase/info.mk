@@ -1,4 +1,3 @@
-# TODO(ninja): Fix
-
 test:
-	echo $(info "%s:%s" foo bar)
+	echo $(info "%s:%s" foo bar)xxx
+	$(info baz)

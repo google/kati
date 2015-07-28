@@ -88,8 +88,13 @@ def run_in_testdir(test_filename)
   end
 end
 
-def normalize_ninja_log(log)
+def normalize_ninja_log(log, mk)
   log.gsub!(/^\[\d+\/\d+\] .*\n/, '')
+  if mk =~ /err_error_in_recipe.mk/
+    # This test expects ninja fails. Strip ninja specific error logs.
+    log.gsub!(/^FAILED: .*\n/, '')
+    log.gsub!(/^ninja: .*\n/, '')
+  end
   log
 end
 
@@ -195,7 +200,7 @@ run_make_test = proc do |mk|
       res = IO.popen(cmd, 'r:binary', &:read)
       if via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
         log = IO.popen('./ninja.sh -j1 -v 2>&1', 'r:binary', &:read)
-        res += normalize_ninja_log(log)
+        res += normalize_ninja_log(log, mk)
       end
       res = normalize_kati_log(res)
       output += "=== #{tc} ===\n" + res

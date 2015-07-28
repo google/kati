@@ -33,7 +33,6 @@ struct Command {
   shared_ptr<string> cmd;
   bool echo;
   bool ignore_error;
-  //StringPiece shell;
 };
 
 class CommandEvaluator {

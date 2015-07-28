@@ -1,5 +1,3 @@
-# TODO(ninja): Fix
-
 XY:=x 	y
 X:=$(subst y, ,$(XY))
 Y:=$(subst x, ,$(XY))

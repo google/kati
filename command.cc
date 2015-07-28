@@ -175,6 +175,7 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev)
 }
 
 void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
+  ev_->set_loc(n->loc);
   ev_->set_current_scope(n->rule_vars);
   current_dep_node_ = n;
   for (Value* v : n->cmds) {
@@ -209,5 +210,22 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
     }
     continue;
   }
+
+  if (!ev_->delayed_output_commands().empty()) {
+    vector<Command*> output_commands;
+    for (const string& cmd : ev_->delayed_output_commands()) {
+      Command* c = new Command(n->output);
+      c->cmd = make_shared<string>(cmd);
+      c->echo = false;
+      c->ignore_error = false;
+      output_commands.push_back(c);
+    }
+    // Prepend |output_commands|.
+    commands->swap(output_commands);
+    copy(output_commands.begin(), output_commands.end(),
+         back_inserter(*commands));
+    ev_->clear_delayed_output_commands();
+  }
+
   ev_->set_current_scope(NULL);
 }

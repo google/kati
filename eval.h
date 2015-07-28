@@ -59,6 +59,7 @@ class Evaluator {
   shared_ptr<string> EvalVar(Symbol name);
 
   const Loc& loc() const { return loc_; }
+  void set_loc(const Loc& loc) { loc_ = loc; }
 
   const vector<shared_ptr<Rule>>& rules() const { return rules_; }
   const unordered_map<Symbol, Vars*>& rule_vars() const {
@@ -76,6 +77,16 @@ class Evaluator {
   bool avoid_io() const { return avoid_io_; }
   void set_avoid_io(bool a) { avoid_io_ = a; }
 
+  const vector<string>& delayed_output_commands() const {
+    return delayed_output_commands_;
+  }
+  void add_delayed_output_command(const string& c) {
+    delayed_output_commands_.push_back(c);
+  }
+  void clear_delayed_output_commands() {
+    delayed_output_commands_.clear();
+  }
+
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
@@ -92,7 +103,11 @@ class Evaluator {
 
   Loc loc_;
   bool is_bootstrap_;
+
   bool avoid_io_;
+  // Commands which should run at ninja-time (i.e., info, warning, and
+  // error).
+  vector<string> delayed_output_commands_;
 };
 
 #endif  // EVAL_H_
