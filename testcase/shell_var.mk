@@ -1,4 +1,4 @@
-# TODO(ninja): Fix
+# TODO(c-ninja): Fix - ninja.sh should not use $SHELL.
 
 $(info $(SHELL))
 

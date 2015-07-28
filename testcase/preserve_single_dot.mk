@@ -1,4 +1,4 @@
-# TODO(ninja): Fix
+# TODO(ninja): Fix - ninja normalize a/./b to a, and mkdir a
 
 test: a/./b ./x
 

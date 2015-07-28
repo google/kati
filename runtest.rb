@@ -137,13 +137,19 @@ end
 run_make_test = proc do |mk|
   c = File.read(mk)
   expected_failure = false
-  if c =~ /\A# TODO(?:\(([a-z|]+)\))?/
+  if c =~ /\A# TODO(?:\(([-a-z|]+)\))?/
     if $1
       todos = $1.split('|')
       if todos.include?('go') && !ckati
         expected_failure = true
       end
       if todos.include?('c') && ckati
+        expected_failure = true
+      end
+      if todos.include?('go-ninja') && !ckati && via_ninja
+        expected_failure = true
+      end
+      if todos.include?('c-ninja') && ckati && via_ninja
         expected_failure = true
       end
       if todos.include?('ninja') && via_ninja

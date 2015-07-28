@@ -1,4 +1,5 @@
-# TODO(c): Fix
+# TODO(c|go-ninja): Fix
+# go-ninja: wrong escape a:b vs a\:b
 
 test: a\ b
 	echo $@ / $<

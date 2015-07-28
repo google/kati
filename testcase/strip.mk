@@ -1,3 +1,5 @@
+# TODO(go-ninja): Fix - KATI_TODO(info)
+
 XY:=x 	y
 X:=$(subst y, ,$(XY))
 Y:=$(subst x, ,$(XY))

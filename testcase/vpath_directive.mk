@@ -1,4 +1,4 @@
-# TODO(c): Implement vpath.
+# TODO(c|go-ninja): Implement vpath.
 
 vpath %.c dir
 
