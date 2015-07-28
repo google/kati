@@ -156,11 +156,15 @@ type Evaluator struct {
 	vars         Vars
 	lastRule     *rule
 	currentScope Vars
-	avoidIO      bool
-	hasIO        bool
 	cache        *accessCache
 	exports      map[string]bool
 	vpaths       []vpath
+
+	avoidIO bool
+	hasIO   bool
+	// delayedOutputs are commands which should run at ninja-time
+	// (i.e., info, warning, and error).
+	delayedOutputs []string
 
 	srcpos
 }

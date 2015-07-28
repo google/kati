@@ -1338,15 +1338,17 @@ func (f *funcInfo) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	if ev.avoidIO {
-		io.WriteString(w, "KATI_TODO(info)")
-		ev.hasIO = true
-		return nil
-	}
 	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
+	}
+	if ev.avoidIO {
+		ev.delayedOutputs = append(ev.delayedOutputs,
+			fmt.Sprintf("echo %q", abuf.String()))
+		ev.hasIO = true
+		abuf.release()
+		return nil
 	}
 	fmt.Printf("%s\n", abuf.String())
 	abuf.release()
@@ -1361,15 +1363,17 @@ func (f *funcWarning) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	if ev.avoidIO {
-		io.WriteString(w, "KATI_TODO(warning)")
-		ev.hasIO = true
-		return nil
-	}
 	abuf := newEbuf()
 	err = f.args[1].Eval(abuf, ev)
 	if err != nil {
 		return err
+	}
+	if ev.avoidIO {
+		ev.delayedOutputs = append(ev.delayedOutputs,
+			fmt.Sprintf("echo '%s: %s' 1>&2", ev.srcpos, abuf.String()))
+		ev.hasIO = true
+		abuf.release()
+		return nil
 	}
 	fmt.Printf("%s: %s\n", ev.srcpos, abuf.String())
 	abuf.release()
@@ -1384,16 +1388,18 @@ func (f *funcError) Eval(w evalWriter, ev *Evaluator) error {
 	if err != nil {
 		return err
 	}
-	if ev.avoidIO {
-		io.WriteString(w, "KATI_TODO(error)")
-		ev.hasIO = true
-		return nil
-	}
 	var abuf evalBuffer
 	abuf.resetSep()
 	err = f.args[1].Eval(&abuf, ev)
 	if err != nil {
 		return err
+	}
+	if ev.avoidIO {
+		ev.delayedOutputs = append(ev.delayedOutputs,
+			fmt.Sprintf("echo '%s: *** %s.' 1>&2 && false", ev.srcpos, abuf.String()))
+		ev.hasIO = true
+		abuf.release()
+		return nil
 	}
 	return ev.errorf("*** %s.", abuf.String())
 }

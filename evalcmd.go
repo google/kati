@@ -326,6 +326,19 @@ func createRunners(ctx *execContext, n *DepNode) ([]runner, bool, error) {
 			}
 		}
 	}
+	if len(ctx.ev.delayedOutputs) > 0 {
+		var nrunners []runner
+		r := runner{
+			output: n.Output,
+			shell:  ctx.shell,
+		}
+		for _, o := range ctx.ev.delayedOutputs {
+			nrunners = append(nrunners, r.forCmd(o))
+		}
+		nrunners = append(nrunners, runners...)
+		runners = nrunners
+		ctx.ev.delayedOutputs = nil
+	}
 	return runners, ctx.ev.hasIO, nil
 }
 
