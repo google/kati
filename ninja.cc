@@ -391,6 +391,10 @@ class NinjaGenerator {
     if (!p.second)
       return;
 
+    // Removing this will fix auto_vars.mk, build_once.mk, and
+    // command_vars.mk. However, this change will make
+    // ninja_normalized_path2.mk fail and cause a lot of warnings for
+    // Android build.
     if (node->cmds.empty() &&
         node->deps.empty() && node->order_onlys.empty() && !node->is_phony) {
       return;
