@@ -574,16 +574,8 @@ func (f *funcWildcard) Eval(w evalWriter, ev *Evaluator) error {
 		return err
 	}
 	te := traceEvent.begin("wildcard", tmpval(wb.Bytes()), traceEventMain)
-	if false && ev.avoidIO {
-		// no need to handle avoidIO? - wildcard_cache.mk
-		ev.hasIO = true
-		io.WriteString(w, "$(/bin/ls -f -d ")
-		w.Write(wb.Bytes())
-		io.WriteString(w, " 2> /dev/null)")
-		wb.release()
-		traceEvent.end(te)
-		return nil
-	}
+	// Note GNU make does not delay the execution of $(wildcard) so we
+	// do not need to check avoid_io here.
 	t := time.Now()
 	for _, word := range wb.words {
 		pat := string(word)
