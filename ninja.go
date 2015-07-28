@@ -373,6 +373,24 @@ func escapeShell(s string) string {
 	return buf.String()
 }
 
+func (n *NinjaGenerator) ninjaVars(s string, nv [][]string, esc func(string) string) string {
+	for _, v := range nv {
+		k, v := v[0], v[1]
+		if v == "" {
+			continue
+		}
+		if strings.Contains(v, "/./") || strings.Contains(v, "/../") {
+			// ninja will normalize this, so keep it as is
+			continue
+		}
+		if esc != nil {
+			v = esc(v)
+		}
+		s = strings.Replace(s, v, k, -1)
+	}
+	return s
+}
+
 func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	if n.done[node.Output] {
 		return nil
@@ -418,23 +436,21 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 			fmt.Fprintf(n.f, " depfile = %s\n", depfile)
 			fmt.Fprintf(n.f, " deps = gcc\n")
 		}
+		nv := [][]string{
+			[]string{"${in}", inputs},
+			[]string{"${out}", escapeNinja(node.Output)},
+		}
 		// It seems Linux is OK with ~130kB.
 		// TODO: Find this number automatically.
 		ArgLenLimit := 100 * 1000
 		if len(cmdline) > ArgLenLimit {
 			fmt.Fprintf(n.f, " rspfile = $out.rsp\n")
-			if inputs != "" {
-				cmdline = strings.Replace(cmdline, inputs, "${in}", -1)
-			}
-			cmdline = strings.Replace(cmdline, escapeNinja(node.Output), "${out}", -1)
+			cmdline = n.ninjaVars(cmdline, nv, nil)
 			fmt.Fprintf(n.f, " rspfile_content = %s\n", cmdline)
 			fmt.Fprintf(n.f, " command = %s $out.rsp\n", n.ctx.shell)
 		} else {
 			cmdline = escapeShell(cmdline)
-			if inputs != "" {
-				cmdline = strings.Replace(cmdline, escapeShell(inputs), "${in}", -1)
-			}
-			cmdline = strings.Replace(cmdline, escapeShell(escapeNinja(node.Output)), "${out}", -1)
+			cmdline = n.ninjaVars(cmdline, nv, escapeShell)
 			fmt.Fprintf(n.f, " command = %s -c \"%s\"\n", n.ctx.shell, cmdline)
 		}
 	}

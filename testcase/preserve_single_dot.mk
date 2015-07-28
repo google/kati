@@ -1,5 +1,3 @@
-# TODO(go-ninja): Fix - ninja normalize a/./b to a/b.
-
 test: a/./b ./x
 
 a/./b:
