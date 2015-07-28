@@ -184,8 +184,8 @@ run_make_test = proc do |mk|
       end
       cmd += " #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
-      if via_ninja && File.exist?('build.ninja')
-        res += normalize_ninja_log(IO.popen('ninja -j1 -v', 'r:binary', &:read))
+      if via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
+        res += normalize_ninja_log(IO.popen('./ninja.sh -j1 -v', 'r:binary', &:read))
       end
       res = normalize_kati_log(res)
       output += "=== #{tc} ===\n" + res
