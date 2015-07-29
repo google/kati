@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"strings"
 	"text/template"
 	"time"
 
@@ -58,8 +57,6 @@ var (
 	ninjaSuffix         string
 	gomaDir             string
 	detectAndroidEcho   bool
-	findCachePrunes     string
-	findCacheLeafNames  string
 	shellDate           string
 )
 
@@ -91,10 +88,6 @@ func init() {
 	// TODO(ukai): implement --regen
 	flag.BoolVar(&detectAndroidEcho, "detect_android_echo", false, "detect echo as ninja description.")
 
-	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
-		"space separated prune directories for find cache.")
-	flag.StringVar(&findCacheLeafNames, "find_cache_leaf_names", "",
-		"space separated leaf names for find cache.")
 	flag.StringVar(&shellDate, "shell_date", "", "specify $(shell date) time as "+shellDateTimeformat)
 
 	flag.BoolVar(&kati.StatsFlag, "kati_stats", false, "Show a bunch of statistics")
@@ -104,7 +97,7 @@ func init() {
 	flag.BoolVar(&kati.DryRunFlag, "n", false, "Only print the commands that would be executed")
 
 	// TODO: Make this default.
-	flag.BoolVar(&kati.UseFindCache, "use_find_cache", false, "Use find cache.")
+	flag.BoolVar(&kati.UseFindEmulator, "use_find_emulator", false, "use find emulator")
 	flag.BoolVar(&kati.UseShellBuiltins, "use_shell_builtins", true, "Use shell builtins")
 	flag.StringVar(&kati.IgnoreOptionalInclude, "ignore_optional_include", "", "If specified, skip reading -include directives start with the specified path.")
 }
@@ -164,10 +157,7 @@ func m2nsetup() {
 	fmt.Println("kati: m2n mode")
 	generateNinja = true
 	kati.IgnoreOptionalInclude = "out/%.P"
-	kati.UseFindCache = true
-	if findCachePrunes == "" {
-		findCachePrunes = ".git .repo out"
-	}
+	kati.UseFindEmulator = true
 }
 
 func gomasetup() {
@@ -273,15 +263,6 @@ func katiMain(args []string) error {
 			panic(err)
 		}
 		kati.ShellDateTimestamp = t
-	}
-
-	var leafNames []string
-	if findCacheLeafNames != "" {
-		leafNames = strings.Fields(findCacheLeafNames)
-	}
-	if findCachePrunes != "" {
-		kati.UseFindCache = true
-		kati.AndroidFindCacheInit(strings.Fields(findCachePrunes), leafNames)
 	}
 
 	req := kati.FromCommandLine(args)

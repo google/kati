@@ -22,7 +22,7 @@ var (
 
 	DryRunFlag bool
 
-	UseFindCache     bool
+	UseFindEmulator  bool
 	UseShellBuiltins bool
 
 	IgnoreOptionalInclude string

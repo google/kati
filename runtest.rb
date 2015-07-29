@@ -200,7 +200,7 @@ run_make_test = proc do |mk|
     cleanup
     testcases.each do |tc|
       json = "#{tc.empty? ? 'test' : tc}"
-      cmd = "../../kati -save_json=#{json}.json -log_dir=."
+      cmd = "../../kati -save_json=#{json}.json -log_dir=. --use_find_emulator"
       if ckati
         cmd = "../../ckati --use_find_emulator"
       end

@@ -948,6 +948,17 @@ func (f *funcShell) Eval(w evalWriter, ev *Evaluator) error {
 	}
 	arg := abuf.String()
 	abuf.release()
+	if bc, err := parseBuiltinCommand(arg); err != nil {
+		glog.V(1).Infof("sh builtin: %v", err)
+	} else {
+		glog.Info("use sh builtin:", arg)
+		glog.V(2).Infof("builtin command: %#v", bc)
+		te := traceEvent.begin("sh-builtin", literal(arg), traceEventMain)
+		bc.run(w)
+		traceEvent.end(te)
+		return nil
+	}
+
 	shellVar, err := ev.EvaluateVar("SHELL")
 	if err != nil {
 		return err
@@ -976,7 +987,7 @@ func (f *funcShell) Compact() Value {
 	if len(f.args)-1 < 1 {
 		return f
 	}
-	if !UseFindCache && !UseShellBuiltins {
+	if !UseShellBuiltins {
 		return f
 	}
 

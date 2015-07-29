@@ -32,9 +32,7 @@ type traceEventT struct {
 
 const (
 	traceEventMain = iota + 1
-	traceEventFindCache
-	traceEventFindCacheLeaves
-	traceEventFindCacheFiles
+	// add new ones to use new goroutine.
 )
 
 var traceEvent traceEventT
@@ -80,7 +78,7 @@ func (t *traceEventT) begin(name string, v Value, tid int) event {
 		e.v = v.String()
 	}
 	if t.f != nil {
-		e.emit = name == "include" || name == "shell" || name == "findcache"
+		e.emit = name == "include" || name == "shell"
 		if e.emit {
 			t.emit("B", e, e.t.Sub(t.t0))
 		}

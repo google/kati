@@ -18,38 +18,63 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"runtime"
-	"sort"
+	"strconv"
 	"strings"
 	"sync"
-	"time"
+	"syscall"
 
 	"github.com/golang/glog"
 )
 
-type wildcardCacheT struct {
-	mu     sync.Mutex
-	dirent map[string][]string
+type fileid struct {
+	dev, ino uint64
 }
 
-var wildcardCache = &wildcardCacheT{
-	dirent: make(map[string][]string),
+var (
+	unknownFileid = fileid{}
+	invalidFileid = fileid{dev: 1<<64 - 1, ino: 1<<64 - 1}
+)
+
+type dirent struct {
+	id    fileid
+	name  string
+	lmode os.FileMode
+	mode  os.FileMode
+	// add other fields to support more find commands?
 }
 
-func (w *wildcardCacheT) dirs() int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return len(w.dirent)
+type fsCacheT struct {
+	mu      sync.Mutex
+	ids     map[string]fileid
+	dirents map[fileid][]dirent
 }
 
-func (w *wildcardCacheT) files() int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+var fsCache = &fsCacheT{
+	ids: make(map[string]fileid),
+	dirents: map[fileid][]dirent{
+		invalidFileid: nil,
+	},
+}
+
+func init() {
+	fsCache.readdir(".", unknownFileid)
+}
+
+func (c *fsCacheT) dirs() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.dirents)
+}
+
+func (c *fsCacheT) files() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	n := 0
-	for _, names := range w.dirent {
-		n += len(names)
+	for _, ents := range c.dirents {
+		n += len(ents)
 	}
 	return n
 }
@@ -77,74 +102,157 @@ func wildcardUnescape(pat string) string {
 	return buf.String()
 }
 
-func filepathClean(path string) string {
-	if path == "" {
-		return "."
+func filepathJoin(names ...string) string {
+	var dir string
+	for i, n := range names {
+		dir += n
+		if i != len(names)-1 && n != "" && n[len(n)-1] != '/' {
+			dir += "/"
+		}
 	}
-	dir, file := filepath.Split(path)
-	if dir == "" {
-		return file
-	}
-	if dir == string(filepath.Separator) {
-		return dir + file
-	}
-	dir = strings.TrimRight(dir, string(filepath.Separator))
-	dir = filepathClean(dir)
-	if file == "." {
-		return dir
-	}
-	// TODO(ukai): when file == "..", and dir is not symlink,
-	// we can remove "..".
-	return dir + string(filepath.Separator) + file
+	return dir
 }
 
-func (w *wildcardCacheT) readdirnames(dir string) []string {
-	dir = filepathClean(dir)
-	w.mu.Lock()
-	names, ok := w.dirent[dir]
-	w.mu.Unlock()
+func filepathClean(path string) string {
+	var names []string
+	if filepath.IsAbs(path) {
+		names = append(names, "")
+	}
+	paths := strings.Split(path, string(filepath.Separator))
+Loop:
+	for _, n := range paths {
+		if n == "" || n == "." {
+			continue Loop
+		}
+		if n == ".." && len(names) > 0 {
+			dir, last := names[:len(names)-1], names[len(names)-1]
+			parent := strings.Join(dir, string(filepath.Separator))
+			if parent == "" {
+				parent = "."
+			}
+			_, ents := fsCache.readdir(parent, unknownFileid)
+			for _, e := range ents {
+				if e.name != last {
+					continue
+				}
+				if e.lmode&os.ModeSymlink == os.ModeSymlink && e.mode&os.ModeDir == os.ModeDir {
+					// preserve .. if last is symlink dir.
+					names = append(names, "..")
+					continue Loop
+				}
+				// last is not symlink, maybe safe to clean.
+				names = names[:len(names)-1]
+				continue Loop
+			}
+			// parent doesn't exists? preserve ..
+			names = append(names, "..")
+			continue Loop
+		}
+		names = append(names, n)
+	}
+	if len(names) == 0 {
+		return "."
+	}
+	return strings.Join(names, string(filepath.Separator))
+}
+
+func (c *fsCacheT) fileid(dir string) fileid {
+	c.mu.Lock()
+	id := c.ids[dir]
+	c.mu.Unlock()
+	return id
+}
+
+func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
+	glog.V(3).Infof("readdir: %s", dir)
+	c.mu.Lock()
+	if id == unknownFileid {
+		id = c.ids[dir]
+	}
+	ents, ok := c.dirents[id]
+	c.mu.Unlock()
 	if ok {
-		return names
+		return id, ents
 	}
 	d, err := os.Open(dir)
 	if err != nil {
-		w.mu.Lock()
-		w.dirent[dir] = nil
-		w.mu.Unlock()
-		return nil
+		c.mu.Lock()
+		c.ids[dir] = invalidFileid
+		c.mu.Unlock()
+		return invalidFileid, nil
 	}
 	defer d.Close()
-	names, _ = d.Readdirnames(-1)
-	sort.Strings(names)
-	w.mu.Lock()
-	w.dirent[dir] = names
-	w.mu.Unlock()
-	return names
+	fi, err := d.Stat()
+	if err != nil {
+		c.mu.Lock()
+		c.ids[dir] = invalidFileid
+		c.mu.Unlock()
+		return invalidFileid, nil
+	}
+	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+		id = fileid{dev: stat.Dev, ino: stat.Ino}
+	}
+	names, _ := d.Readdirnames(-1)
+	// need sort?
+	ents = nil
+	var path string
+	for _, name := range names {
+		path = filepath.Join(dir, name)
+		fi, err := os.Lstat(path)
+		if err != nil {
+			glog.Warningf("readdir %s: %v", name, err)
+			ents = append(ents, dirent{name: name})
+			continue
+		}
+		lmode := fi.Mode()
+		mode := lmode
+		if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+			id = fileid{dev: stat.Dev, ino: stat.Ino}
+		}
+		if lmode&os.ModeSymlink == os.ModeSymlink {
+			fi, err = os.Stat(path)
+			if err != nil {
+				glog.Warningf("readdir %s: %v", name, err)
+			} else {
+				mode = fi.Mode()
+				if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+					id = fileid{dev: stat.Dev, ino: stat.Ino}
+				}
+			}
+		}
+		ents = append(ents, dirent{id: id, name: name, lmode: lmode, mode: mode})
+	}
+	glog.V(3).Infof("readdir:%s => %v: %v", dir, id, ents)
+	c.mu.Lock()
+	c.ids[dir] = id
+	c.dirents[id] = ents
+	c.mu.Unlock()
+	return id, ents
 }
 
 // glob searches for files matching pattern in the directory dir
 // and appends them to matches. ignore I/O errors.
-func (w *wildcardCacheT) glob(dir, pattern string, matches []string) ([]string, error) {
-	names := w.readdirnames(dir)
+func (c *fsCacheT) glob(dir, pattern string, matches []string) ([]string, error) {
+	_, ents := c.readdir(filepathClean(dir), unknownFileid)
 	switch dir {
 	case "", string(filepath.Separator):
 		// nothing
 	default:
 		dir += string(filepath.Separator) // add trailing separator back
 	}
-	for _, n := range names {
-		matched, err := filepath.Match(pattern, n)
+	for _, ent := range ents {
+		matched, err := filepath.Match(pattern, ent.name)
 		if err != nil {
 			return nil, err
 		}
 		if matched {
-			matches = append(matches, dir+n)
+			matches = append(matches, dir+ent.name)
 		}
 	}
 	return matches, nil
 }
 
-func (w *wildcardCacheT) Glob(pat string) ([]string, error) {
+func (c *fsCacheT) Glob(pat string) ([]string, error) {
 	// TODO(ukai): expand ~ to user's home directory.
 	// TODO(ukai): use find cache for glob if exists
 	// or use wildcardCache for find cache.
@@ -157,16 +265,16 @@ func (w *wildcardCacheT) Glob(pat string) ([]string, error) {
 		dir = dir[:len(dir)-1] // chop off trailing separator
 	}
 	if !hasWildcardMeta(dir) {
-		return w.glob(dir, file, nil)
+		return c.glob(dir, file, nil)
 	}
 
-	m, err := w.Glob(dir)
+	m, err := c.Glob(dir)
 	if err != nil {
 		return nil, err
 	}
 	var matches []string
 	for _, d := range m {
-		matches, err = w.glob(d, file, matches)
+		matches, err = c.glob(d, file, matches)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +283,7 @@ func (w *wildcardCacheT) Glob(pat string) ([]string, error) {
 }
 
 func wildcard(w evalWriter, pat string) error {
-	files, err := wildcardCache.Glob(pat)
+	files, err := fsCache.Glob(pat)
 	if err != nil {
 		return err
 	}
@@ -185,430 +293,632 @@ func wildcard(w evalWriter, pat string) error {
 	return nil
 }
 
-type fileInfo struct {
-	path string
-	mode os.FileMode
+type findOp interface {
+	apply(evalWriter, string, dirent) (test bool, prune bool)
 }
 
-type androidFindCacheT struct {
-	once     sync.Once
-	filesch  chan []fileInfo
-	leavesch chan []fileInfo
-	files    []fileInfo
-	leaves   []fileInfo
-	scanTime time.Duration
+type findOpName string
+
+func (op findOpName) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	matched, err := filepath.Match(string(op), ent.name)
+	if err != nil {
+		glog.Warningf("find -name %q: %v", string(op), err)
+		return false, false
+	}
+	return matched, false
+}
+
+type findOpType struct {
+	mode           os.FileMode
+	followSymlinks bool
+}
+
+func (op findOpType) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	mode := ent.lmode
+	if op.followSymlinks && ent.mode != 0 {
+		mode = ent.mode
+	}
+	return op.mode&mode == op.mode, false
+}
+
+type findOpRegular struct {
+	followSymlinks bool
+}
+
+func (op findOpRegular) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	mode := ent.lmode
+	if op.followSymlinks && ent.mode != 0 {
+		mode = ent.mode
+	}
+	return mode.IsRegular(), false
+}
+
+type findOpNot struct {
+	op findOp
+}
+
+func (op findOpNot) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	test, prune := op.op.apply(w, path, ent)
+	return !test, prune
+}
+
+type findOpAnd []findOp
+
+func (op findOpAnd) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	var prune bool
+	for _, o := range op {
+		test, p := o.apply(w, path, ent)
+		if p {
+			prune = true
+		}
+		if !test {
+			return test, prune
+		}
+	}
+	return true, prune
+}
+
+type findOpOr struct {
+	op1, op2 findOp
+}
+
+func (op findOpOr) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	test, prune := op.op1.apply(w, path, ent)
+	if test {
+		return test, prune
+	}
+	return op.op2.apply(w, path, ent)
+}
+
+type findOpPrune struct{}
+
+func (op findOpPrune) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	return true, true
+}
+
+type findOpPrint struct{}
+
+func (op findOpPrint) apply(w evalWriter, path string, ent dirent) (bool, bool) {
+	var name string
+	if path == "" {
+		name = ent.name
+	} else if ent.name == "." {
+		name = path
+	} else {
+		name = filepathJoin(path, ent.name)
+	}
+	glog.V(3).Infof("find print: %s", name)
+	w.writeWordString(name)
+	return true, false
+}
+
+func (c *fsCacheT) find(w evalWriter, fc findCommand, path string, id fileid, depth int, seen map[fileid]string) {
+	glog.V(2).Infof("find: path:%s depth:%d", path, depth)
+	id, ents := c.readdir(filepathClean(filepathJoin(fc.chdir, path)), id)
+	if ents == nil {
+		glog.V(1).Infof("find: %s %s not found", fc.chdir, path)
+		return
+	}
+	for _, ent := range ents {
+		glog.V(3).Infof("find: path:%s ent:%s depth:%d", path, ent.name, depth)
+		_, prune := fc.apply(w, path, ent)
+		mode := ent.lmode
+		if fc.followSymlinks {
+			if mode&os.ModeSymlink == os.ModeSymlink {
+				lpath := filepathJoin(path, ent.name)
+				if p, ok := seen[ent.id]; ok {
+					// stderr?
+					glog.Errorf("find: File system loop detected; `%s' is part of the same file system loop as `%s'.", lpath, p)
+					return
+				}
+				seen[ent.id] = lpath
+			}
+			mode = ent.mode
+		}
+		if !mode.IsDir() {
+			glog.V(3).Infof("find: not dir: %s/%s", path, ent.name)
+			continue
+		}
+		if prune {
+			glog.V(3).Infof("find: prune: %s", path)
+			continue
+		}
+		if depth >= fc.depth {
+			glog.V(3).Infof("find: depth: %d >= %d", depth, fc.depth)
+			continue
+		}
+		c.find(w, fc, filepathJoin(path, ent.name), ent.id, depth+1, seen)
+	}
+}
+
+type findCommand struct {
+	testdir        string // before chdir
+	chdir          string
+	finddirs       []string // after chdir
+	followSymlinks bool
+	ops            []findOp
+	depth          int
+}
+
+func parseFindCommand(cmd string) (findCommand, error) {
+	if !strings.Contains(cmd, "find") {
+		return findCommand{}, errNotFind
+	}
+	fcp := findCommandParser{
+		shellParser: shellParser{
+			cmd: cmd,
+		},
+	}
+	err := fcp.parse()
+	if err != nil {
+		return fcp.fc, err
+	}
+	if len(fcp.fc.finddirs) == 0 {
+		fcp.fc.finddirs = append(fcp.fc.finddirs, ".")
+	}
+	if fcp.fc.chdir != "" {
+		fcp.fc.chdir = filepathClean(fcp.fc.chdir)
+	}
+	if filepath.IsAbs(fcp.fc.chdir) {
+		return fcp.fc, errFindAbspath
+	}
+	for _, dir := range fcp.fc.finddirs {
+		if filepath.IsAbs(dir) {
+			return fcp.fc, errFindAbspath
+		}
+	}
+	return fcp.fc, nil
+}
+
+func (fc findCommand) run(w evalWriter) {
+	glog.V(3).Infof("find: %#v", fc)
+	_, ents := fsCache.readdir(filepathClean(fc.testdir), unknownFileid)
+	if ents == nil {
+		glog.V(1).Infof("find: testdir %s - not dir", fc.testdir)
+		return
+	}
+	for _, dir := range fc.finddirs {
+		seen := make(map[fileid]string)
+		id, _ := fsCache.readdir(filepathClean(filepathJoin(fc.chdir, dir)), unknownFileid)
+		_, prune := fc.apply(w, dir, dirent{id: id, name: ".", mode: os.ModeDir, lmode: os.ModeDir})
+		if prune {
+			glog.V(3).Infof("find: prune: %s", dir)
+			continue
+		}
+		if 0 >= fc.depth {
+			glog.V(3).Infof("find: depth: 0 >= %d", fc.depth)
+			continue
+		}
+		fsCache.find(w, fc, dir, id, 1, seen)
+	}
+}
+
+func (fc findCommand) apply(w evalWriter, path string, ent dirent) (test, prune bool) {
+	var p bool
+	for _, op := range fc.ops {
+		test, p = op.apply(w, path, ent)
+		if p {
+			prune = true
+		}
+		if !test {
+			break
+		}
+	}
+	glog.V(2).Infof("apply path:%s ent:%v => test=%t, prune=%t", path, ent, test, prune)
+	return test, prune
 }
 
 var (
-	androidFindCache        androidFindCacheT
-	androidDefaultLeafNames = []string{"CleanSpec.mk", "Android.mk"}
+	errNotFind             = errors.New("not find command")
+	errFindBackground      = errors.New("find command: background")
+	errFindUnbalancedQuote = errors.New("find command: unbalanced quote")
+	errFindDupChdir        = errors.New("find command: dup chdir")
+	errFindDupTestdir      = errors.New("find command: dup testdir")
+	errFindExtra           = errors.New("find command: extra")
+	errFindUnexpectedEnd   = errors.New("find command: unexpected end")
+	errFindAbspath         = errors.New("find command: abs path")
+	errFindChdirAndTestdir = errors.New("find command: chdir, testdir")
 )
 
-// AndroidFindCacheInit initializes find cache for android build.
-func AndroidFindCacheInit(prunes, leafNames []string) {
-	if !UseFindCache {
-		return
-	}
-	if leafNames != nil {
-		androidDefaultLeafNames = leafNames
-	}
-	androidFindCache.init(prunes)
+type findCommandParser struct {
+	fc findCommand
+	shellParser
 }
 
-func (c *androidFindCacheT) ready() bool {
-	if !UseFindCache {
-		return false
-	}
-	if c.files != nil {
-		return true
-	}
-	select {
-	case c.files = <-c.filesch:
-	}
-	return c.files != nil
-}
-
-func (c *androidFindCacheT) leavesReady() bool {
-	if !UseFindCache {
-		return false
-	}
-	if c.leaves != nil {
-		return true
-	}
-	select {
-	case c.leaves = <-c.leavesch:
-	}
-	return c.leaves != nil
-}
-
-func (c *androidFindCacheT) init(prunes []string) {
-	if !UseFindCache {
-		return
-	}
-	c.once.Do(func() {
-		c.filesch = make(chan []fileInfo, 1)
-		c.leavesch = make(chan []fileInfo, 1)
-		go c.start(prunes, androidDefaultLeafNames)
-	})
-}
-
-func (c *androidFindCacheT) start(prunes, leafNames []string) {
-	glog.Infof("find cache init: prunes=%q leafNames=%q", prunes, leafNames)
-	te := traceEvent.begin("findcache", literal("init"), traceEventFindCache)
-	defer func() {
-		traceEvent.end(te)
-		c.scanTime = time.Since(te.t)
-		logStats("android find cache scan: %v", c.scanTime)
-	}()
-
-	dirs := make(chan string, 32)
-	filech := make(chan fileInfo, 1000)
-	leafch := make(chan fileInfo, 1000)
-	var wg sync.WaitGroup
-	numWorker := runtime.NumCPU() - 1
-	wg.Add(numWorker)
-	for i := 0; i < numWorker; i++ {
-		go func() {
-			defer wg.Done()
-			for dir := range dirs {
-				err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-					if info.IsDir() {
-						for _, prune := range prunes {
-							if info.Name() == prune {
-								glog.V(1).Infof("find cache prune: %s", path)
-								return filepath.SkipDir
-							}
-						}
-					}
-					filech <- fileInfo{
-						path: path,
-						mode: info.Mode(),
-					}
-					for _, leaf := range leafNames {
-						if info.Name() == leaf {
-							glog.V(1).Infof("find cache leaf: %s", path)
-							leafch <- fileInfo{
-								path: path,
-								mode: info.Mode(),
-							}
-							break
-						}
-					}
-					return nil
-				})
-				if err != nil && err != filepath.SkipDir {
-					glog.Warningf("error in adnroid find cache: %v", err)
-					close(c.filesch)
-					close(c.leavesch)
-					return
-				}
-			}
-		}()
-	}
-
-	go func() {
-		dirs := make(map[string]bool)
-		leavesTe := traceEvent.begin("findcache", literal("leaves"), traceEventFindCacheLeaves)
-		var leaves []fileInfo
-		nfiles := 0
-		for leaf := range leafch {
-			leaves = append(leaves, leaf)
-			nfiles++
-			for dir := filepath.Dir(leaf.path); dir != "."; dir = filepath.Dir(dir) {
-				if dirs[dir] {
-					break
-				}
-				leaves = append(leaves, fileInfo{
-					path: dir,
-					mode: leaf.mode | os.ModeDir,
-				})
-				dirs[dir] = true
-			}
-		}
-		sort.Sort(fileInfoByLeaf(leaves))
-		c.leavesch <- leaves
-		traceEvent.end(leavesTe)
-		logStats("%d leaves %d dirs in find cache", nfiles, len(dirs))
-		if !glog.V(1) {
-			return
-		}
-		for i, leaf := range leaves {
-			glog.Infof("android findleaves cache: %d: %s %v", i, leaf.path, leaf.mode)
-		}
-	}()
-
-	go func() {
-		filesTe := traceEvent.begin("findcache", literal("files"), traceEventFindCacheFiles)
-		var files []fileInfo
-		for file := range filech {
-			files = append(files, file)
-		}
-		sort.Sort(fileInfoByName(files))
-		c.filesch <- files
-		traceEvent.end(filesTe)
-		logStats("%d files in find cache", len(files))
-		if !glog.V(1) {
-			return
-		}
-		for i, fi := range files {
-			glog.Infof("android find cache: %d: %s %v", i, fi.path, fi.mode)
-		}
-	}()
-
-	curdir, err := os.Open(".")
-	if err != nil {
-		glog.Warningf("open . failed: %v", err)
-		close(c.filesch)
-		close(c.leavesch)
-		return
-	}
-	names, err := curdir.Readdirnames(-1)
-	if err != nil {
-		glog.Warningf("readdir . failed: %v", err)
-		close(c.filesch)
-		close(c.leavesch)
-		return
-	}
-	curdir.Close()
-
-	for _, name := range names {
-		dirs <- name
-	}
-	close(dirs)
-	wg.Wait()
-	close(filech)
-	close(leafch)
-}
-
-type fileInfoByName []fileInfo
-
-func (f fileInfoByName) Len() int      { return len(f) }
-func (f fileInfoByName) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
-func (f fileInfoByName) Less(i, j int) bool {
-	return f[i].path < f[j].path
-}
-
-type fileInfoByLeaf []fileInfo
-
-func (f fileInfoByLeaf) Len() int      { return len(f) }
-func (f fileInfoByLeaf) Swap(i, j int) { f[i], f[j] = f[j], f[i] }
-func (f fileInfoByLeaf) Less(i, j int) bool {
-	di := strings.Count(f[i].path, "/")
-	dj := strings.Count(f[j].path, "/")
-	if di != dj {
-		return di < dj
-	}
-	diri := filepath.Dir(f[i].path) + "/"
-	dirj := filepath.Dir(f[j].path) + "/"
-	if diri != dirj {
-		return diri < dirj
-	}
-	mdi := f[i].mode & os.ModeDir
-	mdj := f[j].mode & os.ModeDir
-	if mdi != mdj {
-		return mdi < mdj
-	}
-	return f[i].path < f[j].path
-}
-
-var errSkipDir = errors.New("skip dir")
-
-func (c *androidFindCacheT) walk(dir string, walkFn func(int, fileInfo) error) error {
-	i := sort.Search(len(c.files), func(i int) bool {
-		return c.files[i].path >= dir
-	})
-	glog.V(1).Infof("android find in dir cache: %s i=%d/%d", dir, i, len(c.files))
-	start := i
-	var skipdirs []string
-Loop:
-	for i := start; i < len(c.files); i++ {
-		if c.files[i].path == dir {
-			err := walkFn(i, c.files[i])
-			if err != nil {
-				return err
-			}
-			continue
-		}
-		if !strings.HasPrefix(c.files[i].path, dir) {
-			glog.V(1).Infof("android find in dir cache: %s end=%d/%d", dir, i, len(c.files))
+func (p *findCommandParser) parse() error {
+	p.fc.depth = 1<<31 - 1 // max int32
+	var hasIf bool
+	for {
+		tok, err := p.token()
+		if err == io.EOF || tok == "" {
 			return nil
-		}
-		if !strings.HasPrefix(c.files[i].path, dir+"/") {
-			continue
-		}
-		for _, skip := range skipdirs {
-			if strings.HasPrefix(c.files[i].path, skip+"/") {
-				continue Loop
-			}
-		}
-
-		err := walkFn(i, c.files[i])
-		if err == errSkipDir {
-			glog.V(1).Infof("android find in skip dir: %s", c.files[i].path)
-			skipdirs = append(skipdirs, c.files[i].path)
-			continue
 		}
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// pattern in repo/android/build/core/definitions.mk
-// find-subdir-assets
-// if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
-func (c *androidFindCacheT) findInDir(w evalWriter, dir string) {
-	dir = filepath.Clean(dir)
-	glog.V(1).Infof("android find in dir cache: %s", dir)
-	c.walk(dir, func(_ int, fi fileInfo) error {
-		// -not -name '.*'
-		if strings.HasPrefix(filepath.Base(fi.path), ".") {
-			return nil
-		}
-		// -type f and -not -type l
-		// regular type and not symlink
-		if !fi.mode.IsRegular() {
-			return nil
-		}
-		name := strings.TrimPrefix(fi.path, dir+"/")
-		name = "./" + name
-		w.writeWordString(name)
-		glog.V(1).Infof("android find in dir cache: %s=> %s", dir, name)
-		return nil
-	})
-}
-
-// pattern in repo/android/build/core/definitions.mk
-// all-java-files-under etc
-// cd ${LOCAL_PATH} ; find -L $1 -name "*<ext>" -and -not -name ".*"
-// returns false if symlink is found.
-func (c *androidFindCacheT) findExtFilesUnder(w evalWriter, chdir, root, ext string) bool {
-	chdir = filepath.Clean(chdir)
-	dir := filepath.Join(chdir, root)
-	glog.V(1).Infof("android find %s in dir cache: %s %s", ext, chdir, root)
-	// check symlinks
-	var matches []int
-	err := c.walk(dir, func(i int, fi fileInfo) error {
-		if fi.mode&os.ModeSymlink == os.ModeSymlink {
-			glog.Warningf("android find %s in dir cache: detect symlink %s %v", ext, c.files[i].path, c.files[i].mode)
-			return fmt.Errorf("symlink %s", fi.path)
-		}
-		matches = append(matches, i)
-		return nil
-	})
-	if err != nil {
-		return false
-	}
-	// no symlinks
-	for _, i := range matches {
-		fi := c.files[i]
-		base := filepath.Base(fi.path)
-		// -name "*<ext>"
-		if filepath.Ext(base) != ext {
-			continue
-		}
-		// -not -name ".*"
-		if strings.HasPrefix(base, ".") {
-			continue
-		}
-		name := strings.TrimPrefix(fi.path, chdir+"/")
-		w.writeWordString(name)
-		glog.V(1).Infof("android find %s in dir cache: %s=> %s", ext, dir, name)
-	}
-	return true
-}
-
-// pattern: in repo/android/build/core/base_rules.mk
-// java_resource_file_groups+= ...
-// cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a -name ".svn" -prune \
-// -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! \
-// -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" \
-// -a \! -name "*~" -print )
-func (c *androidFindCacheT) findJavaResourceFileGroup(w evalWriter, dir string) {
-	glog.V(1).Infof("android find java resource in dir cache: %s", dir)
-	c.walk(filepath.Clean(dir), func(_ int, fi fileInfo) error {
-		// -type d -a -name ".svn" -prune
-		if fi.mode.IsDir() && filepath.Base(fi.path) == ".svn" {
-			return errSkipDir
-		}
-		// -type f
-		if !fi.mode.IsRegular() {
-			return nil
-		}
-		// ! -name "*.java" -a ! -name "package.html" -a
-		// ! -name "overview.html" -a ! -name ".*.swp" -a
-		// ! -name ".DS_Store" -a ! -name "*~"
-		base := filepath.Base(fi.path)
-		if filepath.Ext(base) == ".java" ||
-			base == "package.html" ||
-			base == "overview.html" ||
-			(strings.HasPrefix(base, ".") && strings.HasSuffix(base, ".swp")) ||
-			base == ".DS_Store" ||
-			strings.HasSuffix(base, "~") {
-			return nil
-		}
-		name := strings.TrimPrefix(fi.path, dir+"/")
-		name = "./" + name
-		w.writeWordString(name)
-		glog.V(1).Infof("android find java resource in dir cache: %s=> %s", dir, name)
-		return nil
-	})
-}
-
-func (c *androidFindCacheT) findleaves(w evalWriter, dir, name string, prunes []string, mindepth int) bool {
-	var found []string
-	var dirs []string
-	dir = filepath.Clean(dir)
-	topdepth := strings.Count(dir, "/")
-	dirs = append(dirs, dir)
-	for len(dirs) > 0 {
-		dir = filepath.Clean(dirs[0]) + "/"
-		dirs = dirs[1:]
-		if dir == "./" {
-			dir = ""
-		}
-		depth := strings.Count(dir, "/")
-		// glog.V(1).Infof("android findleaves dir=%q depth=%d dirs=%q", dir, depth, dirs)
-		i := sort.Search(len(c.leaves), func(i int) bool {
-			di := strings.Count(c.leaves[i].path, "/")
-			if di != depth {
-				return di >= depth
+		switch tok {
+		case "cd":
+			if p.fc.chdir != "" {
+				return errFindDupChdir
 			}
-			diri := filepath.Dir(c.leaves[i].path) + "/"
-			if diri != dir {
-				return diri >= dir
+			p.fc.chdir, err = p.token()
+			if err != nil {
+				return err
 			}
-			return c.leaves[i].path >= dir
-		})
-		glog.V(1).Infof("android findleaves dir=%q i=%d/%d", dir, i, len(c.leaves))
-
-	Scandir:
-		for ; i < len(c.leaves); i++ {
-			if dir == "" && strings.Contains(c.leaves[i].path, "/") {
-				break
+			err = p.expect(";", "&&")
+			if err != nil {
+				return err
 			}
-			if !strings.HasPrefix(c.leaves[i].path, dir) {
-				break
+		case "if":
+			err = p.expect("[")
+			if err != nil {
+				return err
 			}
-			if mindepth < 0 || depth >= topdepth+mindepth {
-				if !c.leaves[i].mode.IsDir() && filepath.Base(c.leaves[i].path) == name {
-					n := "./" + c.leaves[i].path
-					found = append(found, n)
-					glog.V(1).Infof("android findleaves name=%s=> %s (depth=%d topdepth=%d mindepth=%d)", name, n, depth, topdepth, mindepth)
-					break Scandir
+			if hasIf {
+				return errFindDupTestdir
+			}
+			err = p.parseTest()
+			if err != nil {
+				return err
+			}
+			err = p.expectSeq("]", ";", "then")
+			if err != nil {
+				return err
+			}
+			hasIf = true
+		case "test":
+			if hasIf {
+				return errFindDupTestdir
+			}
+			err = p.parseTest()
+			if err != nil {
+				return err
+			}
+			err = p.expect("&&")
+			if err != nil {
+				return err
+			}
+		case "find":
+			err = p.parseFind()
+			if err != nil {
+				return err
+			}
+			if hasIf {
+				err = p.expect("fi")
+				if err != nil {
+					return err
 				}
 			}
-			if c.leaves[i].mode.IsDir() {
-				dirs = append(dirs, c.leaves[i].path)
+			tok, err = p.token()
+			if err != io.EOF || tok != "" {
+				return errFindExtra
 			}
+			return nil
 		}
-		// glog.V(1).Infof("android findleaves next dirs=%q", dirs)
 	}
-	glog.V(1).Infof("android findleave done")
-	sort.Strings(found)
-	for _, f := range found {
-		w.writeWordString(f)
+}
+
+func (p *findCommandParser) parseTest() error {
+	if p.fc.testdir != "" {
+		return errFindDupTestdir
 	}
-	return true
+	err := p.expect("-d")
+	if err != nil {
+		return err
+	}
+	p.fc.testdir, err = p.token()
+	return err
+}
+
+func (p *findCommandParser) parseFind() error {
+	for {
+		tok, err := p.token()
+		if err == io.EOF || tok == "" || tok == ";" {
+			var print findOpPrint
+			if len(p.fc.ops) == 0 || p.fc.ops[len(p.fc.ops)-1] != print {
+				p.fc.ops = append(p.fc.ops, print)
+			}
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if tok != "" && (tok[0] == '-' || tok == "\\(") {
+			p.unget(tok)
+			op, err := p.parseFindCond()
+			if err != nil {
+				return err
+			}
+			if op != nil {
+				p.fc.ops = append(p.fc.ops, op)
+			}
+			continue
+		}
+		p.fc.finddirs = append(p.fc.finddirs, tok)
+	}
+}
+
+func (p *findCommandParser) parseFindCond() (findOp, error) {
+	return p.parseExpr()
+}
+
+func (p *findCommandParser) parseExpr() (findOp, error) {
+	op, err := p.parseTerm()
+	if err != nil {
+		return nil, err
+	}
+	if op == nil {
+		return nil, nil
+	}
+	for {
+		tok, err := p.token()
+		if err == io.EOF || tok == "" {
+			return op, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if tok != "-or" && tok != "-o" {
+			p.unget(tok)
+			return op, nil
+		}
+		op2, err := p.parseTerm()
+		if err != nil {
+			return nil, err
+		}
+		op = findOpOr{op, op2}
+	}
+}
+
+func (p *findCommandParser) parseTerm() (findOp, error) {
+	op, err := p.parseFact()
+	if err != nil {
+		return nil, err
+	}
+	if op == nil {
+		return nil, nil
+	}
+	var ops []findOp
+	ops = append(ops, op)
+	for {
+		tok, err := p.token()
+		if err == io.EOF || tok == "" {
+			if len(ops) == 1 {
+				return ops[0], nil
+			}
+			return findOpAnd(ops), nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if tok != "-and" && tok != "-a" {
+			p.unget(tok)
+		}
+		op, err = p.parseFact()
+		if err != nil {
+			return nil, err
+		}
+		if op == nil {
+			if len(ops) == 1 {
+				return ops[0], nil
+			}
+			return findOpAnd(ops), nil
+		}
+		ops = append(ops, op) // findAndOp?
+	}
+}
+
+func (p *findCommandParser) parseFact() (findOp, error) {
+	tok, err := p.token()
+	if err != nil {
+		return nil, err
+	}
+	switch tok {
+	case "-L":
+		p.fc.followSymlinks = true
+		return nil, nil
+	case "-prune":
+		return findOpPrune{}, nil
+	case "-print":
+		return findOpPrint{}, nil
+	case "-maxdepth":
+		tok, err = p.token()
+		if err != nil {
+			return nil, err
+		}
+		i, err := strconv.ParseInt(tok, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		if i < 0 {
+			return nil, fmt.Errorf("find commnad: -maxdepth negative: %d", i)
+		}
+		p.fc.depth = int(i)
+		return nil, nil
+	case "-not", "\\!":
+		op, err := p.parseFact()
+		if err != nil {
+			return nil, err
+		}
+		return findOpNot{op}, nil
+	case "\\(":
+		op, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		err = p.expect("\\)")
+		if err != nil {
+			return nil, err
+		}
+		return op, nil
+	case "-name":
+		tok, err = p.token()
+		if err != nil {
+			return nil, err
+		}
+		return findOpName(tok), nil
+	case "-type":
+		tok, err = p.token()
+		if err != nil {
+			return nil, err
+		}
+		var m os.FileMode
+		switch tok {
+		case "b":
+			m = os.ModeDevice
+		case "c":
+			m = os.ModeDevice | os.ModeCharDevice
+		case "d":
+			m = os.ModeDir
+		case "p":
+			m = os.ModeNamedPipe
+		case "l":
+			m = os.ModeSymlink
+		case "f":
+			return findOpRegular{p.fc.followSymlinks}, nil
+		case "s":
+			m = os.ModeSocket
+		default:
+			return nil, fmt.Errorf("find command: unsupported -type %s", tok)
+		}
+		return findOpType{m, p.fc.followSymlinks}, nil
+	case "-o", "-or", "-a", "-and":
+		p.unget(tok)
+		return nil, nil
+	default:
+		if tok != "" && tok[0] == '-' {
+			return nil, fmt.Errorf("find command: unsupported %s", tok)
+		}
+		p.unget(tok)
+		return nil, nil
+	}
+}
+
+type findleavesCommand struct {
+	name     string
+	dirs     []string
+	prunes   []string
+	mindepth int
+}
+
+func parseFindleavesCommand(cmd string) (findleavesCommand, error) {
+	if !strings.Contains(cmd, "build/tools/findleaves.py") {
+		return findleavesCommand{}, errNotFindleaves
+	}
+	fcp := findleavesCommandParser{
+		shellParser: shellParser{
+			cmd: cmd,
+		},
+	}
+	err := fcp.parse()
+	if err != nil {
+		return fcp.fc, err
+	}
+	return fcp.fc, nil
+}
+
+func (fc findleavesCommand) run(w evalWriter) {
+	glog.V(3).Infof("findleaves: %#v", fc)
+	for _, dir := range fc.dirs {
+		seen := make(map[fileid]string)
+		id, _ := fsCache.readdir(filepathClean(dir), unknownFileid)
+		fc.walk(w, dir, id, 1, seen)
+	}
+}
+
+func (fc findleavesCommand) walk(w evalWriter, dir string, id fileid, depth int, seen map[fileid]string) {
+	id, ents := fsCache.readdir(filepathClean(dir), id)
+	var subdirs []dirent
+	for _, ent := range ents {
+		if ent.mode.IsDir() {
+			if fc.isPrune(ent.name) {
+				continue
+			}
+			subdirs = append(subdirs, ent)
+			continue
+		}
+		if depth < fc.mindepth {
+			continue
+		}
+		if ent.name == fc.name {
+			w.writeWordString(filepathJoin(dir, ent.name))
+			// no recurse subdirs
+			return
+		}
+	}
+	for _, subdir := range subdirs {
+		if subdir.lmode&os.ModeSymlink == os.ModeSymlink {
+			lpath := filepathJoin(dir, subdir.name)
+			if p, ok := seen[subdir.id]; ok {
+				// symlink loop detected.
+				glog.Errorf("findleaves: loop detected %q was %q", lpath, p)
+				continue
+			}
+			seen[subdir.id] = lpath
+		}
+		fc.walk(w, filepathJoin(dir, subdir.name), subdir.id, depth+1, seen)
+	}
+}
+
+func (fc findleavesCommand) isPrune(name string) bool {
+	for _, p := range fc.prunes {
+		if p == name {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	errNotFindleaves        = errors.New("not findleaves command")
+	errFindleavesEmptyPrune = errors.New("findleaves: empty prune")
+	errFindleavesNoFilename = errors.New("findleaves: no filename")
+)
+
+type findleavesCommandParser struct {
+	fc findleavesCommand
+	shellParser
+}
+
+func (p *findleavesCommandParser) parse() error {
+	var args []string
+	p.fc.mindepth = -1
+	tok, err := p.token()
+	if err != nil {
+		return err
+	}
+	if tok != "build/tools/findleaves.py" {
+		return errNotFindleaves
+	}
+	for {
+		tok, err := p.token()
+		if err == io.EOF || tok == "" {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch {
+		case strings.HasPrefix(tok, "--prune="):
+			prune := filepath.Base(strings.TrimPrefix(tok, "--prune="))
+			if prune == "" {
+				return errFindleavesEmptyPrune
+			}
+			p.fc.prunes = append(p.fc.prunes, prune)
+		case strings.HasPrefix(tok, "--mindepth="):
+			md := strings.TrimPrefix(tok, "--mindepth=")
+			i, err := strconv.ParseInt(md, 10, 32)
+			if err != nil {
+				return err
+			}
+			p.fc.mindepth = int(i)
+		default:
+			args = append(args, tok)
+		}
+	}
+	if len(args) < 2 {
+		return errFindleavesNoFilename
+	}
+	p.fc.dirs, p.fc.name = args[:len(args)-1], args[len(args)-1]
+	return nil
 }

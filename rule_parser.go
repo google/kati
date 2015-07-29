@@ -129,7 +129,7 @@ func (r *rule) parseInputs(s []byte) {
 			add(internBytes(input))
 			continue
 		}
-		m, _ := wildcardCache.Glob(string(input))
+		m, _ := fsCache.Glob(string(input))
 		if len(m) == 0 {
 			add(internBytes(input))
 			continue

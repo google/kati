@@ -15,11 +15,11 @@
 package kati
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
-
-	"github.com/golang/glog"
 )
 
 var shBuiltins = []struct {
@@ -40,181 +40,6 @@ var shBuiltins = []struct {
 			return &funcShellAndroidRot13{
 				funcShell: sh,
 				v:         matches[0],
-			}
-		},
-	},
-	{
-		name: "android:find-subdir-assets",
-		// in repo/android/build/core/definitions.mk
-		// if [ -d $1 ] ; then cd $1 ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi
-		pattern: expr{
-			literal("if [ -d "),
-			matchVarref{},
-			literal(" ] ; then cd "),
-			matchVarref{},
-			literal(" ; find ./ -not -name '.*' -and -type f -and -not -type l ; fi"),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			if v[0] != v[1] {
-				return sh
-			}
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindFileInDir{
-				funcShell: sh,
-				dir:       v[0],
-			}
-		},
-	},
-	{
-		name: "android:all-java-files-under",
-		// in repo/android/build/core/definitions.mk
-		// cd ${LOCAL_PATH} ; find -L $1 -name "*.java" -and -not -name ".*"
-		pattern: expr{
-			literal("cd "),
-			matchVarref{},
-			literal(" ; find -L "),
-			matchVarref{},
-			literal(` -name "*.java" -and -not -name ".*"`),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindExtFilesUnder{
-				funcShell: sh,
-				chdir:     v[0],
-				roots:     v[1],
-				ext:       ".java",
-			}
-		},
-	},
-	{
-		name: "android:all-proto-files-under",
-		// in repo/android/build/core/definitions.mk
-		// cd $(LOCAL_PATH) ; \
-		// find -L $(1) -name "*.proto" -and -not -name ".*"
-		pattern: expr{
-			literal("cd "),
-			matchVarref{},
-			literal(" ; find -L "),
-			matchVarref{},
-			literal(" -name \"*.proto\" -and -not -name \".*\""),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindExtFilesUnder{
-				funcShell: sh,
-				chdir:     v[0],
-				roots:     v[1],
-				ext:       ".proto",
-			}
-		},
-	},
-	{
-		name: "android:java_resource_file_groups",
-		// in repo/android/build/core/base_rules.mk
-		// cd ${TOP_DIR}${LOCAL_PATH}/${dir} && find . -type d -a \
-		// -name ".svn" -prune -o -type f -a \! -name "*.java" \
-		// -a \! -name "package.html" -a \! -name "overview.html" \
-		// -a \! -name ".*.swp" -a \! -name ".DS_Store" \
-		// -a \! -name "*~" -print )
-		pattern: expr{
-			literal("cd "),
-			matchVarref{},
-			matchVarref{},
-			mustLiteralRE("(/)"),
-			matchVarref{},
-			literal(` && find . -type d -a -name ".svn" -prune -o -type f -a \! -name "*.java" -a \! -name "package.html" -a \! -name "overview.html" -a \! -name ".*.swp" -a \! -name ".DS_Store" -a \! -name "*~" -print `),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindJavaResourceFileGroup{
-				funcShell: sh,
-				dir:       expr(v),
-			}
-		},
-	},
-	{
-		name: "android:subdir_cleanspecs",
-		// in repo/android/build/core/cleanspec.mk
-		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git . CleanSpec.mk)
-		pattern: expr{
-			literal("build/tools/findleaves.py --prune="),
-			matchVarref{},
-			literal(" --prune=.repo --prune=.git . CleanSpec.mk"),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			if !contains(androidDefaultLeafNames, "CleanSpec.mk") {
-				return sh
-			}
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindleaves{
-				funcShell: sh,
-				prunes: []Value{
-					v[0],
-					literal(".repo"),
-					literal(".git"),
-				},
-				dirlist:  literal("."),
-				name:     literal("CleanSpec.mk"),
-				mindepth: -1,
-			}
-		},
-	},
-	{
-		name: "android:subdir_makefiles",
-		// in repo/android/build/core/main.mk
-		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git $(subdirs) Android.mk
-		pattern: expr{
-			literal("build/tools/findleaves.py --prune="),
-			matchVarref{},
-			literal(" --prune=.repo --prune=.git "),
-			matchVarref{},
-			literal(" Android.mk"),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			if !contains(androidDefaultLeafNames, "Android.mk") {
-				return sh
-			}
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindleaves{
-				funcShell: sh,
-				prunes: []Value{
-					v[0],
-					literal(".repo"),
-					literal(".git"),
-				},
-				dirlist:  v[1],
-				name:     literal("Android.mk"),
-				mindepth: -1,
-			}
-		},
-	},
-	{
-		name: "android:first-makefiles-under",
-		// in repo/android/build/core/definisions.mk
-		// build/tools/findleaves.py --prune=$(OUT_DIR) --prune=.repo --prune=.git \
-		// --mindepth=2 $(1) Android.mk
-		pattern: expr{
-			literal("build/tools/findleaves.py --prune="),
-			matchVarref{},
-			literal(" --prune=.repo --prune=.git --mindepth=2 "),
-			matchVarref{},
-			literal(" Android.mk"),
-		},
-		compact: func(sh *funcShell, v []Value) Value {
-			if !contains(androidDefaultLeafNames, "Android.mk") {
-				return sh
-			}
-			androidFindCache.init(nil)
-			return &funcShellAndroidFindleaves{
-				funcShell: sh,
-				prunes: []Value{
-					v[0],
-					literal(".repo"),
-					literal(".git"),
-				},
-				dirlist:  v[1],
-				name:     literal("Android.mk"),
-				mindepth: 2,
 			}
 		},
 	},
@@ -269,160 +94,6 @@ func (f *funcShellAndroidRot13) Eval(w evalWriter, ev *Evaluator) error {
 	return nil
 }
 
-type funcShellAndroidFindFileInDir struct {
-	*funcShell
-	dir Value
-}
-
-func (f *funcShellAndroidFindFileInDir) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newEbuf()
-	fargs, err := ev.args(abuf, f.dir)
-	if err != nil {
-		return err
-	}
-	dir := string(trimSpaceBytes(fargs[0]))
-	abuf.release()
-	glog.V(1).Infof("shellAndroidFindFileInDir %s => %s", f.dir.String(), dir)
-	if strings.Contains(dir, "..") {
-		glog.Warningf("shellAndroidFindFileInDir contains ..: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	if !androidFindCache.ready() {
-		glog.Warningf("shellAndroidFindFileInDir androidFindCache is not ready: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	androidFindCache.findInDir(w, dir)
-	return nil
-}
-
-type funcShellAndroidFindExtFilesUnder struct {
-	*funcShell
-	chdir Value
-	roots Value
-	ext   string
-}
-
-func (f *funcShellAndroidFindExtFilesUnder) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newEbuf()
-	err := f.chdir.Eval(abuf, ev)
-	if err != nil {
-		return err
-	}
-	chdir := string(trimSpaceBytes(abuf.Bytes()))
-	abuf.release()
-	wb := newWbuf()
-	err = f.roots.Eval(wb, ev)
-	if err != nil {
-		return err
-	}
-	hasDotDot := false
-	var roots []string
-	for _, word := range wb.words {
-		root := string(word)
-		if strings.Contains(root, "..") {
-			hasDotDot = true
-		}
-		roots = append(roots, root)
-	}
-	wb.release()
-	glog.V(1).Infof("shellAndroidFindExtFilesUnder %s,%s => %s,%s", f.chdir.String(), f.roots.String(), chdir, roots)
-	if strings.Contains(chdir, "..") || hasDotDot {
-		glog.Warningf("shellAndroidFindExtFilesUnder contains ..: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	if !androidFindCache.ready() {
-		glog.Warningf("shellAndroidFindExtFilesUnder androidFindCache is not ready: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	buf := newEbuf()
-	for _, root := range roots {
-		if !androidFindCache.findExtFilesUnder(buf, chdir, root, f.ext) {
-			buf.release()
-			glog.Warningf("shellAndroidFindExtFilesUnder androidFindCache couldn't handle: call original shell")
-			return f.funcShell.Eval(w, ev)
-		}
-	}
-	w.Write(buf.Bytes())
-	buf.release()
-	return nil
-}
-
-type funcShellAndroidFindJavaResourceFileGroup struct {
-	*funcShell
-	dir Value
-}
-
-func (f *funcShellAndroidFindJavaResourceFileGroup) Eval(w evalWriter, ev *Evaluator) error {
-	abuf := newEbuf()
-	fargs, err := ev.args(abuf, f.dir)
-	if err != nil {
-		return err
-	}
-	dir := string(trimSpaceBytes(fargs[0]))
-	abuf.release()
-	glog.V(1).Infof("shellAndroidFindJavaResourceFileGroup %s => %s", f.dir.String(), dir)
-	if strings.Contains(dir, "..") {
-		glog.Warningf("shellAndroidFindJavaResourceFileGroup contains ..: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	if !androidFindCache.ready() {
-		glog.Warningf("shellAndroidFindJavaResourceFileGroup androidFindCache is not ready: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	androidFindCache.findJavaResourceFileGroup(w, dir)
-	return nil
-}
-
-type funcShellAndroidFindleaves struct {
-	*funcShell
-	prunes   []Value
-	dirlist  Value
-	name     Value
-	mindepth int
-}
-
-func (f *funcShellAndroidFindleaves) Eval(w evalWriter, ev *Evaluator) error {
-	if !androidFindCache.leavesReady() {
-		glog.Warningf("shellAndroidFindleaves androidFindCache is not ready: call original shell")
-		return f.funcShell.Eval(w, ev)
-	}
-	abuf := newEbuf()
-	var params []Value
-	params = append(params, f.name)
-	params = append(params, f.prunes...)
-	fargs, err := ev.args(abuf, params...)
-	if err != nil {
-		return err
-	}
-	name := string(trimSpaceBytes(fargs[0]))
-	var prunes []string
-	for _, arg := range fargs[1:] {
-		prunes = append(prunes, string(trimSpaceBytes(arg)))
-	}
-	abuf.release()
-
-	wb := newWbuf()
-	err = f.dirlist.Eval(wb, ev)
-	if err != nil {
-		return err
-	}
-	var dirs []string
-	for _, word := range wb.words {
-		dir := string(word)
-		if strings.Contains(dir, "..") {
-			glog.Warningf("shellAndroidFindleaves contains .. in %s: call original shell", dir)
-			return f.funcShell.Eval(w, ev)
-		}
-		dirs = append(dirs, dir)
-	}
-	wb.release()
-
-	for _, dir := range dirs {
-		androidFindCache.findleaves(w, dir, name, prunes, f.mindepth)
-	}
-	return nil
-}
-
 var (
 	// ShellDateTimestamp is an timestamp used for $(shell date).
 	ShellDateTimestamp time.Time
@@ -463,5 +134,99 @@ func compactShellDate(sh *funcShell, v []Value) Value {
 
 func (f *funcShellDate) Eval(w evalWriter, ev *Evaluator) error {
 	fmt.Fprint(w, ShellDateTimestamp.Format(f.format))
+	return nil
+}
+
+type buildinCommand interface {
+	run(w evalWriter)
+}
+
+var errFindEmulatorDisabled = errors.New("builtin: find emulator disabled")
+
+func parseBuiltinCommand(cmd string) (buildinCommand, error) {
+	if !UseFindEmulator {
+		return nil, errFindEmulatorDisabled
+	}
+	if strings.HasPrefix(cmd, "build/tools/findleaves") {
+		return parseFindleavesCommand(cmd)
+	}
+	return parseFindCommand(cmd)
+}
+
+type shellParser struct {
+	cmd        string
+	ungetToken string
+}
+
+func (p *shellParser) token() (string, error) {
+	if p.ungetToken != "" {
+		tok := p.ungetToken
+		p.ungetToken = ""
+		return tok, nil
+	}
+	p.cmd = trimLeftSpace(p.cmd)
+	if len(p.cmd) == 0 {
+		return "", io.EOF
+	}
+	if p.cmd[0] == ';' {
+		tok := p.cmd[0:1]
+		p.cmd = p.cmd[1:]
+		return tok, nil
+	}
+	if p.cmd[0] == '&' {
+		if len(p.cmd) == 1 || p.cmd[1] != '&' {
+			return "", errFindBackground
+		}
+		tok := p.cmd[0:2]
+		p.cmd = p.cmd[2:]
+		return tok, nil
+	}
+	// TODO(ukai): redirect token.
+	i := 0
+	for i < len(p.cmd) {
+		if isWhitespace(rune(p.cmd[i])) || p.cmd[i] == ';' || p.cmd[i] == '&' {
+			break
+		}
+		i++
+	}
+	tok := p.cmd[0:i]
+	p.cmd = p.cmd[i:]
+	c := tok[0]
+	if c == '\'' || c == '"' {
+		if len(tok) < 2 || tok[len(tok)-1] != c {
+			return "", errFindUnbalancedQuote
+		}
+		// todo: unquote?
+		tok = tok[1 : len(tok)-1]
+	}
+	return tok, nil
+}
+
+func (p *shellParser) unget(s string) {
+	if s != "" {
+		p.ungetToken = s
+	}
+}
+
+func (p *shellParser) expect(toks ...string) error {
+	tok, err := p.token()
+	if err != nil {
+		return err
+	}
+	for _, t := range toks {
+		if tok == t {
+			return nil
+		}
+	}
+	return fmt.Errorf("shell: token=%q; want=%q", tok, toks)
+}
+
+func (p *shellParser) expectSeq(toks ...string) error {
+	for _, tok := range toks {
+		err := p.expect(tok)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

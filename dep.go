@@ -579,7 +579,7 @@ func (db *depBuilder) Eval(targets []string) ([]*DepNode, error) {
 		logStats("%d explicit rules", len(db.rules))
 		logStats("%d implicit rules", db.implicitRules.size())
 		logStats("%d suffix rules", len(db.suffixRules))
-		logStats("%d dirs %d files", wildcardCache.dirs(), wildcardCache.files())
+		logStats("%d dirs %d files", fsCache.dirs(), fsCache.files())
 	}
 
 	var nodes []*DepNode
