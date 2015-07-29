@@ -83,6 +83,7 @@ type NinjaGenerator struct {
 }
 
 func (n *NinjaGenerator) init(g *DepGraph) {
+	g.resolveVPATH()
 	n.nodes = g.nodes
 	n.exports = g.exports
 	n.ctx = newExecContext(g.vars, g.vpaths, true)
@@ -406,7 +407,7 @@ func escapeBuildTarget(s string) string {
 	return buf.String()
 }
 
-func getDepString(node *DepNode) (string, string) {
+func (n *NinjaGenerator) dependency(node *DepNode) (string, string) {
 	var deps []string
 	seen := make(map[string]bool)
 	for _, d := range node.Deps {
@@ -480,34 +481,35 @@ func (n *NinjaGenerator) ninjaVars(s string, nv [][]string, esc func(string) str
 }
 
 func (n *NinjaGenerator) emitNode(node *DepNode) error {
-	if _, found := n.done[node.Output]; found {
+	output := node.Output
+	if _, found := n.done[output]; found {
 		return nil
 	}
-	n.done[node.Output] = nodeVisit
+	n.done[output] = nodeVisit
 
 	if len(node.Cmds) == 0 && len(node.Deps) == 0 && len(node.OrderOnlys) == 0 && !node.IsPhony {
-		if _, ok := n.ctx.vpaths.exists(node.Output); ok {
-			n.done[node.Output] = nodeFile
+		if _, ok := n.ctx.vpaths.exists(output); ok {
+			n.done[output] = nodeFile
 			return nil
 		}
-		o := filepath.Clean(node.Output)
-		if o != node.Output {
+		o := filepath.Clean(output)
+		if o != output {
 			// if normalized target has been done, it marks as alias.
 			if s, found := n.done[o]; found {
 				glog.V(1).Infof("node %s=%s => %s=alias", o, s, node.Output)
-				n.done[node.Output] = nodeAlias
+				n.done[output] = nodeAlias
 				return nil
 			}
 		}
 		if node.Filename == "" {
-			n.done[node.Output] = nodeMissing
+			n.done[output] = nodeMissing
 		}
 		return nil
 	}
 
-	base := filepath.Base(node.Output)
-	if base != node.Output {
-		n.shortNames[base] = append(n.shortNames[base], node.Output)
+	base := filepath.Base(output)
+	if base != output {
+		n.shortNames[base] = append(n.shortNames[base], output)
 	}
 
 	runners, _, err := createRunners(n.ctx, node)
@@ -516,7 +518,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 	}
 	ruleName := "phony"
 	useLocalPool := false
-	inputs, orderOnlys := getDepString(node)
+	inputs, orderOnlys := n.dependency(node)
 	if len(runners) > 0 {
 		ruleName = n.genRuleName()
 		fmt.Fprintf(n.f, "\n# rule for %q\n", node.Output)
@@ -537,7 +539,7 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		}
 		nv := [][]string{
 			[]string{"${in}", inputs},
-			[]string{"${out}", escapeNinja(node.Output)},
+			[]string{"${out}", escapeNinja(output)},
 		}
 		// It seems Linux is OK with ~130kB.
 		// TODO: Find this number automatically.
@@ -553,12 +555,12 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 			fmt.Fprintf(n.f, " command = %s -c \"%s\"\n", n.ctx.shell, cmdline)
 		}
 	}
-	n.emitBuild(node.Output, ruleName, inputs, orderOnlys)
+	n.emitBuild(output, ruleName, inputs, orderOnlys)
 	if useLocalPool {
 		fmt.Fprintf(n.f, " pool = local_pool\n")
 	}
 	fmt.Fprintf(n.f, "\n")
-	n.done[node.Output] = nodeBuild
+	n.done[output] = nodeBuild
 
 	for _, d := range node.Deps {
 		err := n.emitNode(d)

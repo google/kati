@@ -39,6 +39,35 @@ func (g *DepGraph) Nodes() []*DepNode { return g.nodes }
 // Vars returns all variables.
 func (g *DepGraph) Vars() Vars { return g.vars }
 
+func (g *DepGraph) resolveVPATH() {
+	seen := make(map[*DepNode]bool)
+	var fix func(n *DepNode)
+	fix = func(n *DepNode) {
+		if seen[n] {
+			return
+		}
+		seen[n] = true
+		glog.V(3).Infof("vpath check %s [%#v]", n.Output, g.vpaths)
+		if output, ok := g.vpaths.exists(n.Output); ok {
+			glog.V(2).Infof("vpath fix %s=>%s", n.Output, output)
+			n.Output = output
+		}
+		for _, d := range n.Deps {
+			fix(d)
+		}
+		for _, d := range n.OrderOnlys {
+			fix(d)
+		}
+		for _, d := range n.Parents {
+			fix(d)
+		}
+		// fix ActualInputs?
+	}
+	for _, n := range g.nodes {
+		fix(n)
+	}
+}
+
 // LoadReq is a request to load makefile.
 type LoadReq struct {
 	Makefile         string
