@@ -1,4 +1,4 @@
-# TODO(ninja): Fix - KATI_TODO(info)
+# TODO(c-ninja): Fix - "echo \" should be "echo ".
 
 SHELL:=/bin/bash
 

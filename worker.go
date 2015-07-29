@@ -157,7 +157,7 @@ func (j *job) build() error {
 	}
 	for _, r := range rr {
 		err := r.run(j.n.Output)
-		glog.Warningf("cmd error for %q: %v", j.n.Output, err)
+		glog.Warningf("cmd result for %q: %v", j.n.Output, err)
 		if err != nil {
 			exit := exitStatus(err)
 			return fmt.Errorf("*** [%s] Error %d", j.n.Output, exit)

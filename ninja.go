@@ -172,6 +172,21 @@ func getDepfile(cmdline string) (string, string, error) {
 	return cmdline, depfile, nil
 }
 
+func trimTailingSlash(s string) string {
+	if s == "" {
+		return s
+	}
+	if s[len(s)-1] != '\\' {
+		return s
+	}
+	// drop single trailing slash - multiline_arg.mk
+	if len(s) > 2 && s[len(s)-2] != '\\' {
+		return s[:len(s)-1]
+	}
+	// preserve two trailing slash - escaped_backslash.mk
+	return s
+}
+
 func stripShellComment(s string) string {
 	if strings.IndexByte(s, '#') < 0 {
 		// Fast path.
@@ -273,7 +288,8 @@ func (n *NinjaGenerator) genShellScript(runners []runner) (cmd string, desc stri
 				buf.WriteString(" && ")
 			}
 		}
-		cmd := stripShellComment(r.cmd)
+		cmd := trimTailingSlash(r.cmd)
+		cmd = stripShellComment(cmd)
 		cmd = trimLeftSpace(cmd)
 		cmd = strings.Replace(cmd, "\\\n\t", "", -1)
 		cmd = strings.Replace(cmd, "\\\n", "", -1)
