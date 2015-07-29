@@ -134,6 +134,8 @@ def normalize_kati_log(output)
                "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
   output.gsub!(/\/bin\/sh: ([^:]*): command not found/,
                "\\1: Command not found")
+  output.gsub!(/ (\.\/+)+kati\.\S+/, '') # kati log files in find_command.mk
+  output.gsub!(/ (\.\/+)+test\S+.json/, '') # json files in find_command.mk
   output
 end
 

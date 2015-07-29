@@ -1,4 +1,6 @@
-# TODO(go|ninja): This test is only for ckati. Also fix this for ninja.
+# TODO(ninja): This test is only for ckati. ninja: fix $(sort $(shell $(1)))
+# go: implement generic builtin find
+# ninja: $(sort $(shell "find -name testdir")) becomes "$( -name find testdir)"
 
 ifeq ($(shell uname),Darwin)
 USE_GNU_FIND:=
