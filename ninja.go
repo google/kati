@@ -377,17 +377,31 @@ func (n *NinjaGenerator) emitBuild(output, rule, inputs, orderOnlys string) {
 }
 
 func escapeBuildTarget(s string) string {
-	i := strings.IndexAny(s, "$: ")
+	i := strings.IndexAny(s, "$: \\")
 	if i < 0 {
 		return s
 	}
+	// unescapeInput only "\ ", "\=" unescape as " ", "=".
+	// TODO(ukai): which char should unescape, which should not here?
+	var esc rune
 	var buf bytes.Buffer
 	for _, c := range s {
 		switch c {
+		case '\\':
+			esc = c
+			continue
 		case '$', ':', ' ':
+			esc = 0
 			buf.WriteByte('$')
 		}
+		if esc != 0 {
+			buf.WriteRune(esc)
+			esc = 0
+		}
 		buf.WriteRune(c)
+	}
+	if esc != 0 {
+		buf.WriteRune(esc)
 	}
 	return buf.String()
 }

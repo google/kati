@@ -1,5 +1,4 @@
-# TODO(c|go-ninja): Fix
-# go-ninja: wrong escape a:b vs a\:b
+# TODO(c): Fix
 
 test: a\ b a\:b
 
