@@ -1,5 +1,4 @@
-# TODO(ninja): Fix
-# go: fail test2, test4
+# TODO(c-ninja): Fix
 
 MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
 

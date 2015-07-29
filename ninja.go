@@ -197,16 +197,40 @@ func stripShellComment(s string) string {
 	lastch := rune(' ')
 	var escape bool
 	var quote rune
-	for i, c := range s {
+	var skip rune
+	var cmdsubst []rune
+	var buf bytes.Buffer
+Loop:
+	for _, c := range s {
+		if skip != 0 {
+			if skip != c {
+				continue Loop
+			}
+			if len(cmdsubst) > 0 && cmdsubst[len(cmdsubst)-1] == skip {
+				cmdsubst = cmdsubst[:len(cmdsubst)-1]
+			}
+			skip = 0
+		}
 		if quote != 0 {
 			if quote == c && (quote == '\'' || !escape) {
 				quote = 0
 			}
 		} else if !escape {
 			if c == '#' && isWhitespace(lastch) {
-				return s[:i]
-			} else if c == '\'' || c == '"' || c == '`' {
+				if len(cmdsubst) == 0 {
+					// strip comment until the end of line.
+					skip = '\n'
+					continue Loop
+				}
+				// strip comment until the end of command subst.
+				skip = cmdsubst[len(cmdsubst)-1]
+				continue Loop
+			} else if c == '\'' || c == '"' {
 				quote = c
+			} else if lastch == '$' && c == '(' {
+				cmdsubst = append(cmdsubst, ')')
+			} else if c == '`' {
+				cmdsubst = append(cmdsubst, '`')
 			}
 		}
 		if escape {
@@ -217,8 +241,9 @@ func stripShellComment(s string) string {
 			escape = false
 		}
 		lastch = c
+		buf.WriteRune(c)
 	}
-	return s
+	return buf.String()
 }
 
 var ccRE = regexp.MustCompile(`^prebuilts/(gcc|clang)/.*(gcc|g\+\+|clang|clang\+\+) .* ?-c `)
