@@ -533,29 +533,6 @@ class NinjaGenerator {
     if (!used_envs_.empty())
       fprintf(fp_, " %s", GetEnvlistFilename().c_str());
     fprintf(fp_, "\n\n");
-
-    if (used_envs_.empty())
-      return;
-
-    fprintf(fp_, "build .always_build: phony\n");
-    fprintf(fp_, "rule regen_envlist\n");
-    fprintf(fp_, " command = rm -f $out.tmp");
-    for (const auto& p : used_envs_) {
-      fprintf(fp_, " && echo %s=$$%s >> $out.tmp",
-              p.first.c_str(), p.first.c_str());
-    }
-    if (g_error_on_env_change) {
-      fprintf(fp_,
-              " && (diff $out.tmp $out || "
-              "(echo Environment variable changes are detected && false))\n");
-    } else {
-      fprintf(fp_, " && (diff $out.tmp $out || mv $out.tmp $out)\n");
-    }
-    fprintf(fp_, " restat = 1\n");
-    fprintf(fp_, " generator = 1\n");
-    fprintf(fp_, " description = Check $out\n");
-    fprintf(fp_, "build %s: regen_envlist .always_build\n\n",
-            GetEnvlistFilename().c_str());
   }
 
   string GetNinjaFilename() const {
