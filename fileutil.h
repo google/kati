@@ -29,6 +29,8 @@ double GetTimestamp(StringPiece f);
 int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
                string* out);
 
+void GetExecutablePath(string* path);
+
 void Glob(const char* pat, vector<string>** files);
 
 #endif  // FILEUTIL_H_

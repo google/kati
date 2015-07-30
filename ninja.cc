@@ -30,6 +30,7 @@
 #include "dep.h"
 #include "eval.h"
 #include "file_cache.h"
+#include "fileutil.h"
 #include "flags.h"
 #include "log.h"
 #include "string_piece.h"
@@ -181,6 +182,9 @@ class NinjaGenerator {
       shared_ptr<string> val = ev_->EvalVar(e);
       used_envs_.emplace(e.str(), *val);
     }
+
+    if (g_gen_regen_rule)
+      GetExecutablePath(&kati_binary_);
   }
 
   ~NinjaGenerator() {
@@ -528,6 +532,7 @@ class NinjaGenerator {
     for (const string& makefile : makefiles) {
       fprintf(fp_, " %.*s", SPF(makefile));
     }
+    fprintf(fp_, " %s", kati_binary_.c_str());
     // TODO: Add dependencies to directories read by $(wildcard)
     // or $(shell find).
     if (!used_envs_.empty())
@@ -656,6 +661,7 @@ class NinjaGenerator {
   unordered_map<Symbol, Symbol> short_names_;
   shared_ptr<string> shell_;
   map<string, string> used_envs_;
+  string kati_binary_;
 };
 
 void GenerateNinja(const char* ninja_suffix,

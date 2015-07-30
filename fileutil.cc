@@ -23,6 +23,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 #include <unordered_map>
 
@@ -93,6 +96,26 @@ int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
     execvp(argv[0], const_cast<char**>(argv));
   }
   abort();
+}
+
+void GetExecutablePath(string* path) {
+#if defined(__linux__)
+  char mypath[PATH_MAX + 1];
+  ssize_t l = readlink("/proc/self/exe", mypath, PATH_MAX);
+  if (l < 0) {
+    PERROR("readlink for /proc/self/exe");
+  }
+  mypath[l] = '\0';
+  *path = mypath;
+#elif defined(__APPLE__)
+  char mypath[PATH_MAX + 1];
+  if (_NSGetExecutablePath(mypath, PATH_MAX) != 0) {
+    ERROR("_NSGetExecutablePath failed");
+  }
+  *path = mypath;
+#else
+#error "Unsupported OS"
+#endif
 }
 
 namespace {
