@@ -44,7 +44,7 @@ Value::~Value() {
 }
 
 string Value::DebugString() const {
-  if (this) {
+  if (static_cast<const Value*>(this)) {
     return NoLineBreak(DebugString_());
   }
   return "(null)";

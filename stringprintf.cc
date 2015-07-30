@@ -35,4 +35,5 @@ string StringPrintf(const char* format, ...) {
     str.resize(ret + 1);
   }
   assert(false);
+  __builtin_unreachable();
 }
