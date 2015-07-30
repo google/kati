@@ -268,16 +268,41 @@ run_make_test = proc do |mk|
 end
 
 run_shell_test = proc do |sh|
+  is_ninja_test = sh =~ /\/ninja_/
+  if is_ninja_test && (!ckati || !via_ninja)
+    next
+  end
+
   run_in_testdir(sh) do |name|
     cleanup
     cmd = "sh ../../#{sh} make"
+    if is_ninja_test
+      cmd += ' -s'
+    end
     expected = IO.popen(cmd, 'r:binary', &:read)
     cleanup
-    cmd = "sh ../../#{sh} ../../kati --use_cache -log_dir=."
+
+    if is_ninja_test
+      if ckati
+        cmd = "sh ../../#{sh} ../../ckati --ninja --gen_regen_rule"
+      else
+        next
+      end
+    else
+      if ckati
+        cmd = "sh ../../#{sh} ../../ckati"
+      else
+        cmd = "sh ../../#{sh} ../../kati --use_cache -log_dir=."
+      end
+    end
+
     output = IO.popen(cmd, 'r:binary', &:read)
 
     expected = normalize_make_log(expected)
     output = normalize_kati_log(output)
+    if is_ninja_test
+      output = normalize_ninja_log(output, sh)
+    end
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
 
