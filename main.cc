@@ -268,6 +268,16 @@ static int Run(const vector<Symbol>& targets,
     MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
   }
 
+  if (g_is_syntax_check_only)
+    return 0;
+
+  if (g_generate_ninja) {
+    ScopedTimeReporter tr("generate ninja time");
+    GenerateNinja(g_ninja_suffix, g_ninja_dir, nodes, ev, !targets.empty(),
+                  orig_args, start_time);
+    return 0;
+  }
+
   for (const auto& p : ev->exports()) {
     const Symbol name = p.first;
     if (p.second) {
@@ -279,16 +289,6 @@ static int Run(const vector<Symbol>& targets,
       LOG("unsetenv(%s)", name.c_str());
       unsetenv(name.c_str());
     }
-  }
-
-  if (g_is_syntax_check_only)
-    return 0;
-
-  if (g_generate_ninja) {
-    ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(g_ninja_suffix, g_ninja_dir, nodes, ev, !targets.empty(),
-                  orig_args, start_time);
-    return 0;
   }
 
   {

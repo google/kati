@@ -17,6 +17,7 @@
 #include "ninja.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -599,8 +600,8 @@ class NinjaGenerator {
     }
 
     for (Symbol e : Vars::used_env_vars()) {
-      shared_ptr<string> val = ev_->EvalVar(e);
-      used_envs_.emplace(e.str(), *val);
+      StringPiece val(getenv(e.c_str()));
+      used_envs_.emplace(e.str(), val.as_string());
     }
 
     if (!build_all_targets) {
