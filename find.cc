@@ -291,10 +291,7 @@ static FindEmulator* g_instance;
 class FindEmulatorImpl : public FindEmulator {
  public:
   FindEmulatorImpl()
-      : node_cnt_(0) {
-    ScopedTimeReporter tr("init find emulator time");
-    root_.reset(ConstructDirectoryTree(""));
-    LOG_STAT("%d find nodes", node_cnt_);
+      : node_cnt_(0), is_initialized_(false) {
     g_instance = this;
   }
 
@@ -325,6 +322,13 @@ class FindEmulatorImpl : public FindEmulator {
         LOG("FindEmulator: Cannot handle abspath: %s", cmd.c_str());
         return false;
       }
+    }
+
+    if (!is_initialized_) {
+      ScopedTimeReporter tr("init find emulator time");
+      root_.reset(ConstructDirectoryTree(""));
+      LOG_STAT("%d find nodes", node_cnt_);
+      is_initialized_ = true;
     }
 
     if (!fc.testdir.empty() && !root_->FindDir(fc.testdir)) {
@@ -690,6 +694,7 @@ class FindEmulatorImpl : public FindEmulator {
 
   unique_ptr<DirentNode> root_;
   int node_cnt_;
+  bool is_initialized_;
 };
 
 }  // namespace
