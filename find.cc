@@ -270,6 +270,286 @@ class DirentSymlinkNode : public DirentNode {
   }
 };
 
+class FindCommandParser {
+ public:
+  FindCommandParser(StringPiece cmd, FindCommand* fc)
+      : cmd_(cmd), fc_(fc), has_if_(false) {
+  }
+
+  bool Parse() {
+    cur_ = cmd_;
+    if (!ParseImpl()) {
+      LOG("FindEmulator: Unsupported find command: %.*s", SPF(cmd_));
+      return false;
+    }
+    CHECK(TrimLeftSpace(cur_).empty());
+    return true;
+  }
+
+ private:
+  bool GetNextToken(StringPiece* tok) {
+    if (!unget_tok_.empty()) {
+      *tok = unget_tok_;
+      unget_tok_.clear();
+      return true;
+    }
+
+    cur_ = TrimLeftSpace(cur_);
+
+    if (cur_[0] == ';') {
+      *tok = cur_.substr(0, 1);
+      cur_ = cur_.substr(1);
+      return true;
+    }
+    if (cur_[0] == '&') {
+      if (cur_.get(1) != '&') {
+        return false;
+      }
+      *tok = cur_.substr(0, 2);
+      cur_ = cur_.substr(2);
+      return true;
+    }
+
+    size_t i = 0;
+    while (i < cur_.size() && !isspace(cur_[i]) &&
+           cur_[i] != ';' && cur_[i] != '&') {
+      i++;
+    }
+
+    *tok = cur_.substr(0, i);
+    cur_ = cur_.substr(i);
+
+    const char c = tok->get(0);
+    if (c == '\'' || c == '"') {
+      if (tok->size() < 2 || (*tok)[tok->size()-1] != c)
+        return false;
+      *tok = tok->substr(1, tok->size() - 2);
+      return true;
+    }
+
+    return true;
+  }
+
+  void UngetToken(StringPiece tok) {
+    CHECK(unget_tok_.empty());
+    if (!tok.empty())
+      unget_tok_ = tok;
+  }
+
+  bool ParseTest() {
+    if (has_if_ || !fc_->testdir.empty())
+      return false;
+    StringPiece tok;
+    if (!GetNextToken(&tok) || tok != "-d")
+      return false;
+    if (!GetNextToken(&tok) || tok.empty())
+      return false;
+    fc_->testdir = tok;
+    return true;
+  }
+
+  FindCond* ParseFact(StringPiece tok) {
+    if (tok == "-not" || tok == "\\!") {
+      if (!GetNextToken(&tok) || tok.empty())
+        return NULL;
+      unique_ptr<FindCond> c(ParseFact(tok));
+      if (!c.get())
+        return NULL;
+      return new NotCond(c.release());
+    } else if (tok == "\\(") {
+      if (!GetNextToken(&tok) || tok.empty())
+        return NULL;
+      unique_ptr<FindCond> c(ParseExpr(tok));
+      if (!GetNextToken(&tok) || tok != "\\)") {
+        return NULL;
+      }
+      return c.release();
+    } else if (tok == "-name") {
+      if (!GetNextToken(&tok) || tok.empty())
+        return NULL;
+      return new NameCond(tok.as_string());
+    } else if (tok == "-type") {
+      if (!GetNextToken(&tok) || tok.empty())
+        return NULL;
+      char type;
+      if (tok == "b")
+        type = DT_BLK;
+      else if (tok == "c")
+        type = DT_CHR;
+      else if (tok == "d")
+        type = DT_DIR;
+      else if (tok == "p")
+        type = DT_FIFO;
+      else if (tok == "l")
+        type = DT_LNK;
+      else if (tok == "f")
+        type = DT_REG;
+      else if (tok == "s")
+        type = DT_SOCK;
+      else
+        return NULL;
+      return new TypeCond(type);
+    } else {
+      UngetToken(tok);
+      return NULL;
+    }
+  }
+
+  FindCond* ParseTerm(StringPiece tok) {
+    unique_ptr<FindCond> c(ParseFact(tok));
+    if (!c.get())
+      return NULL;
+    while (true) {
+      if (!GetNextToken(&tok))
+        return NULL;
+      if (tok != "-and" && tok != "-a") {
+        UngetToken(tok);
+        return c.release();
+      }
+      if (!GetNextToken(&tok) || tok.empty())
+        return NULL;
+      unique_ptr<FindCond> r(ParseFact(tok));
+      if (!r.get()) {
+        return NULL;
+      }
+      c.reset(new AndCond(c.release(), r.release()));
+    }
+  }
+
+  FindCond* ParseExpr(StringPiece tok) {
+    unique_ptr<FindCond> c(ParseTerm(tok));
+    if (!c.get())
+      return NULL;
+    while (true) {
+      if (!GetNextToken(&tok))
+        return NULL;
+      if (tok != "-or" && tok != "-o") {
+        UngetToken(tok);
+        return c.release();
+      }
+      if (!GetNextToken(&tok) || tok.empty())
+        return NULL;
+      unique_ptr<FindCond> r(ParseTerm(tok));
+      if (!r.get()) {
+        return NULL;
+      }
+      c.reset(new OrCond(c.release(), r.release()));
+    }
+  }
+
+  // <expr> ::= <term> {<or> <term>}
+  // <term> ::= <fact> {<and> <fact>}
+  // <fact> ::= <not> <fact> | '\(' <expr> '\)' | <pred>
+  // <not> ::= '-not' | '\!'
+  // <and> ::= '-and' | '-a'
+  // <or> ::= '-or' | '-o'
+  // <pred> ::= <name> | <type> | <maxdepth>
+  // <name> ::= '-name' NAME
+  // <type> ::= '-type' TYPE
+  // <maxdepth> ::= '-maxdepth' MAXDEPTH
+  FindCond* ParseFindCond(StringPiece tok) {
+    return ParseExpr(tok);
+  }
+
+  bool ParseFind() {
+    StringPiece tok;
+    while (true) {
+      if (!GetNextToken(&tok))
+        return false;
+      if (tok.empty() || tok == ";")
+        return true;
+
+      if (tok == "-L") {
+        fc_->follows_symlinks = true;
+      } else if (tok == "-prune") {
+        if (!fc_->print_cond || fc_->prune_cond)
+          return false;
+        if (!GetNextToken(&tok) || tok != "-o")
+          return false;
+        fc_->prune_cond.reset(fc_->print_cond.release());
+      } else if (tok == "-print") {
+        if (!GetNextToken(&tok) || !tok.empty())
+          return false;
+        return true;
+      } else if (tok == "-maxdepth") {
+        if (!GetNextToken(&tok) || tok.empty())
+          return false;
+        const string& depth_str = tok.as_string();
+        char* endptr;
+        long d = strtol(depth_str.c_str(), &endptr, 10);
+        if (endptr != depth_str.data() + depth_str.size() ||
+            d < 0 || d > INT_MAX) {
+          return false;
+        }
+        fc_->depth = d;
+      } else if (tok[0] == '-' || tok == "\\(") {
+        if (fc_->print_cond.get())
+          return false;
+        FindCond* c = ParseFindCond(tok);
+        if (!c)
+          return false;
+        fc_->print_cond.reset(c);
+      } else {
+        fc_->finddirs.push_back(tok);
+      }
+    }
+  }
+
+  bool ParseImpl() {
+    while (true) {
+      StringPiece tok;
+      if (!GetNextToken(&tok))
+        return false;
+
+      if (tok.empty())
+        return true;
+
+      if (tok == "cd") {
+        if (!GetNextToken(&tok) || tok.empty() || !fc_->chdir.empty())
+          return false;
+        fc_->chdir = tok;
+        if (!GetNextToken(&tok) || (tok != ";" && tok != "&&"))
+          return false;
+      } else if (tok == "if") {
+        if (!GetNextToken(&tok) || tok != "[")
+          return false;
+        if (!ParseTest())
+          return false;
+        if (!GetNextToken(&tok) || tok != "]")
+          return false;
+        if (!GetNextToken(&tok) || tok != ";")
+          return false;
+        if (!GetNextToken(&tok) || tok != "then")
+          return false;
+        has_if_ = true;
+      } else if (tok == "test") {
+        if (!fc_->chdir.empty())
+          return false;
+        if (!ParseTest())
+          return false;
+        if (!GetNextToken(&tok) || tok != "&&")
+          return false;
+      } else if (tok == "find") {
+        if (!ParseFind())
+          return false;
+        if (has_if_) {
+          if (!GetNextToken(&tok) || tok != "fi")
+            return false;
+        }
+        if (!GetNextToken(&tok) || !tok.empty())
+          return false;
+        return true;
+      }
+    }
+  }
+
+  StringPiece cmd_;
+  StringPiece cur_;
+  FindCommand* fc_;
+  bool has_if_;
+  StringPiece unget_tok_;
+};
+
 static FindEmulator* g_instance;
 
 class FindEmulatorImpl : public FindEmulator {
@@ -294,7 +574,7 @@ class FindEmulatorImpl : public FindEmulator {
 
   virtual bool HandleFind(const string& cmd, string* out) override {
     FindCommand fc;
-    if (!ParseFindCommand(cmd, &fc))
+    if (!fc.Parse(cmd))
       return false;
 
     if (HasPrefix(fc.chdir, "/")) {
@@ -346,286 +626,6 @@ class FindEmulatorImpl : public FindEmulator {
   }
 
  private:
-  class FindCommandParser {
-   public:
-    FindCommandParser(StringPiece cmd, FindCommand* fc)
-        : cmd_(cmd), fc_(fc), has_if_(false) {
-    }
-
-    bool Parse() {
-      cur_ = cmd_;
-      if (!ParseImpl()) {
-        LOG("FindEmulator: Unsupported find command: %.*s", SPF(cmd_));
-        return false;
-      }
-      CHECK(TrimLeftSpace(cur_).empty());
-      return true;
-    }
-
-   private:
-    bool GetNextToken(StringPiece* tok) {
-      if (!unget_tok_.empty()) {
-        *tok = unget_tok_;
-        unget_tok_.clear();
-        return true;
-      }
-
-      cur_ = TrimLeftSpace(cur_);
-
-      if (cur_[0] == ';') {
-        *tok = cur_.substr(0, 1);
-        cur_ = cur_.substr(1);
-        return true;
-      }
-      if (cur_[0] == '&') {
-        if (cur_.get(1) != '&') {
-          return false;
-        }
-        *tok = cur_.substr(0, 2);
-        cur_ = cur_.substr(2);
-        return true;
-      }
-
-      size_t i = 0;
-      while (i < cur_.size() && !isspace(cur_[i]) &&
-             cur_[i] != ';' && cur_[i] != '&') {
-        i++;
-      }
-
-      *tok = cur_.substr(0, i);
-      cur_ = cur_.substr(i);
-
-      const char c = tok->get(0);
-      if (c == '\'' || c == '"') {
-        if (tok->size() < 2 || (*tok)[tok->size()-1] != c)
-          return false;
-        *tok = tok->substr(1, tok->size() - 2);
-        return true;
-      }
-
-      return true;
-    }
-
-    void UngetToken(StringPiece tok) {
-      CHECK(unget_tok_.empty());
-      if (!tok.empty())
-        unget_tok_ = tok;
-    }
-
-    bool ParseTest() {
-      if (has_if_ || !fc_->testdir.empty())
-        return false;
-      StringPiece tok;
-      if (!GetNextToken(&tok) || tok != "-d")
-        return false;
-      if (!GetNextToken(&tok) || tok.empty())
-        return false;
-      fc_->testdir = tok;
-      return true;
-    }
-
-    FindCond* ParseFact(StringPiece tok) {
-      if (tok == "-not" || tok == "\\!") {
-        if (!GetNextToken(&tok) || tok.empty())
-          return NULL;
-        unique_ptr<FindCond> c(ParseFact(tok));
-        if (!c.get())
-          return NULL;
-        return new NotCond(c.release());
-      } else if (tok == "\\(") {
-        if (!GetNextToken(&tok) || tok.empty())
-          return NULL;
-        unique_ptr<FindCond> c(ParseExpr(tok));
-        if (!GetNextToken(&tok) || tok != "\\)") {
-          return NULL;
-        }
-        return c.release();
-      } else if (tok == "-name") {
-        if (!GetNextToken(&tok) || tok.empty())
-          return NULL;
-        return new NameCond(tok.as_string());
-      } else if (tok == "-type") {
-        if (!GetNextToken(&tok) || tok.empty())
-          return NULL;
-        char type;
-        if (tok == "b")
-          type = DT_BLK;
-        else if (tok == "c")
-          type = DT_CHR;
-        else if (tok == "d")
-          type = DT_DIR;
-        else if (tok == "p")
-          type = DT_FIFO;
-        else if (tok == "l")
-          type = DT_LNK;
-        else if (tok == "f")
-          type = DT_REG;
-        else if (tok == "s")
-          type = DT_SOCK;
-        else
-          return NULL;
-        return new TypeCond(type);
-      } else {
-        UngetToken(tok);
-        return NULL;
-      }
-    }
-
-    FindCond* ParseTerm(StringPiece tok) {
-      unique_ptr<FindCond> c(ParseFact(tok));
-      if (!c.get())
-        return NULL;
-      while (true) {
-        if (!GetNextToken(&tok))
-          return NULL;
-        if (tok != "-and" && tok != "-a") {
-          UngetToken(tok);
-          return c.release();
-        }
-        if (!GetNextToken(&tok) || tok.empty())
-          return NULL;
-        unique_ptr<FindCond> r(ParseFact(tok));
-        if (!r.get()) {
-          return NULL;
-        }
-        c.reset(new AndCond(c.release(), r.release()));
-      }
-    }
-
-    FindCond* ParseExpr(StringPiece tok) {
-      unique_ptr<FindCond> c(ParseTerm(tok));
-      if (!c.get())
-        return NULL;
-      while (true) {
-        if (!GetNextToken(&tok))
-          return NULL;
-        if (tok != "-or" && tok != "-o") {
-          UngetToken(tok);
-          return c.release();
-        }
-        if (!GetNextToken(&tok) || tok.empty())
-          return NULL;
-        unique_ptr<FindCond> r(ParseTerm(tok));
-        if (!r.get()) {
-          return NULL;
-        }
-        c.reset(new OrCond(c.release(), r.release()));
-      }
-    }
-
-    // <expr> ::= <term> {<or> <term>}
-    // <term> ::= <fact> {<and> <fact>}
-    // <fact> ::= <not> <fact> | '\(' <expr> '\)' | <pred>
-    // <not> ::= '-not' | '\!'
-    // <and> ::= '-and' | '-a'
-    // <or> ::= '-or' | '-o'
-    // <pred> ::= <name> | <type> | <maxdepth>
-    // <name> ::= '-name' NAME
-    // <type> ::= '-type' TYPE
-    // <maxdepth> ::= '-maxdepth' MAXDEPTH
-    FindCond* ParseFindCond(StringPiece tok) {
-      return ParseExpr(tok);
-    }
-
-    bool ParseFind() {
-      StringPiece tok;
-      while (true) {
-        if (!GetNextToken(&tok))
-          return false;
-        if (tok.empty() || tok == ";")
-          return true;
-
-        if (tok == "-L") {
-          fc_->follows_symlinks = true;
-        } else if (tok == "-prune") {
-          if (!fc_->print_cond || fc_->prune_cond)
-            return false;
-          if (!GetNextToken(&tok) || tok != "-o")
-            return false;
-          fc_->prune_cond.reset(fc_->print_cond.release());
-        } else if (tok == "-print") {
-          if (!GetNextToken(&tok) || !tok.empty())
-            return false;
-          return true;
-        } else if (tok == "-maxdepth") {
-          if (!GetNextToken(&tok) || tok.empty())
-            return false;
-          const string& depth_str = tok.as_string();
-          char* endptr;
-          long d = strtol(depth_str.c_str(), &endptr, 10);
-          if (endptr != depth_str.data() + depth_str.size() ||
-              d < 0 || d > INT_MAX) {
-            return false;
-          }
-          fc_->depth = d;
-        } else if (tok[0] == '-' || tok == "\\(") {
-          if (fc_->print_cond.get())
-            return false;
-          FindCond* c = ParseFindCond(tok);
-          if (!c)
-            return false;
-          fc_->print_cond.reset(c);
-        } else {
-          fc_->finddirs.push_back(tok);
-        }
-      }
-    }
-
-    bool ParseImpl() {
-      while (true) {
-        StringPiece tok;
-        if (!GetNextToken(&tok))
-          return false;
-
-        if (tok.empty())
-          return true;
-
-        if (tok == "cd") {
-          if (!GetNextToken(&tok) || tok.empty() || !fc_->chdir.empty())
-            return false;
-          fc_->chdir = tok;
-          if (!GetNextToken(&tok) || (tok != ";" && tok != "&&"))
-            return false;
-        } else if (tok == "if") {
-          if (!GetNextToken(&tok) || tok != "[")
-            return false;
-          if (!ParseTest())
-            return false;
-          if (!GetNextToken(&tok) || tok != "]")
-            return false;
-          if (!GetNextToken(&tok) || tok != ";")
-            return false;
-          if (!GetNextToken(&tok) || tok != "then")
-            return false;
-          has_if_ = true;
-        } else if (tok == "test") {
-          if (!fc_->chdir.empty())
-            return false;
-          if (!ParseTest())
-            return false;
-          if (!GetNextToken(&tok) || tok != "&&")
-            return false;
-        } else if (tok == "find") {
-          if (!ParseFind())
-            return false;
-          if (has_if_) {
-            if (!GetNextToken(&tok) || tok != "fi")
-              return false;
-          }
-          if (!GetNextToken(&tok) || !tok.empty())
-            return false;
-          return true;
-        }
-      }
-    }
-
-    StringPiece cmd_;
-    StringPiece cur_;
-    FindCommand* fc_;
-    bool has_if_;
-    StringPiece unget_tok_;
-  };
-
   DirentNode* ConstructDirectoryTree(const string& path) {
     DIR* dir = opendir(path.empty() ? "." : path.c_str());
     if (!dir)
@@ -663,19 +663,6 @@ class FindEmulatorImpl : public FindEmulator {
     return n;
   }
 
-  bool ParseFindCommand(StringPiece cmd, FindCommand* fc) {
-    FindCommandParser fcp(cmd, fc);
-    if (cmd.find("find ") == string::npos)
-      return false;
-
-    if (!fcp.Parse())
-      return false;
-
-    if (fc->finddirs.empty())
-      fc->finddirs.push_back(".");
-    return true;
-  }
-
   unique_ptr<DirentNode> root_;
   int node_cnt_;
   bool is_initialized_;
@@ -685,6 +672,19 @@ class FindEmulatorImpl : public FindEmulator {
 
 FindCommand::FindCommand()
     : follows_symlinks(false), depth(INT_MAX) {
+}
+
+bool FindCommand::Parse(const string& cmd) {
+  FindCommandParser fcp(cmd, this);
+  if (cmd.find("find ") == string::npos)
+    return false;
+
+  if (!fcp.Parse())
+    return false;
+
+  if (finddirs.empty())
+    finddirs.push_back(".");
+  return true;
 }
 
 FindEmulator* FindEmulator::Get() {

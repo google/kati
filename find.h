@@ -29,6 +29,8 @@ struct FindCommand {
   FindCommand();
   ~FindCommand() = default;
 
+  bool Parse(const string& cmd);
+
   StringPiece chdir;
   StringPiece testdir;
   vector<StringPiece> finddirs;
