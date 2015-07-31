@@ -72,10 +72,23 @@ void TestNoLineBreak() {
   assert(NoLineBreak("a\nb\nc") == "a\\nb\\nc");
 }
 
+void TestHasWord() {
+  assert(HasWord("foo bar baz", "bar"));
+  assert(HasWord("foo bar baz", "foo"));
+  assert(HasWord("foo bar baz", "baz"));
+  assert(!HasWord("foo bar baz", "oo"));
+  assert(!HasWord("foo bar baz", "ar"));
+  assert(!HasWord("foo bar baz", "ba"));
+  assert(!HasWord("foo bar baz", "az"));
+  assert(!HasWord("foo bar baz", "ba"));
+  assert(!HasWord("foo bar baz", "fo"));
+}
+
 int main() {
   TestWordScanner();
   TestHasPrefix();
   TestHasSuffix();
   TestSubstPattern();
   TestNoLineBreak();
+  TestHasWord();
 }

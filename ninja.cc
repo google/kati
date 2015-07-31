@@ -34,6 +34,7 @@
 #include "file_cache.h"
 #include "fileutil.h"
 #include "flags.h"
+#include "func.h"
 #include "io.h"
 #include "log.h"
 #include "string_piece.h"
@@ -750,6 +751,13 @@ class NinjaGenerator {
       }
     }
 
+    const vector<FileListCommand*>& flcs = GetFileListCommmands();
+    DumpInt(fp, flcs.size());
+    for (FileListCommand* flc : flcs) {
+      DumpString(fp, flc->cmd);
+      DumpString(fp, flc->result);
+    }
+
     fclose(fp);
   }
 
@@ -859,6 +867,22 @@ bool NeedsRegen(const char* ninja_suffix,
     } else {
       for (int j = 0; j < num_files; j++)
         LoadString(fp, &s);
+    }
+  }
+
+  int num_flcs = LoadInt(fp);
+  for (int i = 0; i < num_flcs; i++) {
+    string cmd;
+    LoadString(fp, &cmd);
+    string result;
+    RunCommand("/bin/sh", cmd, RedirectStderr::DEV_NULL, &result);
+    FormatForCommandSubstitution(&result);
+    result = SortWordsInString(result);
+    LoadString(fp, &s);
+    if (s != result) {
+      fprintf(stderr, "$(shell %s) was changed, regenerating...\n",
+              cmd.c_str());
+      return true;
     }
   }
 

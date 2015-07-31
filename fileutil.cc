@@ -17,6 +17,7 @@
 #include "fileutil.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <glob.h>
 #include <limits.h>
 #include <sys/stat.h>
@@ -53,7 +54,8 @@ double GetTimestamp(StringPiece filename) {
 #endif
 }
 
-int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
+int RunCommand(const string& shell, const string& cmd,
+               RedirectStderr redirect_stderr,
                string* s) {
   int pipefd[2];
   if (pipe(pipefd) != 0)
@@ -86,9 +88,14 @@ int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
     return status;
   } else {
     close(pipefd[0]);
-    if (redirect_stderr) {
+    if (redirect_stderr == RedirectStderr::STDOUT) {
       if (dup2(pipefd[1], 2) < 0)
         PERROR("dup2 failed");
+    } else if (redirect_stderr == RedirectStderr::DEV_NULL) {
+      int fd = open("/dev/null", O_WRONLY);
+      if (dup2(fd, 2) < 0)
+        PERROR("dup2 failed");
+      close(fd);
     }
     if (dup2(pipefd[1], 1) < 0)
       PERROR("dup2 failed");

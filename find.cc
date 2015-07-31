@@ -574,11 +574,8 @@ class FindEmulatorImpl : public FindEmulator {
     return r;
   }
 
-  virtual bool HandleFind(const string& cmd, string* out) override {
-    FindCommand fc;
-    if (!fc.Parse(cmd))
-      return false;
-
+  virtual bool HandleFind(const string& cmd UNUSED, const FindCommand& fc,
+                          string* out) override {
     if (HasPrefix(fc.chdir, "/")) {
       LOG("FindEmulator: Cannot handle abspath: %s", cmd.c_str());
       return false;
@@ -676,12 +673,13 @@ FindCommand::FindCommand()
     : follows_symlinks(false), depth(INT_MAX) {
 }
 
+FindCommand::~FindCommand() {
+}
+
 bool FindCommand::Parse(const string& cmd) {
   FindCommandParser fcp(cmd, this);
-  size_t found = cmd.find("find ");
-  if (found == string::npos || (found != 0 && !isspace(cmd[found-1]))) {
+  if (!HasWord(cmd, "find"))
     return false;
-  }
 
   if (!fcp.Parse())
     return false;

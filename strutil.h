@@ -87,6 +87,8 @@ bool HasPrefix(StringPiece str, StringPiece prefix);
 
 bool HasSuffix(StringPiece str, StringPiece suffix);
 
+bool HasWord(StringPiece str, StringPiece w);
+
 StringPiece TrimSuffix(StringPiece str, StringPiece suffix);
 
 class Pattern {
@@ -129,5 +131,9 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt);
 // and file are considered to be the same file.
 // From http://www.gnu.org/software/make/manual/make.html#Features
 StringPiece TrimLeadingCurdir(StringPiece s);
+
+void FormatForCommandSubstitution(string* s);
+
+string SortWordsInString(StringPiece s);
 
 #endif  // STRUTIL_H_

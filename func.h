@@ -15,6 +15,8 @@
 #ifndef FUNC_H_
 #define FUNC_H_
 
+#include <memory>
+#include <string>
 #include <vector>
 
 #include "value.h"
@@ -36,5 +38,15 @@ void InitFuncTable();
 void QuitFuncTable();
 
 FuncInfo* GetFuncInfo(StringPiece name);
+
+struct FindCommand;
+
+struct FileListCommand {
+  string cmd;
+  unique_ptr<FindCommand> find;
+  string result;
+};
+
+const vector<FileListCommand*>& GetFileListCommmands();
 
 #endif  // FUNC_H_

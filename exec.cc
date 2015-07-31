@@ -104,7 +104,8 @@ class Executor {
       }
       if (!g_is_dry_run) {
         string out;
-        int result = RunCommand(*shell_, command->cmd->c_str(), true,
+        int result = RunCommand(*shell_, command->cmd->c_str(),
+                                RedirectStderr::STDOUT,
                                 &out);
         printf("%s", out.c_str());
         if (result != 0) {

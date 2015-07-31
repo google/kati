@@ -27,7 +27,7 @@ class FindCond;
 
 struct FindCommand {
   FindCommand();
-  ~FindCommand() = default;
+  ~FindCommand();
 
   bool Parse(const string& cmd);
 
@@ -44,7 +44,8 @@ class FindEmulator {
  public:
   virtual ~FindEmulator() = default;
 
-  virtual bool HandleFind(const string& cmd, string* out) = 0;
+  virtual bool HandleFind(const string& cmd, const FindCommand& fc,
+                          string* out) = 0;
 
   static FindEmulator* Get();
 

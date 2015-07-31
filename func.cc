@@ -462,18 +462,6 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 
 //#define TEST_FIND_EMULATOR
 
-#ifdef TEST_FIND_EMULATOR
-static string SortWordsInString(StringPiece s) {
-  vector<string> toks;
-  for (StringPiece tok : WordScanner(s)) {
-    toks.push_back(tok.as_string());
-  }
-  sort(toks.begin(), toks.end());
-  return JoinStrings(toks, " ");
-}
-#endif
-
-
 // A hack for Android build. We need to evaluate things like $((3+4))
 // when we emit ninja file, because the result of such expressions
 // will be passed to other make functions.
@@ -487,6 +475,55 @@ static bool HasNoIoInShellScript(const string& cmd) {
   return false;
 }
 
+static void ShellFuncImpl(const string& shell, const string& cmd,
+                          bool is_file_list_command,
+                          string* s, FindCommand** fc) {
+  LOG("ShellFunc: %s", cmd.c_str());
+
+#ifdef TEST_FIND_EMULATOR
+  bool need_check = false;
+  string out2;
+#endif
+  if (FindEmulator::Get()) {
+    *fc = new FindCommand();
+    if ((*fc)->Parse(cmd)) {
+#ifdef TEST_FIND_EMULATOR
+      if (FindEmulator::Get()->HandleFind(cmd, **fc, &out2)) {
+        need_check = true;
+      }
+#else
+      if (FindEmulator::Get()->HandleFind(cmd, **fc, s)) {
+        *s = SortWordsInString(*s);
+        return;
+      }
+#endif
+    }
+    delete *fc;
+    *fc = NULL;
+  }
+
+  COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd.c_str());
+  RunCommand(shell, cmd, RedirectStderr::NONE, s);
+  if (is_file_list_command) {
+    *s = SortWordsInString(*s);
+  } else {
+    FormatForCommandSubstitution(s);
+  }
+
+#ifdef TEST_FIND_EMULATOR
+  if (need_check) {
+    string sorted = SortWordsInString(*s);
+    out2 = SortWordsInString(out2);
+    if (sorted != out2) {
+      ERROR("FindEmulator is broken: %s\n%s\nvs\n%s",
+            cmd.c_str(), sorted.c_str(), out2.c_str());
+    }
+  }
+#endif
+}
+
+static vector<FileListCommand*> g_file_list_commands;
+
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io() && !HasNoIoInShellScript(*cmd)) {
@@ -496,42 +533,23 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     return;
   }
 
-  LOG("ShellFunc: %s", cmd->c_str());
-
-#ifdef TEST_FIND_EMULATOR
-  bool need_check = false;
-  string out2;
-  if (FindEmulator::Get() && FindEmulator::Get()->HandleFind(*cmd, &out2)) {
-    need_check = true;
-  }
-#else
-  if (FindEmulator::Get() && FindEmulator::Get()->HandleFind(*cmd, s))
-    return;
-#endif
-
-  COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd->c_str());
-  string out;
   shared_ptr<string> shell = ev->EvalVar(kShellSym);
-  RunCommand(*shell, *cmd, false, &out);
+  const bool is_file_list_command =
+      ((*shell == "/bin/sh" || *shell == "/bin/bash") &&
+       (HasWord(*cmd, "find") || HasWord(*cmd, "ls") ||
+        // For Android.
+        cmd->find("/findleaves.py ") != string::npos));
 
-  while (out[out.size()-1] == '\n')
-    out.pop_back();
-  for (size_t i = 0; i < out.size(); i++) {
-    if (out[i] == '\n')
-      out[i] = ' ';
+  string out;
+  FindCommand* fc = NULL;
+  ShellFuncImpl(*shell, *cmd, is_file_list_command, &out, &fc);
+  if (is_file_list_command) {
+    FileListCommand* flc = new FileListCommand();
+    flc->cmd = *cmd;
+    flc->find.reset(fc);
+    flc->result = out;
+    g_file_list_commands.push_back(flc);
   }
-
-#ifdef TEST_FIND_EMULATOR
-  if (need_check) {
-    string sorted = SortWordsInString(out);
-    out2 = SortWordsInString(out2);
-    if (sorted != out2) {
-      ERROR("FindEmulator is broken: %s\n%s\nvs\n%s",
-            cmd->c_str(), sorted.c_str(), out2.c_str());
-    }
-  }
-#endif
-
   *s += out;
 }
 
@@ -687,4 +705,8 @@ FuncInfo* GetFuncInfo(StringPiece name) {
   if (found == g_func_info_map->end())
     return NULL;
   return found->second;
+}
+
+const vector<FileListCommand*>& GetFileListCommmands() {
+  return g_file_list_commands;
 }
