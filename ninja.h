@@ -33,7 +33,7 @@ void GenerateNinja(const char* ninja_suffix,
                    Evaluator* ev,
                    bool build_all_targets,
                    const string& orig_args,
-                   time_t start_time);
+                   double start_time);
 
 bool NeedsRegen(const char* ninja_suffix,
                 const char* ninja_dir);

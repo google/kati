@@ -31,7 +31,6 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
-sleep 1
 cat <<EOF > Makefile
 all:
 	echo bar
@@ -66,7 +65,6 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
-sleep 1
 touch PASS.mk
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
@@ -76,7 +74,6 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
-sleep 1
 touch XXX
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then

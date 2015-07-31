@@ -46,7 +46,11 @@ double GetTimestamp(StringPiece filename) {
   if (stat(filename.as_string().c_str(), &st) < 0) {
     return -2.0;
   }
+#if defined(__linux__)
+  return st.st_mtime + st.st_mtim.tv_nsec * 0.001 * 0.001 * 0.001;
+#else
   return st.st_mtime;
+#endif
 }
 
 int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,

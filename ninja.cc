@@ -167,7 +167,7 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
 class NinjaGenerator {
  public:
   NinjaGenerator(const char* ninja_suffix, const char* ninja_dir, Evaluator* ev,
-                 time_t start_time)
+                 double start_time)
       : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0), start_time_(start_time) {
     ev_->set_avoid_io(true);
     shell_ = ev->EvalVar(kShellSym);
@@ -709,8 +709,10 @@ class NinjaGenerator {
 
   void GenerateStamp() {
     FILE* fp = fopen(GetStampFilename().c_str(), "wb");
+    CHECK(fp);
 
-    DumpInt(fp, start_time_);
+    size_t r = fwrite(&start_time_, sizeof(start_time_), 1, fp);
+    CHECK(r == 1);
 
     unordered_set<string> makefiles;
     MakefileCacheManager::Get()->GetAllFilenames(&makefiles);
@@ -763,7 +765,7 @@ class NinjaGenerator {
   shared_ptr<string> shell_;
   map<string, string> used_envs_;
   string kati_binary_;
-  time_t start_time_;
+  double start_time_;
 };
 
 void GenerateNinja(const char* ninja_suffix,
@@ -772,7 +774,7 @@ void GenerateNinja(const char* ninja_suffix,
                    Evaluator* ev,
                    bool build_all_targets,
                    const string& orig_args,
-                   time_t start_time) {
+                   double start_time) {
   NinjaGenerator ng(ninja_suffix, ninja_dir, ev, start_time);
   ng.Generate(nodes, build_all_targets, orig_args);
 }
@@ -786,7 +788,9 @@ bool NeedsRegen(const char* ninja_suffix,
     return true;
   ScopedFile sfp(fp);
 
-  time_t gen_time = LoadInt(fp);
+  double gen_time;
+  size_t r = fread(&gen_time, sizeof(gen_time), 1, fp);
+  CHECK(r == 1);
 
   string s, s2;
   int num_files = LoadInt(fp);

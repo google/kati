@@ -231,8 +231,9 @@ static int Run(const vector<Symbol>& targets,
     ClearGlobCache();
   }
 
-  time_t start_time;
-  time(&start_time);
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  double start_time = ts.tv_sec + ts.tv_nsec * 0.001 * 0.001 * 0.001;
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
