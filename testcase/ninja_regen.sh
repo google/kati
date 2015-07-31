@@ -16,14 +16,17 @@
 
 set -e
 
+log=/tmp/log
 mk="$@"
+
+export VAR=hoge
 
 cat <<EOF > Makefile
 all:
 	echo foo
 EOF
 
-${mk}
+${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
@@ -32,9 +35,43 @@ sleep 1
 cat <<EOF > Makefile
 all:
 	echo bar
+	echo \$(VAR)
+	echo \$(wildcard *.mk)
 EOF
 
-${mk}
+${mk} 2> ${log}
 if [ -e ninja.sh ]; then
+  if ! grep regenerating ${log} > /dev/null; then
+    echo 'Should be regenerated'
+  fi
+  ./ninja.sh
+fi
+
+export VAR=fuga
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if ! grep regenerating ${log} > /dev/null; then
+    echo 'Should be regenerated'
+  fi
+  ./ninja.sh
+fi
+
+sleep 1
+touch PASS.mk
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if ! grep regenerating ${log} > /dev/null; then
+    echo 'Should be regenerated'
+  fi
+  ./ninja.sh
+fi
+
+sleep 1
+touch XXX
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if grep regenerating ${log}; then
+    echo 'Should not be regenerated'
+  fi
   ./ninja.sh
 fi
