@@ -284,7 +284,7 @@ run_shell_test = proc do |sh|
 
     if is_ninja_test
       if ckati
-        cmd = "sh ../../#{sh} ../../ckati --ninja --gen_regen_rule"
+        cmd = "sh ../../#{sh} ../../ckati --ninja --regen"
       else
         next
       end

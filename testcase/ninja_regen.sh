@@ -34,8 +34,7 @@ all:
 	echo bar
 EOF
 
+${mk}
 if [ -e ninja.sh ]; then
   ./ninja.sh
-else
-  ${mk}
 fi
