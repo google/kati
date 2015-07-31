@@ -223,6 +223,7 @@ static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars,
                const string& orig_args) {
   if (g_generate_ninja && g_regen) {
+    ScopedTimeReporter tr("regen check time");
     if (!NeedsRegen(g_ninja_suffix, g_ninja_dir)) {
       fprintf(stderr, "No need to regenerate ninja file\n");
       return 0;
