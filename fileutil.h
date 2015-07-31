@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "string_piece.h"
@@ -32,5 +33,9 @@ int RunCommand(const string& shell, const string& cmd, bool redirect_stderr,
 void GetExecutablePath(string* path);
 
 void Glob(const char* pat, vector<string>** files);
+
+const unordered_map<string, vector<string>*>& GetAllGlobCache();
+
+void ClearGlobCache();
 
 #endif  // FILEUTIL_H_

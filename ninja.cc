@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -663,6 +664,48 @@ class NinjaGenerator {
     fclose(fp);
   }
 
+  void GetCommonPrefixDir(const vector<string>& files, string* o) {
+    for (const string& file : files) {
+      size_t l = min(file.size(), o->size());
+      for (size_t i = 0; i < l; i++) {
+        if (file[i] != (*o)[i]) {
+          size_t index = o->rfind('/', i);
+          if (index == string::npos)
+            index = 0;
+          o->resize(index);
+          break;
+        }
+      }
+    }
+  }
+
+  void GetReadDirs(const string& pat,
+                   const vector<string>& files,
+                   unordered_set<string>* dirs) {
+    string prefix_dir = Dirname(pat).as_string();
+    size_t index = prefix_dir.find_first_of("?*[\\");
+    if (index != string::npos) {
+      index = prefix_dir.rfind('/', index);
+      if (index == string::npos) {
+        prefix_dir = "";
+      } else {
+        prefix_dir = prefix_dir.substr(0, index);
+      }
+    }
+
+    GetCommonPrefixDir(files, &prefix_dir);
+    if (prefix_dir.empty())
+      prefix_dir = ".";
+    dirs->insert(prefix_dir);
+    for (const string& file : files) {
+      StringPiece dir = Dirname(file);
+      while (dir != prefix_dir) {
+        dirs->insert(dir.as_string());
+        dir = Dirname(dir);
+      }
+    }
+  }
+
   void GenerateStamp() {
     FILE* fp = fopen(GetStampFilename().c_str(), "wb");
 
@@ -680,6 +723,23 @@ class NinjaGenerator {
     for (const auto& p : used_envs_) {
       DumpString(fp, p.first);
       DumpString(fp, p.second);
+    }
+
+    const unordered_map<string, vector<string>*>& globs = GetAllGlobCache();
+    DumpInt(fp, globs.size());
+    for (const auto& p : globs) {
+      DumpString(fp, p.first);
+      const vector<string>& files = *p.second;
+      unordered_set<string> dirs;
+      GetReadDirs(p.first, files, &dirs);
+      DumpInt(fp, dirs.size());
+      for (const string& dir : dirs) {
+        DumpString(fp, dir);
+      }
+      DumpInt(fp, files.size());
+      for (const string& file : files) {
+        DumpString(fp, file);
+      }
     }
 
     fclose(fp);
@@ -723,8 +783,8 @@ bool NeedsRegen(const char* ninja_suffix,
   time_t gen_time = LoadInt(fp);
 
   string s, s2;
-  int l = LoadInt(fp);
-  for (int i = 0; i < l; i++) {
+  int num_files = LoadInt(fp);
+  for (int i = 0; i < num_files; i++) {
     LoadString(fp, &s);
     if (gen_time < GetTimestamp(s)) {
       fprintf(stderr, "%s was modified, regenerating...\n", s.c_str());
@@ -732,8 +792,8 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
-  l = LoadInt(fp);
-  for (int i = 0; i < l; i++) {
+  int num_envs = LoadInt(fp);
+  for (int i = 0; i < num_envs; i++) {
     LoadString(fp, &s);
     StringPiece val(getenv(s.c_str()));
     LoadString(fp, &s2);
@@ -742,6 +802,43 @@ bool NeedsRegen(const char* ninja_suffix,
               "regenerating...\n",
               s.c_str(), s2.c_str(), SPF(val));;
       return true;
+    }
+  }
+
+  int num_globs = LoadInt(fp);
+  string pat;
+  for (int i = 0; i < num_globs; i++) {
+    LoadString(fp, &pat);
+    bool needs_reglob = false;
+    int num_dirs = LoadInt(fp);
+    for (int j = 0; j < num_dirs; j++) {
+      LoadString(fp, &s);
+      needs_reglob |= gen_time < GetTimestamp(s);
+    }
+
+    int num_files = LoadInt(fp);
+    if (needs_reglob) {
+      vector<string>* files;
+      Glob(pat.c_str(), &files);
+      sort(files->begin(), files->end());
+      bool needs_regen = files->size() != static_cast<size_t>(num_files);
+      if (!needs_regen) {
+        for (int j = 0; j < num_files; j++) {
+          LoadString(fp, &s);
+          if ((*files)[j] != s) {
+            needs_regen = true;
+            break;
+          }
+        }
+      }
+      if (needs_regen) {
+        fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
+                pat.c_str());
+        return true;
+      }
+    } else {
+      for (int j = 0; j < num_files; j++)
+        LoadString(fp, &s);
     }
   }
 

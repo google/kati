@@ -227,6 +227,7 @@ static int Run(const vector<Symbol>& targets,
       fprintf(stderr, "No need to regenerate ninja file\n");
       return 0;
     }
+    ClearGlobCache();
   }
 
   time_t start_time;

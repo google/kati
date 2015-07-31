@@ -123,9 +123,7 @@ namespace {
 class GlobCache {
  public:
   ~GlobCache() {
-    for (auto& p : cache_) {
-      delete p.second;
-    }
+    Clear();
   }
 
   void Get(const char* pat, vector<string>** files) {
@@ -147,13 +145,33 @@ class GlobCache {
     *files = p.first->second;
   }
 
+  const unordered_map<string, vector<string>*>& GetAll() const {
+    return cache_;
+  }
+
+  void Clear() {
+    for (auto& p : cache_) {
+      delete p.second;
+    }
+    cache_.clear();
+  }
+
  private:
   unordered_map<string, vector<string>*> cache_;
 };
 
+static GlobCache g_gc;
+
 }  // namespace
 
 void Glob(const char* pat, vector<string>** files) {
-  static GlobCache gc;
-  gc.Get(pat, files);
+  g_gc.Get(pat, files);
+}
+
+const unordered_map<string, vector<string>*>& GetAllGlobCache() {
+  return g_gc.GetAll();
+}
+
+void ClearGlobCache() {
+  g_gc.Clear();
 }
