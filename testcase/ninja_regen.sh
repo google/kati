@@ -19,6 +19,12 @@ set -e
 log=/tmp/log
 mk="$@"
 
+sleep_if_necessary() {
+  if [ x$(uname) != x"Linux" ]; then
+    sleep "$@"
+  fi
+}
+
 export VAR=hoge
 
 cat <<EOF > Makefile
@@ -31,6 +37,7 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
+sleep_if_necessary 1
 cat <<EOF > Makefile
 all:
 	echo bar
@@ -65,6 +72,7 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
+sleep_if_necessary 1
 touch PASS.mk
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
@@ -74,6 +82,7 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
+sleep_if_necessary 1
 touch XXX
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
