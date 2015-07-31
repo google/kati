@@ -58,7 +58,6 @@ var (
 	ninjaSuffix         string
 	gomaDir             string
 	detectAndroidEcho   bool
-	errorOnEnvChange    bool
 	findCachePrunes     string
 	findCacheLeafNames  string
 	shellDate           string
@@ -89,8 +88,8 @@ func init() {
 	flag.BoolVar(&regenNinja, "gen_regen_rule", false, "Generate regenerate build.ninja rule.")
 	flag.StringVar(&ninjaSuffix, "ninja_suffix", "", "suffix for ninja files.")
 	flag.StringVar(&gomaDir, "goma_dir", "", "If specified, use goma to build C/C++ files.")
+	// TODO(ukai): implement --regen
 	flag.BoolVar(&detectAndroidEcho, "detect_android_echo", false, "detect echo as ninja description.")
-	flag.BoolVar(&errorOnEnvChange, "error_on_env_change", false, "error on env change for ninja build.")
 
 	flag.StringVar(&findCachePrunes, "find_cache_prunes", "",
 		"space separated prune directories for find cache.")
@@ -313,7 +312,6 @@ func katiMain(args []string) error {
 			Suffix:            ninjaSuffix,
 			GomaDir:           gomaDir,
 			DetectAndroidEcho: detectAndroidEcho,
-			ErrorOnEnvChange:  errorOnEnvChange,
 		}
 		return n.Save(g, "", req.Targets)
 	}

@@ -68,8 +68,6 @@ type NinjaGenerator struct {
 	GomaDir string
 	// DetectAndroidEcho detects echo as description.
 	DetectAndroidEcho bool
-	// ErrorOnEnvChange cause error when env change is detected when run ninja.
-	ErrorOnEnvChange bool
 
 	f       *os.File
 	nodes   []*DepNode
@@ -600,26 +598,6 @@ rule regen_ninja
 		fmt.Fprintf(n.f, " %s", n.envlistName())
 	}
 	fmt.Fprintf(n.f, "\n\n")
-	if len(usedEnvs) == 0 {
-		return nil
-	}
-	fmt.Fprint(n.f, `
-build .always_build: phony
-rule regen_envlist
- description = Check $out
- generator = 1
- restat = 1
- command = rm -f $out.tmp`)
-	for env := range usedEnvs {
-		fmt.Fprintf(n.f, " && echo %s=$$%s >> $out.tmp", env, env)
-	}
-	if n.ErrorOnEnvChange {
-		fmt.Fprintln(n.f, " && (cmp -s $out.tmp $out || (echo Environment variable changes are detected && diff -u $out $out.tmp))")
-	} else {
-		fmt.Fprintln(n.f, " && (cmp -s $out.tmp $out || mv $out.tmp $out)")
-	}
-
-	fmt.Fprintf(n.f, "build %s: regen_envlist .always_build\n\n", n.envlistName())
 	return nil
 }
 
