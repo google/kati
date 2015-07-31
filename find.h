@@ -15,9 +15,28 @@
 #ifndef FIND_H_
 #define FIND_H_
 
+#include <memory>
 #include <string>
+#include <vector>
+
+#include "string_piece.h"
 
 using namespace std;
+
+class FindCond;
+
+struct FindCommand {
+  FindCommand();
+  ~FindCommand() = default;
+
+  StringPiece chdir;
+  StringPiece testdir;
+  vector<StringPiece> finddirs;
+  bool follows_symlinks;
+  unique_ptr<FindCond> print_cond;
+  unique_ptr<FindCond> prune_cond;
+  int depth;
+};
 
 class FindEmulator {
  public:

@@ -34,17 +34,17 @@
 #include "strutil.h"
 #include "timeutil.h"
 
-namespace {
-
-class Cond {
+class FindCond {
  public:
-  virtual ~Cond() = default;
+  virtual ~FindCond() = default;
   virtual bool IsTrue(const string& name, unsigned char type) const = 0;
  protected:
-  Cond() = default;
+  FindCond() = default;
 };
 
-class NameCond : public Cond {
+namespace {
+
+class NameCond : public FindCond {
  public:
   explicit NameCond(const string& n)
       : name_(n) {
@@ -56,7 +56,7 @@ class NameCond : public Cond {
   string name_;
 };
 
-class TypeCond : public Cond {
+class TypeCond : public FindCond {
  public:
   explicit TypeCond(unsigned char t)
       : type_(t) {
@@ -68,21 +68,21 @@ class TypeCond : public Cond {
   unsigned char type_;
 };
 
-class NotCond : public Cond {
+class NotCond : public FindCond {
  public:
-  NotCond(Cond* c)
+  NotCond(FindCond* c)
       : c_(c) {
   }
   virtual bool IsTrue(const string& name, unsigned char type) const {
     return !c_->IsTrue(name, type);
   }
  private:
-  unique_ptr<Cond> c_;
+  unique_ptr<FindCond> c_;
 };
 
-class AndCond : public Cond {
+class AndCond : public FindCond {
  public:
-  AndCond(Cond* c1, Cond* c2)
+  AndCond(FindCond* c1, FindCond* c2)
       : c1_(c1), c2_(c2) {
   }
   virtual bool IsTrue(const string& name, unsigned char type) const {
@@ -91,12 +91,12 @@ class AndCond : public Cond {
     return false;
   }
  private:
-  unique_ptr<Cond> c1_, c2_;
+  unique_ptr<FindCond> c1_, c2_;
 };
 
-class OrCond : public Cond {
+class OrCond : public FindCond {
  public:
-  OrCond(Cond* c1, Cond* c2)
+  OrCond(FindCond* c1, FindCond* c2)
       : c1_(c1), c2_(c2) {
   }
   virtual bool IsTrue(const string& name, unsigned char type) const {
@@ -105,23 +105,7 @@ class OrCond : public Cond {
     return true;
   }
  private:
-  unique_ptr<Cond> c1_, c2_;
-};
-
-struct FindCommand {
-  FindCommand()
-      : follows_symlinks(false), depth(INT_MAX) {
-  }
-  ~FindCommand() {
-  }
-
-  StringPiece chdir;
-  StringPiece testdir;
-  vector<StringPiece> finddirs;
-  bool follows_symlinks;
-  unique_ptr<Cond> print_cond;
-  unique_ptr<Cond> prune_cond;
-  int depth;
+  unique_ptr<FindCond> c1_, c2_;
 };
 
 class DirentNode {
@@ -440,18 +424,18 @@ class FindEmulatorImpl : public FindEmulator {
       return true;
     }
 
-    Cond* ParseFact(StringPiece tok) {
+    FindCond* ParseFact(StringPiece tok) {
       if (tok == "-not" || tok == "\\!") {
         if (!GetNextToken(&tok) || tok.empty())
           return NULL;
-        unique_ptr<Cond> c(ParseFact(tok));
+        unique_ptr<FindCond> c(ParseFact(tok));
         if (!c.get())
           return NULL;
         return new NotCond(c.release());
       } else if (tok == "\\(") {
         if (!GetNextToken(&tok) || tok.empty())
           return NULL;
-        unique_ptr<Cond> c(ParseExpr(tok));
+        unique_ptr<FindCond> c(ParseExpr(tok));
         if (!GetNextToken(&tok) || tok != "\\)") {
           return NULL;
         }
@@ -487,8 +471,8 @@ class FindEmulatorImpl : public FindEmulator {
       }
     }
 
-    Cond* ParseTerm(StringPiece tok) {
-      unique_ptr<Cond> c(ParseFact(tok));
+    FindCond* ParseTerm(StringPiece tok) {
+      unique_ptr<FindCond> c(ParseFact(tok));
       if (!c.get())
         return NULL;
       while (true) {
@@ -500,7 +484,7 @@ class FindEmulatorImpl : public FindEmulator {
         }
         if (!GetNextToken(&tok) || tok.empty())
           return NULL;
-        unique_ptr<Cond> r(ParseFact(tok));
+        unique_ptr<FindCond> r(ParseFact(tok));
         if (!r.get()) {
           return NULL;
         }
@@ -508,8 +492,8 @@ class FindEmulatorImpl : public FindEmulator {
       }
     }
 
-    Cond* ParseExpr(StringPiece tok) {
-      unique_ptr<Cond> c(ParseTerm(tok));
+    FindCond* ParseExpr(StringPiece tok) {
+      unique_ptr<FindCond> c(ParseTerm(tok));
       if (!c.get())
         return NULL;
       while (true) {
@@ -521,7 +505,7 @@ class FindEmulatorImpl : public FindEmulator {
         }
         if (!GetNextToken(&tok) || tok.empty())
           return NULL;
-        unique_ptr<Cond> r(ParseTerm(tok));
+        unique_ptr<FindCond> r(ParseTerm(tok));
         if (!r.get()) {
           return NULL;
         }
@@ -539,7 +523,7 @@ class FindEmulatorImpl : public FindEmulator {
     // <name> ::= '-name' NAME
     // <type> ::= '-type' TYPE
     // <maxdepth> ::= '-maxdepth' MAXDEPTH
-    Cond* ParseFindCond(StringPiece tok) {
+    FindCond* ParseFindCond(StringPiece tok) {
       return ParseExpr(tok);
     }
 
@@ -577,7 +561,7 @@ class FindEmulatorImpl : public FindEmulator {
         } else if (tok[0] == '-' || tok == "\\(") {
           if (fc_->print_cond.get())
             return false;
-          Cond* c = ParseFindCond(tok);
+          FindCond* c = ParseFindCond(tok);
           if (!c)
             return false;
           fc_->print_cond.reset(c);
@@ -698,6 +682,10 @@ class FindEmulatorImpl : public FindEmulator {
 };
 
 }  // namespace
+
+FindCommand::FindCommand()
+    : follows_symlinks(false), depth(INT_MAX) {
+}
 
 FindEmulator* FindEmulator::Get() {
   return g_instance;
