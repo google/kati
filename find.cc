@@ -539,6 +539,8 @@ class FindCommandParser {
         if (!GetNextToken(&tok) || !tok.empty())
           return false;
         return true;
+      } else {
+        return false;
       }
     }
   }
@@ -676,8 +678,10 @@ FindCommand::FindCommand()
 
 bool FindCommand::Parse(const string& cmd) {
   FindCommandParser fcp(cmd, this);
-  if (cmd.find("find ") == string::npos)
+  size_t found = cmd.find("find ");
+  if (found == string::npos || (found != 0 && !isspace(cmd[found-1]))) {
     return false;
+  }
 
   if (!fcp.Parse())
     return false;
