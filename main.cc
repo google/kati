@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "ast.h"
@@ -44,6 +45,7 @@
 static const char* g_makefile;
 static bool g_is_syntax_check_only;
 static bool g_generate_ninja;
+static bool g_regen;
 static const char* g_ninja_suffix;
 static const char* g_ninja_dir;
 static bool g_use_find_emulator;
@@ -91,6 +93,9 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (!strcmp(arg, "--regen")) {
+      // TODO: Make this default.
+      g_regen = true;
     } else if (!strcmp(arg, "--detect_android_echo")) {
       g_detect_android_echo = true;
     } else if (!strcmp(arg, "--error_on_env_change")) {
@@ -217,6 +222,16 @@ static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
 static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars,
                const string& orig_args) {
+  if (g_generate_ninja && g_regen) {
+    if (!NeedsRegen(g_ninja_suffix, g_ninja_dir)) {
+      fprintf(stderr, "No need to regenerate ninja file\n");
+      return 0;
+    }
+  }
+
+  time_t start_time;
+  time(&start_time);
+
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
   Vars* vars = new Vars();
@@ -270,7 +285,7 @@ static int Run(const vector<Symbol>& targets,
   if (g_generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
     GenerateNinja(g_ninja_suffix, g_ninja_dir, nodes, ev, !targets.empty(),
-                  orig_args);
+                  orig_args, start_time);
     return 0;
   }
 

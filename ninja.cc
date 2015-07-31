@@ -32,6 +32,7 @@
 #include "file_cache.h"
 #include "fileutil.h"
 #include "flags.h"
+#include "io.h"
 #include "log.h"
 #include "string_piece.h"
 #include "stringprintf.h"
@@ -163,8 +164,9 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
 
 class NinjaGenerator {
  public:
-  NinjaGenerator(const char* ninja_suffix, const char* ninja_dir, Evaluator* ev)
-      : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0) {
+  NinjaGenerator(const char* ninja_suffix, const char* ninja_dir, Evaluator* ev,
+                 time_t start_time)
+      : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0), start_time_(start_time) {
     ev_->set_avoid_io(true);
     shell_ = ev->EvalVar(kShellSym);
     if (g_goma_dir)
@@ -178,13 +180,7 @@ class NinjaGenerator {
       ninja_dir_ = ".";
     }
 
-    for (Symbol e : Vars::used_env_vars()) {
-      shared_ptr<string> val = ev_->EvalVar(e);
-      used_envs_.emplace(e.str(), *val);
-    }
-
-    if (g_gen_regen_rule)
-      GetExecutablePath(&kati_binary_);
+    GetExecutablePath(&kati_binary_);
   }
 
   ~NinjaGenerator() {
@@ -197,6 +193,14 @@ class NinjaGenerator {
     GenerateEnvlist();
     GenerateNinja(nodes, build_all_targets, orig_args);
     GenerateShell();
+    GenerateStamp();
+  }
+
+  static string GetStampFilename(const char* ninja_dir,
+                                 const char* ninja_suffix) {
+    return StringPrintf("%s/.kati_stamp%s",
+                        ninja_dir ? ninja_dir : ".",
+                        ninja_suffix ? ninja_suffix : "");
   }
 
  private:
@@ -560,6 +564,10 @@ class NinjaGenerator {
                         ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
+  string GetStampFilename() const {
+    return GetStampFilename(ninja_dir_.c_str(), ninja_suffix_.c_str());
+  }
+
   void GenerateNinja(const vector<DepNode*>& nodes,
                      bool build_all_targets,
                      const string& orig_args) {
@@ -587,6 +595,11 @@ class NinjaGenerator {
 
     for (DepNode* node : nodes) {
       EmitNode(node);
+    }
+
+    for (Symbol e : Vars::used_env_vars()) {
+      shared_ptr<string> val = ev_->EvalVar(e);
+      used_envs_.emplace(e.str(), *val);
     }
 
     if (!build_all_targets) {
@@ -650,6 +663,28 @@ class NinjaGenerator {
     fclose(fp);
   }
 
+  void GenerateStamp() {
+    FILE* fp = fopen(GetStampFilename().c_str(), "wb");
+
+    DumpInt(fp, start_time_);
+
+    unordered_set<string> makefiles;
+    MakefileCacheManager::Get()->GetAllFilenames(&makefiles);
+    DumpInt(fp, makefiles.size() + 1);
+    DumpString(fp, kati_binary_);
+    for (const string& makefile : makefiles) {
+      DumpString(fp, makefile);
+    }
+
+    DumpInt(fp, used_envs_.size());
+    for (const auto& p : used_envs_) {
+      DumpString(fp, p.first);
+      DumpString(fp, p.second);
+    }
+
+    fclose(fp);
+  }
+
   CommandEvaluator ce_;
   Evaluator* ev_;
   FILE* fp_;
@@ -662,6 +697,7 @@ class NinjaGenerator {
   shared_ptr<string> shell_;
   map<string, string> used_envs_;
   string kati_binary_;
+  time_t start_time_;
 };
 
 void GenerateNinja(const char* ninja_suffix,
@@ -669,7 +705,45 @@ void GenerateNinja(const char* ninja_suffix,
                    const vector<DepNode*>& nodes,
                    Evaluator* ev,
                    bool build_all_targets,
-                   const string& orig_args) {
-  NinjaGenerator ng(ninja_suffix, ninja_dir, ev);
+                   const string& orig_args,
+                   time_t start_time) {
+  NinjaGenerator ng(ninja_suffix, ninja_dir, ev, start_time);
   ng.Generate(nodes, build_all_targets, orig_args);
+}
+
+bool NeedsRegen(const char* ninja_suffix,
+                const char* ninja_dir) {
+  const string& stamp_filename =
+      NinjaGenerator::GetStampFilename(ninja_suffix, ninja_dir);
+  FILE* fp = fopen(stamp_filename.c_str(), "rb");
+  if (!fp)
+    return true;
+  ScopedFile sfp(fp);
+
+  time_t gen_time = LoadInt(fp);
+
+  string s, s2;
+  int l = LoadInt(fp);
+  for (int i = 0; i < l; i++) {
+    LoadString(fp, &s);
+    if (gen_time < GetTimestamp(s)) {
+      fprintf(stderr, "%s was modified, regenerating...\n", s.c_str());
+      return true;
+    }
+  }
+
+  l = LoadInt(fp);
+  for (int i = 0; i < l; i++) {
+    LoadString(fp, &s);
+    StringPiece val(getenv(s.c_str()));
+    LoadString(fp, &s2);
+    if (val != s2) {
+      fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
+              "regenerating...\n",
+              s.c_str(), s2.c_str(), SPF(val));;
+      return true;
+    }
+  }
+
+  return false;
 }

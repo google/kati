@@ -15,6 +15,8 @@
 #ifndef NINJA_H_
 #define NINJA_H_
 
+#include <time.h>
+
 #include <string>
 #include <vector>
 
@@ -30,7 +32,11 @@ void GenerateNinja(const char* ninja_suffix,
                    const vector<DepNode*>& nodes,
                    Evaluator* ev,
                    bool build_all_targets,
-                   const string& orig_args);
+                   const string& orig_args,
+                   time_t start_time);
+
+bool NeedsRegen(const char* ninja_suffix,
+                const char* ninja_dir);
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);

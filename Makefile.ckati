@@ -33,6 +33,7 @@ KATI_CXX_SRCS := \
 	find.cc \
 	flags.cc \
 	func.cc \
+	io.cc \
 	log.cc \
 	main.cc \
 	ninja.cc \
