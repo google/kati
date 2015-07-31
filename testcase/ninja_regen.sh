@@ -35,8 +35,9 @@ sleep 1
 cat <<EOF > Makefile
 all:
 	echo bar
-	echo \$(VAR)
-	echo \$(wildcard *.mk)
+	echo VAR=\$(VAR)
+	echo VAR2=\$(VAR2)
+	echo wildcard=\$(wildcard *.mk)
 EOF
 
 ${mk} 2> ${log}
@@ -48,6 +49,15 @@ if [ -e ninja.sh ]; then
 fi
 
 export VAR=fuga
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if ! grep regenerating ${log} > /dev/null; then
+    echo 'Should be regenerated'
+  fi
+  ./ninja.sh
+fi
+
+export VAR2=OK
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} > /dev/null; then

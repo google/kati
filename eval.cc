@@ -281,26 +281,31 @@ void Evaluator::EvalExport(const ExportAST* ast) {
   }
 }
 
+Var* Evaluator::LookupVarGlobal(Symbol name) {
+  Var* v = vars_->Lookup(name);
+  if (v->IsDefined())
+    return v;
+  v = in_vars_->Lookup(name);
+  if (v->IsDefined())
+    return v;
+  used_undefined_vars_.insert(name);
+  return v;
+}
+
 Var* Evaluator::LookupVar(Symbol name) {
   if (current_scope_) {
     Var* v = current_scope_->Lookup(name);
     if (v->IsDefined())
       return v;
   }
-  Var* v = vars_->Lookup(name);
-  if (v->IsDefined())
-    return v;
-  return in_vars_->Lookup(name);
+  return LookupVarGlobal(name);
 }
 
 Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
   if (current_scope_) {
     return current_scope_->Lookup(name);
   }
-  Var* v = vars_->Lookup(name);
-  if (v->IsDefined())
-    return v;
-  return in_vars_->Lookup(name);
+  return LookupVarGlobal(name);
 }
 
 shared_ptr<string> Evaluator::EvalVar(Symbol name) {
@@ -310,3 +315,5 @@ shared_ptr<string> Evaluator::EvalVar(Symbol name) {
 void Evaluator::Error(const string& msg) {
   ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
 }
+
+unordered_set<Symbol> Evaluator::used_undefined_vars_;

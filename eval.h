@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "ast.h"
@@ -87,10 +88,16 @@ class Evaluator {
     delayed_output_commands_.clear();
   }
 
+  static const unordered_set<Symbol>& used_undefined_vars() {
+    return used_undefined_vars_;
+  }
+
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
   void DoInclude(const string& fname);
+
+  Var* LookupVarGlobal(Symbol name);
 
   const Vars* in_vars_;
   Vars* vars_;
@@ -108,6 +115,8 @@ class Evaluator {
   // Commands which should run at ninja-time (i.e., info, warning, and
   // error).
   vector<string> delayed_output_commands_;
+
+  static unordered_set<Symbol> used_undefined_vars_;
 };
 
 #endif  // EVAL_H_

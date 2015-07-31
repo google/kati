@@ -719,6 +719,11 @@ class NinjaGenerator {
       DumpString(fp, makefile);
     }
 
+    DumpInt(fp, Evaluator::used_undefined_vars().size());
+    for (Symbol v : Evaluator::used_undefined_vars()) {
+      DumpString(fp, v.str());
+    }
+
     DumpInt(fp, used_envs_.size());
     for (const auto& p : used_envs_) {
       DumpString(fp, p.first);
@@ -792,6 +797,16 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
+  int num_undefineds = LoadInt(fp);
+  for (int i = 0; i < num_undefineds; i++) {
+    LoadString(fp, &s);
+    if (getenv(s.c_str())) {
+      fprintf(stderr, "Environment variable %s was set, regenerating...\n",
+              s.c_str());
+      return true;
+    }
+  }
+
   int num_envs = LoadInt(fp);
   for (int i = 0; i < num_envs; i++) {
     LoadString(fp, &s);
@@ -800,7 +815,7 @@ bool NeedsRegen(const char* ninja_suffix,
     if (val != s2) {
       fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
               "regenerating...\n",
-              s.c_str(), s2.c_str(), SPF(val));;
+              s.c_str(), s2.c_str(), SPF(val));
       return true;
     }
   }
