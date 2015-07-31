@@ -109,9 +109,11 @@ void GetExecutablePath(string* path) {
   *path = mypath;
 #elif defined(__APPLE__)
   char mypath[PATH_MAX + 1];
-  if (_NSGetExecutablePath(mypath, PATH_MAX) != 0) {
+  uint32_t size = PATH_MAX;
+  if (_NSGetExecutablePath(mypath, &size) != 0) {
     ERROR("_NSGetExecutablePath failed");
   }
+  mypath[size] = 0;
   *path = mypath;
 #else
 #error "Unsupported OS"
