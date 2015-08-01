@@ -77,8 +77,7 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
 static void ParseCommandLine(int argc, char* argv[],
                              vector<Symbol>* targets,
                              vector<StringPiece>* cl_vars) {
-  // TODO: Decide the appropriate number based on the number of cores.
-  g_num_jobs = 32;
+  g_num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
 
   for (int i = 1; i < argc; i++) {
