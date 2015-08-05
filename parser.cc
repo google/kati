@@ -133,7 +133,10 @@ class Parser {
 
  private:
   void Error(const string& msg) {
-    ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
+    ParseErrorAST* ast = new ParseErrorAST();
+    ast->set_loc(loc_);
+    ast->msg = msg;
+    out_asts_->push_back(ast);
   }
 
   size_t FindEndOfLine(size_t* lf_cnt) {
@@ -207,6 +210,7 @@ class Parser {
 
     if (orig_line_with_directives_[0] == '\t') {
       Error("*** commands commence before first target.");
+      return;
     }
 
     const bool is_rule = sep != string::npos && line[sep] == ':';
@@ -231,8 +235,10 @@ class Parser {
   }
 
   void ParseAssign(StringPiece line, size_t sep) {
-    if (sep == 0)
+    if (sep == 0) {
       Error("*** empty variable name ***");
+      return;
+    }
     StringPiece lhs;
     StringPiece rhs;
     AssignOp op;
@@ -261,6 +267,7 @@ class Parser {
   void ParseDefine(StringPiece line, StringPiece) {
     if (line.empty()) {
       Error("*** empty variable name.");
+      return;
     }
     define_name_ = line;
     define_start_ = 0;
@@ -350,6 +357,7 @@ class Parser {
     }
     if (!s.empty()) {
       Error("extraneous text after `ifeq' directive");
+      return true;
     }
     return true;
   }
@@ -361,6 +369,7 @@ class Parser {
 
     if (!ParseIfEqCond(line, ast)) {
       Error("*** invalid syntax in conditional.");
+      return;
     }
 
     out_asts_->push_back(ast);
@@ -368,10 +377,13 @@ class Parser {
   }
 
   void ParseElse(StringPiece line, StringPiece) {
-    CheckIfStack("else");
+    if (!CheckIfStack("else"))
+      return;
     IfState* st = if_stack_.top();
-    if (st->is_in_else)
+    if (st->is_in_else) {
       Error("*** only one `else' per conditional.");
+      return;
+    }
     st->is_in_else = true;
     out_asts_ = &st->ast->false_asts;
 
@@ -387,9 +399,12 @@ class Parser {
   }
 
   void ParseEndif(StringPiece line, StringPiece) {
-    CheckIfStack("endif");
-    if (!line.empty())
+    if (!CheckIfStack("endif"))
+      return;
+    if (!line.empty()) {
       Error("extraneous text after `endif` directive");
+      return;
+    }
     IfState st = *if_stack_.top();
     for (int t = 0; t <= st.num_nest; t++) {
       delete if_stack_.top();
@@ -447,10 +462,12 @@ class Parser {
     CreateExport(line, false);
   }
 
-  void CheckIfStack(const char* keyword) {
+  bool CheckIfStack(const char* keyword) {
     if (if_stack_.empty()) {
       Error(StringPrintf("*** extraneous `%s'.", keyword));
+      return false;
     }
+    return true;
   }
 
   StringPiece RemoveComment(StringPiece line) {

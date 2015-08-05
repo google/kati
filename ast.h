@@ -139,4 +139,14 @@ struct ExportAST : public AST {
   virtual string DebugString() const;
 };
 
+struct ParseErrorAST : public AST {
+  string msg;
+
+  virtual ~ParseErrorAST();
+
+  virtual void Eval(Evaluator* ev) const;
+
+  virtual string DebugString() const;
+};
+
 #endif  // AST_H_

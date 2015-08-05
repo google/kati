@@ -89,6 +89,12 @@ string ExportAST::DebugString() const {
                       LOCF(loc()));
 }
 
+string ParseErrorAST::DebugString() const {
+  return StringPrintf("ParseErrorAST(%s, loc=%s:%d)",
+                      msg.c_str(),
+                      LOCF(loc()));
+}
+
 RuleAST::~RuleAST() {
   delete expr;
   delete after_term;
@@ -138,4 +144,12 @@ ExportAST::~ExportAST() {
 
 void ExportAST::Eval(Evaluator* ev) const {
   ev->EvalExport(this);
+}
+
+ParseErrorAST::~ParseErrorAST() {
+}
+
+void ParseErrorAST::Eval(Evaluator* ev) const {
+  ev->set_loc(loc());
+  ev->Error(msg);
 }
