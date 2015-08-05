@@ -1,6 +1,8 @@
-# TODO(ninja): This test is only for ckati. ninja: fix $(sort $(shell $(1)))
+# TODO(ninja): This test is only for ckati. ninja: multiple problems
 # go: implement generic builtin find
-# ninja: $(sort $(shell "find -name testdir")) becomes "$( -name find testdir)"
+# ninja: find . finds ninja temporary files
+# ninja: escaping ! doesn't seem to be working
+# ninja: stderr gets reordered
 
 ifeq ($(shell uname),Darwin)
 USE_GNU_FIND:=
@@ -10,7 +12,7 @@ endif
 
 define run_find
 @echo $$ '$(strip $(1))'
-@echo $(sort $(shell $(1)))
+@echo $(shell $(1))
 endef
 
 test1:

@@ -476,7 +476,6 @@ static bool HasNoIoInShellScript(const string& cmd) {
 }
 
 static void ShellFuncImpl(const string& shell, const string& cmd,
-                          bool is_file_list_command,
                           string* s, FindCommand** fc) {
   LOG("ShellFunc: %s", cmd.c_str());
 
@@ -493,7 +492,6 @@ static void ShellFuncImpl(const string& shell, const string& cmd,
       }
 #else
       if (FindEmulator::Get()->HandleFind(cmd, **fc, s)) {
-        *s = SortWordsInString(*s);
         return;
       }
 #endif
@@ -504,19 +502,13 @@ static void ShellFuncImpl(const string& shell, const string& cmd,
 
   COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd.c_str());
   RunCommand(shell, cmd, RedirectStderr::NONE, s);
-  if (is_file_list_command) {
-    *s = SortWordsInString(*s);
-  } else {
-    FormatForCommandSubstitution(s);
-  }
+  FormatForCommandSubstitution(s);
 
 #ifdef TEST_FIND_EMULATOR
   if (need_check) {
-    string sorted = SortWordsInString(*s);
-    out2 = SortWordsInString(out2);
-    if (sorted != out2) {
+    if (*s != out2) {
       ERROR("FindEmulator is broken: %s\n%s\nvs\n%s",
-            cmd.c_str(), sorted.c_str(), out2.c_str());
+            cmd.c_str(), s->c_str(), out2.c_str());
     }
   }
 #endif
@@ -542,7 +534,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
   string out;
   FindCommand* fc = NULL;
-  ShellFuncImpl(*shell, *cmd, is_file_list_command, &out, &fc);
+  ShellFuncImpl(*shell, *cmd, &out, &fc);
   if (is_file_list_command) {
     FileListCommand* flc = new FileListCommand();
     flc->cmd = *cmd;

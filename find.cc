@@ -23,7 +23,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -170,13 +169,15 @@ class DirentDirNode : public DirentNode {
       return this;
     size_t index = d.find('/');
     const string& p = d.substr(0, index).as_string();
-    auto found = children_.find(p);
-    if (found == children_.end())
-      return NULL;
-    if (index == string::npos)
-      return found->second;
-    StringPiece nd = d.substr(index + 1);
-    return found->second->FindDir(nd);
+    for (auto& child : children_) {
+      if (p == child.first) {
+        if (index == string::npos)
+          return child.second;
+        StringPiece nd = d.substr(index + 1);
+        return child.second->FindDir(nd);
+      }
+    }
+    return NULL;
   }
 
   virtual bool RunFind(const FindCommand& fc, int d,
@@ -205,12 +206,12 @@ class DirentDirNode : public DirentNode {
   }
 
   void Add(const string& name, DirentNode* c) {
-    auto p = children_.emplace(name, c);
-    CHECK(p.second);
+    auto p = children_.emplace(children_.end(), name, c);
+    CHECK(p->second);
   }
 
  private:
-  map<string, DirentNode*> children_;
+  vector<pair<string, DirentNode*>> children_;
 };
 
 class DirentSymlinkNode : public DirentNode {
