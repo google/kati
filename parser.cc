@@ -131,12 +131,15 @@ class Parser {
 
   void set_state(ParserState st) { state_ = st; }
 
+  static vector<ParseErrorAST*> parse_errors;
+
  private:
   void Error(const string& msg) {
     ParseErrorAST* ast = new ParseErrorAST();
     ast->set_loc(loc_);
     ast->msg = msg;
     out_asts_->push_back(ast);
+    parse_errors.push_back(ast);
   }
 
   size_t FindEndOfLine(size_t* lf_cnt) {
@@ -558,6 +561,7 @@ Parser::DirectiveMap* Parser::else_if_directives_;
 Parser::DirectiveMap* Parser::assign_directives_;
 size_t Parser::shortest_directive_len_;
 size_t Parser::longest_directive_len_;
+vector<ParseErrorAST*> Parser::parse_errors;
 
 void ParseAssignStatement(StringPiece line, size_t sep,
                           StringPiece* lhs, StringPiece* rhs, AssignOp* op) {
@@ -580,4 +584,8 @@ void ParseAssignStatement(StringPiece line, size_t sep,
   }
   *lhs = TrimSpace(line.substr(0, lhs_end));
   *rhs = TrimSpace(line.substr(sep + 1));
+}
+
+const vector<ParseErrorAST*>& GetParseErrors() {
+  return Parser::parse_errors;
 }

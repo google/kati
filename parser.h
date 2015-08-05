@@ -36,4 +36,6 @@ void ParseAssignStatement(StringPiece line, size_t sep,
 void InitParser();
 void QuitParser();
 
+const vector<ParseErrorAST*>& GetParseErrors();
+
 #endif  // PARSER_H_

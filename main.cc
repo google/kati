@@ -260,6 +260,11 @@ static int Run(const vector<Symbol>& targets,
     }
   }
 
+  for (ParseErrorAST* err : GetParseErrors()) {
+    WARN("%s:%d: warning for parse error in an unevaluated line: %s",
+         LOCF(err->loc()), err->msg.c_str());
+  }
+
   vector<DepNode*> nodes;
   {
     ScopedTimeReporter tr("make dep time");
