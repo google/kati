@@ -812,7 +812,8 @@ void GenerateNinja(const char* ninja_suffix,
 }
 
 bool NeedsRegen(const char* ninja_suffix,
-                const char* ninja_dir) {
+                const char* ninja_dir,
+                bool ignore_kati_binary) {
   const string& stamp_filename =
       NinjaGenerator::GetStampFilename(ninja_suffix, ninja_dir);
   FILE* fp = fopen(stamp_filename.c_str(), "rb");
@@ -829,6 +830,14 @@ bool NeedsRegen(const char* ninja_suffix,
   for (int i = 0; i < num_files; i++) {
     LoadString(fp, &s);
     if (gen_time < GetTimestamp(s)) {
+      if (ignore_kati_binary) {
+        string kati_binary;
+        GetExecutablePath(&kati_binary);
+        if (s == kati_binary) {
+          fprintf(stderr, "%s was modified, ignored.\n", s.c_str());
+          continue;
+        }
+      }
       fprintf(stderr, "%s was modified, regenerating...\n", s.c_str());
       return true;
     }

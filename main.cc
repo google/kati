@@ -46,6 +46,7 @@ static const char* g_makefile;
 static bool g_is_syntax_check_only;
 static bool g_generate_ninja;
 static bool g_regen;
+static bool g_regen_ignoring_kati_binary;
 static const char* g_ninja_suffix;
 static const char* g_ninja_dir;
 static bool g_use_find_emulator;
@@ -95,6 +96,8 @@ static void ParseCommandLine(int argc, char* argv[],
     } else if (!strcmp(arg, "--regen")) {
       // TODO: Make this default.
       g_regen = true;
+    } else if (!strcmp(arg, "--regen_ignoring_kati_binary")) {
+      g_regen_ignoring_kati_binary = true;
     } else if (!strcmp(arg, "--detect_android_echo")) {
       g_detect_android_echo = true;
     } else if (!strcmp(arg, "--error_on_env_change")) {
@@ -223,7 +226,8 @@ static int Run(const vector<Symbol>& targets,
                const string& orig_args) {
   if (g_generate_ninja && g_regen) {
     ScopedTimeReporter tr("regen check time");
-    if (!NeedsRegen(g_ninja_suffix, g_ninja_dir)) {
+    if (!NeedsRegen(g_ninja_suffix, g_ninja_dir,
+                    g_regen_ignoring_kati_binary)) {
       fprintf(stderr, "No need to regenerate ninja file\n");
       return 0;
     }

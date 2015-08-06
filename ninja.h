@@ -36,7 +36,8 @@ void GenerateNinja(const char* ninja_suffix,
                    double start_time);
 
 bool NeedsRegen(const char* ninja_suffix,
-                const char* ninja_dir);
+                const char* ninja_dir,
+                bool ignore_kati_binary);
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);
