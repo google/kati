@@ -38,6 +38,7 @@
 #include "func.h"
 #include "io.h"
 #include "log.h"
+#include "stats.h"
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
@@ -866,41 +867,44 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
-  int num_globs = LoadInt(fp);
-  string pat;
-  for (int i = 0; i < num_globs; i++) {
-    LoadString(fp, &pat);
-    bool needs_reglob = false;
-    int num_dirs = LoadInt(fp);
-    for (int j = 0; j < num_dirs; j++) {
-      LoadString(fp, &s);
-      // TODO: Handle removed files properly.
-      needs_reglob |= gen_time < GetTimestamp(s);
-    }
+  {
+    COLLECT_STATS("glob time (regen)");
+    int num_globs = LoadInt(fp);
+    string pat;
+    for (int i = 0; i < num_globs; i++) {
+      LoadString(fp, &pat);
+      bool needs_reglob = false;
+      int num_dirs = LoadInt(fp);
+      for (int j = 0; j < num_dirs; j++) {
+        LoadString(fp, &s);
+        // TODO: Handle removed files properly.
+        needs_reglob |= gen_time < GetTimestamp(s);
+      }
 
-    int num_files = LoadInt(fp);
-    if (needs_reglob) {
-      vector<string>* files;
-      Glob(pat.c_str(), &files);
-      sort(files->begin(), files->end());
-      bool needs_regen = files->size() != static_cast<size_t>(num_files);
-      if (!needs_regen) {
-        for (int j = 0; j < num_files; j++) {
-          LoadString(fp, &s);
-          if ((*files)[j] != s) {
-            needs_regen = true;
-            break;
+      int num_files = LoadInt(fp);
+      if (needs_reglob) {
+        vector<string>* files;
+        Glob(pat.c_str(), &files);
+        sort(files->begin(), files->end());
+        bool needs_regen = files->size() != static_cast<size_t>(num_files);
+        if (!needs_regen) {
+          for (int j = 0; j < num_files; j++) {
+            LoadString(fp, &s);
+            if ((*files)[j] != s) {
+              needs_regen = true;
+              break;
+            }
           }
         }
+        if (needs_regen) {
+          fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
+                  pat.c_str());
+          return true;
+        }
+      } else {
+        for (int j = 0; j < num_files; j++)
+          LoadString(fp, &s);
       }
-      if (needs_regen) {
-        fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
-                pat.c_str());
-        return true;
-      }
-    } else {
-      for (int j = 0; j < num_files; j++)
-        LoadString(fp, &s);
     }
   }
 
@@ -910,36 +914,42 @@ bool NeedsRegen(const char* ninja_suffix,
     LoadString(fp, &cmd);
     LoadString(fp, &expected);
 
-    bool has_condition = LoadInt(fp);
-    if (has_condition) {
-      bool should_run_command = false;
+    {
+      COLLECT_STATS("stat time (regen)");
+      bool has_condition = LoadInt(fp);
+      if (has_condition) {
+        bool should_run_command = false;
 
-      int num_missing_dirs = LoadInt(fp);
-      for (int j = 0; j < num_missing_dirs; j++) {
-        LoadString(fp, &s);
-        should_run_command |= Exists(s);
+        int num_missing_dirs = LoadInt(fp);
+        for (int j = 0; j < num_missing_dirs; j++) {
+          LoadString(fp, &s);
+          should_run_command |= Exists(s);
+        }
+
+        int num_read_dirs = LoadInt(fp);
+        for (int j = 0; j < num_read_dirs; j++) {
+          LoadString(fp, &s);
+          double ts = GetTimestamp(s);
+          should_run_command |= (ts < 0 || gen_time < ts);
+        }
+
+        if (!should_run_command)
+          continue;
       }
-
-      int num_read_dirs = LoadInt(fp);
-      for (int j = 0; j < num_read_dirs; j++) {
-        LoadString(fp, &s);
-        double ts = GetTimestamp(s);
-        should_run_command |= (ts < 0 || gen_time < ts);
-      }
-
-      if (!should_run_command)
-        continue;
     }
 
-    string result;
-    RunCommand("/bin/sh", cmd, RedirectStderr::DEV_NULL, &result);
-    FormatForCommandSubstitution(&result);
-    if (expected != result) {
-      fprintf(stderr, "$(shell %s) was changed, regenerating...\n",
-              cmd.c_str());
-      fprintf(stderr, "%s => %s\n",
-              expected.c_str(), result.c_str());
-      return true;
+    {
+      COLLECT_STATS_WITH_SLOW_REPORT("shell time (regen)", cmd.c_str());
+      string result;
+      RunCommand("/bin/sh", cmd, RedirectStderr::DEV_NULL, &result);
+      FormatForCommandSubstitution(&result);
+      if (expected != result) {
+        fprintf(stderr, "$(shell %s) was changed, regenerating...\n",
+                cmd.c_str());
+        fprintf(stderr, "%s => %s\n",
+                expected.c_str(), result.c_str());
+        return true;
+      }
     }
   }
 
