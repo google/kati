@@ -33,6 +33,7 @@
 #include "eval.h"
 #include "file_cache.h"
 #include "fileutil.h"
+#include "find.h"
 #include "flags.h"
 #include "func.h"
 #include "io.h"
@@ -756,6 +757,29 @@ class NinjaGenerator {
     for (FileListCommand* flc : flcs) {
       DumpString(fp, flc->cmd);
       DumpString(fp, flc->result);
+      if (!flc->find.get()) {
+        // Always re-run this command.
+        DumpInt(fp, 0);
+        continue;
+      }
+
+      DumpInt(fp, 1);
+
+      vector<string> missing_dirs;
+      for (StringPiece fd : flc->find->finddirs) {
+        const string& d = ConcatDir(flc->find->chdir, fd);
+        if (!Exists(d))
+          missing_dirs.push_back(d);
+      }
+      DumpInt(fp, missing_dirs.size());
+      for (const string& d : missing_dirs) {
+        DumpString(fp, d);
+      }
+
+      DumpInt(fp, flc->find->read_dirs->size());
+      for (StringPiece s : *flc->find->read_dirs) {
+        DumpString(fp, s);
+      }
     }
 
     fclose(fp);
@@ -841,6 +865,7 @@ bool NeedsRegen(const char* ninja_suffix,
     int num_dirs = LoadInt(fp);
     for (int j = 0; j < num_dirs; j++) {
       LoadString(fp, &s);
+      // TODO: Handle removed files properly.
       needs_reglob |= gen_time < GetTimestamp(s);
     }
 
@@ -872,16 +897,39 @@ bool NeedsRegen(const char* ninja_suffix,
 
   int num_flcs = LoadInt(fp);
   for (int i = 0; i < num_flcs; i++) {
-    string cmd;
+    string cmd, expected;
     LoadString(fp, &cmd);
+    LoadString(fp, &expected);
+
+    bool has_condition = LoadInt(fp);
+    if (has_condition) {
+      bool should_run_command = false;
+
+      int num_missing_dirs = LoadInt(fp);
+      for (int j = 0; j < num_missing_dirs; j++) {
+        LoadString(fp, &s);
+        should_run_command |= Exists(s);
+      }
+
+      int num_read_dirs = LoadInt(fp);
+      for (int j = 0; j < num_read_dirs; j++) {
+        LoadString(fp, &s);
+        double ts = GetTimestamp(s);
+        should_run_command |= (ts < 0 || gen_time < ts);
+      }
+
+      if (!should_run_command)
+        continue;
+    }
+
     string result;
     RunCommand("/bin/sh", cmd, RedirectStderr::DEV_NULL, &result);
     FormatForCommandSubstitution(&result);
-    result = SortWordsInString(result);
-    LoadString(fp, &s);
-    if (s != result) {
+    if (expected != result) {
       fprintf(stderr, "$(shell %s) was changed, regenerating...\n",
               cmd.c_str());
+      fprintf(stderr, "%s => %s\n",
+              expected.c_str(), result.c_str());
       return true;
     }
   }

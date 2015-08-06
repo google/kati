@@ -136,4 +136,6 @@ void FormatForCommandSubstitution(string* s);
 
 string SortWordsInString(StringPiece s);
 
+string ConcatDir(StringPiece b, StringPiece n);
+
 #endif  // STRUTIL_H_

@@ -161,6 +161,7 @@ class DirentDirNode : public DirentNode {
   explicit DirentDirNode(const string& name)
       : DirentNode(name) {
   }
+
   ~DirentDirNode() {
     for (auto& p : children_) {
       delete p.second;
@@ -185,6 +186,8 @@ class DirentDirNode : public DirentNode {
 
   virtual bool RunFind(const FindCommand& fc, int d,
                        string* path, string* out) const {
+    fc.read_dirs->push_back(*path);
+
     if (fc.prune_cond && fc.prune_cond->IsTrue(base_, DT_DIR)) {
       if (fc.type != FindCommandType::FINDLEAVES) {
         *out += *path;
@@ -648,17 +651,6 @@ class FindEmulatorImpl : public FindEmulator {
 
   virtual ~FindEmulatorImpl() = default;
 
-  static string ConcatDir(StringPiece b, StringPiece n) {
-    string r;
-    if (!b.empty()) {
-      b.AppendToString(&r);
-      r += '/';
-    }
-    n.AppendToString(&r);
-    NormalizePath(&r);
-    return r;
-  }
-
   virtual bool HandleFind(const string& cmd UNUSED, const FindCommand& fc,
                           string* out) override {
     if (HasPrefix(fc.chdir, "/")) {
@@ -759,7 +751,8 @@ class FindEmulatorImpl : public FindEmulator {
 }  // namespace
 
 FindCommand::FindCommand()
-    : follows_symlinks(false), depth(INT_MAX), mindepth(INT_MIN) {
+    : follows_symlinks(false), depth(INT_MAX), mindepth(INT_MIN),
+      read_dirs(new vector<string>()) {
 }
 
 FindCommand::~FindCommand() {

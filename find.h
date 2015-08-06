@@ -46,6 +46,12 @@ struct FindCommand {
   unique_ptr<FindCond> prune_cond;
   int depth;
   int mindepth;
+
+  unique_ptr<vector<string>> read_dirs;
+
+ private:
+  FindCommand(const FindCommand&) = delete;
+  void operator=(FindCommand) = delete;
 };
 
 class FindEmulator {

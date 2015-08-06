@@ -406,3 +406,14 @@ string SortWordsInString(StringPiece s) {
   sort(toks.begin(), toks.end());
   return JoinStrings(toks, " ");
 }
+
+string ConcatDir(StringPiece b, StringPiece n) {
+  string r;
+  if (!b.empty()) {
+    b.AppendToString(&r);
+    r += '/';
+  }
+  n.AppendToString(&r);
+  NormalizePath(&r);
+  return r;
+}
