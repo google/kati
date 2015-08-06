@@ -546,6 +546,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   if (is_file_list_command) {
     FileListCommand* flc = new FileListCommand();
     flc->cmd = *cmd;
+    //fprintf(stderr, "file list command: %s %p\n", cmd->c_str(), fc);
     flc->find.reset(fc);
     flc->result = out;
     g_file_list_commands.push_back(flc);

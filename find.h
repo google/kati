@@ -25,12 +25,19 @@ using namespace std;
 
 class FindCond;
 
+enum struct FindCommandType {
+  FIND,
+  FINDLEAVES,
+  LS,
+};
+
 struct FindCommand {
   FindCommand();
   ~FindCommand();
 
   bool Parse(const string& cmd);
 
+  FindCommandType type;
   StringPiece chdir;
   StringPiece testdir;
   vector<StringPiece> finddirs;
@@ -38,6 +45,7 @@ struct FindCommand {
   unique_ptr<FindCond> print_cond;
   unique_ptr<FindCond> prune_cond;
   int depth;
+  int mindepth;
 };
 
 class FindEmulator {

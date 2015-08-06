@@ -128,8 +128,11 @@ class DirentNode {
   void PrintIfNecessary(const FindCommand& fc,
                         const string& path,
                         unsigned char type,
+                        int d,
                         string* out) const {
     if (fc.print_cond && !fc.print_cond->IsTrue(base_, type))
+      return;
+    if (d < fc.mindepth)
       return;
     *out += path;
     *out += ' ';
@@ -144,9 +147,9 @@ class DirentFileNode : public DirentNode {
       : DirentNode(name), type_(type) {
   }
 
-  virtual bool RunFind(const FindCommand& fc, int,
+  virtual bool RunFind(const FindCommand& fc, int d,
                        string* path, string* out) const {
-    PrintIfNecessary(fc, *path, type_, out);
+    PrintIfNecessary(fc, *path, type_, d, out);
     return true;
   }
 
@@ -182,24 +185,58 @@ class DirentDirNode : public DirentNode {
   virtual bool RunFind(const FindCommand& fc, int d,
                        string* path, string* out) const {
     if (fc.prune_cond && fc.prune_cond->IsTrue(base_, DT_DIR)) {
-      *out += *path;
-      *out += ' ';
+      if (fc.type != FindCommandType::FINDLEAVES) {
+        *out += *path;
+        *out += ' ';
+      }
       return true;
     }
-    PrintIfNecessary(fc, *path, DT_DIR, out);
+
+    PrintIfNecessary(fc, *path, DT_DIR, d, out);
 
     if (d >= fc.depth)
       return true;
 
     size_t orig_path_size = path->size();
-    for (const auto& p : children_) {
-      DirentNode* c = p.second;
-      if ((*path)[path->size()-1] != '/')
-        *path += '/';
-      *path += c->base();
-      if (!c->RunFind(fc, d + 1, path, out))
-        return false;
-      path->resize(orig_path_size);
+    if (fc.type == FindCommandType::FINDLEAVES) {
+      size_t orig_out_size = out->size();
+      for (const auto& p : children_) {
+        DirentNode* c = p.second;
+        // We will handle directories later.
+        if (dynamic_cast<DirentDirNode*>(c))
+          continue;
+        if ((*path)[path->size()-1] != '/')
+          *path += '/';
+        *path += c->base();
+        if (!c->RunFind(fc, d + 1, path, out))
+          return false;
+        path->resize(orig_path_size);
+        // Found a leaf, stop the search.
+        if (orig_out_size != out->size())
+          return true;
+      }
+
+      for (const auto& p : children_) {
+        DirentNode* c = p.second;
+        if (!dynamic_cast<DirentDirNode*>(c))
+          continue;
+        if ((*path)[path->size()-1] != '/')
+          *path += '/';
+        *path += c->base();
+        if (!c->RunFind(fc, d + 1, path, out))
+          return false;
+        path->resize(orig_path_size);
+      }
+    } else {
+      for (const auto& p : children_) {
+        DirentNode* c = p.second;
+        if ((*path)[path->size()-1] != '/')
+          *path += '/';
+        *path += c->base();
+        if (!c->RunFind(fc, d + 1, path, out))
+          return false;
+        path->resize(orig_path_size);
+      }
     }
     return true;
   }
@@ -219,7 +256,7 @@ class DirentSymlinkNode : public DirentNode {
       : DirentNode(name) {
   }
 
-  virtual bool RunFind(const FindCommand& fc, int,
+  virtual bool RunFind(const FindCommand& fc, int d,
                        string* path, string* out) const {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks) {
@@ -265,7 +302,7 @@ class DirentSymlinkNode : public DirentNode {
         }
       }
     }
-    PrintIfNecessary(fc, *path, type, out);
+    PrintIfNecessary(fc, *path, type, d, out);
     return true;
   }
 };
@@ -452,6 +489,7 @@ class FindCommandParser {
   }
 
   bool ParseFind() {
+    fc_->type = FindCommandType::FIND;
     StringPiece tok;
     while (true) {
       if (!GetNextToken(&tok))
@@ -489,6 +527,49 @@ class FindCommandParser {
         if (!c)
           return false;
         fc_->print_cond.reset(c);
+      } else {
+        char c = tok.get(0);
+        if (c == '|' || c == ';' || c == '&')
+          return false;
+        fc_->finddirs.push_back(tok);
+      }
+    }
+  }
+
+  bool ParseFindLeaves() {
+    fc_->type = FindCommandType::FINDLEAVES;
+    StringPiece tok;
+    while (true) {
+      if (!GetNextToken(&tok))
+        return false;
+      if (tok.empty()) {
+        if (fc_->finddirs.size() < 2)
+          return false;
+        fc_->print_cond.reset(new NameCond(fc_->finddirs.back().as_string()));
+        fc_->finddirs.pop_back();
+        return true;
+      }
+
+      if (HasPrefix(tok, "--prune=")) {
+        FindCond* cond = new NameCond(
+            tok.substr(strlen("--prune=")).as_string());
+        if (fc_->prune_cond.get()) {
+          cond = new OrCond(fc_->prune_cond.release(), cond);
+        }
+        CHECK(!fc_->prune_cond.get());
+        fc_->prune_cond.reset(cond);
+      } else if (HasPrefix(tok, "--mindepth=")) {
+        string mindepth_str = tok.substr(strlen("--mindepth=")).as_string();
+        char* endptr;
+        long d = strtol(mindepth_str.c_str(), &endptr, 10);
+        if (endptr != mindepth_str.data() + mindepth_str.size() ||
+            d < INT_MIN || d > INT_MAX) {
+          return false;
+        }
+        fc_->mindepth = d;
+      } else if (HasPrefix(tok, "--")) {
+        WARN("Unknown flag in findleaves.py: %.*s", SPF(tok));
+        return false;
       } else {
         fc_->finddirs.push_back(tok);
       }
@@ -537,6 +618,10 @@ class FindCommandParser {
             return false;
         }
         if (!GetNextToken(&tok) || !tok.empty())
+          return false;
+        return true;
+      } else if (tok == "build/tools/findleaves.py") {
+        if (!ParseFindLeaves())
           return false;
         return true;
       } else {
@@ -604,10 +689,9 @@ class FindEmulatorImpl : public FindEmulator {
     for (StringPiece finddir : fc.finddirs) {
       const DirentNode* base = root_->FindDir(ConcatDir(fc.chdir, finddir));
       if (!base) {
-        LOG("FindEmulator: Find dir (%s) not found: %s",
-            ConcatDir(fc.chdir, finddir).c_str(), cmd.c_str());
-        out->resize(orig_out_size);
-        return false;
+        fprintf(stderr, "FindEmulator: `%s': No such file or directory\n",
+                ConcatDir(fc.chdir, finddir).c_str());
+        continue;
       }
 
       string path = finddir.as_string();
@@ -670,7 +754,7 @@ class FindEmulatorImpl : public FindEmulator {
 }  // namespace
 
 FindCommand::FindCommand()
-    : follows_symlinks(false), depth(INT_MAX) {
+    : follows_symlinks(false), depth(INT_MAX), mindepth(INT_MIN) {
 }
 
 FindCommand::~FindCommand() {
@@ -678,7 +762,7 @@ FindCommand::~FindCommand() {
 
 bool FindCommand::Parse(const string& cmd) {
   FindCommandParser fcp(cmd, this);
-  if (!HasWord(cmd, "find"))
+  if (!HasWord(cmd, "find") && !HasWord(cmd, "build/tools/findleaves.py"))
     return false;
 
   if (!fcp.Parse())

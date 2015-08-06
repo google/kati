@@ -20,12 +20,16 @@ test1:
 	mkdir testdir/dir1
 	touch testdir/dir1/file1
 	touch testdir/dir1/file2
+	touch testdir/dir1/file3
 	mkdir testdir/dir2
 	touch testdir/dir2/file1
 	touch testdir/dir2/file2
+	touch testdir/dir2/file3
 	ln -s ../dir1/file1 testdir/dir2/link1
 	ln -s ../../testdir/dir1 testdir/dir2/link2
 	ln -s broken testdir/dir2/link3
+	mkdir -p build/tools
+	cp ../../testcase/tools/findleaves.py build/tools
 
 test2:
 	@echo no options
@@ -84,3 +88,12 @@ endif
 	$(call run_find, find testdir -maxdepth hoge)
 	$(call run_find, find testdir -maxdepth 1hoge)
 	$(call run_find, find testdir -maxdepth -1)
+	@echo maxdepth
+	$(call run_find, build/tools/findleaves.py . file1)
+	$(call run_find, build/tools/findleaves.py . file3)
+	$(call run_find, build/tools/findleaves.py --prune=dir1 . file3)
+	$(call run_find, build/tools/findleaves.py --prune=dir1 --prune=dir2 . file3)
+	$(call run_find, build/tools/findleaves.py --mindepth=1 . file1)
+	$(call run_find, build/tools/findleaves.py --mindepth=2 . file1)
+	$(call run_find, build/tools/findleaves.py --mindepth=3 . file1)
+	$(call run_find, build/tools/findleaves.py --mindepth=2 testdir file1)
