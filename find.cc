@@ -243,8 +243,7 @@ class DirentDirNode : public DirentNode {
   }
 
   void Add(const string& name, DirentNode* c) {
-    auto p = children_.emplace(children_.end(), name, c);
-    CHECK(p->second);
+    children_.emplace(children_.end(), name, c);
   }
 
  private:
@@ -705,6 +704,11 @@ class FindEmulatorImpl : public FindEmulator {
 
     if (!out->empty() && (*out)[out->size()-1] == ' ')
       out->resize(out->size()-1);
+
+    if (fc.type == FindCommandType::FINDLEAVES) {
+      *out = SortWordsInString(*out);
+    }
+
     LOG("FindEmulator: OK");
     return true;
   }
