@@ -560,7 +560,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     av.push_back(move(s));
   }
   vector<unique_ptr<ScopedVar>> sv;
-  for (size_t i = 1; i < args.size(); i++) {
+  for (size_t i = 1; ; i++) {
     string s;
     StringPiece tmpvar_name;
     if (i < sizeof(tmpvar_names)/sizeof(tmpvar_names[0])) {
@@ -569,9 +569,22 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       s = StringPrintf("%d", i);
       tmpvar_name = s;
     }
-    sv.push_back(move(unique_ptr<ScopedVar>(
-        new ScopedVar(ev->mutable_vars(),
-                      Intern(tmpvar_name), av[i-1].get()))));
+    if (i < args.size()) {
+      sv.push_back(move(unique_ptr<ScopedVar>(
+          new ScopedVar(ev->mutable_vars(),
+                        Intern(tmpvar_name), av[i-1].get()))));
+    } else {
+      // We need to blank further automatic vars
+      Var *v = ev->LookupVar(Intern(tmpvar_name));
+      if (!v->IsDefined()) break;
+      if (v->Origin() != VarOrigin::AUTOMATIC) break;
+
+      av.push_back(move(unique_ptr<SimpleVar>(
+          new SimpleVar(make_shared<string>(""), VarOrigin::AUTOMATIC))));
+      sv.push_back(move(unique_ptr<ScopedVar>(
+          new ScopedVar(ev->mutable_vars(),
+                        Intern(tmpvar_name), av[i-1].get()))));
+    }
   }
   func->Eval(ev, s);
 }
