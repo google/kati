@@ -929,7 +929,9 @@ bool NeedsRegen(const char* ninja_suffix,
         int num_read_dirs = LoadInt(fp);
         for (int j = 0; j < num_read_dirs; j++) {
           LoadString(fp, &s);
-          if (s == ".")
+          // We assume we rarely do a significant change for the top
+          // directory which affects the results of find command.
+          if (s == "" || s == ".")
             continue;
           double ts = GetTimestamp(s);
           should_run_command |= (ts < 0 || gen_time < ts);
