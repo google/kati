@@ -66,12 +66,15 @@ endif
 	@echo cd
 	$(call run_find, cd testdir && find)
 	$(call run_find, cd testdir/// && find .)
+	$(call run_find, cd testdir///dir1// && find .///)
 	$(call run_find, cd testdir && find ../testdir)
 	@echo test
 	$(call run_find, test -d testdir && find testdir)
 	$(call run_find, if [ -d testdir ] ; then find testdir ; fi)
 	$(call run_find, if [ -d testdir ]; then find testdir; fi)
 	$(call run_find, if [ -d testdir ]; then cd testdir && find .; fi)
+	$(call run_find, test -d testdir//dir1/// && find testdir///dir1///)
+	$(call run_find, test -d testdir//.///dir1/// && find testdir//.///dir1///)
 	@echo prune
 	$(call run_find, find testdir -name dir2 -prune -o -name file1)
 	@echo multi
@@ -90,7 +93,7 @@ endif
 	$(call run_find, find testdir -maxdepth hoge)
 	$(call run_find, find testdir -maxdepth 1hoge)
 	$(call run_find, find testdir -maxdepth -1)
-	@echo maxdepth
+	@echo findleaves
 	$(call run_find, build/tools/findleaves.py . file1)
 	$(call run_find, build/tools/findleaves.py . file3)
 	$(call run_find, build/tools/findleaves.py --prune=dir1 . file3)
