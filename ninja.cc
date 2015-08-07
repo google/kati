@@ -779,7 +779,7 @@ class NinjaGenerator {
 
       DumpInt(fp, flc->find->read_dirs->size());
       for (StringPiece s : *flc->find->read_dirs) {
-        DumpString(fp, s);
+        DumpString(fp, ConcatDir(flc->find->chdir, s));
       }
     }
 
@@ -929,6 +929,8 @@ bool NeedsRegen(const char* ninja_suffix,
         int num_read_dirs = LoadInt(fp);
         for (int j = 0; j < num_read_dirs; j++) {
           LoadString(fp, &s);
+          if (s == ".")
+            continue;
           double ts = GetTimestamp(s);
           should_run_command |= (ts < 0 || gen_time < ts);
         }
