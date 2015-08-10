@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -399,6 +400,18 @@ func (ev *Evaluator) evalCommand(ast *commandAST) error {
 	return nil
 }
 
+func (ev *Evaluator) paramVar(name string) (Var, error) {
+	idx, err := strconv.ParseInt(name, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("param: %s: %v", name, err)
+	}
+	i := int(idx)
+	if i < 0 || i >= len(ev.paramVars) {
+		return nil, fmt.Errorf("param: %s out of %d", name, len(ev.paramVars))
+	}
+	return &automaticVar{value: []byte(ev.paramVars[i])}, nil
+}
+
 // LookupVar looks up named variable.
 func (ev *Evaluator) LookupVar(name string) Var {
 	if ev.currentScope != nil {
@@ -411,6 +424,10 @@ func (ev *Evaluator) LookupVar(name string) Var {
 	if v.IsDefined() {
 		return v
 	}
+	v, err := ev.paramVar(name)
+	if err == nil {
+		return v
+	}
 	return ev.vars.Lookup(name)
 }
 
@@ -421,6 +438,10 @@ func (ev *Evaluator) lookupVarInCurrentScope(name string) Var {
 	}
 	v := ev.outVars.Lookup(name)
 	if v.IsDefined() {
+		return v
+	}
+	v, err := ev.paramVar(name)
+	if err == nil {
 		return v
 	}
 	return ev.vars.Lookup(name)

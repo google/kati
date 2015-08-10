@@ -1030,16 +1030,26 @@ func (f *funcCall) Eval(w evalWriter, ev *Evaluator) error {
 	}
 	v := ev.LookupVar(variable)
 	// Evalualte all arguments first before we modify the table.
-	var args []tmpval
+	// An omitted argument should be blank, even if it's nested inside
+	// another call statement that did have that argument passed.
+	// see testcases/nested_call.mk
+	arglen := len(ev.paramVars)
+	if arglen == 0 {
+		arglen++
+	}
+	if arglen < len(fargs[1:])+1 {
+		arglen = len(fargs[1:]) + 1
+	}
+	args := make([]tmpval, arglen)
 	// $0 is variable.
-	args = append(args, tmpval(varname))
+	args[0] = tmpval(varname)
 	// TODO(ukai): If variable is the name of a built-in function,
 	// the built-in function is always invoked (even if a make variable
 	// by that name also exists).
 
 	for i, arg := range fargs[1:] {
 		// f.args[2]=>args[1] will be $1.
-		args = append(args, tmpval(arg))
+		args[i+1] = tmpval(arg)
 		if glog.V(1) {
 			glog.Infof("call $%d: %q=>%q", i+1, arg, fargs[i+1])
 		}
