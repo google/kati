@@ -118,7 +118,7 @@ StringPiece Dirname(StringPiece s);
 StringPiece Basename(StringPiece s);
 StringPiece GetExt(StringPiece s);
 StringPiece StripExt(StringPiece s);
-void NormalizePath(string* o, size_t start_index = 0);
+void NormalizePath(string* o);
 void AbsPath(StringPiece s, string* o);
 
 size_t FindOutsideParen(StringPiece s, char c);

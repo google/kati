@@ -22,8 +22,11 @@
 #include <vector>
 
 #include "string_piece.h"
+#include "testutil.h"
 
 using namespace std;
+
+namespace {
 
 void TestWordScanner() {
   vector<StringPiece> ss;
@@ -31,9 +34,9 @@ void TestWordScanner() {
     ss.push_back(tok);
   }
   assert(ss.size() == 3LU);
-  assert(ss[0] == "foo");
-  assert(ss[1] == "bar");
-  assert(ss[2] == "baz");
+  ASSERT_EQ(ss[0], "foo");
+  ASSERT_EQ(ss[1], "bar");
+  ASSERT_EQ(ss[2], "baz");
 }
 
 void TestHasPrefix() {
@@ -57,14 +60,14 @@ string SubstPattern(StringPiece str, StringPiece pat, StringPiece subst) {
 }
 
 void TestSubstPattern() {
-  assert(SubstPattern("x.c", "%.c", "%.o") == "x.o");
-  assert(SubstPattern("c.x", "c.%", "o.%") == "o.x");
-  assert(SubstPattern("x.c.c", "%.c", "%.o") == "x.c.o");
-  assert(SubstPattern("x.x y.c", "%.c", "%.o") == "x.x y.o");
-  assert(SubstPattern("x.%.c", "%.%.c", "OK") == "OK");
-  assert(SubstPattern("x.c", "x.c", "OK") == "OK");
-  assert(SubstPattern("x.c.c", "x.c", "XX") == "x.c.c");
-  assert(SubstPattern("x.x.c", "x.c", "XX") == "x.x.c");
+  ASSERT_EQ(SubstPattern("x.c", "%.c", "%.o"), "x.o");
+  ASSERT_EQ(SubstPattern("c.x", "c.%", "o.%"), "o.x");
+  ASSERT_EQ(SubstPattern("x.c.c", "%.c", "%.o"), "x.c.o");
+  ASSERT_EQ(SubstPattern("x.x y.c", "%.c", "%.o"), "x.x y.o");
+  ASSERT_EQ(SubstPattern("x.%.c", "%.%.c", "OK"), "OK");
+  ASSERT_EQ(SubstPattern("x.c", "x.c", "OK"), "OK");
+  ASSERT_EQ(SubstPattern("x.c.c", "x.c", "XX"), "x.c.c");
+  ASSERT_EQ(SubstPattern("x.x.c", "x.c", "XX"), "x.x.c");
 }
 
 void TestNoLineBreak() {
@@ -84,6 +87,32 @@ void TestHasWord() {
   assert(!HasWord("foo bar baz", "fo"));
 }
 
+static string NormalizePath(string s) {
+  ::NormalizePath(&s);
+  return s;
+}
+
+void TestNormalizePath() {
+  ASSERT_EQ(NormalizePath(""), "");
+  ASSERT_EQ(NormalizePath("."), "");
+  ASSERT_EQ(NormalizePath("/"), "/");
+  ASSERT_EQ(NormalizePath("/tmp"), "/tmp");
+  ASSERT_EQ(NormalizePath("////tmp////"), "/tmp");
+  ASSERT_EQ(NormalizePath("a////b"), "a/b");
+  ASSERT_EQ(NormalizePath("a//.//b"), "a/b");
+  ASSERT_EQ(NormalizePath("a////b//../c/////"), "a/c");
+  ASSERT_EQ(NormalizePath("../foo"), "../foo");
+  ASSERT_EQ(NormalizePath("./foo"), "foo");
+  ASSERT_EQ(NormalizePath("x/y/..//../foo"), "foo");
+  ASSERT_EQ(NormalizePath("x/../../foo"), "../foo");
+  ASSERT_EQ(NormalizePath("/../foo"), "/foo");
+  ASSERT_EQ(NormalizePath("/../../foo"), "/foo");
+  ASSERT_EQ(NormalizePath("/a/../../foo"), "/foo");
+  ASSERT_EQ(NormalizePath("/a/b/.."), "/a");
+}
+
+}  // namespace
+
 int main() {
   TestWordScanner();
   TestHasPrefix();
@@ -91,4 +120,6 @@ int main() {
   TestSubstPattern();
   TestNoLineBreak();
   TestHasWord();
+  TestNormalizePath();
+  assert(!g_failed);
 }
