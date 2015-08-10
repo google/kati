@@ -147,7 +147,7 @@ func parseBuiltinCommand(cmd string) (buildinCommand, error) {
 	if !UseFindEmulator {
 		return nil, errFindEmulatorDisabled
 	}
-	if strings.HasPrefix(cmd, "build/tools/findleaves") {
+	if strings.HasPrefix(trimLeftSpace(cmd), "build/tools/findleaves") {
 		return parseFindleavesCommand(cmd)
 	}
 	return parseFindCommand(cmd)

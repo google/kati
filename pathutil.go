@@ -164,7 +164,7 @@ func (c *fsCacheT) fileid(dir string) fileid {
 }
 
 func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
-	glog.V(3).Infof("readdir: %s", dir)
+	glog.V(3).Infof("readdir: %s [%v]", dir, id)
 	c.mu.Lock()
 	if id == unknownFileid {
 		id = c.ids[dir]
@@ -174,6 +174,7 @@ func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
 	if ok {
 		return id, ents
 	}
+	glog.V(3).Infof("opendir: %s", dir)
 	d, err := os.Open(dir)
 	if err != nil {
 		c.mu.Lock()
@@ -206,6 +207,7 @@ func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
 		}
 		lmode := fi.Mode()
 		mode := lmode
+		var id fileid
 		if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
 			id = fileid{dev: stat.Dev, ino: stat.Ino}
 		}
@@ -393,7 +395,7 @@ func (op findOpPrint) apply(w evalWriter, path string, ent dirent) (bool, bool) 
 }
 
 func (c *fsCacheT) find(w evalWriter, fc findCommand, path string, id fileid, depth int, seen map[fileid]string) {
-	glog.V(2).Infof("find: path:%s depth:%d", path, depth)
+	glog.V(2).Infof("find: path:%s id:%v depth:%d", path, id, depth)
 	id, ents := c.readdir(filepathClean(filepathJoin(fc.chdir, path)), id)
 	if ents == nil {
 		glog.V(1).Infof("find: %s %s not found", fc.chdir, path)
@@ -467,6 +469,7 @@ func parseFindCommand(cmd string) (findCommand, error) {
 			return fcp.fc, errFindAbspath
 		}
 	}
+	glog.V(3).Infof("find command: %#v", fcp.fc)
 	return fcp.fc, nil
 }
 
@@ -528,9 +531,13 @@ type findCommandParser struct {
 func (p *findCommandParser) parse() error {
 	p.fc.depth = 1<<31 - 1 // max int32
 	var hasIf bool
+	var hasFind bool
 	for {
 		tok, err := p.token()
 		if err == io.EOF || tok == "" {
+			if !hasFind {
+				return errNotFind
+			}
 			return nil
 		}
 		if err != nil {
@@ -593,6 +600,7 @@ func (p *findCommandParser) parse() error {
 			if err != io.EOF || tok != "" {
 				return errFindExtra
 			}
+			hasFind = true
 			return nil
 		}
 	}
@@ -814,6 +822,7 @@ func parseFindleavesCommand(cmd string) (findleavesCommand, error) {
 	if err != nil {
 		return fcp.fc, err
 	}
+	glog.V(3).Infof("findleaves command: %#v", fcp.fc)
 	return fcp.fc, nil
 }
 
@@ -827,20 +836,24 @@ func (fc findleavesCommand) run(w evalWriter) {
 }
 
 func (fc findleavesCommand) walk(w evalWriter, dir string, id fileid, depth int, seen map[fileid]string) {
+	glog.V(3).Infof("findleaves walk: dir:%d id:%v depth:%d", dir, id, depth)
 	id, ents := fsCache.readdir(filepathClean(dir), id)
 	var subdirs []dirent
 	for _, ent := range ents {
 		if ent.mode.IsDir() {
 			if fc.isPrune(ent.name) {
+				glog.V(3).Infof("findleaves prune %s in %s", ent.name, dir)
 				continue
 			}
 			subdirs = append(subdirs, ent)
 			continue
 		}
 		if depth < fc.mindepth {
+			glog.V(3).Infof("findleaves depth=%d mindepth=%d", depth, fc.mindepth)
 			continue
 		}
 		if ent.name == fc.name {
+			glog.V(2).Infof("findleaves %s in %s", ent.name, dir)
 			w.writeWordString(filepathJoin(dir, ent.name))
 			// no recurse subdirs
 			return
