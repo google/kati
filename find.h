@@ -46,6 +46,7 @@ struct FindCommand {
   unique_ptr<FindCond> prune_cond;
   int depth;
   int mindepth;
+  bool redirect_to_devnull;
 
   unique_ptr<vector<string>> read_dirs;
 

@@ -530,10 +530,14 @@ class FindCommandParser {
         if (!c)
           return false;
         fc_->print_cond.reset(c);
-      } else {
-        char c = tok.get(0);
-        if (c == '|' || c == ';' || c == '&')
+      } else if (tok == "2>") {
+        if (!GetNextToken(&tok) || tok != "/dev/null") {
           return false;
+        }
+        fc_->redirect_to_devnull = true;
+      } else if (tok.find_first_of("|;&><*'\"") != string::npos) {
+        return false;
+      } else {
         fc_->finddirs.push_back(tok);
       }
     }
@@ -694,9 +698,11 @@ class FindEmulatorImpl : public FindEmulator {
         return false;
       }
       if (!root_->FindDir(fc.chdir)) {
-        fprintf(stderr,
-                "FindEmulator: cd: %.*s: No such file or directory\n",
-                SPF(fc.chdir));
+        if (!fc.redirect_to_devnull) {
+          fprintf(stderr,
+                  "FindEmulator: cd: %.*s: No such file or directory\n",
+                  SPF(fc.chdir));
+        }
         return true;
       }
     }
@@ -714,9 +720,11 @@ class FindEmulatorImpl : public FindEmulator {
 
       const DirentNode* base = root_->FindDir(dir);
       if (!base) {
-        fprintf(stderr,
-                "FindEmulator: find: `%s': No such file or directory\n",
-                ConcatDir(fc.chdir, finddir).c_str());
+        if (!fc.redirect_to_devnull) {
+          fprintf(stderr,
+                  "FindEmulator: find: `%s': No such file or directory\n",
+                  ConcatDir(fc.chdir, finddir).c_str());
+        }
         continue;
       }
 
@@ -786,6 +794,7 @@ class FindEmulatorImpl : public FindEmulator {
 
 FindCommand::FindCommand()
     : follows_symlinks(false), depth(INT_MAX), mindepth(INT_MIN),
+      redirect_to_devnull(false),
       read_dirs(new vector<string>()) {
 }
 
