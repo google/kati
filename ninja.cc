@@ -814,23 +814,35 @@ void GenerateNinja(const char* ninja_suffix,
 
 bool NeedsRegen(const char* ninja_suffix,
                 const char* ninja_dir,
-                bool ignore_kati_binary) {
+                bool ignore_kati_binary,
+                bool dump_kati_stamp) {
+  bool retval = false;
+#define RETURN_TRUE do {                         \
+    if (dump_kati_stamp)                         \
+      retval = true;                             \
+    else                                         \
+      return true;                               \
+  } while (0)
+
   const string& stamp_filename =
       NinjaGenerator::GetStampFilename(ninja_suffix, ninja_dir);
   FILE* fp = fopen(stamp_filename.c_str(), "rb");
   if (!fp)
-    return true;
+    RETURN_TRUE;
   ScopedFile sfp(fp);
 
   double gen_time;
   size_t r = fread(&gen_time, sizeof(gen_time), 1, fp);
   CHECK(r == 1);
+  if (dump_kati_stamp)
+    printf("Generated time: %f\n", gen_time);
 
   string s, s2;
   int num_files = LoadInt(fp);
   for (int i = 0; i < num_files; i++) {
     LoadString(fp, &s);
-    if (gen_time < GetTimestamp(s)) {
+    double ts = GetTimestamp(s);
+    if (gen_time < ts) {
       if (ignore_kati_binary) {
         string kati_binary;
         GetExecutablePath(&kati_binary);
@@ -839,8 +851,13 @@ bool NeedsRegen(const char* ninja_suffix,
           continue;
         }
       }
-      fprintf(stderr, "%s was modified, regenerating...\n", s.c_str());
-      return true;
+      if (dump_kati_stamp)
+        printf("file %s: dirty (%f)\n", s.c_str(), ts);
+      else
+        fprintf(stderr, "%s was modified, regenerating...\n", s.c_str());
+      RETURN_TRUE;
+    } else if (dump_kati_stamp) {
+      printf("file %s: clean (%f)\n", s.c_str(), ts);
     }
   }
 
@@ -848,9 +865,15 @@ bool NeedsRegen(const char* ninja_suffix,
   for (int i = 0; i < num_undefineds; i++) {
     LoadString(fp, &s);
     if (getenv(s.c_str())) {
-      fprintf(stderr, "Environment variable %s was set, regenerating...\n",
-              s.c_str());
-      return true;
+      if (dump_kati_stamp) {
+        printf("env %s: dirty (unset => %s)\n", s.c_str(), getenv(s.c_str()));
+      } else {
+        fprintf(stderr, "Environment variable %s was set, regenerating...\n",
+                s.c_str());
+      }
+      RETURN_TRUE;
+    } else if (dump_kati_stamp) {
+      printf("env %s: clean (unset)\n", s.c_str());
     }
   }
 
@@ -860,10 +883,17 @@ bool NeedsRegen(const char* ninja_suffix,
     StringPiece val(getenv(s.c_str()));
     LoadString(fp, &s2);
     if (val != s2) {
-      fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
-              "regenerating...\n",
-              s.c_str(), s2.c_str(), SPF(val));
-      return true;
+      if (dump_kati_stamp) {
+        printf("env %s: clean (%s => %.*s)\n",
+               s.c_str(), s2.c_str(), SPF(val));
+      } else {
+        fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
+                "regenerating...\n",
+                s.c_str(), s2.c_str(), SPF(val));
+      }
+      RETURN_TRUE;
+    } else if (dump_kati_stamp) {
+      printf("env %s: clean (%.*s)\n", s.c_str(), SPF(val));
     }
   }
 
@@ -897,11 +927,19 @@ bool NeedsRegen(const char* ninja_suffix,
           }
         }
         if (needs_regen) {
-          fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
-                  pat.c_str());
-          return true;
+          if (dump_kati_stamp) {
+            printf("wildcard %s: dirty\n", pat.c_str());
+          } else {
+            fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
+                    pat.c_str());
+          }
+          RETURN_TRUE;
+        } else if (dump_kati_stamp) {
+          printf("wildcard %s: clean (reglob)\n", pat.c_str());
         }
       } else {
+        if (dump_kati_stamp)
+          printf("wildcard %s: clean (no reglob)\n", pat.c_str());
         for (int j = 0; j < num_files; j++)
           LoadString(fp, &s);
       }
@@ -937,8 +975,11 @@ bool NeedsRegen(const char* ninja_suffix,
           should_run_command |= (ts < 0 || gen_time < ts);
         }
 
-        if (!should_run_command)
+        if (!should_run_command) {
+          if (dump_kati_stamp)
+            printf("shell %s: clean (no rerun)\n", cmd.c_str());
           continue;
+        }
       }
     }
 
@@ -948,14 +989,22 @@ bool NeedsRegen(const char* ninja_suffix,
       RunCommand("/bin/sh", cmd, RedirectStderr::DEV_NULL, &result);
       FormatForCommandSubstitution(&result);
       if (expected != result) {
-        fprintf(stderr, "$(shell %s) was changed, regenerating...\n",
-                cmd.c_str());
-        fprintf(stderr, "%s => %s\n",
-                expected.c_str(), result.c_str());
-        return true;
+        if (dump_kati_stamp) {
+          printf("shell %s: dirty\n", cmd.c_str());
+        } else {
+          fprintf(stderr, "$(shell %s) was changed, regenerating...\n",
+                  cmd.c_str());
+#if 0
+          fprintf(stderr, "%s => %s\n",
+                  expected.c_str(), result.c_str());
+#endif
+        }
+        RETURN_TRUE;
+      } else if (dump_kati_stamp) {
+        printf("shell %s: clean (rerun)\n", cmd.c_str());
       }
     }
   }
 
-  return false;
+  return retval;
 }

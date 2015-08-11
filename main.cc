@@ -47,6 +47,7 @@ static bool g_is_syntax_check_only;
 static bool g_generate_ninja;
 static bool g_regen;
 static bool g_regen_ignoring_kati_binary;
+static bool g_dump_kati_stamp;
 static const char* g_ninja_suffix;
 static const char* g_ninja_dir;
 static bool g_use_find_emulator;
@@ -98,6 +99,8 @@ static void ParseCommandLine(int argc, char* argv[],
       g_regen = true;
     } else if (!strcmp(arg, "--regen_ignoring_kati_binary")) {
       g_regen_ignoring_kati_binary = true;
+    } else if (!strcmp(arg, "--dump_kati_stamp")) {
+      g_dump_kati_stamp = true;
     } else if (!strcmp(arg, "--detect_android_echo")) {
       g_detect_android_echo = true;
     } else if (!strcmp(arg, "--error_on_env_change")) {
@@ -224,11 +227,16 @@ static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
 static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars,
                const string& orig_args) {
-  if (g_generate_ninja && g_regen) {
+  if (g_generate_ninja && (g_regen || g_dump_kati_stamp)) {
     ScopedTimeReporter tr("regen check time");
     if (!NeedsRegen(g_ninja_suffix, g_ninja_dir,
-                    g_regen_ignoring_kati_binary)) {
-      fprintf(stderr, "No need to regenerate ninja file\n");
+                    g_regen_ignoring_kati_binary,
+                    g_dump_kati_stamp)) {
+      printf("No need to regenerate ninja file\n");
+      return 0;
+    }
+    if (g_dump_kati_stamp) {
+      printf("Need to regenerate ninja file\n");
       return 0;
     }
     ClearGlobCache();
