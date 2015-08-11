@@ -142,6 +142,10 @@ func TestFilepathClean(t *testing.T) {
 }
 
 func TestParseFindCommand(t *testing.T) {
+	fs := newFS()
+	defer fs.close()
+	fs.add(fs.dir, "testdir")
+
 	maxdepth := 1<<31 - 1
 	for _, tc := range []struct {
 		cmd  string

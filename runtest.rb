@@ -137,6 +137,7 @@ def normalize_kati_log(output)
                "\\1: Command not found")
   output.gsub!(/.*: warning for parse error in an unevaluated line: .*\n/, '')
   output.gsub!(/^FindEmulator: /, '')
+  output.gsub!(/^\/bin\/sh: line 0: /, '')
   output.gsub!(/ (\.\/+)+kati\.\S+/, '') # kati log files in find_command.mk
   output.gsub!(/ (\.\/+)+test\S+.json/, '') # json files in find_command.mk
   output

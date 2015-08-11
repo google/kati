@@ -470,16 +470,24 @@ func parseFindCommand(cmd string) (findCommand, error) {
 		}
 	}
 	glog.V(3).Infof("find command: %#v", fcp.fc)
+
+	// TODO(ukai): handle this in run() instead of fallback shell.
+	_, ents := fsCache.readdir(filepathClean(fcp.fc.testdir), unknownFileid)
+	if ents == nil {
+		glog.V(1).Infof("find: testdir %s - not dir", fcp.fc.testdir)
+		return fcp.fc, errFindNoSuchDir
+	}
+	_, ents = fsCache.readdir(filepathClean(fcp.fc.chdir), unknownFileid)
+	if ents == nil {
+		glog.V(1).Infof("find: cd %s: No such file or directory", fcp.fc.chdir)
+		return fcp.fc, errFindNoSuchDir
+	}
+
 	return fcp.fc, nil
 }
 
 func (fc findCommand) run(w evalWriter) {
 	glog.V(3).Infof("find: %#v", fc)
-	_, ents := fsCache.readdir(filepathClean(fc.testdir), unknownFileid)
-	if ents == nil {
-		glog.V(1).Infof("find: testdir %s - not dir", fc.testdir)
-		return
-	}
 	for _, dir := range fc.finddirs {
 		seen := make(map[fileid]string)
 		id, _ := fsCache.readdir(filepathClean(filepathJoin(fc.chdir, dir)), unknownFileid)
@@ -520,7 +528,7 @@ var (
 	errFindExtra           = errors.New("find command: extra")
 	errFindUnexpectedEnd   = errors.New("find command: unexpected end")
 	errFindAbspath         = errors.New("find command: abs path")
-	errFindChdirAndTestdir = errors.New("find command: chdir, testdir")
+	errFindNoSuchDir       = errors.New("find command: no such dir")
 )
 
 type findCommandParser struct {
