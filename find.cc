@@ -674,6 +674,19 @@ class FindEmulatorImpl : public FindEmulator {
       is_initialized_ = true;
     }
 
+    if (!fc.testdir.empty()) {
+      if (!CanHandle(fc.testdir)) {
+        LOG("FindEmulator: Cannot handle test dir (%.*s): %s",
+            SPF(fc.testdir), cmd.c_str());
+        return false;
+      }
+      if (!root_->FindDir(fc.testdir)) {
+        LOG("FindEmulator: Test dir (%.*s) not found: %s",
+            SPF(fc.testdir), cmd.c_str());
+        return true;
+      }
+    }
+
     if (!fc.chdir.empty()) {
       if (!CanHandle(fc.chdir)) {
         LOG("FindEmulator: Cannot handle chdir (%.*s): %s",
@@ -684,19 +697,6 @@ class FindEmulatorImpl : public FindEmulator {
         fprintf(stderr,
                 "FindEmulator: cd: %.*s: No such file or directory\n",
                 SPF(fc.chdir));
-        return true;
-      }
-    }
-
-    if (!fc.testdir.empty()) {
-      if (!CanHandle(fc.testdir)) {
-        LOG("FindEmulator: Cannot handle test dir (%.*s): %s",
-            SPF(fc.testdir), cmd.c_str());
-        return false;
-      }
-      if (!root_->FindDir(fc.testdir)) {
-        LOG("FindEmulator: Test dir (%.*s) not found: %s",
-            SPF(fc.testdir), cmd.c_str());
         return true;
       }
     }
