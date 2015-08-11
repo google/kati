@@ -384,7 +384,7 @@ class FindCommandParser {
       return false;
     if (!GetNextToken(&tok) || tok.empty())
       return false;
-    fc_->testdir = tok;
+    fc_->testdir = tok.as_string();
     return true;
   }
 
@@ -591,7 +591,7 @@ class FindCommandParser {
       if (tok == "cd") {
         if (!GetNextToken(&tok) || tok.empty() || !fc_->chdir.empty())
           return false;
-        fc_->chdir = tok;
+        fc_->chdir = tok.as_string();
         if (!GetNextToken(&tok) || (tok != ";" && tok != "&&"))
           return false;
       } else if (tok == "if") {
@@ -651,17 +651,20 @@ class FindEmulatorImpl : public FindEmulator {
 
   virtual ~FindEmulatorImpl() = default;
 
+  bool CanHandle(StringPiece s) const {
+    return (!HasPrefix(s, "../") &&
+            !HasPrefix(s, "/") &&
+            !HasPrefix(s, ".repo") &&
+            !HasPrefix(s, ".git") &&
+            !HasPrefix(s, "out"));
+  }
+
   virtual bool HandleFind(const string& cmd UNUSED, const FindCommand& fc,
                           string* out) override {
-    if (HasPrefix(fc.chdir, "/")) {
-      LOG("FindEmulator: Cannot handle abspath: %s", cmd.c_str());
+    if (!CanHandle(fc.chdir)) {
+      LOG("FindEmulator: Cannot handle chdir (%.*s): %s",
+          SPF(fc.chdir), cmd.c_str());
       return false;
-    }
-    for (StringPiece finddir : fc.finddirs) {
-      if (HasPrefix(finddir, "/")) {
-        LOG("FindEmulator: Cannot handle abspath: %s", cmd.c_str());
-        return false;
-      }
     }
 
     if (!is_initialized_) {
@@ -671,17 +674,48 @@ class FindEmulatorImpl : public FindEmulator {
       is_initialized_ = true;
     }
 
-    if (!fc.testdir.empty() && !root_->FindDir(fc.testdir)) {
-      LOG("FindEmulator: Test dir (%.*s) not found: %s",
-          SPF(fc.testdir), cmd.c_str());
-      return false;
+    if (!fc.chdir.empty()) {
+      if (!CanHandle(fc.chdir)) {
+        LOG("FindEmulator: Cannot handle chdir (%.*s): %s",
+            SPF(fc.chdir), cmd.c_str());
+        return false;
+      }
+      if (!root_->FindDir(fc.chdir)) {
+        fprintf(stderr,
+                "FindEmulator: cd: %.*s: No such file or directory\n",
+                SPF(fc.chdir));
+        return true;
+      }
+    }
+
+    if (!fc.testdir.empty()) {
+      if (!CanHandle(fc.testdir)) {
+        LOG("FindEmulator: Cannot handle test dir (%.*s): %s",
+            SPF(fc.testdir), cmd.c_str());
+        return false;
+      }
+      if (!root_->FindDir(fc.testdir)) {
+        LOG("FindEmulator: Test dir (%.*s) not found: %s",
+            SPF(fc.testdir), cmd.c_str());
+        return true;
+      }
     }
 
     const size_t orig_out_size = out->size();
     for (StringPiece finddir : fc.finddirs) {
-      const DirentNode* base = root_->FindDir(ConcatDir(fc.chdir, finddir));
+      const string dir = ConcatDir(fc.chdir, finddir);
+
+      if (!CanHandle(dir)) {
+        LOG("FindEmulator: Cannot handle find dir (%s): %s",
+            dir.c_str(), cmd.c_str());
+        out->resize(orig_out_size);
+        return false;
+      }
+
+      const DirentNode* base = root_->FindDir(dir);
       if (!base) {
-        fprintf(stderr, "FindEmulator: `%s': No such file or directory\n",
+        fprintf(stderr,
+                "FindEmulator: find: `%s': No such file or directory\n",
                 ConcatDir(fc.chdir, finddir).c_str());
         continue;
       }
@@ -766,6 +800,8 @@ bool FindCommand::Parse(const string& cmd) {
   if (!fcp.Parse())
     return false;
 
+  NormalizePath(&chdir);
+  NormalizePath(&testdir);
   if (finddirs.empty())
     finddirs.push_back(".");
   return true;

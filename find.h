@@ -38,8 +38,8 @@ struct FindCommand {
   bool Parse(const string& cmd);
 
   FindCommandType type;
-  StringPiece chdir;
-  StringPiece testdir;
+  string chdir;
+  string testdir;
   vector<StringPiece> finddirs;
   bool follows_symlinks;
   unique_ptr<FindCond> print_cond;

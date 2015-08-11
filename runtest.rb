@@ -120,6 +120,7 @@ def normalize_make_log(expected)
   expected.gsub!(/Makefile:\d+: commands for target ".*?" failed\n/, '')
   # We treat some warnings as errors.
   expected.gsub!(/Nothing to be done for "test"\.\n/, '')
+  expected.gsub!(/^\/bin\/sh: line 0: /, '')
 
   expected
 end
@@ -135,6 +136,7 @@ def normalize_kati_log(output)
   output.gsub!(/\/bin\/sh: ([^:]*): command not found/,
                "\\1: Command not found")
   output.gsub!(/.*: warning for parse error in an unevaluated line: .*\n/, '')
+  output.gsub!(/^FindEmulator: /, '')
   output.gsub!(/ (\.\/+)+kati\.\S+/, '') # kati log files in find_command.mk
   output.gsub!(/ (\.\/+)+test\S+.json/, '') # json files in find_command.mk
   output
