@@ -516,6 +516,19 @@ static void ShellFuncImpl(const string& shell, const string& cmd,
 
 static vector<CommandResult*> g_command_results;
 
+bool ShouldStoreCommandResult(StringPiece cmd) {
+  if (HasWord(cmd, "date") || HasWord(cmd, "echo"))
+    return false;
+  if (g_ignore_dirty_pattern) {
+    Pattern pat(g_ignore_dirty_pattern);
+    for (StringPiece tok : WordScanner(cmd)) {
+      if (pat.Match(tok))
+        return false;
+    }
+  }
+  return true;
+}
+
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
   if (ev->avoid_io() && !HasNoIoInShellScript(*cmd)) {
@@ -530,7 +543,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   string out;
   FindCommand* fc = NULL;
   ShellFuncImpl(*shell, *cmd, &out, &fc);
-  if (!out.empty() && !HasWord(*cmd, "date") && !HasWord(*cmd, "echo")) {
+  if (ShouldStoreCommandResult(*cmd)) {
     CommandResult* cr = new CommandResult();
     cr->cmd = *cmd;
     cr->find.reset(fc);
