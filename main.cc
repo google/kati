@@ -230,11 +230,14 @@ static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
 static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars,
                const string& orig_args) {
+  double start_time = GetTime();
+
   if (g_generate_ninja && (g_regen || g_dump_kati_stamp)) {
     ScopedTimeReporter tr("regen check time");
     if (!NeedsRegen(g_ninja_suffix, g_ninja_dir,
                     g_regen_ignoring_kati_binary,
-                    g_dump_kati_stamp)) {
+                    g_dump_kati_stamp,
+                    start_time)) {
       printf("No need to regenerate ninja file\n");
       return 0;
     }
@@ -244,8 +247,6 @@ static int Run(const vector<Symbol>& targets,
     }
     ClearGlobCache();
   }
-
-  double start_time = GetTime();
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 

@@ -824,7 +824,8 @@ static bool ShouldIgnoreDirty(StringPiece s) {
 bool NeedsRegen(const char* ninja_suffix,
                 const char* ninja_dir,
                 bool ignore_kati_binary,
-                bool dump_kati_stamp) {
+                bool dump_kati_stamp,
+                double start_time) {
   bool retval = false;
 #define RETURN_TRUE do {                         \
     if (dump_kati_stamp)                         \
@@ -835,7 +836,7 @@ bool NeedsRegen(const char* ninja_suffix,
 
   const string& stamp_filename =
       NinjaGenerator::GetStampFilename(ninja_suffix, ninja_dir);
-  FILE* fp = fopen(stamp_filename.c_str(), "rb");
+  FILE* fp = fopen(stamp_filename.c_str(), "rb+");
   if (!fp)
     RETURN_TRUE;
   ScopedFile sfp(fp);
@@ -1025,6 +1026,13 @@ bool NeedsRegen(const char* ninja_suffix,
         printf("shell %s: clean (rerun)\n", cmd.c_str());
       }
     }
+  }
+
+  if (!retval) {
+    if (fseek(fp, 0, SEEK_SET) < 0)
+      PERROR("fseek");
+    size_t r = fwrite(&start_time, sizeof(start_time), 1, fp);
+    CHECK(r == 1);
   }
 
   return retval;
