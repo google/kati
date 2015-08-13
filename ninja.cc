@@ -757,12 +757,12 @@ class NinjaGenerator {
       }
     }
 
-    const vector<FileListCommand*>& flcs = GetFileListCommmands();
-    DumpInt(fp, flcs.size());
-    for (FileListCommand* flc : flcs) {
-      DumpString(fp, flc->cmd);
-      DumpString(fp, flc->result);
-      if (!flc->find.get()) {
+    const vector<CommandResult*>& crs = GetShellCommandResults();
+    DumpInt(fp, crs.size());
+    for (CommandResult* cr : crs) {
+      DumpString(fp, cr->cmd);
+      DumpString(fp, cr->result);
+      if (!cr->find.get()) {
         // Always re-run this command.
         DumpInt(fp, 0);
         continue;
@@ -771,8 +771,8 @@ class NinjaGenerator {
       DumpInt(fp, 1);
 
       vector<string> missing_dirs;
-      for (StringPiece fd : flc->find->finddirs) {
-        const string& d = ConcatDir(flc->find->chdir, fd);
+      for (StringPiece fd : cr->find->finddirs) {
+        const string& d = ConcatDir(cr->find->chdir, fd);
         if (!Exists(d))
           missing_dirs.push_back(d);
       }
@@ -781,9 +781,9 @@ class NinjaGenerator {
         DumpString(fp, d);
       }
 
-      DumpInt(fp, flc->find->read_dirs->size());
-      for (StringPiece s : *flc->find->read_dirs) {
-        DumpString(fp, ConcatDir(flc->find->chdir, s));
+      DumpInt(fp, cr->find->read_dirs->size());
+      for (StringPiece s : *cr->find->read_dirs) {
+        DumpString(fp, ConcatDir(cr->find->chdir, s));
       }
     }
 
@@ -961,8 +961,8 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
-  int num_flcs = LoadInt(fp);
-  for (int i = 0; i < num_flcs; i++) {
+  int num_crs = LoadInt(fp);
+  for (int i = 0; i < num_crs; i++) {
     string cmd, expected;
     LoadString(fp, &cmd);
     LoadString(fp, &expected);

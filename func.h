@@ -41,12 +41,12 @@ FuncInfo* GetFuncInfo(StringPiece name);
 
 struct FindCommand;
 
-struct FileListCommand {
+struct CommandResult {
   string cmd;
   unique_ptr<FindCommand> find;
   string result;
 };
 
-const vector<FileListCommand*>& GetFileListCommmands();
+const vector<CommandResult*>& GetShellCommandResults();
 
 #endif  // FUNC_H_

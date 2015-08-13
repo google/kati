@@ -514,7 +514,7 @@ static void ShellFuncImpl(const string& shell, const string& cmd,
 #endif
 }
 
-static vector<FileListCommand*> g_file_list_commands;
+static vector<CommandResult*> g_command_results;
 
 void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   shared_ptr<string> cmd = args[0]->Eval(ev);
@@ -526,22 +526,16 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 
   shared_ptr<string> shell = ev->EvalVar(kShellSym);
-  const bool is_file_list_command =
-      ((*shell == "/bin/sh" || *shell == "/bin/bash") &&
-       (HasWord(*cmd, "find") || HasWord(*cmd, "ls") ||
-        // For Android.
-        cmd->find("/findleaves.py ") != string::npos));
 
   string out;
   FindCommand* fc = NULL;
   ShellFuncImpl(*shell, *cmd, &out, &fc);
-  if (is_file_list_command) {
-    FileListCommand* flc = new FileListCommand();
-    flc->cmd = *cmd;
-    //fprintf(stderr, "file list command: %s %p\n", cmd->c_str(), fc);
-    flc->find.reset(fc);
-    flc->result = out;
-    g_file_list_commands.push_back(flc);
+  if (!out.empty() && !HasWord(*cmd, "date") && !HasWord(*cmd, "echo")) {
+    CommandResult* cr = new CommandResult();
+    cr->cmd = *cmd;
+    cr->find.reset(fc);
+    cr->result = out;
+    g_command_results.push_back(cr);
   }
   *s += out;
 }
@@ -713,6 +707,6 @@ FuncInfo* GetFuncInfo(StringPiece name) {
   return found->second;
 }
 
-const vector<FileListCommand*>& GetFileListCommmands() {
-  return g_file_list_commands;
+const vector<CommandResult*>& GetShellCommandResults() {
+  return g_command_results;
 }
