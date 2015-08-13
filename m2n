@@ -131,7 +131,7 @@ if [ x"${lunch}" != x"" ]; then
   printconfig | grep -v '^=' > .kati_lunch${ninja_suffix}
 fi
 
-${kati} --ninja ${ninja_suffix_flag} --ignore_optional_include=out/%.P --use_find_emulator --detect_android_echo ${goma_flag} ${extra_flags} ${targets}
+${kati} --ninja ${ninja_suffix_flag} --ignore_optional_include=out/%.P --ignore_dirty=out/% --use_find_emulator --detect_android_echo ${goma_flag} ${extra_flags} ${targets}
 
 echo
 echo ninja${ninja_suffix}.sh and build${ninja_suffix}.ninja were generated, please run ./ninja${ninja_suffix}.sh

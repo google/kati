@@ -126,6 +126,9 @@ static void ParseCommandLine(int argc, char* argv[],
     } else if (ParseCommandLineOptionWithArg(
         "--ignore_optional_include",
         argv, &i, &g_ignore_optional_include_pattern)) {
+    } else if (ParseCommandLineOptionWithArg(
+        "--ignore_dirty",
+        argv, &i, &g_ignore_dirty_pattern)) {
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {

@@ -816,6 +816,11 @@ void GenerateNinja(const char* ninja_suffix,
   ng.Generate(nodes, build_all_targets, orig_args);
 }
 
+static bool ShouldIgnoreDirty(StringPiece s) {
+  return (g_ignore_dirty_pattern &&
+          Pattern(g_ignore_dirty_pattern).Match(s));
+}
+
 bool NeedsRegen(const char* ninja_suffix,
                 const char* ninja_dir,
                 bool ignore_kati_binary,
@@ -854,6 +859,11 @@ bool NeedsRegen(const char* ninja_suffix,
           fprintf(stderr, "%s was modified, ignored.\n", s.c_str());
           continue;
         }
+      }
+      if (ShouldIgnoreDirty(s)) {
+        if (dump_kati_stamp)
+          printf("file %s: ignored (%f)\n", s.c_str(), ts);
+        continue;
       }
       if (dump_kati_stamp)
         printf("file %s: dirty (%f)\n", s.c_str(), ts);
@@ -931,8 +941,7 @@ bool NeedsRegen(const char* ninja_suffix,
         }
       }
       if (needs_regen) {
-        if (g_ignore_optional_include_pattern &&
-            Pattern(g_ignore_optional_include_pattern).Match(pat)) {
+        if (ShouldIgnoreDirty(pat)) {
           if (dump_kati_stamp) {
             printf("wildcard %s: ignored\n", pat.c_str());
           }
@@ -974,7 +983,7 @@ bool NeedsRegen(const char* ninja_suffix,
           LoadString(fp, &s);
           // We assume we rarely do a significant change for the top
           // directory which affects the results of find command.
-          if (s == "" || s == ".")
+          if (s == "" || s == "." || ShouldIgnoreDirty(s))
             continue;
           double ts = GetTimestamp(s);
           should_run_command |= (ts < 0 || gen_time < ts);
@@ -986,6 +995,13 @@ bool NeedsRegen(const char* ninja_suffix,
           continue;
         }
       }
+    }
+
+    FindCommand fc;
+    if (fc.Parse(cmd) && !fc.chdir.empty() && ShouldIgnoreDirty(fc.chdir)) {
+      if (dump_kati_stamp)
+        printf("shell %s: ignored\n", cmd.c_str());
+      continue;
     }
 
     {
