@@ -668,6 +668,7 @@ class NinjaGenerator {
     fclose(fp);
   }
 
+#if 0
   void GetCommonPrefixDir(const vector<string>& files, string* o) {
     for (const string& file : files) {
       size_t l = min(file.size(), o->size());
@@ -709,6 +710,7 @@ class NinjaGenerator {
       }
     }
   }
+#endif
 
   void GenerateStamp() {
     FILE* fp = fopen(GetStampFilename().c_str(), "wb");
@@ -741,12 +743,14 @@ class NinjaGenerator {
     for (const auto& p : globs) {
       DumpString(fp, p.first);
       const vector<string>& files = *p.second;
+#if 0
       unordered_set<string> dirs;
       GetReadDirs(p.first, files, &dirs);
       DumpInt(fp, dirs.size());
       for (const string& dir : dirs) {
         DumpString(fp, dir);
       }
+#endif
       DumpInt(fp, files.size());
       for (const string& file : files) {
         DumpString(fp, file);
@@ -898,11 +902,12 @@ bool NeedsRegen(const char* ninja_suffix,
   }
 
   {
-    COLLECT_STATS("glob time (regen)");
     int num_globs = LoadInt(fp);
     string pat;
     for (int i = 0; i < num_globs; i++) {
+      COLLECT_STATS("glob time (regen)");
       LoadString(fp, &pat);
+#if 0
       bool needs_reglob = false;
       int num_dirs = LoadInt(fp);
       for (int j = 0; j < num_dirs; j++) {
@@ -910,38 +915,38 @@ bool NeedsRegen(const char* ninja_suffix,
         // TODO: Handle removed files properly.
         needs_reglob |= gen_time < GetTimestamp(s);
       }
-
+#endif
       int num_files = LoadInt(fp);
-      if (needs_reglob) {
-        vector<string>* files;
-        Glob(pat.c_str(), &files);
-        sort(files->begin(), files->end());
-        bool needs_regen = files->size() != static_cast<size_t>(num_files);
-        if (!needs_regen) {
-          for (int j = 0; j < num_files; j++) {
-            LoadString(fp, &s);
-            if ((*files)[j] != s) {
-              needs_regen = true;
-              break;
-            }
-          }
-        }
-        if (needs_regen) {
-          if (dump_kati_stamp) {
-            printf("wildcard %s: dirty\n", pat.c_str());
-          } else {
-            fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
-                    pat.c_str());
-          }
-          RETURN_TRUE;
-        } else if (dump_kati_stamp) {
-          printf("wildcard %s: clean (reglob)\n", pat.c_str());
-        }
-      } else {
-        if (dump_kati_stamp)
-          printf("wildcard %s: clean (no reglob)\n", pat.c_str());
-        for (int j = 0; j < num_files; j++)
+      vector<string>* files;
+      Glob(pat.c_str(), &files);
+      sort(files->begin(), files->end());
+      bool needs_regen = files->size() != static_cast<size_t>(num_files);
+      if (!needs_regen) {
+        for (int j = 0; j < num_files; j++) {
           LoadString(fp, &s);
+          if ((*files)[j] != s) {
+            needs_regen = true;
+            break;
+          }
+        }
+      }
+      if (needs_regen) {
+        if (g_ignore_optional_include_pattern &&
+            Pattern(g_ignore_optional_include_pattern).Match(pat)) {
+          if (dump_kati_stamp) {
+            printf("wildcard %s: ignored\n", pat.c_str());
+          }
+          continue;
+        }
+        if (dump_kati_stamp) {
+          printf("wildcard %s: dirty\n", pat.c_str());
+        } else {
+          fprintf(stderr, "wildcard(%s) was changed, regenerating...\n",
+                  pat.c_str());
+        }
+        RETURN_TRUE;
+      } else if (dump_kati_stamp) {
+        printf("wildcard %s: clean\n", pat.c_str());
       }
     }
   }
