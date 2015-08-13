@@ -888,7 +888,7 @@ bool NeedsRegen(const char* ninja_suffix,
     LoadString(fp, &s2);
     if (val != s2) {
       if (dump_kati_stamp) {
-        printf("env %s: clean (%s => %.*s)\n",
+        printf("env %s: dirty (%s => %.*s)\n",
                s.c_str(), s2.c_str(), SPF(val));
       } else {
         fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
