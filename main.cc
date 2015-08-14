@@ -156,8 +156,6 @@ static void Init() {
 #endif
     } else if (Exists("Makefile")) {
       g_makefile = "Makefile";
-    } else {
-      ERROR("*** No targets specified and no makefile found.");
     }
   }
 }
@@ -335,6 +333,8 @@ int main(int argc, char* argv[]) {
   vector<Symbol> targets;
   vector<StringPiece> cl_vars;
   ParseCommandLine(argc, argv, &targets, &cl_vars);
+  if (g_makefile == NULL)
+    ERROR("*** No targets specified and no makefile found.");
   // This depends on command line flags.
   if (g_use_find_emulator)
     InitFindEmulator();
