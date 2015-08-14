@@ -264,8 +264,8 @@ static int Run(const vector<Symbol>& targets,
   ev->set_is_bootstrap(false);
 
   vars->Assign(Intern("MAKEFILE_LIST"),
-               new SimpleVar(make_shared<string>(
-                   StringPrintf(" %s", g_makefile)), VarOrigin::FILE));
+               new SimpleVar(StringPrintf(" %s", g_makefile),
+                             VarOrigin::FILE));
 
   {
     ScopedTimeReporter tr("eval time");

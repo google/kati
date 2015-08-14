@@ -60,9 +60,10 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
   Var* rhs = NULL;
   bool needs_assign = true;
   switch (op) {
-    case AssignOp::COLON_EQ:
-      rhs = new SimpleVar(rhs_v->Eval(this), origin);
+    case AssignOp::COLON_EQ: {
+      rhs = new SimpleVar(*rhs_v->Eval(this), origin);
       break;
+    }
     case AssignOp::EQ:
       rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       break;

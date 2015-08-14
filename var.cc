@@ -47,27 +47,25 @@ void Var::AppendVar(Evaluator*, Value*) {
   CHECK(false);
 }
 
-SimpleVar::SimpleVar(shared_ptr<string> v, VarOrigin origin)
+SimpleVar::SimpleVar(const string& v, VarOrigin origin)
     : v_(v), origin_(origin) {
 }
 
 void SimpleVar::Eval(Evaluator*, string* s) const {
-  *s += *v_;
+  *s += v_;
 }
 
 void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
-  shared_ptr<string> s = make_shared<string>(*v_);
-  s->push_back(' ');
-  v->Eval(ev, s.get());
-  v_ = s;
+  v_.push_back(' ');
+  v->Eval(ev, &v_);
 }
 
 StringPiece SimpleVar::String() const {
-  return *v_;
+  return v_;
 }
 
 string SimpleVar::DebugString() const {
-  return *v_;
+  return v_;
 }
 
 RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, StringPiece orig)

@@ -436,7 +436,7 @@ class DepBuilder {
             if (!s->empty())
               *s += ' ';
             new_var->Eval(ev_, s.get());
-            new_var = new SimpleVar(s, old_var->Origin());
+            new_var = new SimpleVar(*s, old_var->Origin());
           }
         } else if (var->op() == AssignOp::QUESTION_EQ) {
           Var* old_var = ev_->LookupVar(name);

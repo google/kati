@@ -563,7 +563,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   vector<unique_ptr<SimpleVar>> av;
   for (size_t i = 1; i < args.size(); i++) {
     unique_ptr<SimpleVar> s(
-        new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC));
+        new SimpleVar(*args[i]->Eval(ev), VarOrigin::AUTOMATIC));
     av.push_back(move(s));
   }
   vector<unique_ptr<ScopedVar>> sv;
@@ -587,7 +587,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       if (v->Origin() != VarOrigin::AUTOMATIC) break;
 
       av.push_back(move(unique_ptr<SimpleVar>(
-          new SimpleVar(make_shared<string>(""), VarOrigin::AUTOMATIC))));
+          new SimpleVar("", VarOrigin::AUTOMATIC))));
       sv.push_back(move(unique_ptr<ScopedVar>(
           new ScopedVar(ev->mutable_vars(),
                         Intern(tmpvar_name), av[i-1].get()))));
@@ -602,7 +602,7 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(*list)) {
     unique_ptr<SimpleVar> v(new SimpleVar(
-        make_shared<string>(tok.data(), tok.size()), VarOrigin::AUTOMATIC));
+        tok.as_string(), VarOrigin::AUTOMATIC));
     ScopedVar sv(ev->mutable_vars(), Intern(*varname), v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
