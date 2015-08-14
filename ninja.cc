@@ -443,8 +443,9 @@ class NinjaGenerator {
         fprintf(fp_, " rspfile_content = %s\n", cmd_buf.c_str());
         fprintf(fp_, " command = %s $out.rsp\n", shell_.c_str());
       } else {
+        EscapeShell(&cmd_buf);
         fprintf(fp_, " command = %s -c \"%s\"\n",
-                shell_.c_str(), EscapeShell(cmd_buf).c_str());
+                shell_.c_str(), cmd_buf.c_str());
       }
     }
 
@@ -460,7 +461,7 @@ class NinjaGenerator {
     }
   }
 
-  string EscapeBuildTarget(Symbol s) {
+  string EscapeBuildTarget(Symbol s) const {
     if (s.str().find_first_of("$: ") == string::npos)
       return s.str();
     string r;
@@ -478,21 +479,21 @@ class NinjaGenerator {
     return r;
   }
 
-  string EscapeShell(string s) {
-    if (s.find_first_of("$`!\\\"") == string::npos)
-      return s;
+  void EscapeShell(string* s) const {
+    if (s->find_first_of("$`!\\\"") == string::npos)
+      return;
     string r;
-    bool lastDollar = false;
-    for (char c : s) {
+    bool last_dollar = false;
+    for (char c : *s) {
       switch (c) {
         case '$':
-          if (lastDollar) {
+          if (last_dollar) {
             r += c;
-            lastDollar = false;
+            last_dollar = false;
           } else {
             r += '\\';
             r += c;
-            lastDollar = true;
+            last_dollar = true;
           }
           break;
         case '`':
@@ -503,10 +504,10 @@ class NinjaGenerator {
           // fall through.
         default:
           r += c;
-          lastDollar = false;
+          last_dollar = false;
       }
     }
-    return r;
+    s->swap(r);
   }
 
   void EmitBuild(DepNode* node, const string& rule_name) {
