@@ -194,8 +194,8 @@ class NinjaGenerator {
   void Generate(const vector<DepNode*>& nodes,
                 bool build_all_targets,
                 const string& orig_args) {
-    GenerateEnvlist();
     GenerateNinja(nodes, build_all_targets, orig_args);
+    GenerateEnvlist();
     GenerateShell();
     GenerateStamp();
   }
