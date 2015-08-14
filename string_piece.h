@@ -66,6 +66,8 @@ class StringPiece {
     : ptr_(str), length_((str == NULL) ? 0 : strlen(str)) { }
   StringPiece(const std::string& str)
     : ptr_(str.data()), length_(str.size()) { }
+  StringPiece(const std::string&& str)
+    : ptr_(str.data()), length_(str.size()) { }
   StringPiece(const char* offset, size_type len)
     : ptr_(offset), length_(len) { }
 

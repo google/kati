@@ -179,8 +179,8 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
   ev_->set_current_scope(n->rule_vars);
   current_dep_node_ = n;
   for (Value* v : n->cmds) {
-    shared_ptr<string> cmds_buf = v->Eval(ev_);
-    StringPiece cmds = *cmds_buf;
+    const string&& cmds_buf = v->Eval(ev_);
+    StringPiece cmds = cmds_buf;
     bool global_echo = true;
     bool global_ignore_error = false;
     ParseCommandPrefixes(&cmds, &global_echo, &global_ignore_error);
@@ -200,7 +200,7 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
 
       if (!cmd.empty()) {
         Command* command = new Command(n->output);
-        command->cmd = make_shared<string>(cmd.as_string());
+        command->cmd = cmd.as_string();
         command->echo = echo;
         command->ignore_error = ignore_error;
         commands->push_back(command);
@@ -215,7 +215,7 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
     vector<Command*> output_commands;
     for (const string& cmd : ev_->delayed_output_commands()) {
       Command* c = new Command(n->output);
-      c->cmd = make_shared<string>(cmd);
+      c->cmd = cmd;
       c->echo = false;
       c->ignore_error = false;
       output_commands.push_back(c);

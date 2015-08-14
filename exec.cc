@@ -99,12 +99,12 @@ class Executor {
     ce_.Eval(n, &commands);
     for (Command* command : commands) {
       if (command->echo) {
-        printf("%s\n", command->cmd->c_str());
+        printf("%s\n", command->cmd.c_str());
         fflush(stdout);
       }
       if (!g_is_dry_run) {
         string out;
-        int result = RunCommand(*shell_, command->cmd->c_str(),
+        int result = RunCommand(shell_, command->cmd.c_str(),
                                 RedirectStderr::STDOUT,
                                 &out);
         printf("%s", out.c_str());
@@ -129,7 +129,7 @@ class Executor {
  private:
   CommandEvaluator ce_;
   unordered_map<Symbol, double> done_;
-  shared_ptr<string> shell_;
+  string shell_;
 };
 
 }  // namespace

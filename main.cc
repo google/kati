@@ -301,9 +301,9 @@ static int Run(const vector<Symbol>& targets,
     const Symbol name = p.first;
     if (p.second) {
       Var* v = ev->LookupVar(name);
-      shared_ptr<string> value = v->Eval(ev);
-      LOG("setenv(%s, %s)", name.c_str(), value->c_str());
-      setenv(name.c_str(), value->c_str(), 1);
+      const string&& value = v->Eval(ev);
+      LOG("setenv(%s, %s)", name.c_str(), value.c_str());
+      setenv(name.c_str(), value.c_str(), 1);
     } else {
       LOG("unsetenv(%s)", name.c_str());
       unsetenv(name.c_str());

@@ -15,7 +15,6 @@
 #ifndef VALUE_H_
 #define VALUE_H_
 
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -29,7 +28,7 @@ struct Loc;
 class Evaluable {
  public:
   virtual void Eval(Evaluator* ev, string* s) const = 0;
-  virtual shared_ptr<string> Eval(Evaluator*) const;
+  string Eval(Evaluator*) const;
 
  protected:
   Evaluable();

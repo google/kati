@@ -23,7 +23,6 @@
 
 #include <algorithm>
 #include <map>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -348,7 +347,7 @@ class NinjaGenerator {
       }
       should_ignore_error = c->ignore_error;
 
-      const char* in = c->cmd->c_str();
+      const char* in = c->cmd.c_str();
       while (isspace(*in))
         in++;
 
@@ -442,10 +441,10 @@ class NinjaGenerator {
       if (cmd_buf.size() > 100 * 1000) {
         fprintf(fp_, " rspfile = $out.rsp\n");
         fprintf(fp_, " rspfile_content = %s\n", cmd_buf.c_str());
-        fprintf(fp_, " command = %s $out.rsp\n", shell_->c_str());
+        fprintf(fp_, " command = %s $out.rsp\n", shell_.c_str());
       } else {
         fprintf(fp_, " command = %s -c \"%s\"\n",
-                shell_->c_str(), EscapeShell(cmd_buf).c_str());
+                shell_.c_str(), EscapeShell(cmd_buf).c_str());
       }
     }
 
@@ -641,8 +640,8 @@ class NinjaGenerator {
 
     for (const auto& p : ev_->exports()) {
       if (p.second) {
-        shared_ptr<string> val = ev_->EvalVar(p.first);
-        fprintf(fp, "export '%s'='%s'\n", p.first.c_str(), val->c_str());
+        const string val = ev_->EvalVar(p.first);
+        fprintf(fp, "export '%s'='%s'\n", p.first.c_str(), val.c_str());
       } else {
         fprintf(fp, "unset '%s'\n", p.first.c_str());
       }
@@ -799,7 +798,7 @@ class NinjaGenerator {
   string ninja_suffix_;
   string ninja_dir_;
   unordered_map<Symbol, Symbol> short_names_;
-  shared_ptr<string> shell_;
+  string shell_;
   map<string, string> used_envs_;
   string kati_binary_;
   double start_time_;

@@ -60,10 +60,9 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
   Var* rhs = NULL;
   bool needs_assign = true;
   switch (op) {
-    case AssignOp::COLON_EQ: {
-      rhs = new SimpleVar(*rhs_v->Eval(this), origin);
+    case AssignOp::COLON_EQ:
+      rhs = new SimpleVar(rhs_v->Eval(this), origin);
       break;
-    }
     case AssignOp::EQ:
       rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       break;
@@ -100,7 +99,7 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
 void Evaluator::EvalAssign(const AssignAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
-  Symbol lhs = Intern(*ast->lhs->Eval(this));
+  Symbol lhs = Intern(ast->lhs->Eval(this));
   if (lhs.empty())
     Error("*** empty variable name.");
   Var* rhs = EvalRHS(lhs, ast->rhs, ast->orig_rhs, ast->op,
@@ -113,14 +112,14 @@ void Evaluator::EvalRule(const RuleAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
 
-  shared_ptr<string> expr = ast->expr->Eval(this);
+  const string&& expr = ast->expr->Eval(this);
   // See semicolon.mk.
-  if (expr->find_first_not_of(" \t\n;") == string::npos)
+  if (expr.find_first_not_of(" \t\n;") == string::npos)
     return;
 
   Rule* rule;
   RuleVarAssignment rule_var;
-  ParseRule(loc_, *expr, ast->term, &rule, &rule_var);
+  ParseRule(loc_, expr, ast->term, &rule, &rule_var);
 
   if (rule) {
     if (ast->term == ';') {
@@ -188,17 +187,17 @@ void Evaluator::EvalIf(const IfAST* ast) {
   switch (ast->op) {
     case CondOp::IFDEF:
     case CondOp::IFNDEF: {
-      Symbol lhs = Intern(*ast->lhs->Eval(this));
+      Symbol lhs = Intern(ast->lhs->Eval(this));
       Var* v = LookupVarInCurrentScope(lhs);
-      shared_ptr<string> s = v->Eval(this);
-      is_true = (s->empty() == (ast->op == CondOp::IFNDEF));
+      const string&& s = v->Eval(this);
+      is_true = (s.empty() == (ast->op == CondOp::IFNDEF));
       break;
     }
     case CondOp::IFEQ:
     case CondOp::IFNEQ: {
-      shared_ptr<string> lhs = ast->lhs->Eval(this);
-      shared_ptr<string> rhs = ast->rhs->Eval(this);
-      is_true = ((*lhs == *rhs) == (ast->op == CondOp::IFEQ));
+      const string&& lhs = ast->lhs->Eval(this);
+      const string&& rhs = ast->rhs->Eval(this);
+      is_true = ((lhs == rhs) == (ast->op == CondOp::IFEQ));
       break;
     }
     default:
@@ -234,8 +233,8 @@ void Evaluator::EvalInclude(const IncludeAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
 
-  shared_ptr<string> pats = ast->expr->Eval(this);
-  for (StringPiece pat : WordScanner(*pats)) {
+  const string&& pats = ast->expr->Eval(this);
+  for (StringPiece pat : WordScanner(pats)) {
     ScopedTerminator st(pat);
     vector<string>* files;
     Glob(pat.data(), &files);
@@ -263,8 +262,8 @@ void Evaluator::EvalExport(const ExportAST* ast) {
   loc_ = ast->loc();
   last_rule_ = NULL;
 
-  shared_ptr<string> exports = ast->expr->Eval(this);
-  for (StringPiece tok : WordScanner(*exports)) {
+  const string&& exports = ast->expr->Eval(this);
+  for (StringPiece tok : WordScanner(exports)) {
     size_t equal_index = tok.find('=');
     if (equal_index == string::npos) {
       exports_[Intern(tok)] = ast->is_export;
@@ -309,7 +308,7 @@ Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
   return LookupVarGlobal(name);
 }
 
-shared_ptr<string> Evaluator::EvalVar(Symbol name) {
+string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
 }
 

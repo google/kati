@@ -15,7 +15,6 @@
 #ifndef COMMAND_H_
 #define COMMAND_H_
 
-#include <memory>
 #include <vector>
 
 #include "symtab.h"
@@ -30,7 +29,7 @@ struct Command {
       : output(o), echo(true), ignore_error(false) {
   }
   Symbol output;
-  shared_ptr<string> cmd;
+  string cmd;
   bool echo;
   bool ignore_error;
 };

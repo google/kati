@@ -31,9 +31,9 @@ Evaluable::Evaluable() {
 Evaluable::~Evaluable() {
 }
 
-shared_ptr<string> Evaluable::Eval(Evaluator* ev) const {
-  shared_ptr<string> s = make_shared<string>();
-  Eval(ev, s.get());
+string Evaluable::Eval(Evaluator* ev) const {
+  string s;
+  Eval(ev, &s);
   return s;
 }
 
@@ -129,11 +129,6 @@ class SymRef : public Value {
   virtual ~SymRef() {
   }
 
-  virtual shared_ptr<string> Eval(Evaluator* ev) const override {
-    Var* v = ev->LookupVar(name_);
-    return v->Eval(ev);
-  }
-
   virtual void Eval(Evaluator* ev, string* s) const override {
     Var* v = ev->LookupVar(name_);
     v->Eval(ev, s);
@@ -156,15 +151,9 @@ class VarRef : public Value {
     delete name_;
   }
 
-  virtual shared_ptr<string> Eval(Evaluator* ev) const override {
-    shared_ptr<string> name = name_->Eval(ev);
-    Var* v = ev->LookupVar(Intern(*name));
-    return v->Eval(ev);
-  }
-
   virtual void Eval(Evaluator* ev, string* s) const override {
-    shared_ptr<string> name = name_->Eval(ev);
-    Var* v = ev->LookupVar(Intern(*name));
+    const string&& name = name_->Eval(ev);
+    Var* v = ev->LookupVar(Intern(name));
     v->Eval(ev, s);
   }
 
@@ -188,16 +177,16 @@ class VarSubst : public Value {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
-    shared_ptr<string> name = name_->Eval(ev);
-    Var* v = ev->LookupVar(Intern(*name));
-    shared_ptr<string> value = v->Eval(ev);
-    shared_ptr<string> pat_str = pat_->Eval(ev);
-    shared_ptr<string> subst = subst_->Eval(ev);
+    const string&& name = name_->Eval(ev);
+    Var* v = ev->LookupVar(Intern(name));
+    const string&& value = v->Eval(ev);
+    const string&& pat_str = pat_->Eval(ev);
+    const string&& subst = subst_->Eval(ev);
     WordWriter ww(s);
-    Pattern pat(*pat_str);
-    for (StringPiece tok : WordScanner(*value)) {
+    Pattern pat(pat_str);
+    for (StringPiece tok : WordScanner(value)) {
       ww.MaybeAddWhitespace();
-      pat.AppendSubstRef(tok, *subst, s);
+      pat.AppendSubstRef(tok, subst, s);
     }
   }
 

@@ -57,7 +57,7 @@ class Evaluator {
   // For target specific variables.
   Var* LookupVarInCurrentScope(Symbol name);
 
-  shared_ptr<string> EvalVar(Symbol name);
+  string EvalVar(Symbol name);
 
   const Loc& loc() const { return loc_; }
   void set_loc(const Loc& loc) { loc_ = loc; }

@@ -15,7 +15,6 @@
 #ifndef VAR_H_
 #define VAR_H_
 
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
