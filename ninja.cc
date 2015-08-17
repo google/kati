@@ -375,6 +375,8 @@ class NinjaGenerator {
           cmd_buf->insert(cmd_start + pos, gomacc_);
           use_gomacc = true;
         }
+      } else if (translated.find("/gomacc") != string::npos) {
+        use_gomacc = true;
       }
 
       if (c == commands.back() && c->ignore_error) {
@@ -384,7 +386,7 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += ')';
     }
-    return g_goma_dir && !use_gomacc;
+    return !use_gomacc;
   }
 
   void EmitDepfile(string* cmd_buf) {
@@ -596,10 +598,8 @@ class NinjaGenerator {
       fprintf(fp_, "\n");
     }
 
-    if (g_goma_dir) {
-      fprintf(fp_, "pool local_pool\n");
-      fprintf(fp_, " depth = %d\n\n", g_num_jobs);
-    }
+    fprintf(fp_, "pool local_pool\n");
+    fprintf(fp_, " depth = %d\n\n", g_num_jobs);
 
     EmitRegenRules(orig_args);
 
@@ -654,7 +654,10 @@ class NinjaGenerator {
     }
 
     fprintf(fp, "exec ninja -f %s ", GetNinjaFilename().c_str());
-    if (g_goma_dir) {
+    const string num_jobs = ev_->EvalVar(Intern("KATI_NINJA_NUM_JOBS"));
+    if (!num_jobs.empty()) {
+      fprintf(fp, "-j%s ", num_jobs.c_str());
+    } else if (g_goma_dir) {
       fprintf(fp, "-j500 ");
     }
     fprintf(fp, "\"$@\"\n");
