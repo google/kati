@@ -68,10 +68,14 @@ KATI_CXXFLAGS := -g -W -Wall -MMD -MP
 KATI_CXXFLAGS += -O -DNOLOG
 #KATI_CXXFLAGS += -pg
 
+ifeq ($(shell uname),Linux)
+KATI_LIBS := -lrt
+endif
+
 # Rule to build ckati into KATI_BIN_PATH
 $(KATI_BIN_PATH)/ckati: $(KATI_CXX_OBJS) $(KATI_CXX_GENERATED_OBJS)
 	@mkdir -p $(dir $@)
-	$(KATI_LD) -std=c++11 $(KATI_CXXFLAGS) -o $@ $^
+	$(KATI_LD) -std=c++11 $(KATI_CXXFLAGS) -o $@ $^ $(KATI_LIBS)
 
 # Rule to build normal source files into object files in KATI_INTERMEDIATES_PATH
 $(KATI_CXX_OBJS) $(KATI_CXX_TEST_OBJS): $(KATI_INTERMEDIATES_PATH)/%.o: $(KATI_SRC_PATH)/%.cc
@@ -88,7 +92,7 @@ ckati_tests: $(KATI_CXX_TEST_EXES)
 # Rule to build tests using *_test.cc and all normal *.cc files except main.cc
 $(KATI_CXX_TEST_EXES): $(filter-out $(KATI_INTERMEDIATES_PATH)/main.o,$(KATI_CXX_OBJS)) $(KATI_CXX_GENERATED_OBJS)
 $(KATI_CXX_TEST_EXES): $(KATI_BIN_PATH)/%: $(KATI_INTERMEDIATES_PATH)/%.o
-	$(KATI_LD) $^ -o $@
+	$(KATI_LD) $^ -o $@ $(KATI_LIBS)
 
 # Rule to generate version.cc
 KATI_GIT_DIR := $(shell cd $(KATI_SRC_PATH) && git rev-parse --show-toplevel)
