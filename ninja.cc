@@ -403,6 +403,11 @@ class NinjaGenerator {
     if (!p.second)
       return;
 
+    // A hack to exclude out phony target in Android. If this exists,
+    // "ninja -t clean" tries to remove this directory and fails.
+    if (g_detect_android_echo && node->output.str() == "out")
+      return;
+
     // Removing this will fix auto_vars.mk, build_once.mk, and
     // command_vars.mk. However, this change will make
     // ninja_normalized_path2.mk fail and cause a lot of warnings for
