@@ -843,7 +843,7 @@ bool NeedsRegen(const char* ninja_suffix,
   } while (0)
 
   const string& stamp_filename =
-      NinjaGenerator::GetStampFilename(ninja_suffix, ninja_dir);
+      NinjaGenerator::GetStampFilename(ninja_dir, ninja_suffix);
   FILE* fp = fopen(stamp_filename.c_str(), "rb+");
   if (!fp)
     RETURN_TRUE;
