@@ -578,20 +578,17 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       tmpvar_name = s;
     }
     if (i < args.size()) {
-      sv.push_back(move(unique_ptr<ScopedVar>(
-          new ScopedVar(ev->mutable_vars(),
-                        Intern(tmpvar_name), av[i-1].get()))));
+      sv.emplace_back(new ScopedVar(ev->mutable_vars(),
+                                    Intern(tmpvar_name), av[i-1].get()));
     } else {
       // We need to blank further automatic vars
       Var *v = ev->LookupVar(Intern(tmpvar_name));
       if (!v->IsDefined()) break;
       if (v->Origin() != VarOrigin::AUTOMATIC) break;
 
-      av.push_back(move(unique_ptr<SimpleVar>(
-          new SimpleVar("", VarOrigin::AUTOMATIC))));
-      sv.push_back(move(unique_ptr<ScopedVar>(
-          new ScopedVar(ev->mutable_vars(),
-                        Intern(tmpvar_name), av[i-1].get()))));
+      av.emplace_back(new SimpleVar("", VarOrigin::AUTOMATIC));
+      sv.emplace_back(new ScopedVar(ev->mutable_vars(),
+                                    Intern(tmpvar_name), av[i-1].get()));
     }
   }
   func->Eval(ev, s);

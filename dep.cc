@@ -444,8 +444,7 @@ class DepBuilder {
             continue;
           }
         }
-        sv.push_back(move(unique_ptr<ScopedVar>(
-            new ScopedVar(cur_rule_vars_.get(), name, new_var))));
+        sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
       }
     }
 
