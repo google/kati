@@ -112,6 +112,12 @@ static void ParseCommandLine(int argc, char* argv[],
         ERROR("Invalid -j flag: %s", num_jobs_str);
       }
     } else if (ParseCommandLineOptionWithArg(
+        "--remote_num_jobs", argv, &i, &num_jobs_str)) {
+      g_remote_num_jobs = strtol(num_jobs_str, NULL, 10);
+      if (g_remote_num_jobs <= 0) {
+        ERROR("Invalid -j flag: %s", num_jobs_str);
+      }
+    } else if (ParseCommandLineOptionWithArg(
         "--ninja_suffix", argv, &i, &g_ninja_suffix)) {
     } else if (ParseCommandLineOptionWithArg(
         "--ninja_dir", argv, &i, &g_ninja_dir)) {

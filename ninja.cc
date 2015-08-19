@@ -654,9 +654,8 @@ class NinjaGenerator {
     }
 
     fprintf(fp, "exec ninja -f %s ", GetNinjaFilename().c_str());
-    const string num_jobs = ev_->EvalVar(Intern("KATI_NINJA_NUM_JOBS"));
-    if (!num_jobs.empty()) {
-      fprintf(fp, "-j%s ", num_jobs.c_str());
+    if (g_remote_num_jobs > 0) {
+      fprintf(fp, "-j%d ", g_remote_num_jobs);
     } else if (g_goma_dir) {
       fprintf(fp, "-j500 ");
     }

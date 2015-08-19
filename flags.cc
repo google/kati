@@ -21,6 +21,7 @@ bool g_is_dry_run;
 const char* g_ignore_optional_include_pattern;
 const char* g_goma_dir;
 int g_num_jobs;
+int g_remote_num_jobs;
 bool g_detect_android_echo;
 bool g_gen_regen_rule;
 bool g_error_on_env_change;
