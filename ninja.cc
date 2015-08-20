@@ -598,6 +598,10 @@ class NinjaGenerator {
       fprintf(fp_, "\n");
     }
 
+    if (ninja_dir_ != ".") {
+      fprintf(fp_, "builddir = %s\n\n", ninja_dir_.c_str());
+    }
+
     fprintf(fp_, "pool local_pool\n");
     fprintf(fp_, " depth = %d\n\n", g_num_jobs);
 
