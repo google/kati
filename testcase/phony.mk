@@ -1,5 +1,3 @@
-# TODO(ninja): Fix - ninja emits "no work to do" in test4
-
 .PHONY: foo
 	echo PASS phony foo
 .PHONY: bar
