@@ -1,3 +1,3 @@
-# TODO(c): Show something like "nothing to be done"
+# TODO(c-ninja): Fix. See EmitNode in ninja.cc
 
 Makefile:
