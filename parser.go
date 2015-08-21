@@ -108,12 +108,14 @@ func (p *parser) readLine() []byte {
 		}
 		line = append(line, buf...)
 		buf = bytes.TrimRight(buf, "\r\n")
+		glog.V(4).Infof("buf:%q", buf)
 		backslash := false
-		for len(buf) > 1 && buf[len(buf)-1] == '\\' {
+		for len(buf) > 0 && buf[len(buf)-1] == '\\' {
 			buf = buf[:len(buf)-1]
 			backslash = !backslash
 		}
 		if !backslash {
+			glog.V(4).Infof("no concat line:%q", buf)
 			break
 		}
 	}
@@ -677,19 +679,23 @@ func (p *parser) parseLine(line []byte) {
 }
 
 func (p *parser) processDefine(line []byte) {
+	line = append(line, '\n')
 	line = concatline(line)
+	if line[len(line)-1] != '\n' {
+		line = append(line, '\n')
+	}
 	if glog.V(1) {
 		glog.Infof("concatline:%q", line)
 	}
 	if !p.isEndef(line) {
-		if p.inDef != nil {
-			p.inDef = append(p.inDef, '\n')
-		}
 		p.inDef = append(p.inDef, line...)
 		if p.inDef == nil {
 			p.inDef = []byte{}
 		}
 		return
+	}
+	if p.inDef[len(p.inDef)-1] == '\n' {
+		p.inDef = p.inDef[:len(p.inDef)-1]
 	}
 	glog.V(1).Infof("multilineAssign %q %q", p.defineVar, p.inDef)
 	aast, err := newAssignAST(p, p.defineVar, p.inDef, "=")
