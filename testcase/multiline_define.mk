@@ -30,11 +30,10 @@ A\
 B
 endef
 
-$(info $(var))
-$(info $(var2))
-$(info $(var3))
-
 test:
 	echo $(if $(call or1),FAIL,PASS)_or1
 	echo $(if $(call or2),FAIL,PASS)_or2
 	echo $(if $(call or3),FAIL,PASS)_or3
+	$(info $(var))
+	$(info $(var2))
+	$(info $(var3))

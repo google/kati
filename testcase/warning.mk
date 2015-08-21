@@ -1,5 +1,12 @@
 $(warning foo)
 
+define baz
+b
+a
+z
+endef
+
 test:
-	$(warning bar)
+	$(warning bar'""')
+	$(warning $(baz))
 	echo PASS

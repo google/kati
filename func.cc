@@ -622,7 +622,7 @@ void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   const string&& a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    ev->add_delayed_output_command(StringPrintf("echo '%s'", a.c_str()));
+    ev->add_delayed_output_command(StringPrintf("echo -e \"%s\"", EchoEscape(a).c_str()));
     return;
   }
   printf("%s\n", a.c_str());
@@ -633,7 +633,7 @@ void WarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   const string&& a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
     ev->add_delayed_output_command(
-        StringPrintf("echo '%s:%d: %s' 2>&1", LOCF(ev->loc()), a.c_str()));
+        StringPrintf("echo -e \"%s:%d: %s\" 2>&1", LOCF(ev->loc()), EchoEscape(a).c_str()));
     return;
   }
   printf("%s:%d: %s\n", LOCF(ev->loc()), a.c_str());
@@ -644,8 +644,8 @@ void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   const string&& a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
     ev->add_delayed_output_command(
-        StringPrintf("echo '%s:%d: *** %s.' 2>&1 && false",
-                     LOCF(ev->loc()), a.c_str()));
+        StringPrintf("echo -e \"%s:%d: *** %s.\" 2>&1 && false",
+                     LOCF(ev->loc()), EchoEscape(a).c_str()));
     return;
   }
   ev->Error(StringPrintf("*** %s.", a.c_str()));
