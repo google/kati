@@ -271,6 +271,10 @@ class NinjaGenerator {
       prev_char = *in;
     }
 
+    if (prev_backslash) {
+      cmd_buf->resize(cmd_buf->size()-1);
+    }
+
     while (true) {
       char c = (*cmd_buf)[cmd_buf->size()-1];
       if (!isspace(c) && c != ';')
