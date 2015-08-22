@@ -170,11 +170,6 @@ run_make_test = proc do |mk|
   end
 
   run_in_testdir(mk) do |name|
-    # TODO: Fix
-    if name =~ /eval_assign/ && ckati
-      next
-    end
-
     File.open("Makefile", 'w') do |ofile|
       ofile.print(c)
     end
