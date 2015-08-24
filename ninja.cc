@@ -284,6 +284,22 @@ class NinjaGenerator {
                        cmd_buf->size() - orig_size);
   }
 
+  bool IsOutputMkdir(const char *name, StringPiece cmd) {
+    if (!HasPrefix(cmd, "mkdir -p ")) {
+      return false;
+    }
+    cmd = cmd.substr(9, cmd.size());
+    if (cmd.get(cmd.size() - 1) == '/') {
+      cmd = cmd.substr(0, cmd.size() - 1);
+    }
+
+    StringPiece dir = Dirname(name);
+    if (cmd == dir) {
+      return true;
+    }
+    return false;
+  }
+
   bool GetDescriptionFromCommand(StringPiece cmd, string *out) {
     if (!HasPrefix(cmd, "echo ")) {
       return false;
@@ -333,7 +349,8 @@ class NinjaGenerator {
     return true;
   }
 
-  bool GenShellScript(const vector<Command*>& commands,
+  bool GenShellScript(const char *name,
+                      const vector<Command*>& commands,
                       string* cmd_buf,
                       string* description) {
     // TODO: This is a dirty hack to set local_pool even without
@@ -347,7 +364,10 @@ class NinjaGenerator {
     bool got_descritpion = false;
     bool use_gomacc = false;
     bool should_ignore_error = false;
+    auto command_count = commands.size();
     for (const Command* c : commands) {
+      size_t cmd_begin = cmd_buf->size();
+
       if (!cmd_buf->empty()) {
         if (should_ignore_error) {
           *cmd_buf += " ; ";
@@ -361,7 +381,7 @@ class NinjaGenerator {
       while (isspace(*in))
         in++;
 
-      bool needs_subshell = commands.size() > 1;
+      bool needs_subshell = command_count > 1;
       if (*in == '(') {
         needs_subshell = false;
       }
@@ -374,11 +394,15 @@ class NinjaGenerator {
       if (g_flags.detect_android_echo && !got_descritpion && !c->echo &&
           GetDescriptionFromCommand(translated, description)) {
         got_descritpion = true;
-        cmd_buf->resize(cmd_start);
+        translated.clear();
+      } else if (IsOutputMkdir(name, translated) && !c->echo &&
+                 cmd_begin == 0) {
         translated.clear();
       }
       if (translated.empty()) {
-        *cmd_buf += "true";
+        cmd_buf->resize(cmd_begin);
+        command_count -= 1;
+        continue;
       } else if (g_flags.goma_dir) {
         size_t pos = GetGomaccPosForAndroidCompileCommand(translated);
         if (pos != string::npos) {
@@ -447,7 +471,7 @@ class NinjaGenerator {
 
       string description = "build $out";
       string cmd_buf;
-      use_local_pool |= GenShellScript(commands, &cmd_buf, &description);
+      use_local_pool |= GenShellScript(node->output.c_str(), commands, &cmd_buf, &description);
       fprintf(fp_, " description = %s\n", description.c_str());
       EmitDepfile(node, &cmd_buf);
 
