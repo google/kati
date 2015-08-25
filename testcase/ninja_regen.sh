@@ -44,6 +44,8 @@ all:
 	echo VAR=\$(VAR)
 	echo VAR2=\$(VAR2)
 	echo wildcard=\$(wildcard *.mk)
+other:
+	echo foo
 EOF
 
 ${mk} 2> ${log}
@@ -90,4 +92,12 @@ if [ -e ninja.sh ]; then
     echo 'Should not be regenerated'
   fi
   ./ninja.sh
+fi
+
+${mk} other 2> ${log}
+if [ -e ninja.sh ]; then
+  if ! grep regenerating ${log} >/dev/null; then
+    echo 'Should be regenerated'
+  fi
+  ./ninja.sh other
 fi

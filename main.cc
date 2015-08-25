@@ -241,7 +241,7 @@ static int Run(const vector<Symbol>& targets,
     if (!NeedsRegen(g_ninja_suffix, g_ninja_dir,
                     g_regen_ignoring_kati_binary,
                     g_dump_kati_stamp,
-                    start_time)) {
+                    start_time, orig_args)) {
       printf("No need to regenerate ninja file\n");
       return 0;
     }
