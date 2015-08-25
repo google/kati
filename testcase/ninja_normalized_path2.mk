@@ -1,12 +1,15 @@
-# Unlike ninja_normalized_path.mk, this passes with the current
-# implementation because we remove a/./b. See EmitNode in ninja.cc.
+# Ninja only supports duplicated targets for pure dependencies.
+# These will both be mapped to the same target. Two rules like
+# this should cause an warning (and really should cause an warning
+# in make too -- this can be very confusing, and can be racy)
+ifneq ($(MAKE),kati)
+$(info ninja: warning: multiple rules generate a/b.)
+endif
 
-test1:
-	mkdir a
-
-test2: a/b a/./b
+test: a/b a/./b
 
 a/b:
+	mkdir -p $(dir $@)
 	echo $@
 
 a/./b:

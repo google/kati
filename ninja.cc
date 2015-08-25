@@ -414,12 +414,8 @@ class NinjaGenerator {
     if (g_detect_android_echo && node->output.str() == "out")
       return;
 
-    // Removing this will fix auto_vars.mk, build_once.mk, and
-    // command_vars.mk. However, this change will make
-    // ninja_normalized_path2.mk fail and cause a lot of warnings for
-    // Android build.
-    if (node->cmds.empty() &&
-        node->deps.empty() && node->order_onlys.empty() && !node->is_phony) {
+    // This node is a leaf node
+    if (!node->has_rule && !node->is_phony) {
       return;
     }
 
