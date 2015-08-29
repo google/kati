@@ -32,12 +32,18 @@ void DumpString(FILE* fp, StringPiece s) {
 int LoadInt(FILE* fp) {
   int v;
   size_t r = fread(&v, sizeof(v), 1, fp);
-  CHECK(r == 1);
+  if (r != 1)
+    return -1;
   return v;
 }
 
-void LoadString(FILE* fp, string* s) {
-  s->resize(LoadInt(fp));
+bool LoadString(FILE* fp, string* s) {
+  int len = LoadInt(fp);
+  if (len < 0)
+    return false;
+  s->resize(len);
   size_t r = fread(&(*s)[0], 1, s->size(), fp);
-  CHECK(r == s->size());
+  if (r != s->size())
+    return false;
+  return true;
 }

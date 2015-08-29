@@ -845,6 +845,22 @@ bool NeedsRegen(const char* ninja_suffix,
       return true;                               \
   } while (0)
 
+#define LOAD_INT(fp) ({                                                 \
+      int v = LoadInt(fp);                                              \
+      if (v < 0) {                                                      \
+        fprintf(stderr, "incomplete kati_stamp, regenerating...\n");    \
+        RETURN_TRUE;                                                    \
+      }                                                                 \
+      v;                                                                \
+    })
+
+#define LOAD_STRING(fp, s) ({                                           \
+      if (!LoadString(fp, s)) {                                         \
+        fprintf(stderr, "incomplete kati_stamp, regenerating...\n");    \
+        RETURN_TRUE;                                                    \
+      }                                                                 \
+    })
+
   const string& stamp_filename =
       NinjaGenerator::GetStampFilename(ninja_dir, ninja_suffix);
   FILE* fp = fopen(stamp_filename.c_str(), "rb+");
@@ -854,14 +870,17 @@ bool NeedsRegen(const char* ninja_suffix,
 
   double gen_time;
   size_t r = fread(&gen_time, sizeof(gen_time), 1, fp);
-  CHECK(r == 1);
+  if (r != 1) {
+    fprintf(stderr, "incomplete kati_stamp, regenerating...\n");
+    RETURN_TRUE;
+  }
   if (dump_kati_stamp)
     printf("Generated time: %f\n", gen_time);
 
   string s, s2;
-  int num_files = LoadInt(fp);
+  int num_files = LOAD_INT(fp);
   for (int i = 0; i < num_files; i++) {
-    LoadString(fp, &s);
+    LOAD_STRING(fp, &s);
     double ts = GetTimestamp(s);
     if (gen_time < ts) {
       if (ignore_kati_binary) {
@@ -887,9 +906,9 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
-  int num_undefineds = LoadInt(fp);
+  int num_undefineds = LOAD_INT(fp);
   for (int i = 0; i < num_undefineds; i++) {
-    LoadString(fp, &s);
+    LOAD_STRING(fp, &s);
     if (getenv(s.c_str())) {
       if (dump_kati_stamp) {
         printf("env %s: dirty (unset => %s)\n", s.c_str(), getenv(s.c_str()));
@@ -903,11 +922,11 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
-  int num_envs = LoadInt(fp);
+  int num_envs = LOAD_INT(fp);
   for (int i = 0; i < num_envs; i++) {
-    LoadString(fp, &s);
+    LOAD_STRING(fp, &s);
     StringPiece val(getenv(s.c_str()));
-    LoadString(fp, &s2);
+    LOAD_STRING(fp, &s2);
     if (val != s2) {
       if (dump_kati_stamp) {
         printf("env %s: dirty (%s => %.*s)\n",
@@ -924,28 +943,28 @@ bool NeedsRegen(const char* ninja_suffix,
   }
 
   {
-    int num_globs = LoadInt(fp);
+    int num_globs = LOAD_INT(fp);
     string pat;
     for (int i = 0; i < num_globs; i++) {
       COLLECT_STATS("glob time (regen)");
-      LoadString(fp, &pat);
+      LOAD_STRING(fp, &pat);
 #if 0
       bool needs_reglob = false;
-      int num_dirs = LoadInt(fp);
+      int num_dirs = LOAD_INT(fp);
       for (int j = 0; j < num_dirs; j++) {
-        LoadString(fp, &s);
+        LOAD_STRING(fp, &s);
         // TODO: Handle removed files properly.
         needs_reglob |= gen_time < GetTimestamp(s);
       }
 #endif
-      int num_files = LoadInt(fp);
+      int num_files = LOAD_INT(fp);
       vector<string>* files;
       Glob(pat.c_str(), &files);
       sort(files->begin(), files->end());
       bool needs_regen = files->size() != static_cast<size_t>(num_files);
       if (!needs_regen) {
         for (int j = 0; j < num_files; j++) {
-          LoadString(fp, &s);
+          LOAD_STRING(fp, &s);
           if ((*files)[j] != s) {
             needs_regen = true;
             break;
@@ -972,27 +991,27 @@ bool NeedsRegen(const char* ninja_suffix,
     }
   }
 
-  int num_crs = LoadInt(fp);
+  int num_crs = LOAD_INT(fp);
   for (int i = 0; i < num_crs; i++) {
     string cmd, expected;
-    LoadString(fp, &cmd);
-    LoadString(fp, &expected);
+    LOAD_STRING(fp, &cmd);
+    LOAD_STRING(fp, &expected);
 
     {
       COLLECT_STATS("stat time (regen)");
-      bool has_condition = LoadInt(fp);
+      bool has_condition = LOAD_INT(fp);
       if (has_condition) {
         bool should_run_command = false;
 
-        int num_missing_dirs = LoadInt(fp);
+        int num_missing_dirs = LOAD_INT(fp);
         for (int j = 0; j < num_missing_dirs; j++) {
-          LoadString(fp, &s);
+          LOAD_STRING(fp, &s);
           should_run_command |= Exists(s);
         }
 
-        int num_read_dirs = LoadInt(fp);
+        int num_read_dirs = LOAD_INT(fp);
         for (int j = 0; j < num_read_dirs; j++) {
-          LoadString(fp, &s);
+          LOAD_STRING(fp, &s);
           // We assume we rarely do a significant change for the top
           // directory which affects the results of find command.
           if (s == "" || s == "." || ShouldIgnoreDirty(s))
