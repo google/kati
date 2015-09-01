@@ -103,8 +103,6 @@ static void ParseCommandLine(int argc, char* argv[],
       g_dump_kati_stamp = true;
     } else if (!strcmp(arg, "--detect_android_echo")) {
       g_detect_android_echo = true;
-    } else if (!strcmp(arg, "--error_on_env_change")) {
-      g_error_on_env_change = true;
     } else if (ParseCommandLineOptionWithArg(
         "-j", argv, &i, &num_jobs_str)) {
       g_num_jobs = strtol(num_jobs_str, NULL, 10);

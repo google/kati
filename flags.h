@@ -23,7 +23,6 @@ extern int g_num_jobs;
 extern int g_remote_num_jobs;
 extern bool g_detect_android_echo;
 extern bool g_gen_regen_rule;
-extern bool g_error_on_env_change;
 extern const char* g_ignore_dirty_pattern;
 
 #endif  // FLAGS_H_

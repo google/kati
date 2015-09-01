@@ -195,7 +195,6 @@ class NinjaGenerator {
                 bool build_all_targets,
                 const string& orig_args) {
     GenerateNinja(nodes, build_all_targets, orig_args);
-    GenerateEnvlist();
     GenerateShell();
     GenerateStamp();
   }
@@ -543,10 +542,6 @@ class NinjaGenerator {
       fprintf(fp_, " %.*s", SPF(makefile));
     }
     fprintf(fp_, " %s", kati_binary_.c_str());
-    // TODO: Add dependencies to directories read by $(wildcard)
-    // or $(shell find).
-    if (!used_envs_.empty())
-      fprintf(fp_, " %s", GetEnvlistFilename().c_str());
     fprintf(fp_, "\n\n");
   }
 
@@ -557,16 +552,6 @@ class NinjaGenerator {
 
   string GetShellScriptFilename() const {
     return StringPrintf("%s/ninja%s.sh",
-                        ninja_dir_.c_str(), ninja_suffix_.c_str());
-  }
-
-  string GetEnvlistFilename() const {
-    return StringPrintf("%s/.kati_env%s",
-                        ninja_dir_.c_str(), ninja_suffix_.c_str());
-  }
-
-  string GetLunchFilename() const {
-    return StringPrintf("%s/.kati_lunch%s",
                         ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
@@ -631,12 +616,6 @@ class NinjaGenerator {
     fprintf(fp, "\n");
     if (ninja_dir_ == ".")
       fprintf(fp, "cd $(dirname \"$0\")\n");
-    if (!ninja_suffix_.empty()) {
-      fprintf(fp, "if [ -f %s ]; then\n export $(cat %s)\nfi\n",
-              GetEnvlistFilename().c_str(), GetEnvlistFilename().c_str());
-      fprintf(fp, "if [ -f %s ]; then\n export $(cat %s)\nfi\n",
-              GetLunchFilename().c_str(), GetLunchFilename().c_str());
-    }
 
     for (const auto& p : ev_->exports()) {
       if (p.second) {
@@ -658,60 +637,6 @@ class NinjaGenerator {
     if (chmod(GetShellScriptFilename().c_str(), 0755) != 0)
       PERROR("chmod ninja.sh failed");
   }
-
-  void GenerateEnvlist() {
-    if (used_envs_.empty())
-      return;
-    FILE* fp = fopen(GetEnvlistFilename().c_str(), "wb");
-    for (const auto& p : used_envs_) {
-      fprintf(fp, "%s=%s\n", p.first.c_str(), p.second.c_str());
-    }
-    fclose(fp);
-  }
-
-#if 0
-  void GetCommonPrefixDir(const vector<string>& files, string* o) {
-    for (const string& file : files) {
-      size_t l = min(file.size(), o->size());
-      for (size_t i = 0; i < l; i++) {
-        if (file[i] != (*o)[i]) {
-          size_t index = o->rfind('/', i);
-          if (index == string::npos)
-            index = 0;
-          o->resize(index);
-          break;
-        }
-      }
-    }
-  }
-
-  void GetReadDirs(const string& pat,
-                   const vector<string>& files,
-                   unordered_set<string>* dirs) {
-    string prefix_dir = Dirname(pat).as_string();
-    size_t index = prefix_dir.find_first_of("?*[\\");
-    if (index != string::npos) {
-      index = prefix_dir.rfind('/', index);
-      if (index == string::npos) {
-        prefix_dir = "";
-      } else {
-        prefix_dir = prefix_dir.substr(0, index);
-      }
-    }
-
-    GetCommonPrefixDir(files, &prefix_dir);
-    if (prefix_dir.empty())
-      prefix_dir = ".";
-    dirs->insert(prefix_dir);
-    for (const string& file : files) {
-      StringPiece dir = Dirname(file);
-      while (dir != prefix_dir) {
-        dirs->insert(dir.as_string());
-        dir = Dirname(dir);
-      }
-    }
-  }
-#endif
 
   void GenerateStamp() {
     FILE* fp = fopen(GetStampFilename().c_str(), "wb");
