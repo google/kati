@@ -427,3 +427,24 @@ string ConcatDir(StringPiece b, StringPiece n) {
   NormalizePath(&r);
   return r;
 }
+
+string EchoEscape(const string str) {
+  const char *in = str.c_str();
+  string buf;
+  for (; *in; in++) {
+    switch(*in) {
+      case '\\':
+        buf += "\\\\\\\\";
+        break;
+      case '\n':
+        buf += "\\n";
+        break;
+      case '"':
+        buf += "\\\"";
+        break;
+      default:
+        buf += *in;
+    }
+  }
+  return buf;
+}

@@ -1,5 +1,3 @@
-# TODO(c-ninja): Fix - "echo \" should be "echo ".
-
 SHELL:=/bin/bash
 
 define func

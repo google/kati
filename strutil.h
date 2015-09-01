@@ -138,4 +138,6 @@ string SortWordsInString(StringPiece s);
 
 string ConcatDir(StringPiece b, StringPiece n);
 
+string EchoEscape(const string str);
+
 #endif  // STRUTIL_H_

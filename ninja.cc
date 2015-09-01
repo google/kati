@@ -271,6 +271,10 @@ class NinjaGenerator {
       prev_char = *in;
     }
 
+    if (prev_backslash) {
+      cmd_buf->resize(cmd_buf->size()-1);
+    }
+
     while (true) {
       char c = (*cmd_buf)[cmd_buf->size()-1];
       if (!isspace(c) && c != ';')
@@ -410,12 +414,8 @@ class NinjaGenerator {
     if (g_detect_android_echo && node->output.str() == "out")
       return;
 
-    // Removing this will fix auto_vars.mk, build_once.mk, and
-    // command_vars.mk. However, this change will make
-    // ninja_normalized_path2.mk fail and cause a lot of warnings for
-    // Android build.
-    if (node->cmds.empty() &&
-        node->deps.empty() && node->order_onlys.empty() && !node->is_phony) {
+    // This node is a leaf node
+    if (!node->has_rule && !node->is_phony) {
       return;
     }
 
@@ -513,6 +513,9 @@ class NinjaGenerator {
             EscapeBuildTarget(node->output).c_str(),
             rule_name.c_str());
     vector<Symbol> order_onlys;
+    if (node->is_phony) {
+      fprintf(fp_, " _kati_always_build_");
+    }
     for (DepNode* d : node->deps) {
       fprintf(fp_, " %s", EscapeBuildTarget(d->output).c_str());
     }
@@ -595,6 +598,8 @@ class NinjaGenerator {
 
     fprintf(fp_, "pool local_pool\n");
     fprintf(fp_, " depth = %d\n\n", g_num_jobs);
+
+    fprintf(fp_, "build _kati_always_build_: phony\n\n");
 
     EmitRegenRules(orig_args);
 

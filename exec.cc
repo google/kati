@@ -98,6 +98,7 @@ class Executor {
     vector<Command*> commands;
     ce_.Eval(n, &commands);
     for (Command* command : commands) {
+      num_commands_ += 1;
       if (command->echo) {
         printf("%s\n", command->cmd.c_str());
         fflush(stdout);
@@ -126,10 +127,15 @@ class Executor {
     return output_ts;
   }
 
+  uint64_t Count() {
+    return num_commands_;
+  }
+
  private:
   CommandEvaluator ce_;
   unordered_map<Symbol, double> done_;
   string shell_;
+  uint64_t num_commands_;
 };
 
 }  // namespace
@@ -138,5 +144,10 @@ void Exec(const vector<DepNode*>& roots, Evaluator* ev) {
   unique_ptr<Executor> executor(new Executor(ev));
   for (DepNode* root : roots) {
     executor->ExecNode(root, NULL);
+  }
+  if (executor->Count() == 0) {
+    for (DepNode* root : roots) {
+      printf("kati: Nothing to be done for `%s'.\n", root->output.c_str());
+    }
   }
 }

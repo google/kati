@@ -6,3 +6,7 @@ test:
 	echo $(two_backslash)
 	echo \\
 	echo \\ foo
+	$(info echo $(no_comment))
+	$(info echo $(two_backslash))
+	$(info echo \\)
+	$(info echo \\ foo)

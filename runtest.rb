@@ -93,6 +93,8 @@ def normalize_ninja_log(log, mk)
   log.gsub!(/^ninja: no work to do\.\n/, '')
   log.gsub!(/^ninja: error: (.*, needed by .*),.*/,
             '*** No rule to make target \\1.')
+  log.gsub!(/^ninja: warning: multiple rules generate (.*)\. builds involving this target will not be correct.*$/,
+	    'ninja: warning: multiple rules generate \\1.')
   if mk =~ /err_error_in_recipe.mk/
     # This test expects ninja fails. Strip ninja specific error logs.
     log.gsub!(/^FAILED: .*\n/, '')
@@ -101,7 +103,7 @@ def normalize_ninja_log(log, mk)
   log
 end
 
-def normalize_make_log(expected)
+def normalize_make_log(expected, mk, via_ninja)
   expected.gsub!(/^make(?:\[\d+\])?: (Entering|Leaving) directory.*\n/, '')
   expected.gsub!(/^make(?:\[\d+\])?: /, '')
   expected = move_circular_dep(expected)
@@ -119,8 +121,15 @@ def normalize_make_log(expected)
   # GNU make 4.0 has this output.
   expected.gsub!(/Makefile:\d+: commands for target ".*?" failed\n/, '')
   # We treat some warnings as errors.
-  expected.gsub!(/Nothing to be done for "test"\.\n/, '')
+  if mk =~ /err_invalid_ifeq3.mk/
+    expected.gsub!(/Nothing to be done for "test"\.\n/, '')
+  end
   expected.gsub!(/^\/bin\/sh: line 0: /, '')
+  # We print out some ninja warnings in some tests to match what we expect
+  # ninja to produce. Remove them if we're not testing ninja.
+  if !via_ninja
+    expected.gsub!(/^ninja: warning: .*\n/, '')
+  end
 
   expected
 end
@@ -170,11 +179,6 @@ run_make_test = proc do |mk|
   end
 
   run_in_testdir(mk) do |name|
-    # TODO: Fix
-    if name =~ /eval_assign/ && ckati
-      next
-    end
-
     File.open("Makefile", 'w') do |ofile|
       ofile.print(c)
     end
@@ -195,7 +199,7 @@ run_make_test = proc do |mk|
       end
       cmd += " #{tc} 2>&1"
       res = `#{cmd}`
-      res = normalize_make_log(res)
+      res = normalize_make_log(res, mk, via_ninja)
       expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
       expected += "\n=== FILES ===\n#{expected_files * "\n"}\n"
@@ -302,7 +306,7 @@ run_shell_test = proc do |sh|
 
     output = IO.popen(cmd, 'r:binary', &:read)
 
-    expected = normalize_make_log(expected)
+    expected = normalize_make_log(expected, sh, is_ninja_test)
     output = normalize_kati_log(output)
     if is_ninja_test
       output = normalize_ninja_log(output, sh)
