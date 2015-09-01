@@ -962,9 +962,9 @@ bool NeedsRegen(const char* ninja_suffix,
       Glob(pat.c_str(), &files);
       sort(files->begin(), files->end());
       bool needs_regen = files->size() != static_cast<size_t>(num_files);
-      if (!needs_regen) {
-        for (int j = 0; j < num_files; j++) {
-          LOAD_STRING(fp, &s);
+      for (int j = 0; j < num_files; j++) {
+        LOAD_STRING(fp, &s);
+        if (!needs_regen) {
           if ((*files)[j] != s) {
             needs_regen = true;
             break;
