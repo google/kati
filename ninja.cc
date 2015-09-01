@@ -419,15 +419,6 @@ class NinjaGenerator {
       return;
     }
 
-    StringPiece base = Basename(node->output.str());
-    if (base != node->output.str()) {
-      auto p = short_names_.emplace(Intern(base), node->output);
-      if (!p.second) {
-        // We generate shortcuts only for targets whose basename are unique.
-        p.first->second = kEmptySym;
-      }
-    }
-
     vector<Command*> commands;
     ce_.Eval(node, &commands);
 
@@ -622,12 +613,6 @@ class NinjaGenerator {
               EscapeBuildTarget(nodes.front()->output).c_str());
     }
 
-    fprintf(fp_, "\n# shortcuts:\n");
-    for (auto p : short_names_) {
-      if (!p.second.empty() && !done_.count(p.first))
-        fprintf(fp_, "build %s: phony %s\n", p.first.c_str(), p.second.c_str());
-    }
-
     fclose(fp_);
   }
 
@@ -809,7 +794,6 @@ class NinjaGenerator {
   string gomacc_;
   string ninja_suffix_;
   string ninja_dir_;
-  unordered_map<Symbol, Symbol> short_names_;
   string shell_;
   map<string, string> used_envs_;
   string kati_binary_;

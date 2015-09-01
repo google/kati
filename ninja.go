@@ -77,7 +77,6 @@ type NinjaGenerator struct {
 
 	ruleID     int
 	done       map[string]nodeState
-	shortNames map[string][]string
 }
 
 func (n *NinjaGenerator) init(g *DepGraph) {
@@ -86,7 +85,6 @@ func (n *NinjaGenerator) init(g *DepGraph) {
 	n.exports = g.exports
 	n.ctx = newExecContext(g.vars, g.vpaths, true)
 	n.done = make(map[string]nodeState)
-	n.shortNames = make(map[string][]string)
 }
 
 func getDepfileImpl(ss string) (string, error) {
@@ -505,11 +503,6 @@ func (n *NinjaGenerator) emitNode(node *DepNode) error {
 		return nil
 	}
 
-	base := filepath.Base(output)
-	if base != output {
-		n.shortNames[base] = append(n.shortNames[base], output)
-	}
-
 	runners, _, err := createRunners(n.ctx, node)
 	if err != nil {
 		return err
@@ -755,25 +748,6 @@ func (n *NinjaGenerator) generateNinja(defaultTarget string) (err error) {
 	// emit default if the target was emitted.
 	if defaultTarget != "" && n.done[defaultTarget] == nodeBuild {
 		fmt.Fprintf(n.f, "\ndefault %s\n", escapeNinja(defaultTarget))
-	}
-
-	var names []string
-	for name := range n.shortNames {
-		if n.done[name] != nodeInit {
-			continue
-		}
-		if len(n.shortNames[name]) != 1 {
-			// we generate shortcuts only for targets whose basename are unique.
-			continue
-		}
-		names = append(names, name)
-	}
-	if len(names) > 0 {
-		fmt.Fprintf(n.f, "\n# shortcuts:\n")
-		sort.Strings(names)
-		for _, name := range names {
-			fmt.Fprintf(n.f, "build %s: phony %s\n", name, n.shortNames[name][0])
-		}
 	}
 	return nil
 }
