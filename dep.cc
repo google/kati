@@ -143,6 +143,11 @@ class DepBuilder {
       CHECK(!first_rule_->outputs.empty());
 
       targets.push_back(first_rule_->outputs[0]);
+
+      if (g_gen_all_phony_targets) {
+        for (Symbol s : phony_)
+          targets.push_back(s);
+      }
     }
 
     // TODO: LogStats?

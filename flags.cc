@@ -25,3 +25,4 @@ int g_remote_num_jobs;
 bool g_detect_android_echo;
 bool g_gen_regen_rule;
 const char* g_ignore_dirty_pattern;
+bool g_gen_all_phony_targets;

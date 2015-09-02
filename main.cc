@@ -94,6 +94,9 @@ static void ParseCommandLine(int argc, char* argv[],
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       g_generate_ninja = true;
+    } else if (!strcmp(arg, "--gen_all_phony_targets")) {
+      // TODO: Remove this.
+      g_gen_all_phony_targets = true;
     } else if (!strcmp(arg, "--regen")) {
       // TODO: Make this default.
       g_regen = true;
