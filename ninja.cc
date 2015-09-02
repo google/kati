@@ -196,7 +196,7 @@ class NinjaGenerator {
                 const string& orig_args) {
     GenerateNinja(nodes, build_all_targets, orig_args);
     GenerateShell();
-    GenerateStamp();
+    GenerateStamp(orig_args);
   }
 
   static string GetStampFilename(const char* ninja_dir,
@@ -638,7 +638,7 @@ class NinjaGenerator {
       PERROR("chmod ninja.sh failed");
   }
 
-  void GenerateStamp() {
+  void GenerateStamp(const string& orig_args) {
     FILE* fp = fopen(GetStampFilename().c_str(), "wb");
     CHECK(fp);
 
@@ -713,6 +713,8 @@ class NinjaGenerator {
       }
     }
 
+    DumpString(fp, orig_args);
+
     fclose(fp);
   }
 
@@ -750,7 +752,8 @@ bool NeedsRegen(const char* ninja_suffix,
                 const char* ninja_dir,
                 bool ignore_kati_binary,
                 bool dump_kati_stamp,
-                double start_time) {
+                double start_time,
+                const string& orig_args) {
   bool retval = false;
 #define RETURN_TRUE do {                         \
     if (dump_kati_stamp)                         \
@@ -970,6 +973,12 @@ bool NeedsRegen(const char* ninja_suffix,
         printf("shell %s: clean (rerun)\n", cmd.c_str());
       }
     }
+  }
+
+  LoadString(fp, &s);
+  if (orig_args != s) {
+    fprintf(stderr, "arguments changed, regenerating...\n");
+    RETURN_TRUE;
   }
 
   if (!retval) {
