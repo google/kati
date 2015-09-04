@@ -186,9 +186,9 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
       "CXX?=g++\n"
 #endif
       "AR?=ar\n"
-      "MAKE?=kati\n"
       // Pretend to be GNU make 3.81, for compatibility.
       "MAKE_VERSION?=3.81\n"
+      "KATI?=ckati\n"
       // Overwrite $SHELL environment variable.
       "SHELL=/bin/sh\n"
       // TODO: Add more builtin vars.
@@ -202,7 +202,9 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
       "\t$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
       // TODO: Add more builtin rules.
                       );
-  bootstrap += StringPrintf("MAKECMDGOALS:=%s\n",
+  bootstrap += StringPrintf("MAKE?=make -j%d\n",
+                            g_num_jobs < 1 ? 1 : g_num_jobs / 2);
+  bootstrap += StringPrintf("MAKECMDGOALS?=%s\n",
                             JoinSymbols(targets, " ").c_str());
 
   char cwd[PATH_MAX];
