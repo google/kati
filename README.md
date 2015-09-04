@@ -4,11 +4,20 @@ kati
 kati is an experimental GNU make clone.
 The main goal of this tool is to speed-up incremental build of Android.
 
+Currently, kati does not offer a faster build by itself. It instead converts
+your Makefile to a ninja file.
+
 How to use for Android
 ----------------------
 
-Currently, kati does not offer a faster build by itself. It instead converts
-your Makefile to a ninja file.
+Now AOSP has kati and ninja, so all you have to do is
+
+    % export USE_NINJA=true
+
+All Android's build commands (m, mmm, mmma, etc.) should just work.
+
+How to use for Android (deprecated way)
+----------------------
 
 Set up kati:
 
@@ -27,7 +36,7 @@ Build Android:
 
 You need ninja in your $PATH.
 
-More usage examples
+More usage examples (deprecated way)
 -------------------
 
 ### "make clean"
@@ -45,14 +54,3 @@ For example, the following is equivalent to "make cts":
 Or, if you know the path you want, you can do:
 
     % ./ninja.sh out/host/linux-x86/bin/adb
-
-### Specify the number of default jobs used by ninja
-
-    % ~/src/kati/m2n -j10
-    % ./ninja.sh
-
-Or
-
-    % ./ninja.sh -j10
-
-Note the latter kills the parallelism of goma.
