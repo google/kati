@@ -14,20 +14,26 @@
 
 GO_SRCS:=$(wildcard *.go)
 
+ifeq (${GOPATH},)
+KATI_GOPATH:=$$(pwd)/out
+else
+KATI_GOPATH:=$$(pwd)/out:$${GOPATH}
+endif
+
 kati: go_src_stamp
 	-rm -f out/bin/kati
-	GOPATH=$$(pwd)/out:$${GOPATH} go install -ldflags "-X github.com/google/kati.gitVersion $(shell git rev-parse HEAD)" github.com/google/kati/cmd/kati
+	GOPATH=${KATI_GOPATH} go install -ldflags "-X github.com/google/kati.gitVersion $(shell git rev-parse HEAD)" github.com/google/kati/cmd/kati
 	cp out/bin/kati $@
 
 go_src_stamp: $(GO_SRCS) cmd/*/*.go
 	-rm -rf out/{src,pkg/*}/github.com/google/kati
 	mkdir -p out/{src,pkg/*}/github.com/google/kati
 	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
-	GOPATH=$$(pwd)/out:$${GOPATH} go get github.com/google/kati/cmd/kati
+	GOPATH=${KATI_GOPATH} go get github.com/google/kati/cmd/kati
 	touch $@
 
 go_test: $(GO_SRCS)
-	GOPATH=$$(pwd)/out:$${GOPATH} go test *.go
+	GOPATH=${KATI_GOPATH} go test *.go
 
 go_clean:
 	rm -rf out kati go_src_stamp
