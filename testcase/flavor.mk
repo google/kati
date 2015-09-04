@@ -11,6 +11,7 @@ all:
 	echo $(flavor PATH)
 	echo $(flavor MAKEFILE_LIST)
 	echo $(flavor $(AREF))
+	echo $(flavor CC)
 
 # For some reason, $(flavor MAKECMDGOALS) should be "undefined"
 # echo $(flavor MAKECMDGOALS)

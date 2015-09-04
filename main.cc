@@ -179,17 +179,18 @@ static void Quit() {
 static void ReadBootstrapMakefile(const vector<Symbol>& targets,
                                   vector<AST*>* asts) {
   string bootstrap = (
-      "CC:=cc\n"
+      "CC?=cc\n"
 #if defined(__APPLE__)
-      "CXX:=c++\n"
+      "CXX?=c++\n"
 #else
-      "CXX:=g++\n"
+      "CXX?=g++\n"
 #endif
-      "AR:=ar\n"
-      "MAKE:=kati\n"
+      "AR?=ar\n"
+      "MAKE?=kati\n"
       // Pretend to be GNU make 3.81, for compatibility.
-      "MAKE_VERSION:=3.81\n"
-      "SHELL:=/bin/sh\n"
+      "MAKE_VERSION?=3.81\n"
+      // Overwrite $SHELL environment variable.
+      "SHELL=/bin/sh\n"
       // TODO: Add more builtin vars.
 
       // http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
@@ -223,14 +224,6 @@ static void SetVar(StringPiece l, VarOrigin origin, Vars* vars) {
 }
 
 extern "C" char** environ;
-static void FillDefaultVars(const vector<StringPiece>& cl_vars, Vars* vars) {
-  for (char** p = environ; *p; p++) {
-    SetVar(*p, VarOrigin::ENVIRONMENT, vars);
-  }
-  for (StringPiece l : cl_vars) {
-    SetVar(l, VarOrigin::COMMAND_LINE, vars);
-  }
-}
 
 static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars,
@@ -256,7 +249,9 @@ static int Run(const vector<Symbol>& targets,
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
   Vars* vars = new Vars();
-  FillDefaultVars(cl_vars, vars);
+  for (char** p = environ; *p; p++) {
+    SetVar(*p, VarOrigin::ENVIRONMENT, vars);
+  }
   Evaluator* ev = new Evaluator(vars);
 
   vector<AST*> bootstrap_asts;
@@ -267,6 +262,10 @@ static int Run(const vector<Symbol>& targets,
     ast->Eval(ev);
   }
   ev->set_is_bootstrap(false);
+
+  for (StringPiece l : cl_vars) {
+    SetVar(l, VarOrigin::COMMAND_LINE, ev->mutable_vars());
+  }
 
   vars->Assign(Intern("MAKEFILE_LIST"),
                new SimpleVar(StringPrintf(" %s", g_makefile),
