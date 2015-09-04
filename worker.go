@@ -155,6 +155,9 @@ func (j *job) build() error {
 	if err != nil {
 		return err
 	}
+	if len(rr) == 0 {
+		return errNothingDone
+	}
 	for _, r := range rr {
 		err := r.run(j.n.Output)
 		glog.Warningf("cmd result for %q: %v", j.n.Output, err)
@@ -360,5 +363,6 @@ func (wm *workerManager) ReportNewDep(j *job, neededBy *job) {
 func (wm *workerManager) Wait() (int, error) {
 	wm.waitChan <- true
 	err := <-wm.doneChan
+	glog.V(2).Infof("finish %d skip %d", wm.finishCnt, wm.skipCnt)
 	return wm.finishCnt - wm.skipCnt, err
 }

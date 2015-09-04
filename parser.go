@@ -376,8 +376,7 @@ func (p *parser) parseIfeq(op string, data []byte) {
 	}
 	if len(extra) > 0 {
 		glog.V(1).Infof("extra %q", extra)
-		p.err = p.srcpos().errorf(`extraneous text after %q directive`, op)
-		return
+		warnNoPrefix(p.srcpos(), `extraneous text after %q directive`, op)
 	}
 
 	lhs, _, err := parseExpr([]byte(lhsBytes), nil, parseOp{matchParen: true})

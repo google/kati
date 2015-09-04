@@ -121,9 +121,6 @@ def normalize_make_log(expected, mk, via_ninja)
   # GNU make 4.0 has this output.
   expected.gsub!(/Makefile:\d+: commands for target ".*?" failed\n/, '')
   # We treat some warnings as errors.
-  if mk =~ /err_invalid_ifeq3.mk/
-    expected.gsub!(/Nothing to be done for "test"\.\n/, '')
-  end
   expected.gsub!(/^\/bin\/sh: line 0: /, '')
   # We print out some ninja warnings in some tests to match what we expect
   # ninja to produce. Remove them if we're not testing ninja.
