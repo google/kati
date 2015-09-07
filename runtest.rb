@@ -38,6 +38,7 @@ def get_output_filenames
   files.delete('build.ninja')
   files.delete('ninja.sh')
   files.delete('gmon.out')
+  files.delete('submake')
   files.reject!{|f|f =~ /\.json$/}
   files.reject!{|f|f =~ /^kati\.*/}
   files
@@ -179,6 +180,7 @@ run_make_test = proc do |mk|
     File.open("Makefile", 'w') do |ofile|
       ofile.print(c)
     end
+    File.symlink('../../testcase/submake', 'submake')
 
     expected = ''
     output = ''
