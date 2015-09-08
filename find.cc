@@ -748,6 +748,31 @@ class FindEmulatorImpl : public FindEmulator {
   }
 
  private:
+  static unsigned char GetDtType(const string& path) {
+    struct stat st;
+    if (lstat(path.c_str(), &st)) {
+      PERROR("stat for %s", path.c_str());
+    }
+
+    if (S_ISREG(st.st_mode)) {
+      return DT_REG;
+    } else if (S_ISDIR(st.st_mode)) {
+      return DT_DIR;
+    } else if (S_ISCHR(st.st_mode)) {
+      return DT_CHR;
+    } else if (S_ISBLK(st.st_mode)) {
+      return DT_BLK;
+    } else if (S_ISFIFO(st.st_mode)) {
+      return DT_FIFO;
+    } else if (S_ISLNK(st.st_mode)) {
+      return DT_LNK;
+    } else if (S_ISSOCK(st.st_mode)) {
+      return DT_SOCK;
+    } else {
+      return DT_UNKNOWN;
+    }
+  }
+
   DirentNode* ConstructDirectoryTree(const string& path) {
     DIR* dir = opendir(path.empty() ? "." : path.c_str());
     if (!dir)
@@ -770,12 +795,17 @@ class FindEmulatorImpl : public FindEmulator {
       npath += ent->d_name;
 
       DirentNode* c = NULL;
-      if (ent->d_type == DT_DIR) {
+      auto d_type = ent->d_type;
+      if (d_type == DT_UNKNOWN) {
+        d_type = GetDtType(npath);
+        CHECK(d_type != DT_UNKNOWN);
+      }
+      if (d_type == DT_DIR) {
         c = ConstructDirectoryTree(npath);
-      } else if (ent->d_type == DT_LNK) {
+      } else if (d_type == DT_LNK) {
         c = new DirentSymlinkNode(npath);
       } else {
-        c = new DirentFileNode(npath, ent->d_type);
+        c = new DirentFileNode(npath, d_type);
       }
       node_cnt_++;
       n->Add(ent->d_name, c);
