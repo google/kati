@@ -359,7 +359,7 @@ class Parser {
       }
     }
     if (!s.empty()) {
-      Error("extraneous text after `ifeq' directive");
+      WARN("%s:%d: extraneous text after `ifeq' directive", LOCF(loc_));
       return true;
     }
     return true;
