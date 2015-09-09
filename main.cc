@@ -42,141 +42,21 @@
 #include "timeutil.h"
 #include "var.h"
 
-static const char* g_makefile;
-static bool g_is_syntax_check_only;
-static bool g_generate_ninja;
-static bool g_regen;
-static bool g_regen_ignoring_kati_binary;
-static bool g_dump_kati_stamp;
-static const char* g_ninja_suffix;
-static const char* g_ninja_dir;
-static bool g_use_find_emulator;
-static vector<const char*> g_subkati_args;
-
-static bool ParseCommandLineOptionWithArg(StringPiece option,
-                                          char* argv[],
-                                          int* index,
-                                          const char** out_arg) {
-  const char* arg = argv[*index];
-  if (!HasPrefix(arg, option))
-    return false;
-  if (arg[option.size()] == '\0') {
-    ++*index;
-    *out_arg = argv[*index];
-    return true;
-  }
-  if (arg[option.size()] == '=') {
-    *out_arg = arg + option.size() + 1;
-    return true;
-  }
-  // E.g, -j999
-  if (option.size() == 2) {
-    *out_arg = arg + option.size();
-    return true;
-  }
-  return false;
-}
-
-static void ParseCommandLine(int argc, char* argv[],
-                             vector<Symbol>* targets,
-                             vector<StringPiece>* cl_vars) {
-  g_subkati_args.push_back(argv[0]);
-  g_num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
-  const char* num_jobs_str;
-
-  for (int i = 1; i < argc; i++) {
-    const char* arg = argv[i];
-    bool should_propagate = true;
-    int pi = i;
-    if (!strcmp(arg, "-f")) {
-      g_makefile = argv[++i];
-      should_propagate = false;
-    } else if (!strcmp(arg, "-c")) {
-      g_is_syntax_check_only = true;
-    } else if (!strcmp(arg, "-i")) {
-      g_is_dry_run = true;
-    } else if (!strcmp(arg, "-s")) {
-      g_is_silent_mode = true;
-    } else if (!strcmp(arg, "--kati_stats")) {
-      g_enable_stat_logs = true;
-    } else if (!strcmp(arg, "--ninja")) {
-      g_generate_ninja = true;
-    } else if (!strcmp(arg, "--gen_all_phony_targets")) {
-      // TODO: Remove this.
-      g_gen_all_phony_targets = true;
-    } else if (!strcmp(arg, "--regen")) {
-      // TODO: Make this default.
-      g_regen = true;
-    } else if (!strcmp(arg, "--regen_ignoring_kati_binary")) {
-      g_regen_ignoring_kati_binary = true;
-    } else if (!strcmp(arg, "--dump_kati_stamp")) {
-      g_dump_kati_stamp = true;
-    } else if (!strcmp(arg, "--detect_android_echo")) {
-      g_detect_android_echo = true;
-    } else if (ParseCommandLineOptionWithArg(
-        "-j", argv, &i, &num_jobs_str)) {
-      g_num_jobs = strtol(num_jobs_str, NULL, 10);
-      if (g_num_jobs <= 0) {
-        ERROR("Invalid -j flag: %s", num_jobs_str);
-      }
-    } else if (ParseCommandLineOptionWithArg(
-        "--remote_num_jobs", argv, &i, &num_jobs_str)) {
-      g_remote_num_jobs = strtol(num_jobs_str, NULL, 10);
-      if (g_remote_num_jobs <= 0) {
-        ERROR("Invalid -j flag: %s", num_jobs_str);
-      }
-    } else if (ParseCommandLineOptionWithArg(
-        "--ninja_suffix", argv, &i, &g_ninja_suffix)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--ninja_dir", argv, &i, &g_ninja_dir)) {
-    } else if (!strcmp(arg, "--use_find_emulator")) {
-      g_use_find_emulator = true;
-    } else if (!strcmp(arg, "--gen_regen_rule")) {
-      // TODO: Make this default once we have removed unnecessary
-      // command line change from Android build.
-      g_gen_regen_rule = true;
-    } else if (ParseCommandLineOptionWithArg(
-        "--goma_dir", argv, &i, &g_goma_dir)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--ignore_optional_include",
-        argv, &i, &g_ignore_optional_include_pattern)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--ignore_dirty",
-        argv, &i, &g_ignore_dirty_pattern)) {
-    } else if (arg[0] == '-') {
-      ERROR("Unknown flag: %s", arg);
-    } else {
-      if (strchr(arg, '=')) {
-        cl_vars->push_back(arg);
-      } else {
-        should_propagate = false;
-        targets->push_back(Intern(arg));
-      }
-    }
-
-    if (should_propagate) {
-      for (; pi <= i; pi++) {
-        g_subkati_args.push_back(argv[pi]);
-      }
-    }
-  }
-}
-
 static void Init() {
   InitSymtab();
   InitFuncTable();
   InitDepNodePool();
   InitParser();
 
-  if (g_makefile == NULL) {
+  if (g_flags.makefile == NULL) {
     if (Exists("GNUmakefile")) {
-      g_makefile = "GNUmakefile";
+      g_flags.makefile = "GNUmakefile";
 #if !defined(__APPLE__)
     } else if (Exists("makefile")) {
-      g_makefile = "makefile";
+      g_flags.makefile = "makefile";
 #endif
     } else if (Exists("Makefile")) {
-      g_makefile = "Makefile";
+      g_flags.makefile = "Makefile";
     }
   }
 }
@@ -216,12 +96,12 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
       "\t$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
       // TODO: Add more builtin rules.
                       );
-  if (g_generate_ninja) {
+  if (g_flags.generate_ninja) {
     bootstrap += StringPrintf("MAKE?=make -j%d\n",
-                              g_num_jobs < 1 ? 1 : g_num_jobs / 2);
+                              g_flags.num_jobs < 1 ? 1 : g_flags.num_jobs / 2);
   } else {
     bootstrap += StringPrintf("MAKE?=%s\n",
-                              JoinStrings(g_subkati_args, " ").c_str());
+                              JoinStrings(g_flags.subkati_args, " ").c_str());
   }
   bootstrap += StringPrintf("MAKECMDGOALS?=%s\n",
                             JoinSymbols(targets, " ").c_str());
@@ -251,16 +131,16 @@ static int Run(const vector<Symbol>& targets,
                const string& orig_args) {
   double start_time = GetTime();
 
-  if (g_generate_ninja && (g_regen || g_dump_kati_stamp)) {
+  if (g_flags.generate_ninja && (g_flags.regen || g_flags.dump_kati_stamp)) {
     ScopedTimeReporter tr("regen check time");
-    if (!NeedsRegen(g_ninja_suffix, g_ninja_dir,
-                    g_regen_ignoring_kati_binary,
-                    g_dump_kati_stamp,
+    if (!NeedsRegen(g_flags.ninja_suffix, g_flags.ninja_dir,
+                    g_flags.regen_ignoring_kati_binary,
+                    g_flags.dump_kati_stamp,
                     start_time, orig_args)) {
       printf("No need to regenerate ninja file\n");
       return 0;
     }
-    if (g_dump_kati_stamp) {
+    if (g_flags.dump_kati_stamp) {
       printf("Need to regenerate ninja file\n");
       return 0;
     }
@@ -289,12 +169,12 @@ static int Run(const vector<Symbol>& targets,
   }
 
   vars->Assign(Intern("MAKEFILE_LIST"),
-               new SimpleVar(StringPrintf(" %s", g_makefile),
+               new SimpleVar(StringPrintf(" %s", g_flags.makefile),
                              VarOrigin::FILE));
 
   {
     ScopedTimeReporter tr("eval time");
-    Makefile* mk = cache_mgr->ReadMakefile(g_makefile);
+    Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
     for (AST* ast : mk->asts()) {
       LOG("%s", ast->DebugString().c_str());
       ast->Eval(ev);
@@ -312,12 +192,13 @@ static int Run(const vector<Symbol>& targets,
     MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
   }
 
-  if (g_is_syntax_check_only)
+  if (g_flags.is_syntax_check_only)
     return 0;
 
-  if (g_generate_ninja) {
+  if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(g_ninja_suffix, g_ninja_dir, nodes, ev, !targets.empty(),
+    GenerateNinja(g_flags.ninja_suffix, g_flags.ninja_dir,
+                  nodes, ev, !targets.empty(),
                   orig_args, start_time);
     return 0;
   }
@@ -357,15 +238,13 @@ int main(int argc, char* argv[]) {
       orig_args += ' ';
     orig_args += argv[i];
   }
-  vector<Symbol> targets;
-  vector<StringPiece> cl_vars;
-  ParseCommandLine(argc, argv, &targets, &cl_vars);
-  if (g_makefile == NULL)
+  g_flags.Parse(argc, argv);
+  if (g_flags.makefile == NULL)
     ERROR("*** No targets specified and no makefile found.");
   // This depends on command line flags.
-  if (g_use_find_emulator)
+  if (g_flags.use_find_emulator)
     InitFindEmulator();
-  int r = Run(targets, cl_vars, orig_args);
+  int r = Run(g_flags.targets, g_flags.cl_vars, orig_args);
   Quit();
   return r;
 }

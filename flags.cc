@@ -16,14 +16,116 @@
 
 #include "flags.h"
 
-bool g_enable_stat_logs;
-bool g_is_dry_run;
-const char* g_ignore_optional_include_pattern;
-const char* g_goma_dir;
-int g_num_jobs;
-int g_remote_num_jobs;
-bool g_detect_android_echo;
-bool g_gen_regen_rule;
-const char* g_ignore_dirty_pattern;
-bool g_gen_all_phony_targets;
-bool g_is_silent_mode;
+#include <unistd.h>
+
+#include "log.h"
+#include "strutil.h"
+
+Flags g_flags;
+
+static bool ParseCommandLineOptionWithArg(StringPiece option,
+                                          char* argv[],
+                                          int* index,
+                                          const char** out_arg) {
+  const char* arg = argv[*index];
+  if (!HasPrefix(arg, option))
+    return false;
+  if (arg[option.size()] == '\0') {
+    ++*index;
+    *out_arg = argv[*index];
+    return true;
+  }
+  if (arg[option.size()] == '=') {
+    *out_arg = arg + option.size() + 1;
+    return true;
+  }
+  // E.g, -j999
+  if (option.size() == 2) {
+    *out_arg = arg + option.size();
+    return true;
+  }
+  return false;
+}
+
+void Flags::Parse(int argc, char** argv) {
+  subkati_args.push_back(argv[0]);
+  num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
+  const char* num_jobs_str;
+
+  for (int i = 1; i < argc; i++) {
+    const char* arg = argv[i];
+    bool should_propagate = true;
+    int pi = i;
+    if (!strcmp(arg, "-f")) {
+      makefile = argv[++i];
+      should_propagate = false;
+    } else if (!strcmp(arg, "-c")) {
+      is_syntax_check_only = true;
+    } else if (!strcmp(arg, "-i")) {
+      is_dry_run = true;
+    } else if (!strcmp(arg, "-s")) {
+      is_silent_mode = true;
+    } else if (!strcmp(arg, "--kati_stats")) {
+      enable_stat_logs = true;
+    } else if (!strcmp(arg, "--ninja")) {
+      generate_ninja = true;
+    } else if (!strcmp(arg, "--gen_all_phony_targets")) {
+      // TODO: Remove this.
+      gen_all_phony_targets = true;
+    } else if (!strcmp(arg, "--regen")) {
+      // TODO: Make this default.
+      regen = true;
+    } else if (!strcmp(arg, "--regen_ignoring_kati_binary")) {
+      regen_ignoring_kati_binary = true;
+    } else if (!strcmp(arg, "--dump_kati_stamp")) {
+      dump_kati_stamp = true;
+    } else if (!strcmp(arg, "--detect_android_echo")) {
+      detect_android_echo = true;
+    } else if (ParseCommandLineOptionWithArg(
+        "-j", argv, &i, &num_jobs_str)) {
+      num_jobs = strtol(num_jobs_str, NULL, 10);
+      if (num_jobs <= 0) {
+        ERROR("Invalid -j flag: %s", num_jobs_str);
+      }
+    } else if (ParseCommandLineOptionWithArg(
+        "--remote_num_jobs", argv, &i, &num_jobs_str)) {
+      remote_num_jobs = strtol(num_jobs_str, NULL, 10);
+      if (remote_num_jobs <= 0) {
+        ERROR("Invalid -j flag: %s", num_jobs_str);
+      }
+    } else if (ParseCommandLineOptionWithArg(
+        "--ninja_suffix", argv, &i, &ninja_suffix)) {
+    } else if (ParseCommandLineOptionWithArg(
+        "--ninja_dir", argv, &i, &ninja_dir)) {
+    } else if (!strcmp(arg, "--use_find_emulator")) {
+      use_find_emulator = true;
+    } else if (!strcmp(arg, "--gen_regen_rule")) {
+      // TODO: Make this default once we have removed unnecessary
+      // command line change from Android build.
+      gen_regen_rule = true;
+    } else if (ParseCommandLineOptionWithArg(
+        "--goma_dir", argv, &i, &goma_dir)) {
+    } else if (ParseCommandLineOptionWithArg(
+        "--ignore_optional_include",
+        argv, &i, &ignore_optional_include_pattern)) {
+    } else if (ParseCommandLineOptionWithArg(
+        "--ignore_dirty",
+        argv, &i, &ignore_dirty_pattern)) {
+    } else if (arg[0] == '-') {
+      ERROR("Unknown flag: %s", arg);
+    } else {
+      if (strchr(arg, '=')) {
+        cl_vars.push_back(arg);
+      } else {
+        should_propagate = false;
+        targets.push_back(Intern(arg));
+      }
+    }
+
+    if (should_propagate) {
+      for (; pi <= i; pi++) {
+        subkati_args.push_back(argv[pi]);
+      }
+    }
+  }
+}

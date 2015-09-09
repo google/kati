@@ -103,7 +103,7 @@ class Executor {
         printf("%s\n", command->cmd.c_str());
         fflush(stdout);
       }
-      if (!g_is_dry_run) {
+      if (!g_flags.is_dry_run) {
         string out;
         int result = RunCommand(shell_, command->cmd.c_str(),
                                 RedirectStderr::STDOUT,

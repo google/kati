@@ -40,7 +40,7 @@ extern string* g_last_error;
 #endif
 
 #define LOG_STAT(args...) do {                                      \
-    if (g_enable_stat_logs)                                         \
+    if (g_flags.enable_stat_logs)                                   \
       fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str());  \
   } while(0)
 

@@ -182,7 +182,7 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
   for (Value* v : n->cmds) {
     const string&& cmds_buf = v->Eval(ev_);
     StringPiece cmds = cmds_buf;
-    bool global_echo = !g_is_silent_mode;
+    bool global_echo = !g_flags.is_silent_mode;
     bool global_ignore_error = false;
     ParseCommandPrefixes(&cmds, &global_echo, &global_ignore_error);
     if (cmds == "")
