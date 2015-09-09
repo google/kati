@@ -190,10 +190,12 @@ run_make_test = proc do |mk|
       testcases = ['']
     end
 
+    is_silent_test = mk =~ /\/submake_/
+
     cleanup
     testcases.each do |tc|
       cmd = 'make'
-      if via_ninja
+      if via_ninja || is_silent_test
         cmd += ' -s'
       end
       cmd += " #{tc} 2>&1"
@@ -213,6 +215,9 @@ run_make_test = proc do |mk|
       end
       if via_ninja
         cmd += ' --ninja'
+      end
+      if is_silent_test
+        cmd += ' -s'
       end
       cmd += " #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)

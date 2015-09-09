@@ -25,5 +25,6 @@ extern bool g_detect_android_echo;
 extern bool g_gen_regen_rule;
 extern const char* g_ignore_dirty_pattern;
 extern bool g_gen_all_phony_targets;
+extern bool g_is_silent_mode;
 
 #endif  // FLAGS_H_

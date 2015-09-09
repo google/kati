@@ -51,6 +51,7 @@ static bool g_dump_kati_stamp;
 static const char* g_ninja_suffix;
 static const char* g_ninja_dir;
 static bool g_use_find_emulator;
+static vector<const char*> g_subkati_args;
 
 static bool ParseCommandLineOptionWithArg(StringPiece option,
                                           char* argv[],
@@ -79,17 +80,23 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
 static void ParseCommandLine(int argc, char* argv[],
                              vector<Symbol>* targets,
                              vector<StringPiece>* cl_vars) {
+  g_subkati_args.push_back(argv[0]);
   g_num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
 
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
+    bool should_propagate = true;
+    int pi = i;
     if (!strcmp(arg, "-f")) {
       g_makefile = argv[++i];
+      should_propagate = false;
     } else if (!strcmp(arg, "-c")) {
       g_is_syntax_check_only = true;
     } else if (!strcmp(arg, "-i")) {
       g_is_dry_run = true;
+    } else if (!strcmp(arg, "-s")) {
+      g_is_silent_mode = true;
     } else if (!strcmp(arg, "--kati_stats")) {
       g_enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
@@ -142,7 +149,14 @@ static void ParseCommandLine(int argc, char* argv[],
       if (strchr(arg, '=')) {
         cl_vars->push_back(arg);
       } else {
+        should_propagate = false;
         targets->push_back(Intern(arg));
+      }
+    }
+
+    if (should_propagate) {
+      for (; pi <= i; pi++) {
+        g_subkati_args.push_back(argv[pi]);
       }
     }
   }
@@ -202,8 +216,13 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
       "\t$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
       // TODO: Add more builtin rules.
                       );
-  bootstrap += StringPrintf("MAKE?=make -j%d\n",
-                            g_num_jobs < 1 ? 1 : g_num_jobs / 2);
+  if (g_generate_ninja) {
+    bootstrap += StringPrintf("MAKE?=make -j%d\n",
+                              g_num_jobs < 1 ? 1 : g_num_jobs / 2);
+  } else {
+    bootstrap += StringPrintf("MAKE?=%s\n",
+                              JoinStrings(g_subkati_args, " ").c_str());
+  }
   bootstrap += StringPrintf("MAKECMDGOALS?=%s\n",
                             JoinSymbols(targets, " ").c_str());
 

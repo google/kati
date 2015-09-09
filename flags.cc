@@ -26,3 +26,4 @@ bool g_detect_android_echo;
 bool g_gen_regen_rule;
 const char* g_ignore_dirty_pattern;
 bool g_gen_all_phony_targets;
+bool g_is_silent_mode;
