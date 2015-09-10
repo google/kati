@@ -1,6 +1,8 @@
 kati
 ====
 
+[![Build Status](https://travis-ci.org/google/kati.svg?branch=master)](http://travis-ci.org/google/kati)
+
 kati is an experimental GNU make clone.
 The main goal of this tool is to speed-up incremental build of Android.
 
