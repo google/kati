@@ -10,7 +10,6 @@ cache: apt
 addons:
   apt:
     packages:
-    - libstdc++-4.8-dev
     - clang-3.5
 
 script:
