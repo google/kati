@@ -27,6 +27,9 @@ while true
   elsif ARGV[0] == '-n'
     via_ninja = true
     ARGV.shift
+  elsif ARGV[0] == '-v'
+    show_failing = true
+    ARGV.shift
   else
     break
   end
@@ -245,8 +248,10 @@ run_make_test = proc do |mk|
         expected_failures << name
       else
         puts "#{name}: FAIL"
-        puts `diff -u out.make out.kati`
         failures << name
+      end
+      if !expected_failures || show_failing
+        puts `diff -u out.make out.kati`
       end
     else
       if expected_failure
