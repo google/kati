@@ -13,7 +13,7 @@ addons:
     - clang-3.5
 
 script:
-  - make -j4 ckati
+  - make -j4 ckati CXX=clang++-3.5
   - ruby runtest.rb -c
   - ruby runtest.rb -c -n
  
