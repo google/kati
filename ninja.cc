@@ -389,7 +389,7 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += ')';
     }
-    return !use_gomacc;
+    return (g_flags.remote_num_jobs || g_flags.goma_dir) && !use_gomacc;
   }
 
   void EmitDepfile(string* cmd_buf) {
