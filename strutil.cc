@@ -150,6 +150,13 @@ bool Pattern::MatchImpl(StringPiece str) const {
           HasSuffix(str, pat_.substr(percent_index_ + 1)));
 }
 
+StringPiece Pattern::Stem(StringPiece str) const {
+  if (!Match(str))
+    return "";
+  return str.substr(percent_index_,
+                    str.size() - (pat_.size() - percent_index_ - 1));
+}
+
 void Pattern::AppendSubst(StringPiece str, StringPiece subst,
                           string* out) const {
   if (percent_index_ == string::npos) {

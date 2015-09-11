@@ -41,6 +41,7 @@ struct DepNode {
   bool is_phony;
   vector<Symbol> actual_inputs;
   Vars* rule_vars;
+  Symbol output_pattern;
   Loc loc;
 };
 

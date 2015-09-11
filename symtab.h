@@ -52,6 +52,8 @@ class Symbol {
     return s[i];
   }
 
+  bool IsValid() const { return v_ >= 0; }
+
  private:
   explicit Symbol(int v);
 

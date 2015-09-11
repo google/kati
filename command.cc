@@ -121,7 +121,11 @@ void AutoPlusVar::Eval(Evaluator*, string* s) const {
 }
 
 void AutoStarVar::Eval(Evaluator*, string* s) const {
-  AppendString(StripExt(ce_->current_dep_node()->output.str()), s);
+  const DepNode* n = ce_->current_dep_node();
+  if (!n->output_pattern.IsValid())
+    return;
+  Pattern pat(n->output_pattern.str());
+  pat.Stem(n->output.str()).AppendToString(s);
 }
 
 void AutoSuffixDVar::Eval(Evaluator* ev, string* s) const {

@@ -97,6 +97,8 @@ class Pattern {
 
   bool Match(StringPiece str) const;
 
+  StringPiece Stem(StringPiece str) const;
+
   void AppendSubst(StringPiece str, StringPiece subst, string* out) const;
 
   void AppendSubstRef(StringPiece str, StringPiece subst, string* out) const;
