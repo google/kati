@@ -68,9 +68,8 @@ void ParseRule(Loc& loc, StringPiece line, char term,
 
   const bool is_first_pattern = (
       !outputs.empty() && IsPatternRule(outputs[0].str()));
-  if (is_first_pattern) {
-    if (outputs.size() > 1) {
-      // TODO: Multiple output patterns are not supported yet.
+  for (size_t i = 1; i < outputs.size(); i++) {
+    if (IsPatternRule(outputs[i].str()) != is_first_pattern) {
       ERROR("%s:%d: *** mixed implicit and normal rules: deprecated syntax",
             LOCF(loc));
     }
