@@ -250,7 +250,7 @@ run_make_test = proc do |mk|
         puts "#{name}: FAIL"
         failures << name
       end
-      if !expected_failures || show_failing
+      if !expected_failure || show_failing
         puts `diff -u out.make out.kati`
       end
     else
