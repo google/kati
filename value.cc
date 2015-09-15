@@ -426,7 +426,7 @@ Value* ParseExprImpl(const Loc& loc,
   size_t i;
   for (i = 0; i < s.size(); i++) {
     char c = s[i];
-    if (terms && strchr(terms, c)) {
+    if (terms && strchr(terms, c) && !save_paren) {
       break;
     }
 
