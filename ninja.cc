@@ -194,6 +194,7 @@ class NinjaGenerator {
   void Generate(const vector<DepNode*>& nodes,
                 bool build_all_targets,
                 const string& orig_args) {
+    unlink(GetStampFilename().c_str());
     GenerateNinja(nodes, build_all_targets, orig_args);
     GenerateShell();
     GenerateStamp(orig_args);
@@ -204,6 +205,11 @@ class NinjaGenerator {
     return StringPrintf("%s/.kati_stamp%s",
                         ninja_dir ? ninja_dir : ".",
                         ninja_suffix ? ninja_suffix : "");
+  }
+
+  static string GetStampTempFilename(const char* ninja_dir,
+                                 const char* ninja_suffix) {
+    return StringPrintf("%s.tmp", GetStampFilename(ninja_dir, ninja_suffix).c_str());
   }
 
  private:
@@ -559,6 +565,10 @@ class NinjaGenerator {
     return GetStampFilename(ninja_dir_.c_str(), ninja_suffix_.c_str());
   }
 
+  string GetStampTempFilename() const {
+    return GetStampTempFilename(ninja_dir_.c_str(), ninja_suffix_.c_str());
+  }
+
   void GenerateNinja(const vector<DepNode*>& nodes,
                      bool build_all_targets,
                      const string& orig_args) {
@@ -639,7 +649,7 @@ class NinjaGenerator {
   }
 
   void GenerateStamp(const string& orig_args) {
-    FILE* fp = fopen(GetStampFilename().c_str(), "wb");
+    FILE* fp = fopen(GetStampTempFilename().c_str(), "wb");
     CHECK(fp);
 
     size_t r = fwrite(&start_time_, sizeof(start_time_), 1, fp);
@@ -716,6 +726,8 @@ class NinjaGenerator {
     DumpString(fp, orig_args);
 
     fclose(fp);
+
+    rename(GetStampTempFilename().c_str(), GetStampFilename().c_str());
   }
 
   CommandEvaluator ce_;
