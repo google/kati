@@ -16,8 +16,8 @@
 
 #include "var.h"
 
+#include "expr.h"
 #include "log.h"
-#include "value.h"
 
 UndefinedVar kUndefinedBuf;
 UndefinedVar* kUndefined = &kUndefinedBuf;

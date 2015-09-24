@@ -27,13 +27,13 @@
 #include <memory>
 #include <unordered_map>
 
-#include "ast.h"
 #include "eval.h"
 #include "fileutil.h"
 #include "find.h"
 #include "log.h"
 #include "parser.h"
 #include "stats.h"
+#include "stmt.h"
 #include "strutil.h"
 #include "symtab.h"
 #include "var.h"
@@ -451,12 +451,12 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   //const string text = args[0]->Eval(ev);
   string* text = new string;
   args[0]->Eval(ev, text);
-  vector<AST*> asts;
-  Parse(*text, ev->loc(), &asts);
-  for (AST* ast : asts) {
-    LOG("%s", ast->DebugString().c_str());
-    ast->Eval(ev);
-    //delete ast;
+  vector<Stmt*> stmts;
+  Parse(*text, ev->loc(), &stmts);
+  for (Stmt* stmt : stmts) {
+    LOG("%s", stmt->DebugString().c_str());
+    stmt->Eval(ev);
+    //delete stmt;
   }
 }
 

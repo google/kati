@@ -20,8 +20,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ast.h"
 #include "loc.h"
+#include "stmt.h"
 #include "string_piece.h"
 #include "symtab.h"
 
@@ -46,12 +46,12 @@ class Evaluator {
   Evaluator(const Vars* vars);
   ~Evaluator();
 
-  void EvalAssign(const AssignAST* ast);
-  void EvalRule(const RuleAST* ast);
-  void EvalCommand(const CommandAST* ast);
-  void EvalIf(const IfAST* ast);
-  void EvalInclude(const IncludeAST* ast);
-  void EvalExport(const ExportAST* ast);
+  void EvalAssign(const AssignStmt* stmt);
+  void EvalRule(const RuleStmt* stmt);
+  void EvalCommand(const CommandStmt* stmt);
+  void EvalIf(const IfStmt* stmt);
+  void EvalInclude(const IncludeStmt* stmt);
+  void EvalExport(const ExportStmt* stmt);
 
   Var* LookupVar(Symbol name);
   // For target specific variables.

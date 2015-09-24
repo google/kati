@@ -19,10 +19,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ast.h"
+#include "expr.h"
+#include "stmt.h"
 #include "string_piece.h"
 #include "symtab.h"
-#include "value.h"
 
 using namespace std;
 

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef VALUE_H_
-#define VALUE_H_
+#ifndef EXPR_H_
+#define EXPR_H_
 
 #include <string>
 #include <vector>
@@ -68,4 +68,4 @@ Value* NewExpr3(Value* v1, Value* v2, Value* v3);
 
 Value* NewLiteral(StringPiece s);
 
-#endif  // VALUE_H_
+#endif  // EXPR_H_

@@ -21,9 +21,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "ast.h"
 #include "log.h"
 #include "parser.h"
+#include "stmt.h"
 
 Makefile::Makefile(const string& filename)
     : buf_(NULL), len_(0), mtime_(0), filename_(filename) {
@@ -56,6 +56,6 @@ Makefile::Makefile(const string& filename)
 
 Makefile::~Makefile() {
   delete[] buf_;
-  for (AST* ast : asts_)
-    delete ast;
+  for (Stmt* stmt : stmts_)
+    delete stmt;
 }

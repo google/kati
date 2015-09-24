@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef AST_H_
-#define AST_H_
+#ifndef STMT_H_
+#define STMT_H_
 
 #include <string>
 #include <vector>
@@ -46,9 +46,9 @@ enum struct CondOp {
   IFNDEF,
 };
 
-struct AST {
+struct Stmt {
  public:
-  virtual ~AST();
+  virtual ~Stmt();
 
   Loc loc() const { return loc_; }
   void set_loc(Loc loc) { loc_ = loc; }
@@ -59,94 +59,94 @@ struct AST {
   virtual string DebugString() const = 0;
 
  protected:
-  AST();
+  Stmt();
 
  private:
   Loc loc_;
   StringPiece orig_;
 };
 
-struct RuleAST : public AST {
+struct RuleStmt : public Stmt {
   Value* expr;
   char term;
   Value* after_term;
 
-  virtual ~RuleAST();
+  virtual ~RuleStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-struct AssignAST : public AST {
+struct AssignStmt : public Stmt {
   Value* lhs;
   Value* rhs;
   StringPiece orig_rhs;
   AssignOp op;
   AssignDirective directive;
 
-  virtual ~AssignAST();
+  virtual ~AssignStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-struct CommandAST : public AST {
+struct CommandStmt : public Stmt {
   Value* expr;
   StringPiece orig;
 
-  virtual ~CommandAST();
+  virtual ~CommandStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-struct IfAST : public AST {
+struct IfStmt : public Stmt {
   CondOp op;
   Value* lhs;
   Value* rhs;
-  vector<AST*> true_asts;
-  vector<AST*> false_asts;
+  vector<Stmt*> true_stmts;
+  vector<Stmt*> false_stmts;
 
-  virtual ~IfAST();
+  virtual ~IfStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-struct IncludeAST : public AST {
+struct IncludeStmt : public Stmt {
   Value* expr;
   bool should_exist;
 
-  virtual ~IncludeAST();
+  virtual ~IncludeStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-struct ExportAST : public AST {
+struct ExportStmt : public Stmt {
   Value* expr;
   bool is_export;
 
-  virtual ~ExportAST();
+  virtual ~ExportStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-struct ParseErrorAST : public AST {
+struct ParseErrorStmt : public Stmt {
   string msg;
 
-  virtual ~ParseErrorAST();
+  virtual ~ParseErrorStmt();
 
   virtual void Eval(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
 
-#endif  // AST_H_
+#endif  // STMT_H_

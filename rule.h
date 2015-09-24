@@ -17,9 +17,9 @@
 
 #include <vector>
 
-#include "ast.h"
 #include "loc.h"
 #include "log.h"
+#include "stmt.h"
 #include "string_piece.h"
 #include "symtab.h"
 

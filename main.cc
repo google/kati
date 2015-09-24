@@ -21,7 +21,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "ast.h"
 #include "dep.h"
 #include "eval.h"
 #include "exec.h"
@@ -35,6 +34,7 @@
 #include "ninja.h"
 #include "parser.h"
 #include "stats.h"
+#include "stmt.h"
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
@@ -71,7 +71,7 @@ static void Quit() {
 }
 
 static void ReadBootstrapMakefile(const vector<Symbol>& targets,
-                                  vector<AST*>* asts) {
+                                  vector<Stmt*>* stmts) {
   string bootstrap = (
       "CC?=cc\n"
 #if defined(__APPLE__)
@@ -112,7 +112,7 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
     CHECK(false);
   }
   bootstrap += StringPrintf("CURDIR:=%s\n", cwd);
-  Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), asts);
+  Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), stmts);
 }
 
 static void SetVar(StringPiece l, VarOrigin origin, Vars* vars) {
@@ -155,12 +155,12 @@ static int Run(const vector<Symbol>& targets,
   }
   Evaluator* ev = new Evaluator(vars);
 
-  vector<AST*> bootstrap_asts;
+  vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
   ev->set_is_bootstrap(true);
-  for (AST* ast : bootstrap_asts) {
-    LOG("%s", ast->DebugString().c_str());
-    ast->Eval(ev);
+  for (Stmt* stmt : bootstrap_asts) {
+    LOG("%s", stmt->DebugString().c_str());
+    stmt->Eval(ev);
   }
   ev->set_is_bootstrap(false);
 
@@ -175,13 +175,13 @@ static int Run(const vector<Symbol>& targets,
   {
     ScopedTimeReporter tr("eval time");
     Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
-    for (AST* ast : mk->asts()) {
-      LOG("%s", ast->DebugString().c_str());
-      ast->Eval(ev);
+    for (Stmt* stmt : mk->stmts()) {
+      LOG("%s", stmt->DebugString().c_str());
+      stmt->Eval(ev);
     }
   }
 
-  for (ParseErrorAST* err : GetParseErrors()) {
+  for (ParseErrorStmt* err : GetParseErrors()) {
     WARN("%s:%d: warning for parse error in an unevaluated line: %s",
          LOCF(err->loc()), err->msg.c_str());
   }
@@ -221,8 +221,8 @@ static int Run(const vector<Symbol>& targets,
     Exec(nodes, ev);
   }
 
-  for (AST* ast : bootstrap_asts)
-    delete ast;
+  for (Stmt* stmt : bootstrap_asts)
+    delete stmt;
   delete ev;
   delete vars;
   delete cache_mgr;

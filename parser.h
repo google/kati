@@ -17,8 +17,8 @@
 
 #include <vector>
 
-#include "ast.h"
 #include "loc.h"
+#include "stmt.h"
 #include "string_piece.h"
 
 using namespace std;
@@ -26,9 +26,9 @@ using namespace std;
 class Makefile;
 
 void Parse(Makefile* mk);
-void Parse(StringPiece buf, const Loc& loc, vector<AST*>* out_asts);
+void Parse(StringPiece buf, const Loc& loc, vector<Stmt*>* out_asts);
 void ParseNotAfterRule(StringPiece buf, const Loc& loc,
-                       vector<AST*>* out_asts);
+                       vector<Stmt*>* out_asts);
 
 void ParseAssignStatement(StringPiece line, size_t sep,
                           StringPiece* lhs, StringPiece* rhs, AssignOp* op);
@@ -36,6 +36,6 @@ void ParseAssignStatement(StringPiece line, size_t sep,
 void InitParser();
 void QuitParser();
 
-const vector<ParseErrorAST*>& GetParseErrors();
+const vector<ParseErrorStmt*>& GetParseErrors();
 
 #endif  // PARSER_H_

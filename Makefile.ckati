@@ -22,11 +22,11 @@ KATI_INTERMEDIATES_PATH ?= .
 KATI_BIN_PATH ?= .
 
 KATI_CXX_SRCS := \
-	ast.cc \
 	command.cc \
 	dep.cc \
 	eval.cc \
 	exec.cc \
+	expr.cc \
 	file.cc \
 	file_cache.cc \
 	fileutil.cc \
@@ -40,12 +40,12 @@ KATI_CXX_SRCS := \
 	parser.cc \
 	rule.cc \
 	stats.cc \
+	stmt.cc \
 	string_piece.cc \
 	stringprintf.cc \
 	strutil.cc \
 	symtab.cc \
 	timeutil.cc \
-	value.cc \
 	var.cc
 
 KATI_CXX_GENERATED_SRCS := \

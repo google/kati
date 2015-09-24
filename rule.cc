@@ -16,12 +16,12 @@
 
 #include "rule.h"
 
+#include "expr.h"
 #include "log.h"
 #include "parser.h"
 #include "stringprintf.h"
 #include "strutil.h"
 #include "symtab.h"
-#include "value.h"
 
 namespace {
 

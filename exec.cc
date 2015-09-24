@@ -27,13 +27,13 @@
 #include "command.h"
 #include "dep.h"
 #include "eval.h"
+#include "expr.h"
 #include "fileutil.h"
 #include "flags.h"
 #include "log.h"
 #include "string_piece.h"
 #include "strutil.h"
 #include "symtab.h"
-#include "value.h"
 #include "var.h"
 
 namespace {

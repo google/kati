@@ -22,7 +22,7 @@
 
 using namespace std;
 
-struct AST;
+struct Stmt;
 
 class Makefile {
  public:
@@ -33,8 +33,8 @@ class Makefile {
   size_t len() const { return len_; }
   const string& filename() const { return filename_; }
 
-  const vector<AST*>& asts() const { return asts_; }
-  vector<AST*>* mutable_asts() { return &asts_; }
+  const vector<Stmt*>& stmts() const { return stmts_; }
+  vector<Stmt*>* mutable_stmts() { return &stmts_; }
 
   bool Exists() const { return buf_; }
 
@@ -43,7 +43,7 @@ class Makefile {
   size_t len_;
   uint64_t mtime_;
   string filename_;
-  vector<AST*> asts_;
+  vector<Stmt*> stmts_;
 };
 
 #endif  // FILE_H_

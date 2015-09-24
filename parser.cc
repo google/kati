@@ -19,14 +19,14 @@
 #include <stack>
 #include <unordered_map>
 
-#include "ast.h"
+#include "expr.h"
 #include "file.h"
 #include "loc.h"
 #include "log.h"
 #include "stats.h"
+#include "stmt.h"
 #include "string_piece.h"
 #include "strutil.h"
-#include "value.h"
 
 enum struct ParserState {
   NOT_AFTER_RULE = 0,
@@ -36,7 +36,7 @@ enum struct ParserState {
 
 class Parser {
   struct IfState {
-    IfAST* ast;
+    IfStmt* stmt;
     bool is_in_else;
     int num_nest;
   };
@@ -46,21 +46,21 @@ class Parser {
   typedef unordered_map<StringPiece, DirectiveHandler> DirectiveMap;
 
  public:
-  Parser(StringPiece buf, const char* filename, vector<AST*>* asts)
+  Parser(StringPiece buf, const char* filename, vector<Stmt*>* stmts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
-        asts_(asts),
-        out_asts_(asts),
+        stmts_(stmts),
+        out_stmts_(stmts),
         num_if_nest_(0),
         loc_(filename, 0),
         fixed_lineno_(false) {
   }
 
-  Parser(StringPiece buf, const Loc& loc, vector<AST*>* asts)
+  Parser(StringPiece buf, const Loc& loc, vector<Stmt*>* stmts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
-        asts_(asts),
-        out_asts_(asts),
+        stmts_(stmts),
+        out_stmts_(stmts),
         num_if_nest_(0),
         loc_(loc),
         fixed_lineno_(true) {
@@ -131,15 +131,15 @@ class Parser {
 
   void set_state(ParserState st) { state_ = st; }
 
-  static vector<ParseErrorAST*> parse_errors;
+  static vector<ParseErrorStmt*> parse_errors;
 
  private:
   void Error(const string& msg) {
-    ParseErrorAST* ast = new ParseErrorAST();
-    ast->set_loc(loc_);
-    ast->msg = msg;
-    out_asts_->push_back(ast);
-    parse_errors.push_back(ast);
+    ParseErrorStmt* stmt = new ParseErrorStmt();
+    stmt->set_loc(loc_);
+    stmt->msg = msg;
+    out_stmts_->push_back(stmt);
+    parse_errors.push_back(stmt);
   }
 
   size_t FindEndOfLine(size_t* lf_cnt) {
@@ -162,11 +162,11 @@ class Parser {
     current_directive_ = AssignDirective::NONE;
 
     if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
-      CommandAST* ast = new CommandAST();
-      ast->set_loc(loc_);
-      ast->expr = ParseExpr(line.substr(1), ParseExprOpt::COMMAND);
-      ast->orig = line;
-      out_asts_->push_back(ast);
+      CommandStmt* stmt = new CommandStmt();
+      stmt->set_loc(loc_);
+      stmt->expr = ParseExpr(line.substr(1), ParseExprOpt::COMMAND);
+      stmt->orig = line;
+      out_stmts_->push_back(stmt);
       return;
     }
 
@@ -217,23 +217,23 @@ class Parser {
     }
 
     const bool is_rule = sep != string::npos && line[sep] == ':';
-    RuleAST* ast = new RuleAST();
-    ast->set_loc(loc_);
+    RuleStmt* stmt = new RuleStmt();
+    stmt->set_loc(loc_);
 
     size_t found = FindTwoOutsideParen(line.substr(sep + 1), '=', ';');
     if (found != string::npos) {
       found += sep + 1;
-      ast->term = line[found];
+      stmt->term = line[found];
       ParseExprOpt opt =
-          ast->term == ';' ? ParseExprOpt::COMMAND : ParseExprOpt::NORMAL;
-      ast->after_term = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
-      ast->expr = ParseExpr(TrimSpace(line.substr(0, found)));
+          stmt->term == ';' ? ParseExprOpt::COMMAND : ParseExprOpt::NORMAL;
+      stmt->after_term = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
+      stmt->expr = ParseExpr(TrimSpace(line.substr(0, found)));
     } else {
-      ast->term = 0;
-      ast->after_term = NULL;
-      ast->expr = ParseExpr(line);
+      stmt->term = 0;
+      stmt->after_term = NULL;
+      stmt->expr = ParseExpr(line);
     }
-    out_asts_->push_back(ast);
+    out_stmts_->push_back(stmt);
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
   }
 
@@ -247,23 +247,23 @@ class Parser {
     AssignOp op;
     ParseAssignStatement(line, sep, &lhs, &rhs, &op);
 
-    AssignAST* ast = new AssignAST();
-    ast->set_loc(loc_);
-    ast->lhs = ParseExpr(lhs);
-    ast->rhs = ParseExpr(rhs);
-    ast->orig_rhs = rhs;
-    ast->op = op;
-    ast->directive = current_directive_;
-    out_asts_->push_back(ast);
+    AssignStmt* stmt = new AssignStmt();
+    stmt->set_loc(loc_);
+    stmt->lhs = ParseExpr(lhs);
+    stmt->rhs = ParseExpr(rhs);
+    stmt->orig_rhs = rhs;
+    stmt->op = op;
+    stmt->directive = current_directive_;
+    out_stmts_->push_back(stmt);
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
   void ParseInclude(StringPiece line, StringPiece directive) {
-    IncludeAST* ast = new IncludeAST();
-    ast->set_loc(loc_);
-    ast->expr = ParseExpr(line);
-    ast->should_exist = directive[0] == 'i';
-    out_asts_->push_back(ast);
+    IncludeStmt* stmt = new IncludeStmt();
+    stmt->set_loc(loc_);
+    stmt->expr = ParseExpr(line);
+    stmt->should_exist = directive[0] == 'i';
+    out_stmts_->push_back(stmt);
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
@@ -292,40 +292,40 @@ class Parser {
       WARN("%s:%d: extraneous text after `endef' directive", LOCF(loc_));
     }
 
-    AssignAST* ast = new AssignAST();
-    ast->set_loc(Loc(loc_.filename, define_start_line_));
-    ast->lhs = ParseExpr(define_name_);
+    AssignStmt* stmt = new AssignStmt();
+    stmt->set_loc(Loc(loc_.filename, define_start_line_));
+    stmt->lhs = ParseExpr(define_name_);
     StringPiece rhs;
     if (define_start_)
       rhs = buf_.substr(define_start_, l_ - define_start_ - 1);
-    ast->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
-    ast->orig_rhs = rhs;
-    ast->op = AssignOp::EQ;
-    ast->directive = current_directive_;
-    out_asts_->push_back(ast);
+    stmt->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
+    stmt->orig_rhs = rhs;
+    stmt->op = AssignOp::EQ;
+    stmt->directive = current_directive_;
+    out_stmts_->push_back(stmt);
     define_name_.clear();
   }
 
-  void EnterIf(IfAST* ast) {
+  void EnterIf(IfStmt* stmt) {
     IfState* st = new IfState();
-    st->ast = ast;
+    st->stmt = stmt;
     st->is_in_else = false;
     st->num_nest = num_if_nest_;
     if_stack_.push(st);
-    out_asts_ = &ast->true_asts;
+    out_stmts_ = &stmt->true_stmts;
   }
 
   void ParseIfdef(StringPiece line, StringPiece directive) {
-    IfAST* ast = new IfAST();
-    ast->set_loc(loc_);
-    ast->op = directive[2] == 'n' ? CondOp::IFNDEF : CondOp::IFDEF;
-    ast->lhs = ParseExpr(line);
-    ast->rhs = NULL;
-    out_asts_->push_back(ast);
-    EnterIf(ast);
+    IfStmt* stmt = new IfStmt();
+    stmt->set_loc(loc_);
+    stmt->op = directive[2] == 'n' ? CondOp::IFNDEF : CondOp::IFDEF;
+    stmt->lhs = ParseExpr(line);
+    stmt->rhs = NULL;
+    out_stmts_->push_back(stmt);
+    EnterIf(stmt);
   }
 
-  bool ParseIfEqCond(StringPiece s, IfAST* ast) {
+  bool ParseIfEqCond(StringPiece s, IfStmt* stmt) {
     if (s.empty()) {
       return false;
     }
@@ -334,11 +334,11 @@ class Parser {
       s = s.substr(1, s.size() - 2);
       char terms[] = {',', '\0'};
       size_t n;
-      ast->lhs = ParseExprImpl(loc_, s, terms, ParseExprOpt::NORMAL, &n, true);
+      stmt->lhs = ParseExprImpl(loc_, s, terms, ParseExprOpt::NORMAL, &n, true);
       if (s[n] != ',')
         return false;
       s = TrimLeftSpace(s.substr(n+1));
-      ast->rhs = ParseExprImpl(loc_, s, NULL, ParseExprOpt::NORMAL, &n);
+      stmt->rhs = ParseExprImpl(loc_, s, NULL, ParseExprOpt::NORMAL, &n);
       s = TrimLeftSpace(s.substr(n));
     } else {
       for (int i = 0; i < 2; i++) {
@@ -352,9 +352,9 @@ class Parser {
           return false;
         Value* v = ParseExpr(s.substr(1, end - 1), ParseExprOpt::NORMAL);
         if (i == 0)
-          ast->lhs = v;
+          stmt->lhs = v;
         else
-          ast->rhs = v;
+          stmt->rhs = v;
         s = TrimLeftSpace(s.substr(end+1));
       }
     }
@@ -366,17 +366,17 @@ class Parser {
   }
 
   void ParseIfeq(StringPiece line, StringPiece directive) {
-    IfAST* ast = new IfAST();
-    ast->set_loc(loc_);
-    ast->op = directive[2] == 'n' ? CondOp::IFNEQ : CondOp::IFEQ;
+    IfStmt* stmt = new IfStmt();
+    stmt->set_loc(loc_);
+    stmt->op = directive[2] == 'n' ? CondOp::IFNEQ : CondOp::IFEQ;
 
-    if (!ParseIfEqCond(line, ast)) {
+    if (!ParseIfEqCond(line, stmt)) {
       Error("*** invalid syntax in conditional.");
       return;
     }
 
-    out_asts_->push_back(ast);
-    EnterIf(ast);
+    out_stmts_->push_back(stmt);
+    EnterIf(stmt);
   }
 
   void ParseElse(StringPiece line, StringPiece) {
@@ -388,7 +388,7 @@ class Parser {
       return;
     }
     st->is_in_else = true;
-    out_asts_ = &st->ast->false_asts;
+    out_stmts_ = &st->stmt->false_stmts;
 
     StringPiece next_if = TrimLeftSpace(line);
     if (next_if.empty())
@@ -413,13 +413,13 @@ class Parser {
       delete if_stack_.top();
       if_stack_.pop();
       if (if_stack_.empty()) {
-        out_asts_ = asts_;
+        out_stmts_ = stmts_;
       } else {
         IfState* st = if_stack_.top();
         if (st->is_in_else)
-          out_asts_ = &st->ast->false_asts;
+          out_stmts_ = &st->stmt->false_stmts;
         else
-          out_asts_ = &st->ast->true_asts;
+          out_stmts_ = &st->stmt->true_stmts;
       }
     }
   }
@@ -430,11 +430,11 @@ class Parser {
   }
 
   void CreateExport(StringPiece line, bool is_export) {
-    ExportAST* ast = new ExportAST;
-    ast->set_loc(loc_);
-    ast->expr = ParseExpr(line);
-    ast->is_export = is_export;
-    out_asts_->push_back(ast);
+    ExportStmt* stmt = new ExportStmt;
+    stmt->set_loc(loc_);
+    stmt->expr = ParseExpr(line);
+    stmt->is_export = is_export;
+    out_stmts_->push_back(stmt);
   }
 
   void ParseOverride(StringPiece line, StringPiece) {
@@ -504,8 +504,8 @@ class Parser {
   size_t l_;
   ParserState state_;
 
-  vector<AST*>* asts_;
-  vector<AST*>* out_asts_;
+  vector<Stmt*>* stmts_;
+  vector<Stmt*>* out_stmts_;
 
   StringPiece define_name_;
   size_t define_start_;
@@ -531,19 +531,19 @@ void Parse(Makefile* mk) {
   COLLECT_STATS("parse file time");
   Parser parser(StringPiece(mk->buf(), mk->len()),
                 mk->filename().c_str(),
-                mk->mutable_asts());
+                mk->mutable_stmts());
   parser.Parse();
 }
 
-void Parse(StringPiece buf, const Loc& loc, vector<AST*>* out_asts) {
+void Parse(StringPiece buf, const Loc& loc, vector<Stmt*>* out_stmts) {
   COLLECT_STATS("parse eval time");
-  Parser parser(buf, loc, out_asts);
+  Parser parser(buf, loc, out_stmts);
   parser.Parse();
 }
 
 void ParseNotAfterRule(StringPiece buf, const Loc& loc,
-                       vector<AST*>* out_asts) {
-  Parser parser(buf, loc, out_asts);
+                       vector<Stmt*>* out_stmts) {
+  Parser parser(buf, loc, out_stmts);
   parser.set_state(ParserState::NOT_AFTER_RULE);
   parser.Parse();
 }
@@ -561,7 +561,7 @@ Parser::DirectiveMap* Parser::else_if_directives_;
 Parser::DirectiveMap* Parser::assign_directives_;
 size_t Parser::shortest_directive_len_;
 size_t Parser::longest_directive_len_;
-vector<ParseErrorAST*> Parser::parse_errors;
+vector<ParseErrorStmt*> Parser::parse_errors;
 
 void ParseAssignStatement(StringPiece line, size_t sep,
                           StringPiece* lhs, StringPiece* rhs, AssignOp* op) {
@@ -586,6 +586,6 @@ void ParseAssignStatement(StringPiece line, size_t sep,
   *rhs = TrimSpace(line.substr(sep + 1));
 }
 
-const vector<ParseErrorAST*>& GetParseErrors() {
+const vector<ParseErrorStmt*>& GetParseErrors() {
   return Parser::parse_errors;
 }

@@ -19,15 +19,15 @@
 #include <errno.h>
 #include <string.h>
 
-#include "ast.h"
+#include "expr.h"
 #include "file.h"
 #include "file_cache.h"
 #include "fileutil.h"
 #include "parser.h"
 #include "rule.h"
+#include "stmt.h"
 #include "strutil.h"
 #include "symtab.h"
-#include "value.h"
 #include "var.h"
 
 EvalResult::~EvalResult() {
@@ -96,34 +96,34 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
   return NULL;
 }
 
-void Evaluator::EvalAssign(const AssignAST* ast) {
-  loc_ = ast->loc();
+void Evaluator::EvalAssign(const AssignStmt* stmt) {
+  loc_ = stmt->loc();
   last_rule_ = NULL;
-  Symbol lhs = Intern(ast->lhs->Eval(this));
+  Symbol lhs = Intern(stmt->lhs->Eval(this));
   if (lhs.empty())
     Error("*** empty variable name.");
-  Var* rhs = EvalRHS(lhs, ast->rhs, ast->orig_rhs, ast->op,
-                     ast->directive == AssignDirective::OVERRIDE);
+  Var* rhs = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
+                     stmt->directive == AssignDirective::OVERRIDE);
   if (rhs)
     vars_->Assign(lhs, rhs);
 }
 
-void Evaluator::EvalRule(const RuleAST* ast) {
-  loc_ = ast->loc();
+void Evaluator::EvalRule(const RuleStmt* stmt) {
+  loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& expr = ast->expr->Eval(this);
+  const string&& expr = stmt->expr->Eval(this);
   // See semicolon.mk.
   if (expr.find_first_not_of(" \t\n;") == string::npos)
     return;
 
   Rule* rule;
   RuleVarAssignment rule_var;
-  ParseRule(loc_, expr, ast->term, &rule, &rule_var);
+  ParseRule(loc_, expr, stmt->term, &rule, &rule_var);
 
   if (rule) {
-    if (ast->term == ';') {
-      rule->cmds.push_back(ast->after_term);
+    if (stmt->term == ';') {
+      rule->cmds.push_back(stmt->after_term);
     }
 
     LOG("Rule: %s", rule->DebugString().c_str());
@@ -138,13 +138,13 @@ void Evaluator::EvalRule(const RuleAST* ast) {
       p.first->second = new Vars;
     }
 
-    Value* rhs = ast->after_term;
+    Value* rhs = stmt->after_term;
     if (!rule_var.rhs.empty()) {
       Value* lit = NewLiteral(rule_var.rhs);
       if (rhs) {
         // TODO: We always insert two whitespaces around the
         // terminator. Preserve whitespaces properly.
-        if (ast->term == ';') {
+        if (stmt->term == ';') {
           rhs = NewExpr3(lit, NewLiteral(StringPiece(" ; ")), rhs);
         } else {
           rhs = NewExpr3(lit, NewLiteral(StringPiece(" = ")), rhs);
@@ -163,41 +163,41 @@ void Evaluator::EvalRule(const RuleAST* ast) {
   }
 }
 
-void Evaluator::EvalCommand(const CommandAST* ast) {
-  loc_ = ast->loc();
+void Evaluator::EvalCommand(const CommandStmt* stmt) {
+  loc_ = stmt->loc();
 
   if (!last_rule_) {
-    vector<AST*> asts;
-    ParseNotAfterRule(ast->orig, ast->loc(), &asts);
-    for (AST* a : asts)
+    vector<Stmt*> stmts;
+    ParseNotAfterRule(stmt->orig, stmt->loc(), &stmts);
+    for (Stmt* a : stmts)
       a->Eval(this);
     return;
   }
 
-  last_rule_->cmds.push_back(ast->expr);
+  last_rule_->cmds.push_back(stmt->expr);
   if (last_rule_->cmd_lineno == 0)
-    last_rule_->cmd_lineno = ast->loc().lineno;
-  LOG("Command: %s", ast->expr->DebugString().c_str());
+    last_rule_->cmd_lineno = stmt->loc().lineno;
+  LOG("Command: %s", stmt->expr->DebugString().c_str());
 }
 
-void Evaluator::EvalIf(const IfAST* ast) {
-  loc_ = ast->loc();
+void Evaluator::EvalIf(const IfStmt* stmt) {
+  loc_ = stmt->loc();
 
   bool is_true;
-  switch (ast->op) {
+  switch (stmt->op) {
     case CondOp::IFDEF:
     case CondOp::IFNDEF: {
-      Symbol lhs = Intern(ast->lhs->Eval(this));
+      Symbol lhs = Intern(stmt->lhs->Eval(this));
       Var* v = LookupVarInCurrentScope(lhs);
       const string&& s = v->Eval(this);
-      is_true = (s.empty() == (ast->op == CondOp::IFNDEF));
+      is_true = (s.empty() == (stmt->op == CondOp::IFNDEF));
       break;
     }
     case CondOp::IFEQ:
     case CondOp::IFNEQ: {
-      const string&& lhs = ast->lhs->Eval(this);
-      const string&& rhs = ast->rhs->Eval(this);
-      is_true = ((lhs == rhs) == (ast->op == CondOp::IFEQ));
+      const string&& lhs = stmt->lhs->Eval(this);
+      const string&& rhs = stmt->rhs->Eval(this);
+      is_true = ((lhs == rhs) == (stmt->op == CondOp::IFEQ));
       break;
     }
     default:
@@ -205,13 +205,13 @@ void Evaluator::EvalIf(const IfAST* ast) {
       abort();
   }
 
-  const vector<AST*>* asts;
+  const vector<Stmt*>* stmts;
   if (is_true) {
-    asts = &ast->true_asts;
+    stmts = &stmt->true_stmts;
   } else {
-    asts = &ast->false_asts;
+    stmts = &stmt->false_stmts;
   }
-  for (AST* a : *asts) {
+  for (Stmt* a : *stmts) {
     LOG("%s", a->DebugString().c_str());
     a->Eval(this);
   }
@@ -223,23 +223,23 @@ void Evaluator::DoInclude(const string& fname) {
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
   var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
-  for (AST* ast : mk->asts()) {
-    LOG("%s", ast->DebugString().c_str());
-    ast->Eval(this);
+  for (Stmt* stmt : mk->stmts()) {
+    LOG("%s", stmt->DebugString().c_str());
+    stmt->Eval(this);
   }
 }
 
-void Evaluator::EvalInclude(const IncludeAST* ast) {
-  loc_ = ast->loc();
+void Evaluator::EvalInclude(const IncludeStmt* stmt) {
+  loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& pats = ast->expr->Eval(this);
+  const string&& pats = stmt->expr->Eval(this);
   for (StringPiece pat : WordScanner(pats)) {
     ScopedTerminator st(pat);
     vector<string>* files;
     Glob(pat.data(), &files);
 
-    if (ast->should_exist) {
+    if (stmt->should_exist) {
       if (files->empty()) {
         Error(StringPrintf(
             "%s: %s\n"
@@ -249,7 +249,7 @@ void Evaluator::EvalInclude(const IncludeAST* ast) {
     }
 
     for (const string& fname : *files) {
-      if (!ast->should_exist && g_flags.ignore_optional_include_pattern &&
+      if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
         return;
       }
@@ -258,15 +258,15 @@ void Evaluator::EvalInclude(const IncludeAST* ast) {
   }
 }
 
-void Evaluator::EvalExport(const ExportAST* ast) {
-  loc_ = ast->loc();
+void Evaluator::EvalExport(const ExportStmt* stmt) {
+  loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& exports = ast->expr->Eval(this);
+  const string&& exports = stmt->expr->Eval(this);
   for (StringPiece tok : WordScanner(exports)) {
     size_t equal_index = tok.find('=');
     if (equal_index == string::npos) {
-      exports_[Intern(tok)] = ast->is_export;
+      exports_[Intern(tok)] = stmt->is_export;
     } else if (equal_index == 0 ||
                (equal_index == 1 &&
                 (tok[0] == ':' || tok[0] == '?' || tok[0] == '+'))) {
@@ -276,7 +276,7 @@ void Evaluator::EvalExport(const ExportAST* ast) {
       StringPiece lhs, rhs;
       AssignOp op;
       ParseAssignStatement(tok, equal_index, &lhs, &rhs, &op);
-      exports_[Intern(lhs)] = ast->is_export;
+      exports_[Intern(lhs)] = stmt->is_export;
     }
   }
 }
