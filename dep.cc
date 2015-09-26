@@ -208,6 +208,31 @@ class DepBuilder {
     return true;
   }
 
+  void ApplyOutputPattern(const Rule& r,
+                          Symbol output,
+                          const vector<Symbol>& inputs,
+                          vector<Symbol>* out_inputs) {
+    if (inputs.empty())
+      return;
+    if (r.is_suffix_rule) {
+      for (Symbol input : inputs) {
+        out_inputs->push_back(ReplaceSuffix(output, input));
+      }
+      return;
+    }
+    if (r.output_patterns.empty()) {
+      copy(inputs.begin(), inputs.end(), back_inserter(*out_inputs));
+      return;
+    }
+    CHECK(r.output_patterns.size() == 1);
+    Pattern pat(r.output_patterns[0].str());
+    for (Symbol input : inputs) {
+      string buf;
+      pat.AppendSubst(output.str(), input.str(), &buf);
+      out_inputs->push_back(Intern(buf));
+    }
+  }
+
   shared_ptr<Rule> MergeRules(const Rule& old_rule,
                               const Rule& rule,
                               Symbol output,
@@ -231,6 +256,11 @@ class DepBuilder {
         r->cmds.push_back(c);
       for (Value* c : rule.cmds)
         r->cmds.push_back(c);
+      if (!rule.output_patterns.empty() && !old_rule.output_patterns.empty() &&
+          rule.output_patterns != old_rule.output_patterns) {
+        ERROR("%s:%d: TODO: merging two double rules with output patterns "
+              "is not supported", LOCF(rule.loc));
+      }
     } else if (!old_rule.cmds.empty() && rule.cmds.empty()) {
       r->cmds = old_rule.cmds;
     }
@@ -239,31 +269,27 @@ class DepBuilder {
     // |old_rule|), inputs in the latter rule has a priority.
     if (rule.cmds.empty()) {
       r->inputs = old_rule.inputs;
-      copy(rule.inputs.begin(), rule.inputs.end(),
-           back_inserter(r->inputs));
+      ApplyOutputPattern(rule, output, rule.inputs, &r->inputs);
       r->order_only_inputs = old_rule.order_only_inputs;
-      copy(rule.order_only_inputs.begin(), rule.order_only_inputs.end(),
-           back_inserter(r->order_only_inputs));
+      ApplyOutputPattern(rule, output, rule.order_only_inputs,
+                         &r->order_only_inputs);
+      r->output_patterns = old_rule.output_patterns;
     } else {
-      copy(old_rule.inputs.begin(), old_rule.inputs.end(),
-           back_inserter(r->inputs));
-      copy(old_rule.order_only_inputs.begin(),
-           old_rule.order_only_inputs.end(),
-           back_inserter(r->inputs));
-    }
-    for (Symbol p : old_rule.output_patterns) {
-      r->output_patterns.push_back(p);
+      ApplyOutputPattern(old_rule, output, old_rule.inputs, &r->inputs);
+      ApplyOutputPattern(old_rule, output, old_rule.order_only_inputs,
+                         &r->order_only_inputs);
     }
     return r;
   }
 
-  void PopulateExplicitRule(shared_ptr<Rule> rule) {
-    for (Symbol output : rule->outputs) {
-      const bool is_suffix_rule = PopulateSuffixRule(rule, output);
+  void PopulateExplicitRule(shared_ptr<Rule> orig_rule) {
+    for (Symbol output : orig_rule->outputs) {
+      const bool is_suffix_rule = PopulateSuffixRule(orig_rule, output);
 
-      rule = make_shared<Rule>(*rule);
+      shared_ptr<Rule> rule = make_shared<Rule>(*orig_rule);
       rule->outputs.clear();
       rule->outputs.push_back(output);
+
       auto p = rules_.insert(make_pair(output, rule));
       if (p.second) {
         if (!first_rule_ && output.get(0) != '.') {
@@ -424,6 +450,9 @@ class DepBuilder {
     }
 
     if (rule->output_patterns.size() >= 1) {
+      if (rule->output_patterns.size() != 1) {
+        fprintf(stderr, "hmm %s\n", rule->DebugString().c_str());
+      }
       CHECK(rule->output_patterns.size() == 1);
       n->output_pattern = rule->output_patterns[0];
     }
@@ -456,25 +485,16 @@ class DepBuilder {
       }
     }
 
-    for (Symbol input : rule->inputs) {
-      if (rule->output_patterns.size() > 0) {
-        if (rule->output_patterns.size() > 1) {
-          ERROR("TODO: multiple output pattern is not supported yet");
-        }
-        string o;
-        Pattern(rule->output_patterns[0].str()).AppendSubst(
-            output.str(), input.str(), &o);
-        input = Intern(o);
-      } else if (rule->is_suffix_rule) {
-        input = ReplaceSuffix(output, input);
-      }
-
-      n->actual_inputs.push_back(input);
+    ApplyOutputPattern(*rule, output, rule->inputs, &n->actual_inputs);
+    for (Symbol input : n->actual_inputs) {
       DepNode* c = BuildPlan(input, output);
       n->deps.push_back(c);
     }
 
-    for (Symbol input : rule->order_only_inputs) {
+    vector<Symbol> order_only_inputs;
+    ApplyOutputPattern(*rule, output, rule->order_only_inputs,
+                       &order_only_inputs);
+    for (Symbol input : order_only_inputs) {
       DepNode* c = BuildPlan(input, output);
       n->order_onlys.push_back(c);
     }

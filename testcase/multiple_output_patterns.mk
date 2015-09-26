@@ -1,5 +1,3 @@
-# TODO(c): Fix
-
 test: foo.o
 
 foo.o: %.o: %.c
