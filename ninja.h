@@ -27,20 +27,13 @@ using namespace std;
 struct DepNode;
 class Evaluator;
 
-void GenerateNinja(const char* ninja_suffix,
-                   const char* ninja_dir,
-                   const vector<DepNode*>& nodes,
+void GenerateNinja(const vector<DepNode*>& nodes,
                    Evaluator* ev,
                    bool build_all_targets,
                    const string& orig_args,
                    double start_time);
 
-bool NeedsRegen(const char* ninja_suffix,
-                const char* ninja_dir,
-                bool ignore_kati_binary,
-                bool dump_kati_stamp,
-                double start_time,
-                const string& orig_args);
+bool NeedsRegen(double start_time, const string& orig_args);
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);

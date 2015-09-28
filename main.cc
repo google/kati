@@ -133,10 +133,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_flags.generate_ninja && (g_flags.regen || g_flags.dump_kati_stamp)) {
     ScopedTimeReporter tr("regen check time");
-    if (!NeedsRegen(g_flags.ninja_suffix, g_flags.ninja_dir,
-                    g_flags.regen_ignoring_kati_binary,
-                    g_flags.dump_kati_stamp,
-                    start_time, orig_args)) {
+    if (!NeedsRegen(start_time, orig_args)) {
       printf("No need to regenerate ninja file\n");
       return 0;
     }
@@ -197,9 +194,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(g_flags.ninja_suffix, g_flags.ninja_dir,
-                  nodes, ev, !targets.empty(),
-                  orig_args, start_time);
+    GenerateNinja(nodes, ev, !targets.empty(), orig_args, start_time);
     return 0;
   }
 
