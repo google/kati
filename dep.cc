@@ -149,6 +149,10 @@ class DepBuilder {
       for (Symbol s : phony_)
         targets.push_back(s);
     }
+    if (g_flags.gen_all_targets) {
+      for (const auto& p : rules_)
+        targets.push_back(p.first);
+    }
 
     // TODO: LogStats?
 
