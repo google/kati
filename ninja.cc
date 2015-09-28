@@ -208,8 +208,9 @@ class NinjaGenerator {
   }
 
   static string GetStampTempFilename(const char* ninja_dir,
-                                 const char* ninja_suffix) {
-    return StringPrintf("%s.tmp", GetStampFilename(ninja_dir, ninja_suffix).c_str());
+                                     const char* ninja_suffix) {
+    return StringPrintf(
+        "%s.tmp", GetStampFilename(ninja_dir, ninja_suffix).c_str());
   }
 
  private:
