@@ -127,6 +127,13 @@ void ParseRule(Loc& loc, StringPiece line, char term,
   StringPiece third = rest.substr(index+1);
 
   for (StringPiece tok : WordScanner(second)) {
+    for (Symbol output : rule->outputs) {
+      if (!Pattern(tok).Match(output.str())) {
+        WARN("%s:%d: target `%s' doesn't match the target pattern",
+             LOCF(loc), output.c_str());
+      }
+    }
+
     rule->output_patterns.push_back(Intern(tok));
   }
 
