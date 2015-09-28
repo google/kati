@@ -241,10 +241,8 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
 
     if (stmt->should_exist) {
       if (files->empty()) {
-        Error(StringPrintf(
-            "%s: %s\n"
-            "NOTE: kati does not support generating missing makefiles",
-            pat.data(), strerror(errno)));
+        // TOOD: Kati does not support building a missing include file.
+        Error(StringPrintf("%s: %s", pat.data(), strerror(errno)));
       }
     }
 
