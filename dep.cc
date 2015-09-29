@@ -104,6 +104,7 @@ DepNode::DepNode(Symbol o, bool p)
     : output(o),
       has_rule(false),
       is_phony(p),
+      is_default_target(false),
       rule_vars(NULL),
       output_pattern(Symbol::IsUninitialized()) {
   g_dep_node_pool->push_back(this);
@@ -137,12 +138,14 @@ class DepBuilder {
 
   void Build(vector<Symbol> targets,
              vector<DepNode*>* nodes) {
-    if (targets.empty()) {
-      if (!first_rule_) {
-        ERROR("*** No targets.");
-      }
-      CHECK(!first_rule_->outputs.empty());
+    if (!first_rule_) {
+      ERROR("*** No targets.");
+    }
+    CHECK(!first_rule_->outputs.empty());
 
+    first_rule_->is_default_target = true;
+
+    if (targets.empty()) {
       targets.push_back(first_rule_->outputs[0]);
     }
     if (g_flags.gen_all_phony_targets) {
@@ -505,6 +508,7 @@ class DepBuilder {
 
     n->has_rule = true;
     n->cmds = rule->cmds;
+    n->is_default_target = rule->is_default_target;
     if (cur_rule_vars_->empty()) {
       n->rule_vars = NULL;
     } else {
