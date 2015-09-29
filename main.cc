@@ -194,7 +194,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(nodes, ev, !targets.empty(), orig_args, start_time);
+    GenerateNinja(nodes, ev, orig_args, start_time);
     return 0;
   }
 

@@ -183,10 +183,9 @@ class NinjaGenerator {
   }
 
   void Generate(const vector<DepNode*>& nodes,
-                bool build_all_targets,
                 const string& orig_args) {
     unlink(GetStampFilename().c_str());
-    GenerateNinja(nodes, build_all_targets, orig_args);
+    GenerateNinja(nodes, orig_args);
     GenerateShell();
     GenerateStamp(orig_args);
   }
@@ -554,7 +553,6 @@ class NinjaGenerator {
   }
 
   void GenerateNinja(const vector<DepNode*>& nodes,
-                     bool build_all_targets,
                      const string& orig_args) {
     fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
@@ -591,11 +589,18 @@ class NinjaGenerator {
       used_envs_.emplace(e.str(), val.as_string());
     }
 
-    if (!build_all_targets) {
+    string default_targets;
+    if (g_flags.targets.empty()) {
       CHECK(!nodes.empty());
-      fprintf(fp_, "\ndefault %s\n",
-              EscapeBuildTarget(nodes.front()->output).c_str());
+      default_targets = EscapeBuildTarget(nodes.front()->output);
+    } else {
+      for (Symbol s : g_flags.targets) {
+        if (!default_targets.empty())
+          default_targets += ' ';
+        default_targets += EscapeBuildTarget(s);
+      }
     }
+    fprintf(fp_, "\ndefault %s\n", default_targets.c_str());
 
     fclose(fp_);
   }
@@ -726,11 +731,10 @@ class NinjaGenerator {
 
 void GenerateNinja(const vector<DepNode*>& nodes,
                    Evaluator* ev,
-                   bool build_all_targets,
                    const string& orig_args,
                    double start_time) {
   NinjaGenerator ng(ev, start_time);
-  ng.Generate(nodes, build_all_targets, orig_args);
+  ng.Generate(nodes, orig_args);
 }
 
 static bool ShouldIgnoreDirty(StringPiece s) {

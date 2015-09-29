@@ -29,7 +29,6 @@ class Evaluator;
 
 void GenerateNinja(const vector<DepNode*>& nodes,
                    Evaluator* ev,
-                   bool build_all_targets,
                    const string& orig_args,
                    double start_time);
 
