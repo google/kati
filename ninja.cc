@@ -437,6 +437,9 @@ class NinjaGenerator {
         fprintf(fp_, " command = %s -c \"%s\"\n",
                 shell_.c_str(), cmd_buf.c_str());
       }
+      if (node->is_restat) {
+        fprintf(fp_, " restat = 1\n");
+      }
     }
 
     EmitBuild(node, rule_name, use_local_pool);

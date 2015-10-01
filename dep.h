@@ -30,7 +30,7 @@ class Value;
 class Vars;
 
 struct DepNode {
-  DepNode(Symbol output, bool is_phony);
+  DepNode(Symbol output, bool is_phony, bool is_restat);
 
   Symbol output;
   vector<Value*> cmds;
@@ -38,8 +38,9 @@ struct DepNode {
   vector<DepNode*> order_onlys;
   vector<DepNode*> parents;
   bool has_rule;
-  bool is_phony;
   bool is_default_target;
+  bool is_phony;
+  bool is_restat;
   vector<Symbol> actual_inputs;
   Vars* rule_vars;
   Symbol output_pattern;

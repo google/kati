@@ -100,11 +100,12 @@ class RuleTrie {
 
 }  // namespace
 
-DepNode::DepNode(Symbol o, bool p)
+DepNode::DepNode(Symbol o, bool p, bool r)
     : output(o),
       has_rule(false),
-      is_phony(p),
       is_default_target(false),
+      is_phony(p),
+      is_restat(r),
       rule_vars(NULL),
       output_pattern(Symbol::IsUninitialized()) {
   g_dep_node_pool->push_back(this);
@@ -129,6 +130,12 @@ class DepBuilder {
     if (found != rules_.end()) {
       for (Symbol input : found->second->inputs) {
         phony_.insert(input);
+      }
+    }
+    found = rules_.find(Intern(".KATI_RESTAT"));
+    if (found != rules_.end()) {
+      for (Symbol input : found->second->inputs) {
+        restat_.insert(input);
       }
     }
   }
@@ -446,7 +453,9 @@ class DepBuilder {
       return found->second;
     }
 
-    DepNode* n = new DepNode(output, phony_.count(output));
+    DepNode* n = new DepNode(output,
+                             phony_.count(output),
+                             restat_.count(output));
     done_[output] = n;
 
     shared_ptr<Rule> rule;
@@ -535,6 +544,7 @@ class DepBuilder {
   shared_ptr<Rule> first_rule_;
   unordered_map<Symbol, DepNode*> done_;
   unordered_set<Symbol> phony_;
+  unordered_set<Symbol> restat_;
 };
 
 void MakeDep(Evaluator* ev,
