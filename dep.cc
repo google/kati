@@ -136,8 +136,7 @@ class DepBuilder {
   ~DepBuilder() {
   }
 
-  void Build(vector<Symbol> targets,
-             vector<DepNode*>* nodes) {
+  void Build(vector<Symbol> targets, vector<DepNode*>* nodes) {
     if (!first_rule_) {
       ERROR("*** No targets.");
     }

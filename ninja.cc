@@ -169,7 +169,8 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
 class NinjaGenerator {
  public:
   NinjaGenerator(Evaluator* ev, double start_time)
-      : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0), start_time_(start_time) {
+      : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0), start_time_(start_time),
+        default_target_(NULL) {
     ev_->set_avoid_io(true);
     shell_ = ev->EvalVar(kShellSym);
     if (g_flags.goma_dir)
@@ -519,7 +520,7 @@ class NinjaGenerator {
     if (use_local_pool)
       fprintf(fp_, " pool = local_pool\n");
     if (node->is_default_target) {
-      fprintf(fp_, "default %s\n", target.c_str());
+      default_target_ = node;
     }
   }
 
@@ -594,9 +595,10 @@ class NinjaGenerator {
     }
 
     string default_targets;
-    if (g_flags.targets.empty()) {
-      CHECK(!nodes.empty());
-      default_targets = EscapeBuildTarget(nodes.front()->output);
+    if (g_flags.targets.empty() ||
+        g_flags.gen_all_targets || g_flags.gen_all_phony_targets) {
+      CHECK(default_target_);
+      default_targets = EscapeBuildTarget(default_target_->output);
     } else {
       for (Symbol s : g_flags.targets) {
         if (!default_targets.empty())
@@ -604,7 +606,8 @@ class NinjaGenerator {
         default_targets += EscapeBuildTarget(s);
       }
     }
-    fprintf(fp_, "\ndefault %s\n", default_targets.c_str());
+    fprintf(fp_, "\n");
+    fprintf(fp_, "default %s\n", default_targets.c_str());
 
     fclose(fp_);
   }
@@ -731,6 +734,7 @@ class NinjaGenerator {
   map<string, string> used_envs_;
   string kati_binary_;
   double start_time_;
+  DepNode* default_target_;
 };
 
 void GenerateNinja(const vector<DepNode*>& nodes,
