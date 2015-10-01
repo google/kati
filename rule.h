@@ -44,6 +44,7 @@ class Rule {
   vector<Value*> cmds;
   Loc loc;
   int cmd_lineno;
+  bool is_default_target;
 
  private:
   void Error(const string& msg) {

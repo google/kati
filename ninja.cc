@@ -438,9 +438,7 @@ class NinjaGenerator {
       }
     }
 
-    EmitBuild(node, rule_name);
-    if (use_local_pool)
-      fprintf(fp_, " pool = local_pool\n");
+    EmitBuild(node, rule_name, use_local_pool);
 
     for (DepNode* d : node->deps) {
       EmitNode(d);
@@ -499,9 +497,10 @@ class NinjaGenerator {
     s->swap(r);
   }
 
-  void EmitBuild(DepNode* node, const string& rule_name) {
+  void EmitBuild(DepNode* node, const string& rule_name, bool use_local_pool) {
+    string target = EscapeBuildTarget(node->output);
     fprintf(fp_, "build %s: %s",
-            EscapeBuildTarget(node->output).c_str(),
+            target.c_str(),
             rule_name.c_str());
     vector<Symbol> order_onlys;
     if (node->is_phony) {
@@ -517,6 +516,11 @@ class NinjaGenerator {
       }
     }
     fprintf(fp_, "\n");
+    if (use_local_pool)
+      fprintf(fp_, " pool = local_pool\n");
+    if (node->is_default_target) {
+      fprintf(fp_, "default %s\n", target.c_str());
+    }
   }
 
   void EmitRegenRules(const string& orig_args) {

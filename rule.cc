@@ -50,7 +50,8 @@ bool IsPatternRule(StringPiece s) {
 Rule::Rule()
     : is_double_colon(false),
       is_suffix_rule(false),
-      cmd_lineno(0) {
+      cmd_lineno(0),
+      is_default_target(false) {
 }
 
 void ParseRule(Loc& loc, StringPiece line, char term,

@@ -39,6 +39,7 @@ struct DepNode {
   vector<DepNode*> parents;
   bool has_rule;
   bool is_phony;
+  bool is_default_target;
   vector<Symbol> actual_inputs;
   Vars* rule_vars;
   Symbol output_pattern;
