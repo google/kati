@@ -28,6 +28,9 @@ while true
     via_ninja = true
     ARGV.shift
     ENV['NINJA_STATUS'] = 'NINJACMD: '
+  elsif ARGV[0] == '-a'
+    gen_all_targets = true
+    ARGV.shift
   elsif ARGV[0] == '-v'
     show_failing = true
     ARGV.shift
@@ -220,13 +223,24 @@ run_make_test = proc do |mk|
       if via_ninja
         cmd += ' --ninja'
       end
+      if gen_all_targets
+        if !ckati || !via_ninja
+          raise "-a should be used with -c -n"
+        end
+        cmd += ' --gen_all_targets'
+      end
       if is_silent_test
         cmd += ' -s'
       end
       cmd += " #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
       if via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
-        log = IO.popen('./ninja.sh -j1 -v 2>&1', 'r:binary', &:read)
+        cmd = './ninja.sh -j1 -v'
+        if gen_all_targets
+          cmd += " #{tc}"
+        end
+        cmd += ' 2>&1'
+        log = IO.popen(cmd, 'r:binary', &:read)
         res += normalize_ninja_log(log, mk)
       end
       res = normalize_kati_log(res)
