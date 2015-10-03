@@ -150,8 +150,6 @@ class DepBuilder {
     }
     CHECK(!first_rule_->outputs.empty());
 
-    first_rule_->is_default_target = true;
-
     if (targets.empty()) {
       targets.push_back(first_rule_->outputs[0]);
     }
@@ -293,6 +291,7 @@ class DepBuilder {
       ApplyOutputPattern(old_rule, output, old_rule.order_only_inputs,
                          &r->order_only_inputs);
     }
+    r->is_default_target |= old_rule.is_default_target;
     return r;
   }
 
@@ -307,6 +306,7 @@ class DepBuilder {
       auto p = rules_.insert(make_pair(output, rule));
       if (p.second) {
         if (!first_rule_ && output.get(0) != '.') {
+          rule->is_default_target = true;
           first_rule_ = rule;
         }
       } else {
@@ -394,6 +394,7 @@ class DepBuilder {
         copy(rule->inputs.begin(), rule->inputs.end(),
              back_inserter(r->inputs));
         r->cmds = irule->cmds;
+        r->is_default_target |= irule->is_default_target;
         r->loc = irule->loc;
         r->cmd_lineno = irule->cmd_lineno;
         *out_rule = r;
@@ -427,6 +428,7 @@ class DepBuilder {
         shared_ptr<Rule> r = make_shared<Rule>(*rule);
         r->inputs.insert(r->inputs.begin(), input);
         r->cmds = irule->cmds;
+        r->is_default_target |= irule->is_default_target;
         r->loc = irule->loc;
         r->cmd_lineno = irule->cmd_lineno;
         *out_rule = r;

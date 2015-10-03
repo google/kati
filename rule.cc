@@ -166,6 +166,8 @@ string Rule::DebugString() const {
     v.push_back("is_double_colon");
   if (is_suffix_rule)
     v.push_back("is_suffix_rule");
+  if (is_default_target)
+    v.push_back("is_default_target");
   if (!cmds.empty()) {
     v.push_back(StringPrintf("cmds=[%s]", JoinValues(cmds, ",").c_str()));
   }
