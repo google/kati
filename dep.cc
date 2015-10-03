@@ -150,7 +150,7 @@ class DepBuilder {
     }
     CHECK(!first_rule_->outputs.empty());
 
-    if (targets.empty()) {
+    if (!g_flags.gen_all_targets && targets.empty()) {
       targets.push_back(first_rule_->outputs[0]);
     }
     if (g_flags.gen_all_phony_targets) {
@@ -158,8 +158,20 @@ class DepBuilder {
         targets.push_back(s);
     }
     if (g_flags.gen_all_targets) {
-      for (const auto& p : rules_)
-        targets.push_back(p.first);
+      unordered_set<Symbol> non_root_targets;
+      for (const auto& p : rules_) {
+        for (Symbol t : p.second->inputs)
+          non_root_targets.insert(t);
+        for (Symbol t : p.second->order_only_inputs)
+          non_root_targets.insert(t);
+      }
+
+      for (const auto& p : rules_) {
+        Symbol t = p.first;
+        if (!non_root_targets.count(t)) {
+          targets.push_back(p.first);
+        }
+      }
     }
 
     // TODO: LogStats?

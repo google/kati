@@ -232,7 +232,10 @@ run_make_test = proc do |mk|
       if is_silent_test
         cmd += ' -s'
       end
-      cmd += " #{tc} 2>&1"
+      if !gen_all_targets || mk =~ /makecmdgoals/
+        cmd += " #{tc}"
+      end
+      cmd += " 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
       if via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
         cmd = './ninja.sh -j1 -v'
