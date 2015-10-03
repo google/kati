@@ -27,6 +27,7 @@ while true
   elsif ARGV[0] == '-n'
     via_ninja = true
     ARGV.shift
+    ENV['NINJA_STATUS'] = 'NINJACMD: '
   elsif ARGV[0] == '-v'
     show_failing = true
     ARGV.shift
@@ -93,7 +94,7 @@ def run_in_testdir(test_filename)
 end
 
 def normalize_ninja_log(log, mk)
-  log.gsub!(/^\[\d+\/\d+\] .*\n/, '')
+  log.gsub!(/^NINJACMD: .*\n/, '')
   log.gsub!(/^ninja: no work to do\.\n/, '')
   log.gsub!(/^ninja: error: (.*, needed by .*),.*/,
             '*** No rule to make target \\1.')
