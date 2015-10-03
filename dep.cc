@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -533,7 +534,7 @@ class DepBuilder {
   }
 
   Evaluator* ev_;
-  unordered_map<Symbol, shared_ptr<Rule>> rules_;
+  map<Symbol, shared_ptr<Rule>> rules_;
   const unordered_map<Symbol, Vars*>& rule_vars_;
   unique_ptr<Vars> cur_rule_vars_;
 

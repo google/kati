@@ -66,6 +66,10 @@ inline bool operator==(const Symbol& x, const Symbol& y) {
   return x.val() == y.val();
 }
 
+inline bool operator<(const Symbol& x, const Symbol& y) {
+  return x.str() < y.str();
+}
+
 namespace std {
 template<> struct hash<Symbol> {
   size_t operator()(const Symbol& s) const {
