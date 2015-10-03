@@ -67,7 +67,7 @@ inline bool operator==(const Symbol& x, const Symbol& y) {
 }
 
 inline bool operator<(const Symbol& x, const Symbol& y) {
-  return x.str() < y.str();
+  return x.val() < y.val();
 }
 
 namespace std {
