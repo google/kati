@@ -102,7 +102,7 @@ def normalize_ninja_log(log, mk)
   log.gsub!(/^ninja: error: (.*, needed by .*),.*/,
             '*** No rule to make target \\1.')
   log.gsub!(/^ninja: warning: multiple rules generate (.*)\. builds involving this target will not be correct.*$/,
-	    'ninja: warning: multiple rules generate \\1.')
+            'ninja: warning: multiple rules generate \\1.')
   if mk =~ /err_error_in_recipe.mk/
     # This test expects ninja fails. Strip ninja specific error logs.
     log.gsub!(/^FAILED: .*\n/, '')
@@ -134,6 +134,8 @@ def normalize_make_log(expected, mk, via_ninja)
   # ninja to produce. Remove them if we're not testing ninja.
   if !via_ninja
     expected.gsub!(/^ninja: warning: .*\n/, '')
+    # For C++ kati.
+    expected.gsub!(/(: )(\S+): (No such file or directory)\n\*\*\* No rule to make target "\2"./, '\1\2: \3')
   end
 
   expected
@@ -145,8 +147,9 @@ def normalize_kati_log(output)
   output.gsub!(/^\*kati\*.*\n/, '')
   output.gsub!(/^c?kati: /, '')
   output.gsub!(/[`'"]/, '"')
-  output.gsub!(/(: )(?:open )?(\S+): [Nn](o such file or directory)\nNOTE:.*/,
-               "\\1\\2: N\\3\n*** No rule to make target \"\\2\".")
+  # For go kati.
+  output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
+               "\\1\\2: N\\3")
   output.gsub!(/\/bin\/sh: ([^:]*): command not found/,
                "\\1: Command not found")
   output.gsub!(/.*: warning for parse error in an unevaluated line: .*\n/, '')
