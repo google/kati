@@ -58,7 +58,7 @@ void StripShellComment(string* cmd) {
     switch (*in) {
       case '#':
         if (quote == 0 && isspace(prev_char)) {
-          while (*in && *in != '\n')
+          while (in[1] && *in != '\n')
             in++;
           break;
         }
