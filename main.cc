@@ -47,18 +47,6 @@ static void Init() {
   InitFuncTable();
   InitDepNodePool();
   InitParser();
-
-  if (g_flags.makefile == NULL) {
-    if (Exists("GNUmakefile")) {
-      g_flags.makefile = "GNUmakefile";
-#if !defined(__APPLE__)
-    } else if (Exists("makefile")) {
-      g_flags.makefile = "makefile";
-#endif
-    } else if (Exists("Makefile")) {
-      g_flags.makefile = "Makefile";
-    }
-  }
 }
 
 static void Quit() {
@@ -225,6 +213,20 @@ static int Run(const vector<Symbol>& targets,
   return 0;
 }
 
+static void FindFirstMakefie() {
+  if (g_flags.makefile != NULL)
+    return;
+  if (Exists("GNUmakefile")) {
+    g_flags.makefile = "GNUmakefile";
+#if !defined(__APPLE__)
+  } else if (Exists("makefile")) {
+    g_flags.makefile = "makefile";
+#endif
+  } else if (Exists("Makefile")) {
+    g_flags.makefile = "Makefile";
+  }
+}
+
 int main(int argc, char* argv[]) {
   Init();
   string orig_args;
@@ -234,6 +236,7 @@ int main(int argc, char* argv[]) {
     orig_args += argv[i];
   }
   g_flags.Parse(argc, argv);
+  FindFirstMakefie();
   if (g_flags.makefile == NULL)
     ERROR("*** No targets specified and no makefile found.");
   // This depends on command line flags.
