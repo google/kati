@@ -134,9 +134,9 @@ def normalize_make_log(expected, mk, via_ninja)
   # ninja to produce. Remove them if we're not testing ninja.
   if !via_ninja
     expected.gsub!(/^ninja: warning: .*\n/, '')
-    # For C++ kati.
-    expected.gsub!(/(: )(\S+): (No such file or directory)\n\*\*\* No rule to make target "\2"./, '\1\2: \3')
   end
+  # Normalization for "include foo" with C++ kati.
+  expected.gsub!(/(: )(\S+): (No such file or directory)\n\*\*\* No rule to make target "\2"./, '\1\2: \3')
 
   expected
 end
@@ -147,9 +147,6 @@ def normalize_kati_log(output)
   output.gsub!(/^\*kati\*.*\n/, '')
   output.gsub!(/^c?kati: /, '')
   output.gsub!(/[`'"]/, '"')
-  # For go kati.
-  output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
-               "\\1\\2: N\\3")
   output.gsub!(/\/bin\/sh: ([^:]*): command not found/,
                "\\1: Command not found")
   output.gsub!(/.*: warning for parse error in an unevaluated line: .*\n/, '')
@@ -157,6 +154,9 @@ def normalize_kati_log(output)
   output.gsub!(/^\/bin\/sh: line 0: /, '')
   output.gsub!(/ (\.\/+)+kati\.\S+/, '') # kati log files in find_command.mk
   output.gsub!(/ (\.\/+)+test\S+.json/, '') # json files in find_command.mk
+  # Normalization for "include foo" with Go kati.
+  output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
+               "\\1\\2: N\\3")
   output
 end
 
