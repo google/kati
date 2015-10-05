@@ -393,6 +393,7 @@ puts
 
 if !unexpected_passes.empty? || !failures.empty?
   puts "FAIL! (#{failures.size + unexpected_passes.size} fails #{passes.size} passes)"
+  exit 1
 else
   puts 'PASS!'
 end
