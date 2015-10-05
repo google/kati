@@ -16,8 +16,6 @@
 
 require 'fileutils'
 
-ENV['SHELL'] = '/bin/bash'
-
 while true
   if ARGV[0] == '-s'
     test_serialization = true
@@ -225,7 +223,6 @@ run_make_test = proc do |mk|
       if ckati
         cmd = "../../ckati --use_find_emulator"
       end
-      cmd += ' SHELL=/bin/bash'
       if via_ninja
         cmd += ' --ninja'
       end
