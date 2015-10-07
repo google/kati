@@ -263,13 +263,9 @@ class DirentSymlinkNode : public DirentNode {
                        string* path, string* out) const {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks) {
-      // TODO
-      LOG("FindEmulator: symlink is hard");
-      return false;
-
       char buf[PATH_MAX+1];
       buf[PATH_MAX] = 0;
-      LOG("path=%s", path->c_str());
+      LOG("symlink path=%s", path->c_str());
       ssize_t len = readlink(path->c_str(), buf, PATH_MAX);
       if (len > 0) {
         buf[len] = 0;
@@ -283,6 +279,8 @@ class DirentSymlinkNode : public DirentNode {
         LOG("buf=%s old=%s", buf, oldpath.c_str());
 
         struct stat st;
+        // If the oldpath is a symlink, this will follow
+        // silently.
         if (stat(oldpath.c_str(), &st) == 0) {
           LOG("st OK");
           if (S_ISREG(st.st_mode)) {
@@ -303,6 +301,8 @@ class DirentSymlinkNode : public DirentNode {
             return false;
           }
         }
+        // DT_DIR should be caught earlier in traversal.
+        CHECK(type != DT_DIR);
       }
     }
     PrintIfNecessary(fc, *path, type, d, out);
@@ -673,7 +673,7 @@ class FindEmulatorImpl : public FindEmulator {
 
     if (!is_initialized_) {
       ScopedTimeReporter tr("init find emulator time");
-      root_.reset(ConstructDirectoryTree(""));
+      root_.reset(ConstructDirectoryTree("", fc.follows_symlinks));
       LOG_STAT("%d find nodes", node_cnt_);
       is_initialized_ = true;
     }
@@ -748,10 +748,21 @@ class FindEmulatorImpl : public FindEmulator {
   }
 
  private:
-  static unsigned char GetDtType(const string& path) {
+  static unsigned char GetDtType(const string& path, bool follows_symlinks) {
     struct stat st;
+
     if (lstat(path.c_str(), &st)) {
       PERROR("stat for %s", path.c_str());
+    }
+
+    if (follows_symlinks && S_ISLNK(st.st_mode)) {
+      auto orig_mode = st.st_mode;
+      if (stat(path.c_str(), &st)) {
+        // GNU find doesn't make a peep for dangling links.
+        LOG("%s: %s", path.c_str(), strerror(errno));
+        // Restore DT_LNK rather than failing on dangling links.
+        st.st_mode = orig_mode;
+      }
     }
 
     if (S_ISREG(st.st_mode)) {
@@ -773,7 +784,7 @@ class FindEmulatorImpl : public FindEmulator {
     }
   }
 
-  DirentNode* ConstructDirectoryTree(const string& path) {
+  DirentNode* ConstructDirectoryTree(const string& path, bool follows_symlinks) {
     DIR* dir = opendir(path.empty() ? "." : path.c_str());
     if (!dir)
       PERROR("opendir failed: %s", path.c_str());
@@ -797,13 +808,19 @@ class FindEmulatorImpl : public FindEmulator {
       DirentNode* c = NULL;
       auto d_type = ent->d_type;
       if (d_type == DT_UNKNOWN) {
-        d_type = GetDtType(npath);
+        d_type = GetDtType(npath, false);
         CHECK(d_type != DT_UNKNOWN);
       }
       if (d_type == DT_DIR) {
-        c = ConstructDirectoryTree(npath);
+        c = ConstructDirectoryTree(npath, follows_symlinks);
       } else if (d_type == DT_LNK) {
-        c = new DirentSymlinkNode(npath);
+        // Allow opendir() to follow the symlink.
+        auto link_type = GetDtType(npath, follows_symlinks);
+        if (link_type == DT_DIR) {
+          c = ConstructDirectoryTree(npath, follows_symlinks);
+        } else {
+          c = new DirentSymlinkNode(npath);
+        }
       } else {
         c = new DirentFileNode(npath, d_type);
       }
