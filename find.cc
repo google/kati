@@ -750,13 +750,17 @@ class FindEmulatorImpl : public FindEmulator {
  private:
   static unsigned char GetDtType(const string& path, bool follows_symlinks) {
     struct stat st;
-    if (!follows_symlinks) {
-      if (lstat(path.c_str(), &st)) {
-        PERROR("stat for %s", path.c_str());
-      }
-    } else {
+
+    if (lstat(path.c_str(), &st)) {
+      PERROR("stat for %s", path.c_str());
+    }
+
+    if (follows_symlinks && S_ISLNK(st.st_mode)) {
+      auto orig_mode = st.st_mode;
       if (stat(path.c_str(), &st)) {
-        PERROR("stat for %s", path.c_str());
+        WARN("%s: %s", path.c_str(), strerror(errno));
+        // Restore DT_LNK rather than failing on dangling links.
+        st.st_mode = orig_mode;
       }
     }
 
