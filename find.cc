@@ -758,7 +758,8 @@ class FindEmulatorImpl : public FindEmulator {
     if (follows_symlinks && S_ISLNK(st.st_mode)) {
       auto orig_mode = st.st_mode;
       if (stat(path.c_str(), &st)) {
-        WARN("%s: %s", path.c_str(), strerror(errno));
+        // GNU find doesn't make a peep for dangling links.
+        LOG("%s: %s", path.c_str(), strerror(errno));
         // Restore DT_LNK rather than failing on dangling links.
         st.st_mode = orig_mode;
       }
