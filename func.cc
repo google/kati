@@ -394,7 +394,7 @@ void RealpathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     ScopedTerminator st(tok);
     char buf[PATH_MAX];
     if (realpath(tok.data(), buf))
-      *s += buf;
+      ww.Write(buf);
   }
 }
 
