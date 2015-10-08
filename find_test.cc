@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include "strutil.h"
+
 int main(int argc, char* argv[]) {
   if (argc == 1) {
     fprintf(stderr, "TODO: Write unit tests\n");
@@ -41,5 +43,8 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Find emulator does not support this command\n");
     return 1;
   }
-  printf("%s\n", out.c_str());
+
+  for (StringPiece tok : WordScanner(out)) {
+    printf("%.*s\n", SPF(tok));
+  }
 }
