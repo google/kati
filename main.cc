@@ -227,7 +227,19 @@ static void FindFirstMakefie() {
   }
 }
 
+static void HandleRealpath(int argc, char** argv) {
+  char buf[PATH_MAX];
+  for (int i = 0; i < argc; i++) {
+    if (realpath(argv[i], buf))
+      printf("%s\n", buf);
+  }
+}
+
 int main(int argc, char* argv[]) {
+  if (argc >= 2 && !strcmp(argv[1], "--realpath")) {
+    HandleRealpath(argc - 2, argv + 2);
+    return 0;
+  }
   Init();
   string orig_args;
   for (int i = 0; i < argc; i++) {
