@@ -28,6 +28,7 @@
 
 //#undef NOLOG
 
+#include "fileutil.h"
 #include "log.h"
 #include "string_piece.h"
 #include "strutil.h"
@@ -663,6 +664,14 @@ class FindEmulatorImpl : public FindEmulator {
             !HasPrefix(s, "out"));
   }
 
+  const DirentNode* FindDir(StringPiece d, bool* should_fallback) {
+    const DirentNode* r = root_->FindDir(d);
+    if (!r) {
+      *should_fallback = Exists(d);
+    }
+    return r;
+  }
+
   virtual bool HandleFind(const string& cmd UNUSED, const FindCommand& fc,
                           string* out) override {
     if (!CanHandle(fc.chdir)) {
@@ -684,10 +693,11 @@ class FindEmulatorImpl : public FindEmulator {
             SPF(fc.testdir), cmd.c_str());
         return false;
       }
-      if (!root_->FindDir(fc.testdir)) {
+      bool should_fallback = false;
+      if (!FindDir(fc.testdir, &should_fallback)) {
         LOG("FindEmulator: Test dir (%.*s) not found: %s",
             SPF(fc.testdir), cmd.c_str());
-        return true;
+        return !should_fallback;
       }
     }
 
@@ -697,7 +707,10 @@ class FindEmulatorImpl : public FindEmulator {
             SPF(fc.chdir), cmd.c_str());
         return false;
       }
-      if (!root_->FindDir(fc.chdir)) {
+      bool should_fallback = false;
+      if (!FindDir(fc.chdir, &should_fallback)) {
+        if (should_fallback)
+          return false;
         if (!fc.redirect_to_devnull) {
           fprintf(stderr,
                   "FindEmulator: cd: %.*s: No such file or directory\n",
@@ -718,8 +731,13 @@ class FindEmulatorImpl : public FindEmulator {
         return false;
       }
 
-      const DirentNode* base = root_->FindDir(dir);
+      bool should_fallback = false;
+      const DirentNode* base = FindDir(dir, &should_fallback);
       if (!base) {
+        if (should_fallback) {
+          out->resize(orig_out_size);
+          return false;
+        }
         if (!fc.redirect_to_devnull) {
           fprintf(stderr,
                   "FindEmulator: find: `%s': No such file or directory\n",

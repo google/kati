@@ -33,6 +33,9 @@ test1:
 	mkdir -p build/tools
 	cp ../../testcase/tools/findleaves.py build/tools
 
+	mkdir -p testdir3/b/c/d
+	ln -s b testdir3/a
+
 test2:
 	@echo no options
 	$(call run_find, find testdir)
@@ -105,3 +108,8 @@ endif
 	@echo missing chdir / testdir
 	$(call run_find, cd xxx && find .)
 	$(call run_find, if [ -d xxx ]; then find .; fi)
+
+test3:
+	$(call run_find, find testdir3/a/c)
+	$(call run_find, if [ -d testdir3/a/c ]; then find testdir3/a/c; fi)
+	$(call run_find, cd testdir3/a/c && find .)
