@@ -489,7 +489,6 @@ class NinjaGenerator {
           break;
         case '`':
         case '"':
-        case '!':
         case '\\':
           r += '\\';
           // fall through.
