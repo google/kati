@@ -471,7 +471,7 @@ class NinjaGenerator {
   }
 
   void EscapeShell(string* s) const {
-    if (s->find_first_of("$`!\\\"") == string::npos)
+    if (s->find_first_of("$`\\\"") == string::npos)
       return;
     string r;
     bool last_dollar = false;
