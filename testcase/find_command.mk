@@ -35,6 +35,17 @@ test1:
 
 	mkdir -p testdir3/b/c/d
 	ln -s b testdir3/a
+	touch testdir3/b/c/d/e
+
+	mkdir -p testdir4/a/b
+	ln -s self testdir4/self
+	ln -s .. testdir4/a/b/c
+	ln -s b testdir4/a/l
+
+	mkdir -p testdir5
+	ln -s a testdir5/a
+	ln -s b testdir5/c
+	ln -s c testdir5/b
 
 test2:
 	@echo no options
@@ -97,13 +108,13 @@ endif
 	$(call run_find, find testdir -maxdepth 1hoge)
 	$(call run_find, find testdir -maxdepth -1)
 	@echo findleaves
-	$(call run_find, build/tools/findleaves.py . file1)
-	$(call run_find, build/tools/findleaves.py . file3)
-	$(call run_find, build/tools/findleaves.py --prune=dir1 . file3)
-	$(call run_find, build/tools/findleaves.py --prune=dir1 --prune=dir2 . file3)
-	$(call run_find, build/tools/findleaves.py --mindepth=1 . file1)
-	$(call run_find, build/tools/findleaves.py --mindepth=2 . file1)
-	$(call run_find, build/tools/findleaves.py --mindepth=3 . file1)
+	$(call run_find, build/tools/findleaves.py testdir file1)
+	$(call run_find, build/tools/findleaves.py testdir file3)
+	$(call run_find, build/tools/findleaves.py --prune=dir1 testdir file3)
+	$(call run_find, build/tools/findleaves.py --prune=dir1 --prune=dir2 testdir file3)
+	$(call run_find, build/tools/findleaves.py --mindepth=1 testdir file1)
+	$(call run_find, build/tools/findleaves.py --mindepth=2 testdir file1)
+	$(call run_find, build/tools/findleaves.py --mindepth=3 testdir file1)
 	$(call run_find, build/tools/findleaves.py --mindepth=2 testdir file1)
 	@echo missing chdir / testdir
 	$(call run_find, cd xxx && find .)
@@ -113,3 +124,11 @@ test3:
 	$(call run_find, find testdir3/a/c)
 	$(call run_find, if [ -d testdir3/a/c ]; then find testdir3/a/c; fi)
 	$(call run_find, cd testdir3/a/c && find .)
+	$(call run_find, build/tools/findleaves.py testdir3 e)
+
+test4:
+	$(call run_find, find -L testdir4)
+
+test5:
+	$(call run_find, find -L testdir5)
+	$(call run_find, build/tools/findleaves.py testdir5 x)

@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "string_piece.h"
@@ -48,7 +49,7 @@ struct FindCommand {
   int mindepth;
   bool redirect_to_devnull;
 
-  unique_ptr<vector<string>> read_dirs;
+  unique_ptr<unordered_set<string>> read_dirs;
 
  private:
   FindCommand(const FindCommand&) = delete;
