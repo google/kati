@@ -297,11 +297,17 @@ void NormalizePath(string* o) {
         // /..
         j = start_index;
       } else {
+        size_t orig_j = j;
         j -= 4;
         j = o->rfind('/', j);
         if (j == string::npos) {
           j = start_index;
         } else {
+          j++;
+        }
+        if (StringPiece(o->data() + j, 3) == "../") {
+          j = orig_j;
+          (*o)[j] = c;
           j++;
         }
       }

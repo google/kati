@@ -109,6 +109,10 @@ void TestNormalizePath() {
   ASSERT_EQ(NormalizePath("/../../foo"), "/foo");
   ASSERT_EQ(NormalizePath("/a/../../foo"), "/foo");
   ASSERT_EQ(NormalizePath("/a/b/.."), "/a");
+  ASSERT_EQ(NormalizePath("../../a/b"), "../../a/b");
+  ASSERT_EQ(NormalizePath("../../../a/b"), "../../../a/b");
+  ASSERT_EQ(NormalizePath(".././../a/b"), "../../a/b");
+  ASSERT_EQ(NormalizePath("./../../a/b"), "../../a/b");
 }
 
 }  // namespace
