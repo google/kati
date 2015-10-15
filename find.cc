@@ -37,7 +37,7 @@
 class FindCond {
  public:
   virtual ~FindCond() = default;
-  virtual bool IsTrue(const string& name, unsigned char type) const = 0;
+  virtual bool IsTrue(const string& path, unsigned char type) const = 0;
  protected:
   FindCond() = default;
 };
@@ -49,8 +49,8 @@ class NameCond : public FindCond {
   explicit NameCond(const string& n)
       : name_(n) {
   }
-  virtual bool IsTrue(const string& name, unsigned char) const {
-    return fnmatch(name_.c_str(), name.c_str(), 0) == 0;
+  virtual bool IsTrue(const string& path, unsigned char) const override {
+    return fnmatch(name_.c_str(), Basename(path).data(), 0) == 0;
   }
  private:
   string name_;
@@ -61,7 +61,7 @@ class TypeCond : public FindCond {
   explicit TypeCond(unsigned char t)
       : type_(t) {
   }
-  virtual bool IsTrue(const string&, unsigned char type) const {
+  virtual bool IsTrue(const string&, unsigned char type) const override {
     return type == type_;
   }
  private:
@@ -73,8 +73,8 @@ class NotCond : public FindCond {
   NotCond(FindCond* c)
       : c_(c) {
   }
-  virtual bool IsTrue(const string& name, unsigned char type) const {
-    return !c_->IsTrue(name, type);
+  virtual bool IsTrue(const string& path, unsigned char type) const override {
+    return !c_->IsTrue(path, type);
   }
  private:
   unique_ptr<FindCond> c_;
@@ -85,9 +85,9 @@ class AndCond : public FindCond {
   AndCond(FindCond* c1, FindCond* c2)
       : c1_(c1), c2_(c2) {
   }
-  virtual bool IsTrue(const string& name, unsigned char type) const {
-    if (c1_->IsTrue(name, type))
-      return c2_->IsTrue(name, type);
+  virtual bool IsTrue(const string& path, unsigned char type) const override {
+    if (c1_->IsTrue(path, type))
+      return c2_->IsTrue(path, type);
     return false;
   }
  private:
@@ -99,9 +99,9 @@ class OrCond : public FindCond {
   OrCond(FindCond* c1, FindCond* c2)
       : c1_(c1), c2_(c2) {
   }
-  virtual bool IsTrue(const string& name, unsigned char type) const {
-    if (!c1_->IsTrue(name, type))
-      return c2_->IsTrue(name, type);
+  virtual bool IsTrue(const string& path, unsigned char type) const override {
+    if (!c1_->IsTrue(path, type))
+      return c2_->IsTrue(path, type);
     return true;
   }
  private:
@@ -134,7 +134,7 @@ class DirentNode {
                         unsigned char type,
                         int d,
                         string* out) const {
-    if (fc.print_cond && !fc.print_cond->IsTrue(base_, type))
+    if (fc.print_cond && !fc.print_cond->IsTrue(path, type))
       return;
     if (d < fc.mindepth)
       return;
@@ -235,7 +235,7 @@ class DirentDirNode : public DirentNode {
 
     fc.read_dirs->insert(*path);
 
-    if (fc.prune_cond && fc.prune_cond->IsTrue(base_, DT_DIR)) {
+    if (fc.prune_cond && fc.prune_cond->IsTrue(*path, DT_DIR)) {
       if (fc.type != FindCommandType::FINDLEAVES) {
         *out += *path;
         *out += ' ';
