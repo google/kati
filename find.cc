@@ -308,6 +308,12 @@ class DirentSymlinkNode : public DirentNode {
       : DirentNode(name), to_(NULL), errno_(0) {
   }
 
+  virtual const DirentNode* FindDir(StringPiece d) const {
+    if (errno_ == 0 && to_)
+      return to_->FindDir(d);
+    return NULL;
+  }
+
   virtual bool RunFind(const FindCommand& fc, int d,
                        string* path,
                        unordered_map<const DirentNode*, string>* cur_read_dirs,
@@ -897,7 +903,10 @@ class FindEmulatorImpl : public FindEmulator {
       buf[len] = 0;
 
       struct stat st;
-      if (stat(path.c_str(), &st) < 0) {
+      unsigned char type = DT_UNKNOWN;
+      if (stat(path.c_str(), &st) == 0) {
+        type = GetDtTypeFromStat(st);
+      } else {
         s->set_errno(errno);
         LOG("stat failed: %s: %s", path.c_str(), strerror(errno));
       }
@@ -912,11 +921,17 @@ class FindEmulatorImpl : public FindEmulator {
         }
       }
 
-      unsigned char type = GetDtTypeFromStat(st);
-      if (type != DT_DIR && type != DT_LNK) {
-        s->set_to(new DirentFileNode(path, type));
+      if (type == DT_DIR) {
+        if (path.find('/') == string::npos) {
+          s->set_to(ConstructDirectoryTree(path));
+        }
+      } else if (type != DT_LNK && type != DT_UNKNOWN) {
+          s->set_to(new DirentFileNode(path, type));
       }
     }
+
+    if (!symlinks_.empty())
+      ResolveSymlinks();
   }
 
   unique_ptr<DirentNode> root_;
