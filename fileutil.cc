@@ -41,17 +41,21 @@ bool Exists(StringPiece filename) {
   return true;
 }
 
+double GetTimestampFromStat(const struct stat& st) {
+#if defined(__linux__)
+  return st.st_mtime + st.st_mtim.tv_nsec * 0.001 * 0.001 * 0.001;
+#else
+  return st.st_mtime;
+#endif
+}
+
 double GetTimestamp(StringPiece filename) {
   CHECK(filename.size() < PATH_MAX);
   struct stat st;
   if (stat(filename.as_string().c_str(), &st) < 0) {
     return -2.0;
   }
-#if defined(__linux__)
-  return st.st_mtime + st.st_mtim.tv_nsec * 0.001 * 0.001 * 0.001;
-#else
-  return st.st_mtime;
-#endif
+  return GetTimestampFromStat(st);
 }
 
 int RunCommand(const string& shell, const string& cmd,

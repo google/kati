@@ -25,6 +25,7 @@
 using namespace std;
 
 bool Exists(StringPiece f);
+double GetTimestampFromStat(const struct stat& st);
 double GetTimestamp(StringPiece f);
 
 enum struct RedirectStderr {
