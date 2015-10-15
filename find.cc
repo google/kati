@@ -881,7 +881,9 @@ class FindEmulatorImpl : public FindEmulator {
   }
 
   void ResolveSymlinks() {
-    for (const auto& p : symlinks_) {
+    vector<pair<string, DirentSymlinkNode*>> symlinks;
+    symlinks.swap(symlinks_);
+    for (const auto& p : symlinks) {
       const string& path = p.first;
       DirentSymlinkNode* s = p.second;
 
