@@ -189,9 +189,9 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
     case CondOp::IFNDEF: {
       string var_name;
       stmt->lhs->Eval(this, &var_name);
-      if (var_name.find_first_of(" \t") != string::npos)
+      Symbol lhs = Intern(TrimRightSpace(var_name));
+      if (lhs.str().find_first_of(" \t") != string::npos)
         Error("*** invalid syntax in conditional.");
-      Symbol lhs = Intern(var_name);
       Var* v = LookupVarInCurrentScope(lhs);
       const string&& s = v->Eval(this);
       is_true = (s.empty() == (stmt->op == CondOp::IFNDEF));
