@@ -583,7 +583,7 @@ void ParseAssignStatement(StringPiece line, size_t sep,
       break;
   }
   *lhs = TrimSpace(line.substr(0, lhs_end));
-  *rhs = TrimSpace(line.substr(sep + 1));
+  *rhs = TrimLeftSpace(line.substr(sep + 1));
 }
 
 const vector<ParseErrorStmt*>& GetParseErrors() {
