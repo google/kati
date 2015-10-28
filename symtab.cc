@@ -54,6 +54,7 @@ class Symtab {
   }
 
   ~Symtab() {
+    LOG_STAT("%zu symbols", symbols_.size());
     for (string* s : symbols_)
       delete s;
   }
