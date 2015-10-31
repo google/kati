@@ -336,7 +336,7 @@ target. See the following code:
 In this example, *target1* shows *Y* and *target2* shows *X*. I think this
 feature is somewhat similar to namespaces in other programming languages. If a
 target specific variable is specified for a non-leaf target, the variable will
-be used even in build commands of dependent targets.
+be used even in build commands of prerequisite targets.
 
 In general, I like GNU make, but this is the only GNU make's feature I don't
 like. See the following Makefile:
