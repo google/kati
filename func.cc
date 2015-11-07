@@ -305,8 +305,8 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 }
 
 void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
-  COLLECT_STATS("func wildcard time");
   const string&& pat = args[0]->Eval(ev);
+  COLLECT_STATS("func wildcard time");
   // Note GNU make does not delay the execution of $(wildcard) so we
   // do not need to check avoid_io here.
   WordWriter ww(s);
