@@ -43,6 +43,7 @@ def get_output_filenames
   files = Dir.glob('*')
   files.delete('Makefile')
   files.delete('build.ninja')
+  files.delete('env.sh')
   files.delete('ninja.sh')
   files.delete('gmon.out')
   files.delete('submake')
