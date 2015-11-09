@@ -153,10 +153,6 @@ class DepBuilder {
     if (!g_flags.gen_all_targets && targets.empty()) {
       targets.push_back(first_rule_->outputs[0]);
     }
-    if (g_flags.gen_all_phony_targets) {
-      for (Symbol s : phony_)
-        targets.push_back(s);
-    }
     if (g_flags.gen_all_targets) {
       unordered_set<Symbol> non_root_targets;
       for (const auto& p : rules_) {

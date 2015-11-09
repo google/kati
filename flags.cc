@@ -69,8 +69,6 @@ void Flags::Parse(int argc, char** argv) {
       enable_stat_logs = true;
     } else if (!strcmp(arg, "--ninja")) {
       generate_ninja = true;
-    } else if (!strcmp(arg, "--gen_all_phony_targets")) {
-      gen_all_phony_targets = true;
     } else if (!strcmp(arg, "--gen_all_targets")) {
       gen_all_targets = true;
     } else if (!strcmp(arg, "--regen")) {

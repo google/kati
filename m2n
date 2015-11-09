@@ -114,7 +114,7 @@ if [ x"${ninja_suffix}" != x"" ]; then
   ninja_suffix_flag=--ninja_suffix=${ninja_suffix}
 fi
 
-${kati} --ninja ${ninja_suffix_flag} --ignore_optional_include=out/%.P --ignore_dirty=out/% --use_find_emulator --detect_android_echo --gen_all_phony_targets ${goma_flag} ${extra_flags} ${targets}
+${kati} --ninja ${ninja_suffix_flag} --ignore_optional_include=out/%.P --ignore_dirty=out/% --use_find_emulator --detect_android_echo --gen_all_targets ${goma_flag} ${extra_flags} ${targets}
 
 echo
 echo ninja${ninja_suffix}.sh and build${ninja_suffix}.ninja were generated, please run ./ninja${ninja_suffix}.sh

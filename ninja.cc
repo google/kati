@@ -597,8 +597,7 @@ class NinjaGenerator {
     }
 
     string default_targets;
-    if (g_flags.targets.empty() ||
-        g_flags.gen_all_targets || g_flags.gen_all_phony_targets) {
+    if (g_flags.targets.empty() || g_flags.gen_all_targets) {
       CHECK(default_target_);
       default_targets = EscapeBuildTarget(default_target_->output);
     } else {
