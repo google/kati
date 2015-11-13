@@ -38,6 +38,7 @@ struct Flags {
   bool use_find_emulator;
   const char* goma_dir;
   const char* ignore_dirty_pattern;
+  const char* no_ignore_dirty_pattern;
   const char* ignore_optional_include_pattern;
   const char* makefile;
   const char* ninja_dir;

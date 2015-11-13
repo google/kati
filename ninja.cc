@@ -765,8 +765,9 @@ void GenerateNinja(const vector<DepNode*>& nodes,
 }
 
 static bool ShouldIgnoreDirty(StringPiece s) {
-  return (g_flags.ignore_dirty_pattern &&
-          Pattern(g_flags.ignore_dirty_pattern).Match(s));
+  Pattern pat(g_flags.ignore_dirty_pattern);
+  Pattern nopat(g_flags.no_ignore_dirty_pattern);
+  return pat.Match(s) && !nopat.Match(s);
 }
 
 bool NeedsRegen(double start_time, const string& orig_args) {

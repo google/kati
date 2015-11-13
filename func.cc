@@ -523,13 +523,15 @@ static vector<CommandResult*> g_command_results;
 bool ShouldStoreCommandResult(StringPiece cmd) {
   if (HasWord(cmd, "date") || HasWord(cmd, "echo"))
     return false;
-  if (g_flags.ignore_dirty_pattern) {
-    Pattern pat(g_flags.ignore_dirty_pattern);
-    for (StringPiece tok : WordScanner(cmd)) {
-      if (pat.Match(tok))
-        return false;
+
+  Pattern pat(g_flags.ignore_dirty_pattern);
+  Pattern nopat(g_flags.no_ignore_dirty_pattern);
+  for (StringPiece tok : WordScanner(cmd)) {
+    if (pat.Match(tok) && !nopat.Match(tok)) {
+      return false;
     }
   }
+
   return true;
 }
 

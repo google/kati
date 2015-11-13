@@ -110,6 +110,9 @@ void Flags::Parse(int argc, char** argv) {
     } else if (ParseCommandLineOptionWithArg(
         "--ignore_dirty",
         argv, &i, &ignore_dirty_pattern)) {
+    } else if (ParseCommandLineOptionWithArg(
+        "--no_ignore_dirty",
+        argv, &i, &no_ignore_dirty_pattern)) {
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
