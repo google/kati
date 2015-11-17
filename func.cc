@@ -455,6 +455,10 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   //const string text = args[0]->Eval(ev);
   string* text = new string;
   args[0]->Eval(ev, text);
+  if ((*text)[0] == '#') {
+    delete text;
+    return;
+  }
   if (ev->avoid_io()) {
     KATI_WARN("%s:%d: *warning*: $(eval) in a recipe is not recommended: %s",
               LOCF(ev->loc()), text->c_str());
