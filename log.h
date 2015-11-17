@@ -54,6 +54,11 @@ extern string* g_last_error;
     fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str()); \
   } while (0)
 
+#define KATI_WARN(...) do {                                             \
+    if (g_flags.enable_kati_warnings)                                   \
+      fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str());       \
+  } while (0)
+
 #define ERROR(...) do {                                                 \
     if (!g_log_no_exit) {                                               \
       fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str());       \

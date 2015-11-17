@@ -26,6 +26,7 @@ using namespace std;
 struct Flags {
   bool detect_android_echo;
   bool dump_kati_stamp;
+  bool enable_kati_warnings;
   bool enable_stat_logs;
   bool gen_all_targets;
   bool gen_regen_rule;
