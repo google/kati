@@ -351,7 +351,15 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
     if (s[i] == cp) {
       *index_out = i + 1;
       if (Literal* lit = dynamic_cast<Literal*>(vname)) {
-        Value* r = new SymRef(Intern(lit->val()));
+        Symbol sym = Intern(lit->val());
+        if (g_flags.enable_kati_warnings) {
+          size_t found = sym.str().find_first_of(" ({");
+          if (found != string::npos) {
+            KATI_WARN("%s:%d: *warning*: variable lookup with '%c': %.*s",
+                      loc, sym.str()[found], SPF(s));
+          }
+        }
+        Value* r = new SymRef(sym);
         delete lit;
         return r;
       }
@@ -366,6 +374,9 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
           Func* func = new Func(fi);
           ParseFunc(loc, func, s, i+1, terms, index_out);
           return func;
+        } else {
+          KATI_WARN("%s:%d: *warning*: unknown make function '%.*s': %.*s",
+                    loc, SPF(lit->val()), SPF(s));
         }
       }
 
@@ -406,6 +417,8 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
     // for detail.
     size_t found = s.find(cp);
     if (found != string::npos) {
+      KATI_WARN("%s:%d: *warning*: unmatched parentheses: %.*s",
+                loc, SPF(s));
       *index_out = s.size();
       return new SymRef(Intern(s.substr(2, found-2)));
     }
