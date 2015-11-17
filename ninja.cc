@@ -797,8 +797,11 @@ bool NeedsRegen(double start_time, const string& orig_args) {
 
   const string& stamp_filename = NinjaGenerator::GetStampFilename();
   FILE* fp = fopen(stamp_filename.c_str(), "rb+");
-  if (!fp)
-    RETURN_TRUE;
+  if (!fp) {
+    if (g_flags.dump_kati_stamp)
+      printf("%s: %s\n", stamp_filename.c_str(), strerror(errno));
+    return true;
+  }
   ScopedFile sfp(fp);
 
   double gen_time;
