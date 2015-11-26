@@ -330,6 +330,14 @@ class NinjaGenerator {
   bool GenShellScript(const vector<Command*>& commands,
                       string* cmd_buf,
                       string* description) {
+    // TODO: This is a dirty hack to set local_pool even without
+    // --goma_dir or --remote_num_jobs which are not used in AOSP
+    // anymore. This won't set local_pool for targets which appear
+    // before the first command which uses gomacc. Fortunately, such
+    // command appears soon so almost all build targets have
+    // local_pool appropriately, but it's definitely better to come up
+    // with a more reliable solution.
+    static bool was_gomacc_found = false;
     bool got_descritpion = false;
     bool use_gomacc = false;
     bool should_ignore_error = false;
@@ -373,6 +381,7 @@ class NinjaGenerator {
         }
       } else if (translated.find("/gomacc") != string::npos) {
         use_gomacc = true;
+        was_gomacc_found = true;
       }
 
       if (c == commands.back() && c->ignore_error) {
@@ -382,7 +391,8 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += ')';
     }
-    return (g_flags.remote_num_jobs || g_flags.goma_dir) && !use_gomacc;
+    return (was_gomacc_found || g_flags.remote_num_jobs ||
+            g_flags.goma_dir) && !use_gomacc;
   }
 
   void EmitDepfile(string* cmd_buf) {
