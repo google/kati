@@ -139,6 +139,15 @@ class DepBuilder {
         restat_.insert(input);
       }
     }
+    found = rules_.find(Intern(".SUFFIXES"));
+    if (found != rules_.end()) {
+      if (found->second->inputs.empty()) {
+        suffix_rules_.clear();
+      } else {
+        WARN("%s:%d: kati doesn't support .SUFFIXES with prerequisites",
+             LOCF(found->second->loc));
+      }
+    }
   }
 
   ~DepBuilder() {
