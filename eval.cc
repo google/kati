@@ -41,7 +41,8 @@ Evaluator::Evaluator(const Vars* vars)
       vars_(new Vars()),
       last_rule_(NULL),
       current_scope_(NULL),
-      avoid_io_(false) {
+      avoid_io_(false),
+      eval_depth_(0) {
 }
 
 Evaluator::~Evaluator() {

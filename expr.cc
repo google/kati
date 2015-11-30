@@ -152,7 +152,9 @@ class VarRef : public Value {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->IncrementEvalDepth();
     const string&& name = name_->Eval(ev);
+    ev->DecrementEvalDepth();
     Var* v = ev->LookupVar(Intern(name));
     v->Eval(ev, s);
   }
@@ -177,11 +179,13 @@ class VarSubst : public Value {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->IncrementEvalDepth();
     const string&& name = name_->Eval(ev);
     Var* v = ev->LookupVar(Intern(name));
-    const string&& value = v->Eval(ev);
     const string&& pat_str = pat_->Eval(ev);
     const string&& subst = subst_->Eval(ev);
+    ev->DecrementEvalDepth();
+    const string&& value = v->Eval(ev);
     WordWriter ww(s);
     Pattern pat(pat_str);
     for (StringPiece tok : WordScanner(value)) {
@@ -216,7 +220,9 @@ class Func : public Value {
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     LOG("Invoke func %s(%s)", name(), JoinValues(args_, ",").c_str());
+    ev->IncrementEvalDepth();
     fi_->func(args_, ev, s);
+    ev->DecrementEvalDepth();
   }
 
   virtual string DebugString_() const override {

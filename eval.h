@@ -92,6 +92,14 @@ class Evaluator {
     return used_undefined_vars_;
   }
 
+  int eval_depth() const { return eval_depth_; }
+  void IncrementEvalDepth() {
+    eval_depth_++;
+  }
+  void DecrementEvalDepth() {
+    eval_depth_--;
+  }
+
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
@@ -112,6 +120,10 @@ class Evaluator {
   bool is_bootstrap_;
 
   bool avoid_io_;
+  // This value tracks the nest level of make expressions. For
+  // example, $(YYY) in $(XXX $(YYY)) is evaluated with depth==2.
+  // This will be used to disallow $(shell) in other make constructs.
+  int eval_depth_;
   // Commands which should run at ninja-time (i.e., info, warning, and
   // error).
   vector<string> delayed_output_commands_;
