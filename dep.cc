@@ -148,6 +148,29 @@ class DepBuilder {
              LOCF(found->second->loc));
       }
     }
+
+    // Note we can safely ignore .DELETE_ON_ERROR for --ninja mode.
+    static const char* kUnsupportedBuiltinTargets[] = {
+      ".DEFAULT",
+      ".PRECIOUS",
+      ".INTERMEDIATE",
+      ".SECONDARY",
+      ".SECONDEXPANSION",
+      ".IGNORE",
+      ".LOW_RESOLUTION_TIME",
+      ".SILENT",
+      ".EXPORT_ALL_VARIABLES",
+      ".NOTPARALLEL",
+      ".ONESHELL",
+      ".POSIX",
+      NULL
+    };
+    for (const char** p = kUnsupportedBuiltinTargets; *p; p++) {
+      auto found = rules_.find(Intern(*p));
+      if (found != rules_.end()) {
+        WARN("%s:%d: kati doesn't support %s", LOCF(found->second->loc), *p);
+      }
+    }
   }
 
   ~DepBuilder() {
