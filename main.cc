@@ -86,7 +86,7 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
                       );
   if (g_flags.generate_ninja) {
     bootstrap += StringPrintf("MAKE?=make -j%d\n",
-                              g_flags.num_jobs < 1 ? 1 : g_flags.num_jobs / 2);
+                              g_flags.num_jobs <= 1 ? 1 : g_flags.num_jobs / 2);
   } else {
     bootstrap += StringPrintf("MAKE?=%s\n",
                               JoinStrings(g_flags.subkati_args, " ").c_str());
