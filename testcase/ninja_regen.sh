@@ -51,7 +51,7 @@ EOF
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} > /dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (Makefile)'
   fi
   ./ninja.sh
 fi
@@ -60,7 +60,7 @@ export VAR=fuga
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} > /dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (env changed)'
   fi
   ./ninja.sh
 fi
@@ -69,7 +69,7 @@ export VAR2=OK
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} > /dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (env added)'
   fi
   ./ninja.sh
 fi
@@ -79,7 +79,7 @@ touch PASS.mk
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} > /dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (wildcard)'
   fi
   ./ninja.sh
 fi
@@ -97,7 +97,7 @@ fi
 ${mk} other 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} >/dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (argument)'
   fi
   ./ninja.sh other
 fi
