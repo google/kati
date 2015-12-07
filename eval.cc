@@ -115,8 +115,11 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
 
   const string&& expr = stmt->expr->Eval(this);
   // See semicolon.mk.
-  if (expr.find_first_not_of(" \t;") == string::npos)
+  if (expr.find_first_not_of(" \t;") == string::npos) {
+    if (stmt->term == ';')
+      Error("*** missing rule before commands.");
     return;
+  }
 
   Rule* rule;
   RuleVarAssignment rule_var;
