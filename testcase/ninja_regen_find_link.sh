@@ -16,6 +16,12 @@
 
 set -e
 
+sleep_if_necessary() {
+  if [ x"${TRAVIS}" != x"" ]; then
+    sleep "$@"
+  fi
+}
+
 mk="$@"
 if echo "${mk}" | grep kati > /dev/null; then
   mk="${mk} --use_find_emulator"
@@ -36,6 +42,7 @@ touch dir1/file1 dir2/file2
 ln -s ../../dir1 linkdir/d/link
 build
 
+sleep_if_necessary 1
 touch dir1/file1_2
 build
 

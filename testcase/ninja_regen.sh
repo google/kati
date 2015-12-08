@@ -20,7 +20,7 @@ log=/tmp/log
 mk="$@"
 
 sleep_if_necessary() {
-  if [ x$(uname) != x"Linux" ]; then
+  if [ x$(uname) != x"Linux" -o x"${TRAVIS}" != x"" ]; then
     sleep "$@"
   fi
 }
