@@ -74,6 +74,15 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
+export PATH=/random_path:$PATH
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if ! grep regenerating ${log} > /dev/null; then
+    echo 'Should be regenerated (PATH changed)'
+  fi
+  ./ninja.sh
+fi
+
 sleep_if_necessary 1
 touch PASS.mk
 ${mk} 2> ${log}
