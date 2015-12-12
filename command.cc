@@ -70,6 +70,7 @@ DECLARE_AUTO_VAR_CLASS(AutoLessVar);
 DECLARE_AUTO_VAR_CLASS(AutoHatVar);
 DECLARE_AUTO_VAR_CLASS(AutoPlusVar);
 DECLARE_AUTO_VAR_CLASS(AutoStarVar);
+DECLARE_AUTO_VAR_CLASS(AutoNotImplementedVar);
 
 class AutoSuffixDVar : public AutoVar {
  public:
@@ -128,6 +129,10 @@ void AutoStarVar::Eval(Evaluator*, string* s) const {
   pat.Stem(n->output.str()).AppendToString(s);
 }
 
+void AutoNotImplementedVar::Eval(Evaluator*, string*) const {
+  ERROR("Automatic variable `$%s' isn't supported yet", sym_);
+}
+
 void AutoSuffixDVar::Eval(Evaluator* ev, string* s) const {
   string buf;
   wrapped_->Eval(ev, &buf);
@@ -177,6 +182,10 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev)
   INSERT_AUTO_VAR(AutoHatVar, "^");
   INSERT_AUTO_VAR(AutoPlusVar, "+");
   INSERT_AUTO_VAR(AutoStarVar, "*");
+  // TODO: Implement them.
+  INSERT_AUTO_VAR(AutoNotImplementedVar, "%");
+  INSERT_AUTO_VAR(AutoNotImplementedVar, "?");
+  INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
 }
 
 void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
