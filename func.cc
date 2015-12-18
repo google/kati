@@ -547,10 +547,9 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   string cmd = args[0]->Eval(ev);
   if (ev->avoid_io() && !HasNoIoInShellScript(cmd)) {
     if (ev->eval_depth() > 1) {
-      // TODO: Make this an error.
-      WARN("%s:%d: kati doesn't support passing results of $(shell) "
-           "to other make constructs: %s",
-           LOCF(ev->loc()), cmd.c_str());
+      ERROR("%s:%d: kati doesn't support passing results of $(shell) "
+            "to other make constructs: %s",
+            LOCF(ev->loc()), cmd.c_str());
     }
     StripShellComment(&cmd);
     *s += "$(";
