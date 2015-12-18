@@ -129,8 +129,9 @@ void AutoStarVar::Eval(Evaluator*, string* s) const {
   pat.Stem(n->output.str()).AppendToString(s);
 }
 
-void AutoNotImplementedVar::Eval(Evaluator*, string*) const {
-  ERROR("Automatic variable `$%s' isn't supported yet", sym_);
+void AutoNotImplementedVar::Eval(Evaluator* ev, string*) const {
+  ev->Error(StringPrintf(
+      "Automatic variable `$%s' isn't supported yet", sym_));
 }
 
 void AutoSuffixDVar::Eval(Evaluator* ev, string* s) const {
