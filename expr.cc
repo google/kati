@@ -62,6 +62,8 @@ class Literal : public Value {
     s->append(s_.begin(), s_.end());
   }
 
+  virtual bool IsLiteral() const { return true; }
+
   virtual string DebugString_() const override {
     return s_.as_string();
   }
@@ -356,7 +358,8 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
     i += n;
     if (s[i] == cp) {
       *index_out = i + 1;
-      if (Literal* lit = dynamic_cast<Literal*>(vname)) {
+      if (vname->IsLiteral()) {
+        Literal* lit = static_cast<Literal*>(vname);
         Symbol sym = Intern(lit->val());
         if (g_flags.enable_kati_warnings) {
           size_t found = sym.str().find_first_of(" ({");
@@ -374,7 +377,8 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
 
     if (s[i] == ' ' || s[i] == '\\') {
       // ${func ...}
-      if (Literal* lit = dynamic_cast<Literal*>(vname)) {
+      if (vname->IsLiteral()) {
+        Literal* lit = static_cast<Literal*>(vname);
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
           delete lit;
           Func* func = new Func(fi);

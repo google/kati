@@ -41,6 +41,8 @@ class Value : public Evaluable {
 
   virtual Value* Compact() { return this; }
 
+  virtual bool IsLiteral() const { return false; }
+
   string DebugString() const;
 
  protected:
