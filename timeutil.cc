@@ -16,6 +16,7 @@
 
 #include "timeutil.h"
 
+#include <sys/time.h>
 #include <time.h>
 
 #include "log.h"
