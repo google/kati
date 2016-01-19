@@ -46,6 +46,7 @@ KATI_CXX_SRCS := \
 	stringprintf.cc \
 	strutil.cc \
 	symtab.cc \
+	thread.cc \
 	timeutil.cc \
 	var.cc
 

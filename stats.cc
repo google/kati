@@ -16,6 +16,7 @@
 
 #include "stats.h"
 
+#include <mutex>
 #include <vector>
 
 #include "flags.h"
