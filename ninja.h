@@ -32,7 +32,9 @@ void GenerateNinja(const vector<DepNode*>& nodes,
                    const string& orig_args,
                    double start_time);
 
-bool NeedsRegen(double start_time, const string& orig_args);
+string GetNinjaFilename();
+string GetNinjaShellScriptFilename();
+string GetNinjaStampFilename();
 
 // Exposed only for test.
 bool GetDepfileFromCommand(string* cmd, string* out);
