@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "flags.h"
 #include "log.h"
 #include "stringprintf.h"
 #include "timeutil.h"
@@ -55,10 +56,14 @@ double Stats::End() {
 
 ScopedStatsRecorder::ScopedStatsRecorder(Stats* st, const char* msg)
     : st_(st), msg_(msg) {
+  if (!g_flags.enable_stat_logs)
+    return;
   st_->Start();
 }
 
 ScopedStatsRecorder::~ScopedStatsRecorder() {
+  if (!g_flags.enable_stat_logs)
+    return;
   double e = st_->End();
   if (msg_ && e > 3.0) {
     LOG_STAT("slow %s (%f): %s", st_->name_, e, msg_);
