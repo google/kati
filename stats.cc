@@ -26,31 +26,35 @@
 namespace {
 
 vector<Stats*>* g_stats;
+thread_local double g_start_time = 0.0;
 
 }  // namespace
 
 Stats::Stats(const char* name)
-    : name_(name), start_time_(0), elapsed_(0), cnt_(0) {
+    : name_(name), elapsed_(0), cnt_(0) {
   if (g_stats == NULL)
     g_stats = new vector<Stats*>;
   g_stats->push_back(this);
 }
 
 string Stats::String() const {
+  unique_lock<mutex> lock(mu_);
   return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
 }
 
 void Stats::Start() {
-  CHECK(!start_time_);
+  CHECK(!g_start_time);
+  g_start_time = GetTime();
+  unique_lock<mutex> lock(mu_);
   cnt_++;
-  start_time_ = GetTime();
 }
 
 double Stats::End() {
-  CHECK(start_time_);
-  double e = GetTime() - start_time_;
+  CHECK(g_start_time);
+  double e = GetTime() - g_start_time;
+  g_start_time = 0;
+  unique_lock<mutex> lock(mu_);
   elapsed_ += e;
-  start_time_ = 0;
   return e;
 }
 
