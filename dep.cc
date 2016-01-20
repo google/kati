@@ -108,6 +108,7 @@ DepNode::DepNode(Symbol o, bool p, bool r)
       is_phony(p),
       is_restat(r),
       rule_vars(NULL),
+      depfile_var(NULL),
       output_pattern(Symbol::IsUninitialized()) {
   g_dep_node_pool->push_back(this);
 }
@@ -120,7 +121,8 @@ class DepBuilder {
       : ev_(ev),
         rule_vars_(rule_vars),
         implicit_rules_(new RuleTrie()),
-        first_rule_(NULL) {
+        first_rule_(NULL),
+        depfile_var_name_(Intern(".KATI_DEPFILE")) {
     PopulateRules(rules);
     LOG_STAT("%zu variables", ev->mutable_vars()->size());
     LOG_STAT("%zu explicit rules", rules_.size());
@@ -539,7 +541,12 @@ class DepBuilder {
             continue;
           }
         }
-        sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
+
+        if (name == depfile_var_name_) {
+          n->depfile_var = new_var;
+        } else {
+          sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
+        }
       }
     }
 
@@ -588,6 +595,7 @@ class DepBuilder {
   unordered_map<Symbol, DepNode*> done_;
   unordered_set<Symbol> phony_;
   unordered_set<Symbol> restat_;
+  Symbol depfile_var_name_;
 };
 
 void MakeDep(Evaluator* ev,

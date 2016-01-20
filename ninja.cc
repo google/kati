@@ -169,7 +169,11 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
 class NinjaGenerator {
  public:
   NinjaGenerator(Evaluator* ev, double start_time)
-      : ce_(ev), ev_(ev), fp_(NULL), rule_id_(0), start_time_(start_time),
+      : ce_(ev),
+        ev_(ev),
+        fp_(NULL),
+        rule_id_(0),
+        start_time_(start_time),
         default_target_(NULL) {
     ev_->set_avoid_io(true);
     shell_ = ev->EvalVar(kShellSym);
@@ -403,12 +407,21 @@ class NinjaGenerator {
             g_flags.goma_dir) && !use_gomacc;
   }
 
-  void EmitDepfile(string* cmd_buf) {
+  bool GetDepfile(DepNode* node, string* cmd_buf, string* depfile) {
+    if (node->depfile_var) {
+      node->depfile_var->Eval(ev_, depfile);
+      return true;
+    }
+
     *cmd_buf += ' ';
-    string depfile;
-    bool result = GetDepfileFromCommand(cmd_buf, &depfile);
+    bool result = GetDepfileFromCommand(cmd_buf, depfile);
     cmd_buf->resize(cmd_buf->size()-1);
-    if (!result)
+    return result;
+  }
+
+  void EmitDepfile(DepNode* node, string* cmd_buf) {
+    string depfile;
+    if (!GetDepfile(node, cmd_buf, &depfile))
       return;
     fprintf(fp_, " depfile = %s\n", depfile.c_str());
     fprintf(fp_, " deps = gcc\n");
@@ -442,7 +455,7 @@ class NinjaGenerator {
       string cmd_buf;
       use_local_pool |= GenShellScript(commands, &cmd_buf, &description);
       fprintf(fp_, " description = %s\n", description.c_str());
-      EmitDepfile(&cmd_buf);
+      EmitDepfile(node, &cmd_buf);
 
       // It seems Linux is OK with ~130kB and Mac's limit is ~250kB.
       // TODO: Find this number automatically.

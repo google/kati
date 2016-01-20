@@ -27,6 +27,7 @@
 class Evaluator;
 class Rule;
 class Value;
+class Var;
 class Vars;
 
 struct DepNode {
@@ -43,6 +44,7 @@ struct DepNode {
   bool is_restat;
   vector<Symbol> actual_inputs;
   Vars* rule_vars;
+  Var* depfile_var;
   Symbol output_pattern;
   Loc loc;
 };
