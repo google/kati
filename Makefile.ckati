@@ -71,7 +71,7 @@ KATI_CXXFLAGS += -O -DNOLOG
 #KATI_CXXFLAGS += -pg
 
 ifeq ($(shell uname),Linux)
-KATI_LIBS := -lrt
+KATI_LIBS := -lrt -lpthread
 endif
 
 # Rule to build ckati into KATI_BIN_PATH

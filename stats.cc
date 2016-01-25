@@ -22,12 +22,13 @@
 #include "flags.h"
 #include "log.h"
 #include "stringprintf.h"
+#include "thread_local.h"
 #include "timeutil.h"
 
 namespace {
 
 vector<Stats*>* g_stats;
-thread_local double g_start_time = 0.0;
+DEFINE_THREAD_LOCAL(double, g_start_time);
 
 }  // namespace
 
@@ -44,16 +45,16 @@ string Stats::String() const {
 }
 
 void Stats::Start() {
-  CHECK(!g_start_time);
-  g_start_time = GetTime();
+  CHECK(!g_start_time.Ref());
+  g_start_time.Ref() = GetTime();
   unique_lock<mutex> lock(mu_);
   cnt_++;
 }
 
 double Stats::End() {
-  CHECK(g_start_time);
-  double e = GetTime() - g_start_time;
-  g_start_time = 0;
+  CHECK(g_start_time.Ref());
+  double e = GetTime() - g_start_time.Ref();
+  g_start_time.Ref() = 0;
   unique_lock<mutex> lock(mu_);
   elapsed_ += e;
   return e;
