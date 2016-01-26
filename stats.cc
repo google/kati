@@ -29,7 +29,13 @@ namespace {
 
 mutex g_mu;
 vector<Stats*>* g_stats;
+#ifdef __linux__
+thread_local double g_start_time;
+#define REF(x) x
+#else
 DEFINE_THREAD_LOCAL(double, g_start_time);
+#define REF(x) x.Ref()
+#endif
 
 }  // namespace
 
@@ -47,16 +53,16 @@ string Stats::String() const {
 }
 
 void Stats::Start() {
-  CHECK(!g_start_time.Ref());
-  g_start_time.Ref() = GetTime();
+  CHECK(!REF(g_start_time));
+  REF(g_start_time) = GetTime();
   unique_lock<mutex> lock(mu_);
   cnt_++;
 }
 
 double Stats::End() {
-  CHECK(g_start_time.Ref());
-  double e = GetTime() - g_start_time.Ref();
-  g_start_time.Ref() = 0;
+  CHECK(REF(g_start_time));
+  double e = GetTime() - REF(g_start_time);
+  REF(g_start_time) = 0;
   unique_lock<mutex> lock(mu_);
   elapsed_ += e;
   return e;
