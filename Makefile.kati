@@ -25,7 +25,7 @@ kati: go_src_stamp
 	GOPATH=${KATI_GOPATH} go install -ldflags "-X github.com/google/kati.gitVersion $(shell git rev-parse HEAD)" github.com/google/kati/cmd/kati
 	cp out/bin/kati $@
 
-go_src_stamp: $(GO_SRCS) cmd/*/*.go
+go_src_stamp: $(GO_SRCS) $(wildcard cmd/*/*.go)
 	-rm -rf out/{src,pkg/*}/github.com/google/kati
 	mkdir -p out/{src,pkg/*}/github.com/google/kati
 	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
