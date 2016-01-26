@@ -27,6 +27,7 @@
 
 namespace {
 
+mutex g_mu;
 vector<Stats*>* g_stats;
 DEFINE_THREAD_LOCAL(double, g_start_time);
 
@@ -34,6 +35,7 @@ DEFINE_THREAD_LOCAL(double, g_start_time);
 
 Stats::Stats(const char* name)
     : name_(name), elapsed_(0), cnt_(0) {
+  unique_lock<mutex> lock(g_mu);
   if (g_stats == NULL)
     g_stats = new vector<Stats*>;
   g_stats->push_back(this);
