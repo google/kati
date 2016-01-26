@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <glob.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -109,8 +110,10 @@ int RunCommand(const string& shell, const string& cmd,
       shell.c_str(), "-c", cmd.c_str(), NULL
     };
     execvp(argv[0], const_cast<char**>(argv));
+    PLOG("execvp for %s failed", argv[0]);
+    kill(getppid(), SIGTERM);
+    _exit(1);
   }
-  abort();
 }
 
 void GetExecutablePath(string* path) {
