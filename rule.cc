@@ -128,6 +128,7 @@ void ParseRule(Loc& loc, StringPiece line, char term,
   StringPiece third = rest.substr(index+1);
 
   for (StringPiece tok : WordScanner(second)) {
+    tok = TrimLeadingCurdir(tok);
     for (Symbol output : rule->outputs) {
       if (!Pattern(tok).Match(output.str())) {
         WARN("%s:%d: target `%s' doesn't match the target pattern",
