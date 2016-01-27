@@ -114,6 +114,11 @@ $(KATI_INTERMEDIATES_PATH)/version.cc: $(KATI_VERSION_DEPS)
 	echo >> $@
 	echo 'const char* kGitVersion = "$(KATI_VERSION)";' >> $@
 
+tsan_ckati:
+	$(MAKE) clean
+	$(MAKE) all CXX='clang++-3.6 -fsanitize=thread'
+	cp ckati $@
+
 ckati_clean:
 	rm -rf $(KATI_INTERMEDIATES_PATH)/ckati
 	rm -rf $(KATI_INTERMEDIATES_PATH)/*.o
