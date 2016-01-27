@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THREAD_H_
-#define THREAD_H_
-
-#include <pthread.h>
+#ifndef THREAD_POOL_H_
+#define THREAD_POOL_H_
 
 #include <functional>
 
 using namespace std;
 
-class thread {
-  typedef function<void(void)> fn_t;
-
+class ThreadPool {
  public:
-  explicit thread(const fn_t& fn);
-  void join();
+  virtual ~ThreadPool() = default;
 
- private:
-  static void* Run(void* p);
+  virtual void Submit(function<void(void)> task) = 0;
+  virtual void Wait() = 0;
 
-  pthread_t th_;
+ protected:
+  ThreadPool() = default;
 };
 
-#endif  // THREAD_H_
+ThreadPool* NewThreadPool(int num_threads);
+
+#endif  // THREAD_POOL_H_

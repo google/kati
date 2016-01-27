@@ -23,6 +23,7 @@ KATI_BIN_PATH ?= .
 
 KATI_CXX_SRCS := \
 	command.cc \
+	condvar.cc \
 	dep.cc \
 	eval.cc \
 	exec.cc \
@@ -36,6 +37,7 @@ KATI_CXX_SRCS := \
 	io.cc \
 	log.cc \
 	main.cc \
+	mutex.cc \
 	ninja.cc \
 	parser.cc \
 	regen.cc \
@@ -47,6 +49,7 @@ KATI_CXX_SRCS := \
 	strutil.cc \
 	symtab.cc \
 	thread.cc \
+	thread_pool.cc \
 	timeutil.cc \
 	var.cc
 

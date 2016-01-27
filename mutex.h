@@ -12,26 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THREAD_H_
-#define THREAD_H_
+#ifndef MUTEX_H_
+#define MUTEX_H_
 
 #include <pthread.h>
 
-#include <functional>
-
-using namespace std;
-
-class thread {
-  typedef function<void(void)> fn_t;
-
+class mutex {
  public:
-  explicit thread(const fn_t& fn);
-  void join();
+  explicit mutex();
+  ~mutex();
+
+  void lock();
+  void unlock();
 
  private:
-  static void* Run(void* p);
+  pthread_mutex_t mu_;
 
-  pthread_t th_;
+  friend class condition_variable;
 };
 
-#endif  // THREAD_H_
+template<class T> class unique_lock {
+ public:
+  explicit unique_lock(T& mu)
+      : mu_(mu) {
+    mu_.lock();
+  }
+  ~unique_lock() {
+    mu_.unlock();
+  }
+
+  T* mutex() const { return &mu_; }
+
+ private:
+  T& mu_;
+};
+
+#endif  // MUTEX_H_

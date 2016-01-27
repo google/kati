@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THREAD_H_
-#define THREAD_H_
+#ifndef CONDVAR_H_
+#define CONDVAR_H_
 
 #include <pthread.h>
 
-#include <functional>
+#include "mutex.h"
 
-using namespace std;
-
-class thread {
-  typedef function<void(void)> fn_t;
-
+class condition_variable {
  public:
-  explicit thread(const fn_t& fn);
-  void join();
+  condition_variable();
+  ~condition_variable();
+
+  void wait(const unique_lock<mutex>& mu);
+  void notify_one();
+  void notify_all();
 
  private:
-  static void* Run(void* p);
-
-  pthread_t th_;
+  pthread_cond_t cond_;
 };
 
-#endif  // THREAD_H_
+#endif  // CONDVAR_H_

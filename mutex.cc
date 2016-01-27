@@ -12,26 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THREAD_H_
-#define THREAD_H_
+#include "mutex.h"
 
-#include <pthread.h>
+#include "log.h"
 
-#include <functional>
+mutex::mutex() {
+  if (pthread_mutex_init(&mu_, NULL) != 0)
+    PERROR("pthread_mutex_init");
+}
 
-using namespace std;
+mutex::~mutex() {
+  if (pthread_mutex_destroy(&mu_) != 0)
+    PERROR("pthread_mutex_destroy");
+}
 
-class thread {
-  typedef function<void(void)> fn_t;
+void mutex::lock() {
+  if (pthread_mutex_lock(&mu_) != 0)
+    PERROR("pthread_mutex_lock");
+}
 
- public:
-  explicit thread(const fn_t& fn);
-  void join();
-
- private:
-  static void* Run(void* p);
-
-  pthread_t th_;
-};
-
-#endif  // THREAD_H_
+void mutex::unlock() {
+  if (pthread_mutex_unlock(&mu_) != 0)
+    PERROR("pthread_mutex_unlock");
+}

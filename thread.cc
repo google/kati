@@ -14,71 +14,21 @@
 
 #include "thread.h"
 
-#include <condition_variable>
-#include <mutex>
-#include <stack>
-#include <thread>
-#include <vector>
+#include "log.h"
 
-class ThreadPoolImpl : public ThreadPool {
- public:
-  explicit ThreadPoolImpl(int num_threads)
-      : is_waiting_(false) {
-    for (int i = 0; i < num_threads; i++) {
-      threads_.push_back(thread([this]() { Loop(); }));
-    }
-  }
+thread::thread(const fn_t& fn) {
+  if (pthread_create(&th_, NULL, &thread::Run, new fn_t(fn)) != 0)
+    PERROR("pthread_create");
+}
 
-  virtual ~ThreadPoolImpl() override {
-  }
+void thread::join() {
+  if (pthread_join(th_, NULL) != 0)
+    PERROR("pthread_join");
+}
 
-  virtual void Submit(function<void(void)> task) override {
-    unique_lock<mutex> lock(mu_);
-    tasks_.push(task);
-    cond_.notify_one();
-  }
-
-  virtual void Wait() override {
-    {
-      unique_lock<mutex> lock(mu_);
-      is_waiting_ = true;
-      cond_.notify_all();
-    }
-
-    for (thread& th : threads_) {
-      th.join();
-    }
-  }
-
- private:
-  void Loop() {
-    while (true) {
-      function<void(void)> task;
-      {
-        unique_lock<mutex> lock(mu_);
-        if (tasks_.empty()) {
-          if (is_waiting_)
-            return;
-          cond_.wait(lock);
-        }
-
-        if (tasks_.empty())
-          continue;
-
-        task = tasks_.top();
-        tasks_.pop();
-      }
-      task();
-    }
-  }
-
-  vector<thread> threads_;
-  mutex mu_;
-  condition_variable cond_;
-  stack<function<void(void)>> tasks_;
-  bool is_waiting_;
-};
-
-ThreadPool* NewThreadPool(int num_threads) {
-  return new ThreadPoolImpl(num_threads);
+void* thread::Run(void* p) {
+  fn_t* fn = static_cast<fn_t*>(p);
+  (*fn)();
+  delete fn;
+  return NULL;
 }

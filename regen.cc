@@ -18,17 +18,17 @@
 
 #include <algorithm>
 #include <memory>
-#include <mutex>
 #include <vector>
 
 #include "fileutil.h"
 #include "find.h"
 #include "io.h"
 #include "log.h"
+#include "mutex.h"
 #include "ninja.h"
 #include "stats.h"
 #include "strutil.h"
-#include "thread.h"
+#include "thread_pool.h"
 
 namespace {
 
