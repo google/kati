@@ -312,8 +312,8 @@ class DepBuilder {
         r->cmds.push_back(c);
       if (!rule.output_patterns.empty() && !old_rule.output_patterns.empty() &&
           rule.output_patterns != old_rule.output_patterns) {
-        ERROR("%s:%d: TODO: merging two double rules with output patterns "
-              "is not supported", LOCF(rule.loc));
+        ERROR("%s:%d: TODO: merging two double colon rules with output "
+              "patterns is not supported", LOCF(rule.loc));
       }
     } else if (!old_rule.cmds.empty() && rule.cmds.empty()) {
       r->cmds = old_rule.cmds;
