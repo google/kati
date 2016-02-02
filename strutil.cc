@@ -26,10 +26,14 @@
 
 #include "log.h"
 
+static bool isSpace(char c) {
+  return (9 <= c && c <= 13) || c == 32;
+}
+
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
   for (s = i; s < len; s++) {
-    if (!isspace((*in)[s]))
+    if (!isSpace((*in)[s]))
       break;
   }
   if (s == len) {
@@ -39,7 +43,7 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     return *this;
   }
   for (i = s; i < len; i++) {
-    if (isspace((*in)[i]))
+    if (isSpace((*in)[i]))
       break;
   }
   return *this;
@@ -120,10 +124,10 @@ bool HasWord(StringPiece str, StringPiece w) {
   size_t found = str.find(w);
   if (found == string::npos)
     return false;
-  if (found != 0 && !isspace(str[found-1]))
+  if (found != 0 && !isSpace(str[found-1]))
     return false;
   size_t end = found + w.size();
-  if (end != str.size() && !isspace(str[end]))
+  if (end != str.size() && !isSpace(str[end]))
     return false;
   return true;
 }
@@ -211,7 +215,7 @@ string NoLineBreak(const string& s) {
 StringPiece TrimLeftSpace(StringPiece s) {
   size_t i = 0;
   for (; i < s.size(); i++) {
-    if (isspace(s[i]))
+    if (isSpace(s[i]))
       continue;
     char n = s.get(i+1);
     if (s[i] == '\\' && (n == '\r' || n == '\n')) {
@@ -227,7 +231,7 @@ StringPiece TrimRightSpace(StringPiece s) {
   size_t i = 0;
   for (; i < s.size(); i++) {
     char c = s[s.size() - 1 - i];
-    if (isspace(c)) {
+    if (isSpace(c)) {
       if ((c == '\r' || c == '\n') && s.get(s.size() - 2 - i) == '\\')
         i++;
       continue;
