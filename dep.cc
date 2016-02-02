@@ -45,10 +45,10 @@ static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
 
 class RuleTrie {
   struct Entry {
-    Entry(shared_ptr<Rule> r, StringPiece s)
+    Entry(const Rule* r, StringPiece s)
         : rule(r), suffix(s) {
     }
-    shared_ptr<Rule> rule;
+    const Rule* rule;
     StringPiece suffix;
   };
 
@@ -59,7 +59,7 @@ class RuleTrie {
       delete p.second;
   }
 
-  void Add(StringPiece name, shared_ptr<Rule> rule) {
+  void Add(StringPiece name, const Rule* rule) {
     if (name.empty() || name[0] == '%') {
       rules_.push_back(Entry(rule, name));
       return;
@@ -72,7 +72,7 @@ class RuleTrie {
     p.first->second->Add(name.substr(1), rule);
   }
 
-  void Get(StringPiece name, vector<shared_ptr<Rule>>* rules) const {
+  void Get(StringPiece name, vector<const Rule*>* rules) const {
     for (const Entry& ent : rules_) {
       if ((ent.suffix.empty() && name.empty()) ||
           HasSuffix(name, ent.suffix.substr(1))) {
@@ -360,10 +360,7 @@ class DepBuilder {
 
   void PopulateImplicitRule(shared_ptr<Rule> rule) {
     for (Symbol output_pattern : rule->output_patterns) {
-      shared_ptr<Rule> r = make_shared<Rule>(*rule);
-      r->output_patterns.clear();
-      r->output_patterns.push_back(output_pattern);
-      implicit_rules_->Add(output_pattern.str(), r);
+      implicit_rules_->Add(output_pattern.str(), rule.get());
     }
   }
 
@@ -381,18 +378,46 @@ class DepBuilder {
     return NULL;
   }
 
-  bool CanPickImplicitRule(shared_ptr<Rule> rule, Symbol output) {
-    CHECK(rule->output_patterns.size() == 1);
-    Pattern pat(rule->output_patterns[0].str());
-    if (!pat.Match(output.str())) {
+  bool CanPickImplicitRule(const Rule* rule, Symbol output, DepNode* n,
+                           shared_ptr<Rule>* out_rule) {
+    Symbol matched(Symbol::IsUninitialized{});
+    for (Symbol output_pattern : rule->output_patterns) {
+      Pattern pat(output_pattern.str());
+      if (pat.Match(output.str())) {
+        bool ok = true;
+        for (Symbol input : rule->inputs) {
+          string buf;
+          pat.AppendSubst(output.str(), input.str(), &buf);
+          if (!Exists(Intern(buf))) {
+            ok = false;
+            break;
+          }
+        }
+
+        if (ok) {
+          matched = output_pattern;
+          break;
+        }
+      }
+    }
+    if (!matched.IsValid())
       return false;
+
+    *out_rule = make_shared<Rule>(*rule);
+    if ((*out_rule)->output_patterns.size() > 1) {
+      // We should mark all other output patterns as used.
+      Pattern pat(matched.str());
+      for (Symbol output_pattern : rule->output_patterns) {
+        if (output_pattern == matched)
+          continue;
+        string buf;
+        pat.AppendSubst(output.str(), output_pattern.str(), &buf);
+        done_[Intern(buf)] = n;
+      }
+      (*out_rule)->output_patterns.clear();
+      (*out_rule)->output_patterns.push_back(matched);
     }
-    for (Symbol input : rule->inputs) {
-      string buf;
-      pat.AppendSubst(output.str(), input.str(), &buf);
-      if (!Exists(Intern(buf)))
-        return false;
-    }
+
     return true;
   }
 
@@ -410,7 +435,7 @@ class DepBuilder {
     return r;
   }
 
-  bool PickRule(Symbol output,
+  bool PickRule(Symbol output, DepNode* n,
                 shared_ptr<Rule>* out_rule, Vars** out_var) {
     shared_ptr<Rule> rule = LookupRule(output);
     Vars* vars = LookupRuleVars(output);
@@ -422,11 +447,11 @@ class DepBuilder {
       }
     }
 
-    vector<shared_ptr<Rule>> irules;
+    vector<const Rule*> irules;
     implicit_rules_->Get(output.str(), &irules);
     for (auto iter = irules.rbegin(); iter != irules.rend(); ++iter) {
-      shared_ptr<Rule> irule = *iter;
-      if (!CanPickImplicitRule(irule, output))
+      shared_ptr<Rule> irule;
+      if (!CanPickImplicitRule(*iter, output, n, &irule))
         continue;
       if (rule) {
         shared_ptr<Rule> r = make_shared<Rule>(*rule);
@@ -445,7 +470,7 @@ class DepBuilder {
       CHECK(irule->output_patterns.size() == 1);
       vars = MergeImplicitRuleVars(irule->output_patterns[0], vars);
       *out_var = vars;
-      *out_rule = irule;
+      *out_rule = make_shared<Rule>(*irule);
       return true;
     }
 
@@ -503,14 +528,11 @@ class DepBuilder {
 
     shared_ptr<Rule> rule;
     Vars* vars;
-    if (!PickRule(output, &rule, &vars)) {
+    if (!PickRule(output, n, &rule, &vars)) {
       return n;
     }
 
     if (rule->output_patterns.size() >= 1) {
-      if (rule->output_patterns.size() != 1) {
-        fprintf(stderr, "hmm %s\n", rule->DebugString().c_str());
-      }
       CHECK(rule->output_patterns.size() == 1);
       n->output_pattern = rule->output_patterns[0];
     }

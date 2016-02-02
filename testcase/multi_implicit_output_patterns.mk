@@ -1,6 +1,21 @@
 # TODO(go): Fix
 
-test: foo bar baz
+all: a.h.x a.c.x a.h.z a.c.z b.h.x b.c.x b.h.z b.c.z
 
-f% b%:
-	echo PASS_$@
+a.h.%:
+	echo twice $@
+a.c.%:
+	echo twice $@
+
+b.h.% b.c.%:
+	echo once $@
+
+b.h.z: pass
+
+b.c.z: fail
+
+pass:
+	echo PASS
+
+fail:
+	echo FAIL
