@@ -30,13 +30,14 @@ namespace {
 
 void TestWordScanner() {
   vector<StringPiece> ss;
-  for (StringPiece tok : WordScanner("foo bar baz")) {
+  for (StringPiece tok : WordScanner("foo bar baz hogeeeeeeeeeeeeeeee")) {
     ss.push_back(tok);
   }
-  assert(ss.size() == 3LU);
+  assert(ss.size() == 4LU);
   ASSERT_EQ(ss[0], "foo");
   ASSERT_EQ(ss[1], "bar");
   ASSERT_EQ(ss[2], "baz");
+  ASSERT_EQ(ss[3], "hogeeeeeeeeeeeeeeee");
 }
 
 void TestHasPrefix() {

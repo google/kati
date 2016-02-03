@@ -24,11 +24,34 @@
 #include <stack>
 #include <utility>
 
+#ifdef __SSE4_2__
+#include <smmintrin.h>
+#endif
+
 #include "log.h"
 
 static bool isSpace(char c) {
   return (9 <= c && c <= 13) || c == 32;
 }
+
+#ifdef __SSE4_2__
+static int SkipUntilSSE42(const char* s, int len,
+                          const char* ranges, int ranges_size) {
+  __m128i ranges16 = _mm_loadu_si128((const __m128i*)ranges);
+  int i = 0;
+  do {
+    __m128i b16 = _mm_loadu_si128((const __m128i*)(s + i));
+    int r = _mm_cmpestri(
+        ranges16, ranges_size, b16, len - i,
+        _SIDD_LEAST_SIGNIFICANT | _SIDD_CMP_RANGES | _SIDD_UBYTE_OPS);
+    if (r != 16) {
+      return i + r;
+    }
+    i += 16;
+  } while (i < len);
+  return len;
+}
+#endif
 
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
@@ -42,10 +65,18 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     i = 0;
     return *this;
   }
+
+#ifdef __SSE4_2__
+  static const char ranges[] = "\x09\x0d  ";
+  i = s;
+  i += SkipUntilSSE42(in->data() + s, len - s, ranges, 4);
+#else
   for (i = s; i < len; i++) {
     if (isSpace((*in)[i]))
       break;
   }
+#endif
+
   return *this;
 }
 
