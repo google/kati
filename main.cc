@@ -136,6 +136,9 @@ static int Run(const vector<Symbol>& targets,
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
   Vars* vars = new Vars();
+  vars->Assign(Intern("MAKEFILE_LIST"),
+               new SimpleVar(StringPrintf(" %s", g_flags.makefile),
+                             VarOrigin::FILE));
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT, vars);
   }
@@ -153,10 +156,6 @@ static int Run(const vector<Symbol>& targets,
   for (StringPiece l : cl_vars) {
     SetVar(l, VarOrigin::COMMAND_LINE, ev->mutable_vars());
   }
-
-  vars->Assign(Intern("MAKEFILE_LIST"),
-               new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                             VarOrigin::FILE));
 
   {
     ScopedTimeReporter tr("eval time");
