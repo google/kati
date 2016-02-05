@@ -107,7 +107,6 @@ class Evaluator {
 
   Var* LookupVarGlobal(Symbol name);
 
-  const Vars* in_vars_;
   Vars* vars_;
   unordered_map<Symbol, Vars*> rule_vars_;
   vector<shared_ptr<Rule>> rules_;

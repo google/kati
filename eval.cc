@@ -37,8 +37,7 @@ EvalResult::~EvalResult() {
 }
 
 Evaluator::Evaluator(const Vars* vars)
-    : in_vars_(vars),
-      vars_(new Vars()),
+    : vars_(new Vars(*vars)),
       last_rule_(NULL),
       current_scope_(NULL),
       avoid_io_(false),
@@ -289,9 +288,6 @@ void Evaluator::EvalExport(const ExportStmt* stmt) {
 
 Var* Evaluator::LookupVarGlobal(Symbol name) {
   Var* v = vars_->Lookup(name);
-  if (v->IsDefined())
-    return v;
-  v = in_vars_->Lookup(name);
   if (v->IsDefined())
     return v;
   used_undefined_vars_.insert(name);
