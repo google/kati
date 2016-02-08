@@ -574,8 +574,9 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 }
 
 void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
-  static const string tmpvar_names[] = {
-    "0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9"
+  static const Symbol tmpvar_names[] = {
+    Intern("0"), Intern("1"),  Intern("2"), Intern("3"), Intern("4"),
+    Intern("5"), Intern("6"),  Intern("7"), Intern("8"), Intern("9")
   };
 
   const string&& func_name = args[0]->Eval(ev);
@@ -593,25 +594,25 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   vector<unique_ptr<ScopedVar>> sv;
   for (size_t i = 1; ; i++) {
     string s;
-    StringPiece tmpvar_name;
+    Symbol tmpvar_name_sym(Symbol::IsUninitialized{});
     if (i < sizeof(tmpvar_names)/sizeof(tmpvar_names[0])) {
-      tmpvar_name = tmpvar_names[i];
+      tmpvar_name_sym = tmpvar_names[i];
     } else {
       s = StringPrintf("%d", i);
-      tmpvar_name = s;
+      tmpvar_name_sym = Intern(s);
     }
     if (i < args.size()) {
       sv.emplace_back(new ScopedVar(ev->mutable_vars(),
-                                    Intern(tmpvar_name), av[i-1].get()));
+                                    tmpvar_name_sym, av[i-1].get()));
     } else {
       // We need to blank further automatic vars
-      Var *v = ev->LookupVar(Intern(tmpvar_name));
+      Var *v = ev->LookupVar(tmpvar_name_sym);
       if (!v->IsDefined()) break;
       if (v->Origin() != VarOrigin::AUTOMATIC) break;
 
       av.emplace_back(new SimpleVar("", VarOrigin::AUTOMATIC));
       sv.emplace_back(new ScopedVar(ev->mutable_vars(),
-                                    Intern(tmpvar_name), av[i-1].get()));
+                                    tmpvar_name_sym, av[i-1].get()));
     }
   }
 
