@@ -116,7 +116,7 @@ DepNode::DepNode(Symbol o, bool p, bool r)
 class DepBuilder {
  public:
   DepBuilder(Evaluator* ev,
-             const vector<shared_ptr<Rule>>& rules,
+             const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars)
       : ev_(ev),
         rule_vars_(rule_vars),
@@ -226,8 +226,8 @@ class DepBuilder {
     return ::Exists(target.str());
   }
 
-  void PopulateRules(const vector<shared_ptr<Rule>>& rules) {
-    for (shared_ptr<Rule> rule : rules) {
+  void PopulateRules(const vector<const Rule*>& rules) {
+    for (const Rule* rule : rules) {
       if (rule->outputs.empty()) {
         PopulateImplicitRule(rule);
       } else {
@@ -239,7 +239,7 @@ class DepBuilder {
     }
   }
 
-  bool PopulateSuffixRule(shared_ptr<Rule> rule, Symbol output) {
+  bool PopulateSuffixRule(const Rule* rule, Symbol output) {
     if (output.empty() || output.str()[0] != '.')
       return false;
 
@@ -337,7 +337,7 @@ class DepBuilder {
     return r;
   }
 
-  void PopulateExplicitRule(shared_ptr<Rule> orig_rule) {
+  void PopulateExplicitRule(const Rule* orig_rule) {
     for (Symbol output : orig_rule->outputs) {
       const bool is_suffix_rule = PopulateSuffixRule(orig_rule, output);
 
@@ -358,9 +358,9 @@ class DepBuilder {
     }
   }
 
-  void PopulateImplicitRule(shared_ptr<Rule> rule) {
+  void PopulateImplicitRule(const Rule* rule) {
     for (Symbol output_pattern : rule->output_patterns) {
-      implicit_rules_->Add(output_pattern.str(), rule.get());
+      implicit_rules_->Add(output_pattern.str(), rule);
     }
   }
 
@@ -619,7 +619,7 @@ class DepBuilder {
 };
 
 void MakeDep(Evaluator* ev,
-             const vector<shared_ptr<Rule>>& rules,
+             const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
              vector<DepNode*>* nodes) {

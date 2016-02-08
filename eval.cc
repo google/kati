@@ -124,7 +124,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     }
 
     LOG("Rule: %s", rule->DebugString().c_str());
-    rules_.push_back(shared_ptr<Rule>(rule));
+    rules_.push_back(rule);
     last_rule_ = rule;
     return;
   }
