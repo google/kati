@@ -30,12 +30,6 @@
 #include "symtab.h"
 #include "var.h"
 
-EvalResult::~EvalResult() {
-  for (auto p : rule_vars)
-    delete p.second;
-  delete vars;
-}
-
 Evaluator::Evaluator(const Vars* vars)
     : vars_(new Vars(*vars)),
       last_rule_(NULL),
