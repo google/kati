@@ -207,6 +207,8 @@ static int Run(const vector<Symbol>& targets,
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;
   delete ev;
+  // Each Var will be deleted by |ev|.
+  vars->clear();
   delete vars;
   delete cache_mgr;
 
