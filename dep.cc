@@ -29,6 +29,8 @@
 #include "rule.h"
 #include "strutil.h"
 #include "symtab.h"
+#include "task_queue.h"
+#include "thread.h"
 #include "var.h"
 
 namespace {
@@ -112,7 +114,7 @@ class DepBuilder {
     virtual ~EvalResultStreamImpl() override = default;
 
     virtual void AddRule(const Rule* rule) override {
-      db_->PopulateRule(rule);
+      db_->EnqueRule(rule);
     }
 
    private:
@@ -129,6 +131,10 @@ class DepBuilder {
 
   void Init(Evaluator* ev,
             const unordered_map<Symbol, Vars*>& rule_vars) {
+    CHECK(th_.get());
+    tq_.Finish();
+    th_->join();
+
     ev_ = ev;
     rule_vars_ = &rule_vars;
 
@@ -232,6 +238,14 @@ class DepBuilder {
     }
   }
 
+  void StartPopulateThread() {
+    th_.reset(new thread([this]() {
+          while (const Rule* rule = tq_.Pop()) {
+            PopulateRule(rule);
+          }
+        }));
+  }
+
  private:
   bool Exists(Symbol target) {
     auto found = rules_.find(target);
@@ -240,6 +254,10 @@ class DepBuilder {
     if (phony_.count(target))
       return true;
     return ::Exists(target.str());
+  }
+
+  void EnqueRule(const Rule* rule) {
+    tq_.Push(rule);
   }
 
   void PopulateRule(const Rule* rule) {
@@ -630,6 +648,9 @@ class DepBuilder {
 
   friend class EvalResultStreamImpl;
   unique_ptr<EvalResultStreamImpl> eval_result_stream_;
+
+  unique_ptr<thread> th_;
+  TaskQueue<const Rule> tq_;
 };
 
 }  // namespace
@@ -649,6 +670,8 @@ DepNode::DepNode(Symbol o, bool p, bool r)
 void InitDepBuilder() {
   g_dep_builder = new DepBuilder();
   g_dep_node_pool = new vector<DepNode*>;
+
+  g_dep_builder->StartPopulateThread();
 }
 
 void QuitDepBuilder() {

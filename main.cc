@@ -46,7 +46,6 @@
 static void Init() {
   InitSymtab();
   InitFuncTable();
-  InitDepBuilder();
   InitParser();
 }
 
@@ -54,7 +53,6 @@ static void Quit() {
   ReportAllStats();
 
   QuitParser();
-  QuitDepBuilder();
   QuitFuncTable();
   QuitSymtab();
 }
@@ -132,6 +130,9 @@ static int Run(const vector<Symbol>& targets,
     }
     ClearGlobCache();
   }
+
+  // TODO: Expose DepBuilder interface.
+  InitDepBuilder();
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
@@ -212,6 +213,9 @@ static int Run(const vector<Symbol>& targets,
   vars->clear();
   delete vars;
   delete cache_mgr;
+
+  // TODO: Expose DepBuilder interface.
+  QuitDepBuilder();
 
   return 0;
 }
