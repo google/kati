@@ -32,15 +32,6 @@ class Rule;
 class Var;
 class Vars;
 
-struct EvalResult {
-  ~EvalResult();
-  vector<shared_ptr<Rule>> rules;
-  Vars* vars;
-  unordered_map<StringPiece, Vars*> rule_vars;
-  // TODO: read_mks
-  unordered_map<StringPiece, bool> exports;
-};
-
 class Evaluator {
  public:
   Evaluator(const Vars* vars);
