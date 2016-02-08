@@ -129,6 +129,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     return;
   }
 
+  Symbol lhs = Intern(rule_var.lhs);
   for (Symbol output : rule_var.outputs) {
     auto p = rule_vars_.emplace(output, nullptr);
     if (p.second) {
@@ -152,7 +153,6 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     }
 
     current_scope_ = p.first->second;
-    Symbol lhs = Intern(rule_var.lhs);
     Var* rhs_var = EvalRHS(lhs, rhs, StringPiece("*TODO*"), rule_var.op);
     if (rhs_var)
       current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op));
