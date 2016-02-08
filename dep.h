@@ -15,7 +15,6 @@
 #ifndef DEP_H_
 #define DEP_H_
 
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -53,7 +52,7 @@ void InitDepNodePool();
 void QuitDepNodePool();
 
 void MakeDep(Evaluator* ev,
-             const vector<shared_ptr<Rule>>& rules,
+             const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
              vector<DepNode*>* nodes);
