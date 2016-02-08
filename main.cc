@@ -46,7 +46,7 @@
 static void Init() {
   InitSymtab();
   InitFuncTable();
-  InitDepNodePool();
+  InitDepBuilder();
   InitParser();
 }
 
@@ -54,7 +54,7 @@ static void Quit() {
   ReportAllStats();
 
   QuitParser();
-  QuitDepNodePool();
+  QuitDepBuilder();
   QuitFuncTable();
   QuitSymtab();
 }
@@ -142,7 +142,7 @@ static int Run(const vector<Symbol>& targets,
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT, vars);
   }
-  Evaluator* ev = new Evaluator(vars);
+  Evaluator* ev = new Evaluator(vars, GetEvalResultStream());
 
   vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
@@ -164,6 +164,7 @@ static int Run(const vector<Symbol>& targets,
       LOG("%s", stmt->DebugString().c_str());
       stmt->Eval(ev);
     }
+    ev->NotifyFinishAddRule();
   }
 
   for (ParseErrorStmt* err : GetParseErrors()) {
@@ -174,7 +175,7 @@ static int Run(const vector<Symbol>& targets,
   vector<DepNode*> nodes;
   {
     ScopedTimeReporter tr("make dep time");
-    MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
+    MakeDep(ev, ev->rule_vars(), targets, &nodes);
   }
 
   if (g_flags.is_syntax_check_only)

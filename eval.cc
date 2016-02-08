@@ -30,12 +30,13 @@
 #include "symtab.h"
 #include "var.h"
 
-Evaluator::Evaluator(const Vars* vars)
+Evaluator::Evaluator(const Vars* vars, EvalResultStream* eval_result_stream)
     : vars_(new Vars(*vars)),
       last_rule_(NULL),
       current_scope_(NULL),
       avoid_io_(false),
-      eval_depth_(0) {
+      eval_depth_(0),
+      eval_result_stream_(eval_result_stream) {
 }
 
 Evaluator::~Evaluator() {
@@ -92,7 +93,7 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
 
 void Evaluator::EvalAssign(const AssignStmt* stmt) {
   loc_ = stmt->loc();
-  last_rule_ = NULL;
+  UpdateLastRule(NULL);
   Symbol lhs = Intern(stmt->lhs->Eval(this));
   if (lhs.empty())
     Error("*** empty variable name.");
@@ -104,7 +105,7 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
 
 void Evaluator::EvalRule(const RuleStmt* stmt) {
   loc_ = stmt->loc();
-  last_rule_ = NULL;
+  UpdateLastRule(NULL);
 
   const string&& expr = stmt->expr->Eval(this);
   // See semicolon.mk.
@@ -124,8 +125,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     }
 
     LOG("Rule: %s", rule->DebugString().c_str());
-    rules_.push_back(rule);
-    last_rule_ = rule;
+    UpdateLastRule(rule);
     return;
   }
 
@@ -232,7 +232,7 @@ void Evaluator::DoInclude(const string& fname) {
 
 void Evaluator::EvalInclude(const IncludeStmt* stmt) {
   loc_ = stmt->loc();
-  last_rule_ = NULL;
+  UpdateLastRule(NULL);
 
   const string&& pats = stmt->expr->Eval(this);
   for (StringPiece pat : WordScanner(pats)) {
@@ -259,7 +259,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
 
 void Evaluator::EvalExport(const ExportStmt* stmt) {
   loc_ = stmt->loc();
-  last_rule_ = NULL;
+  UpdateLastRule(NULL);
 
   const string&& exports = stmt->expr->Eval(this);
   for (StringPiece tok : WordScanner(exports)) {
@@ -306,6 +306,18 @@ Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
 
 string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
+}
+
+void Evaluator::UpdateLastRule(Rule* rule) {
+  if (last_rule_) {
+    eval_result_stream_->AddRule(last_rule_);
+  }
+  last_rule_ = rule;
+}
+
+void Evaluator::NotifyFinishAddRule() {
+  UpdateLastRule(NULL);
+  // TODO: Check we won't add rules after this function is called.
 }
 
 void Evaluator::Error(const string& msg) {

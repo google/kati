@@ -23,6 +23,7 @@
 #include "string_piece.h"
 #include "symtab.h"
 
+class EvalResultStream;
 class Evaluator;
 class Rule;
 class Value;
@@ -48,11 +49,12 @@ struct DepNode {
   Loc loc;
 };
 
-void InitDepNodePool();
-void QuitDepNodePool();
+void InitDepBuilder();
+void QuitDepBuilder();
+
+EvalResultStream* GetEvalResultStream();
 
 void MakeDep(Evaluator* ev,
-             const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
              vector<DepNode*>* nodes);

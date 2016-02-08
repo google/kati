@@ -33,6 +33,9 @@
 
 namespace {
 
+class DepBuilder;
+
+static DepBuilder* g_dep_builder;
 static vector<DepNode*>* g_dep_node_pool;
 
 static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
@@ -99,31 +102,40 @@ class RuleTrie {
   unordered_map<char, RuleTrie*> children_;
 };
 
-}  // namespace
-
-DepNode::DepNode(Symbol o, bool p, bool r)
-    : output(o),
-      has_rule(false),
-      is_default_target(false),
-      is_phony(p),
-      is_restat(r),
-      rule_vars(NULL),
-      depfile_var(NULL),
-      output_pattern(Symbol::IsUninitialized()) {
-  g_dep_node_pool->push_back(this);
-}
-
 class DepBuilder {
+  class EvalResultStreamImpl : public EvalResultStream {
+   public:
+    EvalResultStreamImpl(DepBuilder* db)
+        : db_(db) {
+    }
+
+    virtual ~EvalResultStreamImpl() override = default;
+
+    virtual void AddRule(const Rule* rule) override {
+      db_->PopulateRule(rule);
+    }
+
+   private:
+    DepBuilder* db_;
+  };
+
  public:
-  DepBuilder(Evaluator* ev,
-             const vector<const Rule*>& rules,
-             const unordered_map<Symbol, Vars*>& rule_vars)
-      : ev_(ev),
-        rule_vars_(rule_vars),
-        implicit_rules_(new RuleTrie()),
+  DepBuilder()
+      : implicit_rules_(new RuleTrie()),
         first_rule_(NULL),
-        depfile_var_name_(Intern(".KATI_DEPFILE")) {
-    PopulateRules(rules);
+        depfile_var_name_(Intern(".KATI_DEPFILE")),
+        eval_result_stream_(new EvalResultStreamImpl(this)) {
+  }
+
+  void Init(Evaluator* ev,
+            const unordered_map<Symbol, Vars*>& rule_vars) {
+    ev_ = ev;
+    rule_vars_ = &rule_vars;
+
+    for (auto& p : suffix_rules_) {
+      reverse(p.second.begin(), p.second.end());
+    }
+
     LOG_STAT("%zu variables", ev->mutable_vars()->size());
     LOG_STAT("%zu explicit rules", rules_.size());
     LOG_STAT("%zu implicit rules", implicit_rules_->size());
@@ -178,6 +190,10 @@ class DepBuilder {
   ~DepBuilder() {
   }
 
+  EvalResultStream* GetEvalResultStream() {
+    return eval_result_stream_.get();
+  }
+
   void Build(vector<Symbol> targets, vector<DepNode*>* nodes) {
     if (!first_rule_) {
       ERROR("*** No targets.");
@@ -226,16 +242,11 @@ class DepBuilder {
     return ::Exists(target.str());
   }
 
-  void PopulateRules(const vector<const Rule*>& rules) {
-    for (const Rule* rule : rules) {
-      if (rule->outputs.empty()) {
-        PopulateImplicitRule(rule);
-      } else {
-        PopulateExplicitRule(rule);
-      }
-    }
-    for (auto& p : suffix_rules_) {
-      reverse(p.second.begin(), p.second.end());
+  void PopulateRule(const Rule* rule) {
+    if (rule->outputs.empty()) {
+      PopulateImplicitRule(rule);
+    } else {
+      PopulateExplicitRule(rule);
     }
   }
 
@@ -372,8 +383,8 @@ class DepBuilder {
   }
 
   Vars* LookupRuleVars(Symbol o) {
-    auto found = rule_vars_.find(o);
-    if (found != rule_vars_.end())
+    auto found = rule_vars_->find(o);
+    if (found != rule_vars_->end())
       return found->second;
     return NULL;
   }
@@ -422,8 +433,8 @@ class DepBuilder {
   }
 
   Vars* MergeImplicitRuleVars(Symbol output, Vars* vars) {
-    auto found = rule_vars_.find(output);
-    if (found == rule_vars_.end())
+    auto found = rule_vars_->find(output);
+    if (found == rule_vars_->end())
       return vars;
     if (vars == NULL)
       return found->second;
@@ -604,7 +615,7 @@ class DepBuilder {
 
   Evaluator* ev_;
   map<Symbol, shared_ptr<Rule>> rules_;
-  const unordered_map<Symbol, Vars*>& rule_vars_;
+  const unordered_map<Symbol, Vars*>* rule_vars_;
   unique_ptr<Vars> cur_rule_vars_;
 
   unique_ptr<RuleTrie> implicit_rules_;
@@ -616,23 +627,45 @@ class DepBuilder {
   unordered_set<Symbol> phony_;
   unordered_set<Symbol> restat_;
   Symbol depfile_var_name_;
+
+  friend class EvalResultStreamImpl;
+  unique_ptr<EvalResultStreamImpl> eval_result_stream_;
 };
 
-void MakeDep(Evaluator* ev,
-             const vector<const Rule*>& rules,
-             const unordered_map<Symbol, Vars*>& rule_vars,
-             const vector<Symbol>& targets,
-             vector<DepNode*>* nodes) {
-  DepBuilder db(ev, rules, rule_vars);
-  db.Build(targets, nodes);
+}  // namespace
+
+DepNode::DepNode(Symbol o, bool p, bool r)
+    : output(o),
+      has_rule(false),
+      is_default_target(false),
+      is_phony(p),
+      is_restat(r),
+      rule_vars(NULL),
+      depfile_var(NULL),
+      output_pattern(Symbol::IsUninitialized()) {
+  g_dep_node_pool->push_back(this);
 }
 
-void InitDepNodePool() {
+void InitDepBuilder() {
+  g_dep_builder = new DepBuilder();
   g_dep_node_pool = new vector<DepNode*>;
 }
 
-void QuitDepNodePool() {
+void QuitDepBuilder() {
   for (DepNode* n : *g_dep_node_pool)
     delete n;
   delete g_dep_node_pool;
+  delete g_dep_builder;
+}
+
+EvalResultStream* GetEvalResultStream() {
+  return g_dep_builder->GetEvalResultStream();
+}
+
+void MakeDep(Evaluator* ev,
+             const unordered_map<Symbol, Vars*>& rule_vars,
+             const vector<Symbol>& targets,
+             vector<DepNode*>* nodes) {
+  g_dep_builder->Init(ev, rule_vars);
+  g_dep_builder->Build(targets, nodes);
 }

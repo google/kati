@@ -31,9 +31,15 @@ class Rule;
 class Var;
 class Vars;
 
+class EvalResultStream {
+ public:
+  virtual ~EvalResultStream() = default;
+  virtual void AddRule(const Rule* rule) = 0;
+};
+
 class Evaluator {
  public:
-  Evaluator(const Vars* vars);
+  Evaluator(const Vars* vars, EvalResultStream* eval_result_stream);
   ~Evaluator();
 
   void EvalAssign(const AssignStmt* stmt);
@@ -52,7 +58,6 @@ class Evaluator {
   const Loc& loc() const { return loc_; }
   void set_loc(const Loc& loc) { loc_ = loc; }
 
-  const vector<const Rule*>& rules() const { return rules_; }
   const unordered_map<Symbol, Vars*>& rule_vars() const {
     return rule_vars_;
   }
@@ -90,6 +95,8 @@ class Evaluator {
     eval_depth_--;
   }
 
+  void NotifyFinishAddRule();
+
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
@@ -97,9 +104,10 @@ class Evaluator {
 
   Var* LookupVarGlobal(Symbol name);
 
+  void UpdateLastRule(Rule* rule);
+
   Vars* vars_;
   unordered_map<Symbol, Vars*> rule_vars_;
-  vector<const Rule*> rules_;
   unordered_map<Symbol, bool> exports_;
 
   Rule* last_rule_;
@@ -118,6 +126,8 @@ class Evaluator {
   vector<string> delayed_output_commands_;
 
   static unordered_set<Symbol> used_undefined_vars_;
+
+  EvalResultStream* eval_result_stream_;
 };
 
 #endif  // EVAL_H_
