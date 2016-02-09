@@ -40,6 +40,7 @@
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
+#include "timeutil.h"
 #include "var.h"
 #include "version.h"
 
@@ -165,6 +166,11 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
   return true;
 }
 
+struct NinjaNode {
+  const DepNode* node;
+  vector<Command*> commands;
+};
+
 class NinjaGenerator {
  public:
   NinjaGenerator(Evaluator* ev, double start_time)
@@ -184,12 +190,15 @@ class NinjaGenerator {
 
   ~NinjaGenerator() {
     ev_->set_avoid_io(false);
+    for (NinjaNode* nn : nodes_)
+      delete nn;
   }
 
   void Generate(const vector<DepNode*>& nodes,
                 const string& orig_args) {
     unlink(GetNinjaStampFilename().c_str());
-    GenerateNinja(nodes, orig_args);
+    PopulateNinjaNodes(nodes);
+    GenerateNinja(orig_args);
     GenerateShell();
     GenerateStamp(orig_args);
   }
@@ -206,6 +215,41 @@ class NinjaGenerator {
   }
 
  private:
+  void PopulateNinjaNodes(const vector<DepNode*>& nodes) {
+    ScopedTimeReporter tr("ninja gen (eval)");
+    for (DepNode* node : nodes) {
+      PopulateNinjaNode(node);
+    }
+  }
+
+  void PopulateNinjaNode(DepNode* node) {
+    auto p = done_.insert(node->output);
+    if (!p.second)
+      return;
+
+    // A hack to exclude out phony target in Android. If this exists,
+    // "ninja -t clean" tries to remove this directory and fails.
+    if (g_flags.detect_android_echo && node->output.str() == "out")
+      return;
+
+    // This node is a leaf node
+    if (!node->has_rule && !node->is_phony) {
+      return;
+    }
+
+    NinjaNode* nn = new NinjaNode;
+    nn->node = node;
+    ce_.Eval(node, &nn->commands);
+    nodes_.push_back(nn);
+
+    for (DepNode* d : node->deps) {
+      PopulateNinjaNode(d);
+    }
+    for (DepNode* d : node->order_onlys) {
+      PopulateNinjaNode(d);
+    }
+  }
+
   string GenRuleName() {
     return StringPrintf("rule%d", rule_id_++);
   }
@@ -425,7 +469,7 @@ class NinjaGenerator {
             g_flags.goma_dir) && !use_gomacc;
   }
 
-  bool GetDepfile(DepNode* node, string* cmd_buf, string* depfile) {
+  bool GetDepfile(const DepNode* node, string* cmd_buf, string* depfile) {
     if (node->depfile_var) {
       node->depfile_var->Eval(ev_, depfile);
       return true;
@@ -437,7 +481,7 @@ class NinjaGenerator {
     return result;
   }
 
-  void EmitDepfile(DepNode* node, string* cmd_buf) {
+  void EmitDepfile(const DepNode* node, string* cmd_buf) {
     string depfile;
     if (!GetDepfile(node, cmd_buf, &depfile))
       return;
@@ -445,23 +489,9 @@ class NinjaGenerator {
     fprintf(fp_, " deps = gcc\n");
   }
 
-  void EmitNode(DepNode* node) {
-    auto p = done_.insert(node->output);
-    if (!p.second)
-      return;
-
-    // A hack to exclude out phony target in Android. If this exists,
-    // "ninja -t clean" tries to remove this directory and fails.
-    if (g_flags.detect_android_echo && node->output.str() == "out")
-      return;
-
-    // This node is a leaf node
-    if (!node->has_rule && !node->is_phony) {
-      return;
-    }
-
-    vector<Command*> commands;
-    ce_.Eval(node, &commands);
+  void EmitNode(NinjaNode* nn) {
+    const DepNode* node = nn->node;
+    const vector<Command*>& commands = nn->commands;
 
     string rule_name = "phony";
     bool use_local_pool = false;
@@ -492,13 +522,6 @@ class NinjaGenerator {
     }
 
     EmitBuild(node, rule_name, use_local_pool);
-
-    for (DepNode* d : node->deps) {
-      EmitNode(d);
-    }
-    for (DepNode* d : node->order_onlys) {
-      EmitNode(d);
-    }
   }
 
   string EscapeBuildTarget(Symbol s) const {
@@ -549,7 +572,8 @@ class NinjaGenerator {
     s->swap(r);
   }
 
-  void EmitBuild(DepNode* node, const string& rule_name, bool use_local_pool) {
+  void EmitBuild(const DepNode* node, const string& rule_name,
+                 bool use_local_pool) {
     string target = EscapeBuildTarget(node->output);
     fprintf(fp_, "build %s: %s",
             target.c_str(),
@@ -597,8 +621,8 @@ class NinjaGenerator {
     return GetFilename("env%s.sh");
   }
 
-  void GenerateNinja(const vector<DepNode*>& nodes,
-                     const string& orig_args) {
+  void GenerateNinja(const string& orig_args) {
+    ScopedTimeReporter tr("ninja gen (emit)");
     fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
       PERROR("fopen(build.ninja) failed");
@@ -625,7 +649,7 @@ class NinjaGenerator {
 
     EmitRegenRules(orig_args);
 
-    for (DepNode* node : nodes) {
+    for (NinjaNode* node : nodes_) {
       EmitNode(node);
     }
 
@@ -790,7 +814,8 @@ class NinjaGenerator {
   map<string, string> used_envs_;
   string kati_binary_;
   double start_time_;
-  DepNode* default_target_;
+  vector<NinjaNode*> nodes_;
+  const DepNode* default_target_;
 };
 
 string GetNinjaFilename() {
