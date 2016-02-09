@@ -27,6 +27,19 @@ using namespace std;
 struct DepNode;
 class Evaluator;
 
+class NinjaGenerator {
+ public:
+  virtual ~NinjaGenerator() = default;
+
+  virtual void Generate(const vector<const DepNode*>& nodes,
+                        const string& orig_args) = 0;
+
+ protected:
+  NinjaGenerator() {}
+};
+
+NinjaGenerator* NewNinjaGenerator(Evaluator* ev, double start_time);
+
 void GenerateNinja(const vector<const DepNode*>& nodes,
                    Evaluator* ev,
                    const string& orig_args,

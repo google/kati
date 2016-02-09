@@ -173,6 +173,11 @@ static int Run(const vector<Symbol>& targets,
          LOCF(err->loc()), err->msg.c_str());
   }
 
+  unique_ptr<NinjaGenerator> ng;
+  if (g_flags.generate_ninja) {
+    ng.reset(NewNinjaGenerator(ev, start_time));
+  }
+
   vector<const DepNode*> nodes;
   {
     ScopedTimeReporter tr("make dep time");
@@ -184,7 +189,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(nodes, ev, orig_args, start_time);
+    ng->Generate(nodes, orig_args);
     return 0;
   }
 

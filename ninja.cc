@@ -165,9 +165,9 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
   return true;
 }
 
-class NinjaGenerator {
+class NinjaGeneratorImpl : public NinjaGenerator {
  public:
-  NinjaGenerator(Evaluator* ev, double start_time)
+  NinjaGeneratorImpl(Evaluator* ev, double start_time)
       : ce_(ev),
         ev_(ev),
         fp_(NULL),
@@ -182,12 +182,12 @@ class NinjaGenerator {
     GetExecutablePath(&kati_binary_);
   }
 
-  ~NinjaGenerator() {
+  virtual ~NinjaGeneratorImpl() {
     ev_->set_avoid_io(false);
   }
 
-  void Generate(const vector<const DepNode*>& nodes,
-                const string& orig_args) {
+  virtual void Generate(const vector<const DepNode*>& nodes,
+                        const string& orig_args) override {
     unlink(GetNinjaStampFilename().c_str());
     GenerateNinja(nodes, orig_args);
     GenerateShell();
@@ -770,22 +770,18 @@ class NinjaGenerator {
   const DepNode* default_target_;
 };
 
+NinjaGenerator* NewNinjaGenerator(Evaluator* ev, double start_time) {
+  return new NinjaGeneratorImpl(ev, start_time);
+}
+
 string GetNinjaFilename() {
-  return NinjaGenerator::GetFilename("build%s.ninja");
+  return NinjaGeneratorImpl::GetFilename("build%s.ninja");
 }
 
 string GetNinjaShellScriptFilename() {
-  return NinjaGenerator::GetFilename("ninja%s.sh");
+  return NinjaGeneratorImpl::GetFilename("ninja%s.sh");
 }
 
 string GetNinjaStampFilename() {
-  return NinjaGenerator::GetFilename(".kati_stamp%s");
-}
-
-void GenerateNinja(const vector<const DepNode*>& nodes,
-                   Evaluator* ev,
-                   const string& orig_args,
-                   double start_time) {
-  NinjaGenerator ng(ev, start_time);
-  ng.Generate(nodes, orig_args);
+  return NinjaGeneratorImpl::GetFilename(".kati_stamp%s");
 }
