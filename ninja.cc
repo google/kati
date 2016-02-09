@@ -40,6 +40,8 @@
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
+#include "task_queue.h"
+#include "thread.h"
 #include "var.h"
 #include "version.h"
 
@@ -202,6 +204,8 @@ class NinjaGeneratorImpl : public NinjaGenerator {
       gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
 
     GetExecutablePath(&kati_binary_);
+
+    StartCommandEvalThread();
   }
 
   virtual ~NinjaGeneratorImpl() {
@@ -215,6 +219,10 @@ class NinjaGeneratorImpl : public NinjaGenerator {
   }
 
   virtual void Generate(const string& orig_args) override {
+    CHECK(th_.get());
+    tq_.Finish();
+    th_->join();
+
     unlink(GetNinjaStampFilename().c_str());
     GenerateNinja(orig_args);
     GenerateShell();
@@ -233,20 +241,18 @@ class NinjaGeneratorImpl : public NinjaGenerator {
   }
 
   void EnqueDepNode(const DepNode* node) {
-    // A hack to exclude out phony target in Android. If this exists,
-    // "ninja -t clean" tries to remove this directory and fails.
-    if (g_flags.detect_android_echo && node->output.str() == "out")
-      return;
+    tq_.Push(node);
+  }
 
-    // This node is a leaf node
-    if (!node->has_rule && !node->is_phony) {
-      return;
-    }
-
-    NinjaNode* nn = new NinjaNode;
-    nn->node = node;
-    ce_.Eval(node, &nn->commands);
-    nodes_.push_back(nn);
+  void StartCommandEvalThread() {
+    th_.reset(new thread([this]() {
+          while (const DepNode* node = tq_.Pop()) {
+            NinjaNode* nn = new NinjaNode;
+            nn->node = node;
+            ce_.Eval(node, &nn->commands);
+            nodes_.push_back(nn);
+          }
+        }));
   }
 
  private:
@@ -804,7 +810,10 @@ class NinjaGeneratorImpl : public NinjaGenerator {
   double start_time_;
   vector<NinjaNode*> nodes_;
   const DepNode* default_target_;
+
   DepBuildResultStreamImpl dep_builder_result_stream_;
+  unique_ptr<thread> th_;
+  TaskQueue<const DepNode> tq_;
 };
 
 NinjaGenerator* NewNinjaGenerator(Evaluator* ev, double start_time) {

@@ -136,7 +136,7 @@ class DepBuilder {
     tq_.Finish();
     th_->join();
 
-    ev_ = ev;
+    ev_ = ev->Clone();
     rule_vars_ = &rule_vars;
     dep_build_result_stream_ = ds;
 

@@ -21,6 +21,7 @@
 #include <unordered_map>
 
 #include "log.h"
+#include "mutex.h"
 #include "strutil.h"
 
 vector<string*>* g_symbols;
@@ -60,6 +61,7 @@ class Symtab {
   }
 
   Symbol InternImpl(StringPiece s) {
+    unique_lock<mutex> lock(mu_);
     auto found = symtab_.find(s);
     if (found != symtab_.end()) {
       return found->second;
@@ -81,6 +83,7 @@ class Symtab {
  private:
   unordered_map<StringPiece, Symbol> symtab_;
   vector<string*> symbols_;
+  mutex mu_;
 };
 
 static Symtab* g_symtab;

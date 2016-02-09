@@ -325,3 +325,17 @@ void Evaluator::Error(const string& msg) {
 }
 
 unordered_set<Symbol> Evaluator::used_undefined_vars_;
+
+Evaluator* Evaluator::Clone() {
+  Evaluator* e = new Evaluator(vars_, eval_result_stream_);
+  e->rule_vars_ = rule_vars_;
+  e->exports_ = exports_;
+  e->last_rule_ = last_rule_;
+  e->current_scope_ = current_scope_;
+  e->loc_ = loc_;
+  e->is_bootstrap_ = is_bootstrap_;
+  e->avoid_io_ = avoid_io_;
+  e->eval_depth_ = eval_depth_;
+  e->delayed_output_commands_ = delayed_output_commands_;
+  return e;
+}

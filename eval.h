@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "loc.h"
+#include "mutex.h"
 #include "stmt.h"
 #include "string_piece.h"
 #include "symtab.h"
@@ -96,6 +97,8 @@ class Evaluator {
   }
 
   void NotifyFinishAddRule();
+
+  Evaluator* Clone();
 
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
