@@ -165,6 +165,11 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
   return true;
 }
 
+struct NinjaNode {
+  const DepNode* node;
+  vector<Command*> commands;
+};
+
 class NinjaGeneratorImpl : public NinjaGenerator {
   class DepBuildResultStreamImpl : public DepBuildResultStream {
    public:
@@ -201,6 +206,8 @@ class NinjaGeneratorImpl : public NinjaGenerator {
 
   virtual ~NinjaGeneratorImpl() {
     ev_->set_avoid_io(false);
+    for (NinjaNode* nn : nodes_)
+      delete nn;
   }
 
   virtual DepBuildResultStream* GetDepBuildResultStream() {
@@ -225,8 +232,21 @@ class NinjaGeneratorImpl : public NinjaGenerator {
     return r;
   }
 
-  void EnqueDepNode(const DepNode* n) {
-    nodes_.push_back(n);
+  void EnqueDepNode(const DepNode* node) {
+    // A hack to exclude out phony target in Android. If this exists,
+    // "ninja -t clean" tries to remove this directory and fails.
+    if (g_flags.detect_android_echo && node->output.str() == "out")
+      return;
+
+    // This node is a leaf node
+    if (!node->has_rule && !node->is_phony) {
+      return;
+    }
+
+    NinjaNode* nn = new NinjaNode;
+    nn->node = node;
+    ce_.Eval(node, &nn->commands);
+    nodes_.push_back(nn);
   }
 
  private:
@@ -445,23 +465,13 @@ class NinjaGeneratorImpl : public NinjaGenerator {
     fprintf(fp_, " deps = gcc\n");
   }
 
-  void EmitNode(const DepNode* node) {
+  void EmitNode(NinjaNode* nn) {
+    const DepNode* node = nn->node;
     auto p = done_.insert(node->output);
     if (!p.second)
       return;
 
-    // A hack to exclude out phony target in Android. If this exists,
-    // "ninja -t clean" tries to remove this directory and fails.
-    if (g_flags.detect_android_echo && node->output.str() == "out")
-      return;
-
-    // This node is a leaf node
-    if (!node->has_rule && !node->is_phony) {
-      return;
-    }
-
-    vector<Command*> commands;
-    ce_.Eval(node, &commands);
+    const vector<Command*>& commands = nn->commands;
 
     string rule_name = "phony";
     bool use_local_pool = false;
@@ -493,12 +503,14 @@ class NinjaGeneratorImpl : public NinjaGenerator {
 
     EmitBuild(node, rule_name, use_local_pool);
 
+#if 0
     for (DepNode* d : node->deps) {
       EmitNode(d);
     }
     for (DepNode* d : node->order_onlys) {
       EmitNode(d);
     }
+#endif
   }
 
   string EscapeBuildTarget(Symbol s) const {
@@ -625,7 +637,7 @@ class NinjaGeneratorImpl : public NinjaGenerator {
 
     EmitRegenRules(orig_args);
 
-    for (const DepNode* node : nodes_) {
+    for (NinjaNode* node : nodes_) {
       EmitNode(node);
     }
 
@@ -790,7 +802,7 @@ class NinjaGeneratorImpl : public NinjaGenerator {
   map<string, string> used_envs_;
   string kati_binary_;
   double start_time_;
-  vector<const DepNode*> nodes_;
+  vector<NinjaNode*> nodes_;
   const DepNode* default_target_;
   DepBuildResultStreamImpl dep_builder_result_stream_;
 };

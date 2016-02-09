@@ -560,6 +560,8 @@ class DepBuilder {
     shared_ptr<Rule> rule;
     Vars* vars;
     if (!PickRule(output, n, &rule, &vars)) {
+      if (dep_build_result_stream_)
+        dep_build_result_stream_->AddDepNode(n);
       return n;
     }
 
