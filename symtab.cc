@@ -14,8 +14,13 @@
 
 // +build ignore
 
+//#define ENABLE_TID_CHECK
+
 #include "symtab.h"
 
+#ifdef ENABLE_TID_CHECK
+#include <pthread.h>
+#endif
 #include <string.h>
 
 #include <unordered_map>
@@ -35,6 +40,10 @@ Symbol::Symbol(int v)
 class Symtab {
  public:
   Symtab() {
+#ifdef ENABLE_TID_CHECK
+    tid_ = pthread_self();
+#endif
+
     CHECK(g_symbols == NULL);
     g_symbols = &symbols_;
 
@@ -72,6 +81,11 @@ class Symtab {
   }
 
   Symbol Intern(StringPiece s) {
+#ifdef ENABLE_TID_CHECK
+    if (tid_ != pthread_self())
+      abort();
+#endif
+
     if (s.size() <= 1) {
       return Symbol(s.empty() ? 0 : (unsigned char)s[0]);
     }
@@ -81,6 +95,9 @@ class Symtab {
  private:
   unordered_map<StringPiece, Symbol> symtab_;
   vector<string*> symbols_;
+#ifdef ENABLE_TID_CHECK
+  pthread_t tid_;
+#endif
 };
 
 static Symtab* g_symtab;
