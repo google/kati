@@ -126,7 +126,7 @@ class DepBuilder {
       : implicit_rules_(new RuleTrie()),
         first_rule_(NULL),
         depfile_var_name_(Intern(".KATI_DEPFILE")),
-        eval_result_stream_(new EvalResultStreamImpl(this)) {
+        eval_result_stream_(this) {
   }
 
   void Init(Evaluator* ev,
@@ -199,7 +199,7 @@ class DepBuilder {
   }
 
   EvalResultStream* GetEvalResultStream() {
-    return eval_result_stream_.get();
+    return &eval_result_stream_;
   }
 
   void Build(vector<Symbol> targets, vector<const DepNode*>* nodes) {
@@ -651,7 +651,7 @@ class DepBuilder {
   Symbol depfile_var_name_;
 
   friend class EvalResultStreamImpl;
-  unique_ptr<EvalResultStreamImpl> eval_result_stream_;
+  EvalResultStreamImpl eval_result_stream_;
 
   unique_ptr<thread> th_;
   TaskQueue<const Rule> tq_;
