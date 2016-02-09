@@ -186,7 +186,7 @@ class NinjaGenerator {
     ev_->set_avoid_io(false);
   }
 
-  void Generate(const vector<DepNode*>& nodes,
+  void Generate(const vector<const DepNode*>& nodes,
                 const string& orig_args) {
     unlink(GetNinjaStampFilename().c_str());
     GenerateNinja(nodes, orig_args);
@@ -401,7 +401,7 @@ class NinjaGenerator {
             g_flags.goma_dir) && !use_gomacc;
   }
 
-  bool GetDepfile(DepNode* node, string* cmd_buf, string* depfile) {
+  bool GetDepfile(const DepNode* node, string* cmd_buf, string* depfile) {
     if (node->depfile_var) {
       node->depfile_var->Eval(ev_, depfile);
       return true;
@@ -413,7 +413,7 @@ class NinjaGenerator {
     return result;
   }
 
-  void EmitDepfile(DepNode* node, string* cmd_buf) {
+  void EmitDepfile(const DepNode* node, string* cmd_buf) {
     string depfile;
     if (!GetDepfile(node, cmd_buf, &depfile))
       return;
@@ -421,7 +421,7 @@ class NinjaGenerator {
     fprintf(fp_, " deps = gcc\n");
   }
 
-  void EmitNode(DepNode* node) {
+  void EmitNode(const DepNode* node) {
     auto p = done_.insert(node->output);
     if (!p.second)
       return;
@@ -525,7 +525,8 @@ class NinjaGenerator {
     s->swap(r);
   }
 
-  void EmitBuild(DepNode* node, const string& rule_name, bool use_local_pool) {
+  void EmitBuild(const DepNode* node, const string& rule_name,
+                 bool use_local_pool) {
     string target = EscapeBuildTarget(node->output);
     fprintf(fp_, "build %s: %s",
             target.c_str(),
@@ -573,7 +574,7 @@ class NinjaGenerator {
     return GetFilename("env%s.sh");
   }
 
-  void GenerateNinja(const vector<DepNode*>& nodes,
+  void GenerateNinja(const vector<const DepNode*>& nodes,
                      const string& orig_args) {
     fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
@@ -601,7 +602,7 @@ class NinjaGenerator {
 
     EmitRegenRules(orig_args);
 
-    for (DepNode* node : nodes) {
+    for (const DepNode* node : nodes) {
       EmitNode(node);
     }
 
@@ -766,7 +767,7 @@ class NinjaGenerator {
   map<string, string> used_envs_;
   string kati_binary_;
   double start_time_;
-  DepNode* default_target_;
+  const DepNode* default_target_;
 };
 
 string GetNinjaFilename() {
@@ -781,7 +782,7 @@ string GetNinjaStampFilename() {
   return NinjaGenerator::GetFilename(".kati_stamp%s");
 }
 
-void GenerateNinja(const vector<DepNode*>& nodes,
+void GenerateNinja(const vector<const DepNode*>& nodes,
                    Evaluator* ev,
                    const string& orig_args,
                    double start_time) {

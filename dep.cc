@@ -200,7 +200,7 @@ class DepBuilder {
     return eval_result_stream_.get();
   }
 
-  void Build(vector<Symbol> targets, vector<DepNode*>* nodes) {
+  void Build(vector<Symbol> targets, vector<const DepNode*>* nodes) {
     if (!first_rule_) {
       ERROR("*** No targets.");
     }
@@ -688,7 +688,7 @@ EvalResultStream* GetEvalResultStream() {
 void MakeDep(Evaluator* ev,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
-             vector<DepNode*>* nodes) {
+             vector<const DepNode*>* nodes) {
   g_dep_builder->Init(ev, rule_vars);
   g_dep_builder->Build(targets, nodes);
 }

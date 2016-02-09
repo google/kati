@@ -27,7 +27,7 @@ using namespace std;
 struct DepNode;
 class Evaluator;
 
-void GenerateNinja(const vector<DepNode*>& nodes,
+void GenerateNinja(const vector<const DepNode*>& nodes,
                    Evaluator* ev,
                    const string& orig_args,
                    double start_time);

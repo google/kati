@@ -22,6 +22,6 @@ using namespace std;
 struct DepNode;
 class Evaluator;
 
-void Exec(const vector<DepNode*>& roots, Evaluator* ev);
+void Exec(const vector<const DepNode*>& roots, Evaluator* ev);
 
 #endif  // EXEC_H_

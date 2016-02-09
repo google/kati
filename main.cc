@@ -173,7 +173,7 @@ static int Run(const vector<Symbol>& targets,
          LOCF(err->loc()), err->msg.c_str());
   }
 
-  vector<DepNode*> nodes;
+  vector<const DepNode*> nodes;
   {
     ScopedTimeReporter tr("make dep time");
     MakeDep(ev, ev->rule_vars(), targets, &nodes);

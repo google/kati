@@ -189,7 +189,7 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev)
   INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
 }
 
-void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
+void CommandEvaluator::Eval(const DepNode* n, vector<Command*>* commands) {
   ev_->set_loc(n->loc);
   ev_->set_current_scope(n->rule_vars);
   current_dep_node_ = n;

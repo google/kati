@@ -48,7 +48,7 @@ class Executor {
     shell_ = ev->EvalVar(kShellSym);
   }
 
-  double ExecNode(DepNode* n, DepNode* needed_by) {
+  double ExecNode(const DepNode* n, const DepNode* needed_by) {
     auto found = done_.find(n->output);
     if (found != done_.end()) {
       if (found->second == kProcessing) {
@@ -140,13 +140,13 @@ class Executor {
 
 }  // namespace
 
-void Exec(const vector<DepNode*>& roots, Evaluator* ev) {
+void Exec(const vector<const DepNode*>& roots, Evaluator* ev) {
   unique_ptr<Executor> executor(new Executor(ev));
-  for (DepNode* root : roots) {
+  for (const DepNode* root : roots) {
     executor->ExecNode(root, NULL);
   }
   if (executor->Count() == 0) {
-    for (DepNode* root : roots) {
+    for (const DepNode* root : roots) {
       printf("kati: Nothing to be done for `%s'.\n", root->output.c_str());
     }
   }

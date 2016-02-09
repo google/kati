@@ -57,6 +57,6 @@ EvalResultStream* GetEvalResultStream();
 void MakeDep(Evaluator* ev,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
-             vector<DepNode*>* nodes);
+             vector<const DepNode*>* nodes);
 
 #endif  // DEP_H_
