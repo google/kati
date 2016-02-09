@@ -123,7 +123,7 @@ static int Run(const vector<Symbol>& targets,
   if (g_flags.generate_ninja && (g_flags.regen || g_flags.dump_kati_stamp)) {
     ScopedTimeReporter tr("regen check time");
     if (!NeedsRegen(start_time, orig_args)) {
-      printf("No need to regenerate ninja file\n");
+      fprintf(stderr, "No need to regenerate ninja file\n");
       return 0;
     }
     if (g_flags.dump_kati_stamp) {

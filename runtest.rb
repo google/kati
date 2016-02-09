@@ -341,7 +341,6 @@ run_shell_test = proc do |sh|
     output = normalize_kati_log(output)
     if is_ninja_test
       output = normalize_ninja_log(output, sh)
-      output.gsub!(/No need to regenerate ninja file\n/, '')
     end
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
