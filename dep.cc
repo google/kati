@@ -130,13 +130,15 @@ class DepBuilder {
   }
 
   void Init(Evaluator* ev,
-            const unordered_map<Symbol, Vars*>& rule_vars) {
+            const unordered_map<Symbol, Vars*>& rule_vars,
+            DepBuildResultStream* ds) {
     CHECK(th_.get());
     tq_.Finish();
     th_->join();
 
     ev_ = ev;
     rule_vars_ = &rule_vars;
+    dep_build_result_stream_ = ds;
 
     for (auto& p : suffix_rules_) {
       reverse(p.second.begin(), p.second.end());
@@ -628,6 +630,8 @@ class DepBuilder {
     if (!rule->cmds.empty() && rule->cmd_lineno)
       n->loc.lineno = rule->cmd_lineno;
 
+    if (dep_build_result_stream_)
+      dep_build_result_stream_->AddDepNode(n);
     return n;
   }
 
@@ -651,6 +655,8 @@ class DepBuilder {
 
   unique_ptr<thread> th_;
   TaskQueue<const Rule> tq_;
+
+  DepBuildResultStream* dep_build_result_stream_;
 };
 
 }  // namespace
@@ -688,7 +694,8 @@ EvalResultStream* GetEvalResultStream() {
 void MakeDep(Evaluator* ev,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
+             DepBuildResultStream* ds,
              vector<const DepNode*>* nodes) {
-  g_dep_builder->Init(ev, rule_vars);
+  g_dep_builder->Init(ev, rule_vars, ds);
   g_dep_builder->Build(targets, nodes);
 }

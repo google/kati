@@ -166,6 +166,22 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
 }
 
 class NinjaGeneratorImpl : public NinjaGenerator {
+  class DepBuildResultStreamImpl : public DepBuildResultStream {
+   public:
+    DepBuildResultStreamImpl(NinjaGeneratorImpl* ng)
+        : ng_(ng) {
+    }
+
+    virtual ~DepBuildResultStreamImpl() override = default;
+
+    virtual void AddDepNode(const DepNode* n) override {
+      ng_->EnqueDepNode(n);
+    }
+
+   private:
+    NinjaGeneratorImpl* ng_;
+  };
+
  public:
   NinjaGeneratorImpl(Evaluator* ev, double start_time)
       : ce_(ev),
@@ -173,7 +189,8 @@ class NinjaGeneratorImpl : public NinjaGenerator {
         fp_(NULL),
         rule_id_(0),
         start_time_(start_time),
-        default_target_(NULL) {
+        default_target_(NULL),
+        dep_builder_result_stream_(this) {
     ev_->set_avoid_io(true);
     shell_ = ev->EvalVar(kShellSym);
     if (g_flags.goma_dir)
@@ -186,10 +203,13 @@ class NinjaGeneratorImpl : public NinjaGenerator {
     ev_->set_avoid_io(false);
   }
 
-  virtual void Generate(const vector<const DepNode*>& nodes,
-                        const string& orig_args) override {
+  virtual DepBuildResultStream* GetDepBuildResultStream() {
+    return &dep_builder_result_stream_;
+  }
+
+  virtual void Generate(const string& orig_args) override {
     unlink(GetNinjaStampFilename().c_str());
-    GenerateNinja(nodes, orig_args);
+    GenerateNinja(orig_args);
     GenerateShell();
     GenerateStamp(orig_args);
   }
@@ -203,6 +223,10 @@ class NinjaGeneratorImpl : public NinjaGenerator {
     r += '/';
     r += StringPrintf(fmt, g_flags.ninja_suffix ? g_flags.ninja_suffix : "");
     return r;
+  }
+
+  void EnqueDepNode(const DepNode* n) {
+    nodes_.push_back(n);
   }
 
  private:
@@ -574,8 +598,7 @@ class NinjaGeneratorImpl : public NinjaGenerator {
     return GetFilename("env%s.sh");
   }
 
-  void GenerateNinja(const vector<const DepNode*>& nodes,
-                     const string& orig_args) {
+  void GenerateNinja(const string& orig_args) {
     fp_ = fopen(GetNinjaFilename().c_str(), "wb");
     if (fp_ == NULL)
       PERROR("fopen(build.ninja) failed");
@@ -602,7 +625,7 @@ class NinjaGeneratorImpl : public NinjaGenerator {
 
     EmitRegenRules(orig_args);
 
-    for (const DepNode* node : nodes) {
+    for (const DepNode* node : nodes_) {
       EmitNode(node);
     }
 
@@ -767,7 +790,9 @@ class NinjaGeneratorImpl : public NinjaGenerator {
   map<string, string> used_envs_;
   string kati_binary_;
   double start_time_;
+  vector<const DepNode*> nodes_;
   const DepNode* default_target_;
+  DepBuildResultStreamImpl dep_builder_result_stream_;
 };
 
 NinjaGenerator* NewNinjaGenerator(Evaluator* ev, double start_time) {

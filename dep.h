@@ -49,6 +49,12 @@ struct DepNode {
   Loc loc;
 };
 
+class DepBuildResultStream {
+ public:
+  virtual ~DepBuildResultStream() = default;
+  virtual void AddDepNode(const DepNode* n) = 0;
+};
+
 void InitDepBuilder();
 void QuitDepBuilder();
 
@@ -57,6 +63,7 @@ EvalResultStream* GetEvalResultStream();
 void MakeDep(Evaluator* ev,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
+             DepBuildResultStream* ds,
              vector<const DepNode*>* nodes);
 
 #endif  // DEP_H_

@@ -181,7 +181,10 @@ static int Run(const vector<Symbol>& targets,
   vector<const DepNode*> nodes;
   {
     ScopedTimeReporter tr("make dep time");
-    MakeDep(ev, ev->rule_vars(), targets, &nodes);
+    DepBuildResultStream* ds = nullptr;
+    if (g_flags.generate_ninja)
+      ds = ng->GetDepBuildResultStream();
+    MakeDep(ev, ev->rule_vars(), targets, ds, &nodes);
   }
 
   if (g_flags.is_syntax_check_only)
@@ -189,7 +192,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    ng->Generate(nodes, orig_args);
+    ng->Generate(orig_args);
     return 0;
   }
 
