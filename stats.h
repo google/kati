@@ -34,6 +34,7 @@ class Stats {
   friend class ScopedStatsRecorder;
 
   const char* name_;
+  double start_time_;
   double elapsed_;
   int cnt_;
   mutable mutex mu_;
