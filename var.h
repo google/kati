@@ -62,6 +62,7 @@ class Var : public Evaluable {
 
 class SimpleVar : public Var {
  public:
+  explicit SimpleVar(VarOrigin origin);
   SimpleVar(const string& v, VarOrigin origin);
 
   virtual const char* Flavor() const {
@@ -78,6 +79,8 @@ class SimpleVar : public Var {
   virtual StringPiece String() const override;
 
   virtual string DebugString() const override;
+
+  string* mutable_value() { return &v_; }
 
  private:
   string v_;

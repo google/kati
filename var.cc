@@ -47,6 +47,10 @@ void Var::AppendVar(Evaluator*, Value*) {
   CHECK(false);
 }
 
+SimpleVar::SimpleVar(VarOrigin origin)
+    : origin_(origin) {
+}
+
 SimpleVar::SimpleVar(const string& v, VarOrigin origin)
     : v_(v), origin_(origin) {
 }
