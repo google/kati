@@ -154,7 +154,7 @@ class DirentFileNode : public DirentNode {
   virtual bool RunFind(const FindCommand& fc, int d,
                        string* path,
                        unordered_map<const DirentNode*, string>*,
-                       string* out) const {
+                       string* out) const override {
     PrintIfNecessary(fc, *path, type_, d, out);
     return true;
   }
@@ -205,7 +205,7 @@ class DirentDirNode : public DirentNode {
     }
   }
 
-  virtual const DirentNode* FindDir(StringPiece d) const {
+  virtual const DirentNode* FindDir(StringPiece d) const override {
     if (d.empty() || d == ".")
       return this;
     size_t index = d.find('/');
@@ -224,7 +224,7 @@ class DirentDirNode : public DirentNode {
   virtual bool RunFind(const FindCommand& fc, int d,
                        string* path,
                        unordered_map<const DirentNode*, string>* cur_read_dirs,
-                       string* out) const {
+                       string* out) const override {
     ScopedReadDirTracker srdt(this, *path, cur_read_dirs);
     if (!srdt.ok()) {
       fprintf(stderr, "FindEmulator: find: File system loop detected; `%s' is "
@@ -308,7 +308,7 @@ class DirentSymlinkNode : public DirentNode {
       : DirentNode(name), to_(NULL), errno_(0) {
   }
 
-  virtual const DirentNode* FindDir(StringPiece d) const {
+  virtual const DirentNode* FindDir(StringPiece d) const override {
     if (errno_ == 0 && to_)
       return to_->FindDir(d);
     return NULL;
@@ -317,7 +317,7 @@ class DirentSymlinkNode : public DirentNode {
   virtual bool RunFind(const FindCommand& fc, int d,
                        string* path,
                        unordered_map<const DirentNode*, string>* cur_read_dirs,
-                       string* out) const {
+                       string* out) const override {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks && errno_ != ENOENT) {
       if (errno_) {

@@ -65,16 +65,16 @@ class SimpleVar : public Var {
   explicit SimpleVar(VarOrigin origin);
   SimpleVar(const string& v, VarOrigin origin);
 
-  virtual const char* Flavor() const {
+  virtual const char* Flavor() const override {
     return "simple";
   }
-  virtual VarOrigin Origin() const {
+  virtual VarOrigin Origin() const override {
     return origin_;
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
-  virtual void AppendVar(Evaluator* ev, Value* v);
+  virtual void AppendVar(Evaluator* ev, Value* v) override;
 
   virtual StringPiece String() const override;
 
@@ -91,16 +91,16 @@ class RecursiveVar : public Var {
  public:
   RecursiveVar(Value* v, VarOrigin origin, StringPiece orig);
 
-  virtual const char* Flavor() const {
+  virtual const char* Flavor() const override {
     return "recursive";
   }
-  virtual VarOrigin Origin() const {
+  virtual VarOrigin Origin() const override {
     return origin_;
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
-  virtual void AppendVar(Evaluator* ev, Value* v);
+  virtual void AppendVar(Evaluator* ev, Value* v) override;
 
   virtual StringPiece String() const override;
 
@@ -116,13 +116,13 @@ class UndefinedVar : public Var {
  public:
   UndefinedVar();
 
-  virtual const char* Flavor() const {
+  virtual const char* Flavor() const override {
     return "undefined";
   }
-  virtual VarOrigin Origin() const {
+  virtual VarOrigin Origin() const override {
     return VarOrigin::UNDEFINED;
   }
-  virtual bool IsDefined() const { return false; }
+  virtual bool IsDefined() const override { return false; }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
@@ -141,19 +141,19 @@ class RuleVar : public Var {
     delete v_;
   }
 
-  virtual const char* Flavor() const {
+  virtual const char* Flavor() const override {
     return v_->Flavor();
   }
-  virtual VarOrigin Origin() const {
+  virtual VarOrigin Origin() const override {
     return v_->Origin();
   }
-  virtual bool IsDefined() const {
+  virtual bool IsDefined() const override {
     return v_->IsDefined();
   }
-  virtual void Eval(Evaluator* ev, string* s) const {
+  virtual void Eval(Evaluator* ev, string* s) const override {
     v_->Eval(ev, s);
   }
-  virtual void AppendVar(Evaluator* ev, Value* v) {
+  virtual void AppendVar(Evaluator* ev, Value* v) override {
     v_->AppendVar(ev, v);
   }
   virtual StringPiece String() const override {
