@@ -55,11 +55,11 @@ static int SkipUntilSSE42(const char* s, int len,
 
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
-  for (s = i; s < len; s++) {
+  for (s = i + 1; s < len; s++) {
     if (!isSpace((*in)[s]))
       break;
   }
-  if (s == len) {
+  if (s >= len) {
     in = NULL;
     s = 0;
     i = 0;
@@ -92,7 +92,7 @@ WordScanner::Iterator WordScanner::begin() const {
   Iterator iter;
   iter.in = &in_;
   iter.s = 0;
-  iter.i = 0;
+  iter.i = -1;
   ++iter;
   return iter;
 }
