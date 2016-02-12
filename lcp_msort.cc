@@ -20,7 +20,7 @@
 
 #include "strutil.h"
 
-#define DO_SORT_AND_UNIQ_AT_ONCE
+//#define DO_SORT_AND_UNIQ_AT_ONCE
 
 namespace {
 
