@@ -30,6 +30,7 @@
 #include "eval.h"
 #include "fileutil.h"
 #include "find.h"
+#include "lcp_msort.h"
 #include "log.h"
 #include "parser.h"
 #include "stats.h"
@@ -182,10 +183,15 @@ void FilterOutFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 }
 
 void SortFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
-  const string&& list = args[0]->Eval(ev);
+  string list;
+  args[0]->Eval(ev, &list);
+  COLLECT_STATS("func sort time");
+  // TODO(hamaji): Probably we could make LCP merge sort faster than
+  // stable_sort.
+#if __APPLE___
   vector<StringPiece> toks;
   WordScanner(list).Split(&toks);
-  sort(toks.begin(), toks.end());
+  stable_sort(toks.begin(), toks.end());
   WordWriter ww(s);
   StringPiece prev;
   for (StringPiece tok : toks) {
@@ -194,6 +200,9 @@ void SortFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       prev = tok;
     }
   }
+#else
+  StringSortByLcpMsort(&list, s);
+#endif
 }
 
 static int GetNumericValueForFunc(const string& buf) {
