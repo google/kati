@@ -20,7 +20,7 @@
 
 #include "strutil.h"
 
-//#define DO_SORT_AND_UNIQ_AT_ONCE
+#define DO_SORT_AND_UNIQ_AT_ONCE
 
 namespace {
 
@@ -100,7 +100,7 @@ int StringMergeSortAndUniq(const vector<const unsigned char*>& data,
     k += s1_len - i;
   }
   else if (j < s2_len) {
-    memcpy(&d[k], &s2[j], (s2_len - j) * sizeof(AnnotatedString));
+    memmove(&d[k], &s2[j], (s2_len - j) * sizeof(AnnotatedString));
     k += s2_len - j;
   }
   return k;
@@ -155,7 +155,7 @@ void StringMergeSort(const vector<const unsigned char*>& data,
   if (i < s1_len)
     memcpy(&d[k], &s1[i], (s1_len - i) * sizeof(AnnotatedString));
   else if (j < s2_len)
-    memcpy(&d[k], &s2[j], (s2_len - j) * sizeof(AnnotatedString));
+    memmove(&d[k], &s2[j], (s2_len - j) * sizeof(AnnotatedString));
 }
 
 #endif
