@@ -22,12 +22,14 @@
 #include "log.h"
 #include "mutex.h"
 #include "stringprintf.h"
+#include "thread_local.h"
 #include "timeutil.h"
 
 namespace {
 
 mutex g_mu;
 vector<Stats*>* g_stats;
+DEFINE_THREAD_LOCAL(double, g_start_time);
 
 }  // namespace
 
@@ -45,17 +47,17 @@ string Stats::String() const {
 }
 
 void Stats::Start() {
-  CHECK(!start_time_);
+  CHECK(!TLS_REF(g_start_time));
+  TLS_REF(g_start_time) = GetTime();
   unique_lock<mutex> lock(mu_);
-  start_time_ = GetTime();
   cnt_++;
 }
 
 double Stats::End() {
+  CHECK(TLS_REF(g_start_time));
+  double e = GetTime() - TLS_REF(g_start_time);
+  TLS_REF(g_start_time) = 0;
   unique_lock<mutex> lock(mu_);
-  CHECK(start_time_);
-  double e = GetTime() - start_time_;
-  start_time_ = 0;
   elapsed_ += e;
   return e;
 }

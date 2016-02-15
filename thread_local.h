@@ -39,6 +39,13 @@
 
 #include "log.h"
 
+#ifdef __linux__
+
+#define DEFINE_THREAD_LOCAL(Type, name) thread_local Type name
+#define TLS_REF(x) x
+
+#else
+
 // Thread local storage implementation which uses pthread.
 // Note that DEFINE_THREAD_LOCAL creates a global variable just like
 // thread local storage based on __thread keyword. So we should not use
@@ -87,5 +94,9 @@ class ThreadLocal {
   pthread_key_t name##_key;                             \
   }                                                     \
   ThreadLocal<Type, &name##_key, &name##_once> name;
+
+#define TLS_REF(x) x.Ref()
+
+#endif
 
 #endif  // THREAD_LOCAL_H_
