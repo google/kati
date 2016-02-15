@@ -35,7 +35,6 @@ KATI_CXX_SRCS := \
 	flags.cc \
 	func.cc \
 	io.cc \
-	lcp_msort.cc \
 	log.cc \
 	main.cc \
 	mutex.cc \
