@@ -171,7 +171,6 @@ struct NinjaNode {
   const DepNode* node;
   vector<Command*> commands;
   int rule_id;
-  string str;
 };
 
 class NinjaGenerator {
@@ -481,16 +480,16 @@ class NinjaGenerator {
     return result;
   }
 
-  void EmitDepfile(NinjaNode* nn, string* cmd_buf) {
+  void EmitDepfile(NinjaNode* nn, string* cmd_buf, string* o) {
     const DepNode* node = nn->node;
     string depfile;
     if (!GetDepfile(node, cmd_buf, &depfile))
       return;
-    nn->str += StringPrintf(" depfile = %s\n", depfile.c_str());
-    nn->str += StringPrintf(" deps = gcc\n");
+    *o += StringPrintf(" depfile = %s\n", depfile.c_str());
+    *o += StringPrintf(" deps = gcc\n");
   }
 
-  void EmitNode(NinjaNode* nn) {
+  void EmitNode(NinjaNode* nn, string* o) {
     const DepNode* node = nn->node;
     const vector<Command*>& commands = nn->commands;
 
@@ -498,32 +497,32 @@ class NinjaGenerator {
     bool use_local_pool = false;
     if (!commands.empty()) {
       rule_name = StringPrintf("rule%d", nn->rule_id);
-      nn->str += StringPrintf("rule %s\n", rule_name.c_str());
+      *o += StringPrintf("rule %s\n", rule_name.c_str());
 
       string description = "build $out";
       string cmd_buf;
       use_local_pool |= GenShellScript(node->output.c_str(), commands,
                                        &cmd_buf, &description);
-      nn->str += StringPrintf(" description = %s\n", description.c_str());
-      EmitDepfile(nn, &cmd_buf);
+      *o += StringPrintf(" description = %s\n", description.c_str());
+      EmitDepfile(nn, &cmd_buf, o);
 
       // It seems Linux is OK with ~130kB and Mac's limit is ~250kB.
       // TODO: Find this number automatically.
       if (cmd_buf.size() > 100 * 1000) {
-        nn->str += StringPrintf(" rspfile = $out.rsp\n");
-        nn->str += StringPrintf(" rspfile_content = %s\n", cmd_buf.c_str());
-        nn->str += StringPrintf(" command = %s $out.rsp\n", shell_.c_str());
+        *o += StringPrintf(" rspfile = $out.rsp\n");
+        *o += StringPrintf(" rspfile_content = %s\n", cmd_buf.c_str());
+        *o += StringPrintf(" command = %s $out.rsp\n", shell_.c_str());
       } else {
         EscapeShell(&cmd_buf);
-        nn->str += StringPrintf(" command = %s -c \"%s\"\n",
+        *o += StringPrintf(" command = %s -c \"%s\"\n",
                 shell_.c_str(), cmd_buf.c_str());
       }
       if (node->is_restat) {
-        nn->str += StringPrintf(" restat = 1\n");
+        *o += StringPrintf(" restat = 1\n");
       }
     }
 
-    EmitBuild(nn, rule_name, use_local_pool);
+    EmitBuild(nn, rule_name, use_local_pool, o);
   }
 
   string EscapeBuildTarget(Symbol s) const {
@@ -575,28 +574,28 @@ class NinjaGenerator {
   }
 
   void EmitBuild(NinjaNode* nn, const string& rule_name,
-                 bool use_local_pool) {
+                 bool use_local_pool, string* o) {
     const DepNode* node = nn->node;
     string target = EscapeBuildTarget(node->output);
-    nn->str += StringPrintf("build %s: %s",
+    *o += StringPrintf("build %s: %s",
             target.c_str(),
             rule_name.c_str());
     vector<Symbol> order_onlys;
     if (node->is_phony) {
-      nn->str += StringPrintf(" _kati_always_build_");
+      *o += StringPrintf(" _kati_always_build_");
     }
     for (DepNode* d : node->deps) {
-      nn->str += StringPrintf(" %s", EscapeBuildTarget(d->output).c_str());
+      *o += StringPrintf(" %s", EscapeBuildTarget(d->output).c_str());
     }
     if (!node->order_onlys.empty()) {
-      nn->str += StringPrintf(" ||");
+      *o += StringPrintf(" ||");
       for (DepNode* d : node->order_onlys) {
-        nn->str += StringPrintf(" %s", EscapeBuildTarget(d->output).c_str());
+        *o += StringPrintf(" %s", EscapeBuildTarget(d->output).c_str());
       }
     }
-    nn->str += StringPrintf("\n");
+    *o += StringPrintf("\n");
     if (use_local_pool)
-      nn->str += StringPrintf(" pool = local_pool\n");
+      *o += StringPrintf(" pool = local_pool\n");
     if (node->is_default_target) {
       unique_lock<mutex> lock(mu_);
       default_target_ = node;
@@ -657,19 +656,20 @@ class NinjaGenerator {
     CHECK(g_flags.num_jobs);
     int num_nodes_per_task = nodes_.size() / (g_flags.num_jobs * 10) + 1;
     int num_tasks = nodes_.size() / num_nodes_per_task + 1;
+    vector<string> bufs(num_tasks);
     for (int i = 0; i < num_tasks; i++) {
-      tp->Submit([this, i, num_nodes_per_task]() {
+      tp->Submit([this, i, num_nodes_per_task, &bufs]() {
           int l = min(num_nodes_per_task * (i + 1),
                       static_cast<int>(nodes_.size()));
           for (int j = num_nodes_per_task * i; j < l; j++) {
-            EmitNode(nodes_[j]);
+            EmitNode(nodes_[j], &bufs[i]);
           }
         });
     }
     tp->Wait();
 
-    for (NinjaNode* node : nodes_) {
-      fprintf(fp_, "%s", node->str.c_str());
+    for (const string& buf : bufs) {
+      fprintf(fp_, "%s", buf.c_str());
     }
 
     unordered_set<Symbol> used_env_vars(Vars::used_env_vars());
