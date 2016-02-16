@@ -362,9 +362,24 @@ class DepBuilder {
     }
   }
 
+  bool IsIgnorableImplicitRule(const Rule* rule) {
+    // As kati doesn't have RCS/SCCS related default rules, we can
+    // safely ignore suppression for them.
+    if (rule->inputs.size() != 1)
+      return false;
+    if (!rule->order_only_inputs.empty())
+      return false;
+    if (!rule->cmds.empty())
+      return false;
+    const string& i = rule->inputs[0].str();
+    return (i == "RCS/%,v" || i == "RCS/%" || i == "%,v" ||
+            i == "s.%" || i == "SCCS/s.%");
+  }
+
   void PopulateImplicitRule(const Rule* rule) {
     for (Symbol output_pattern : rule->output_patterns) {
-      implicit_rules_->Add(output_pattern.str(), rule);
+      if (output_pattern.str() != "%" && !IsIgnorableImplicitRule(rule))
+        implicit_rules_->Add(output_pattern.str(), rule);
     }
   }
 
