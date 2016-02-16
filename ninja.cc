@@ -595,7 +595,7 @@ class NinjaGenerator {
     if (use_local_pool)
       *o << " pool = local_pool\n";
     if (node->is_default_target) {
-      unique_lock<mutex> lock(mu_);
+      UniqueLock<Mutex> lock(mu_);
       default_target_ = node;
     }
   }
@@ -833,7 +833,7 @@ class NinjaGenerator {
   const double start_time_;
   vector<NinjaNode*> nodes_;
 
-  mutex mu_;
+  Mutex mu_;
   const DepNode* default_target_;
 };
 

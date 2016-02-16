@@ -364,7 +364,7 @@ class StampChecker {
         // TODO: Make glob cache thread safe and create a task for each glob.
         for (GlobResult* gr : globs_) {
           if (CheckGlobResult(gr, &err)) {
-            unique_lock<mutex> lock(mu_);
+            UniqueLock<Mutex> lock(mu_);
             if (!needs_regen_) {
               needs_regen_ = true;
               msg_ = err;
@@ -378,7 +378,7 @@ class StampChecker {
       tp->Submit([this, sr]() {
           string err;
           if (CheckShellResult(sr, &err)) {
-            unique_lock<mutex> lock(mu_);
+            UniqueLock<Mutex> lock(mu_);
             if (!needs_regen_) {
               needs_regen_ = true;
               msg_ = err;
@@ -398,7 +398,7 @@ class StampChecker {
   double gen_time_;
   vector<GlobResult*> globs_;
   vector<ShellResult*> commands_;
-  mutex mu_;
+  Mutex mu_;
   bool needs_regen_;
   string msg_;
 };

@@ -36,7 +36,7 @@ class Stats {
   const char* name_;
   double elapsed_;
   int cnt_;
-  mutable mutex mu_;
+  mutable Mutex mu_;
 };
 
 class ScopedStatsRecorder {

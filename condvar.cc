@@ -26,8 +26,8 @@ condition_variable::~condition_variable() {
     PERROR("pthread_cond_destroy");
 }
 
-void condition_variable::wait(const unique_lock<mutex>& mu) {
-  if (pthread_cond_wait(&cond_, &mu.mutex()->mu_) != 0)
+void condition_variable::wait(const UniqueLock<Mutex>& mu) {
+  if (pthread_cond_wait(&cond_, &mu.Mutex()->mu_) != 0)
     PERROR("pthread_cond_wait");
 }
 

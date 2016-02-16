@@ -27,7 +27,7 @@
 
 namespace {
 
-mutex g_mu;
+Mutex g_mu;
 vector<Stats*>* g_stats;
 DEFINE_THREAD_LOCAL(double, g_start_time);
 
@@ -35,21 +35,21 @@ DEFINE_THREAD_LOCAL(double, g_start_time);
 
 Stats::Stats(const char* name)
     : name_(name), elapsed_(0), cnt_(0) {
-  unique_lock<mutex> lock(g_mu);
+  UniqueLock<Mutex> lock(g_mu);
   if (g_stats == NULL)
     g_stats = new vector<Stats*>;
   g_stats->push_back(this);
 }
 
 string Stats::String() const {
-  unique_lock<mutex> lock(mu_);
+  UniqueLock<Mutex> lock(mu_);
   return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
 }
 
 void Stats::Start() {
   CHECK(!TLS_REF(g_start_time));
   TLS_REF(g_start_time) = GetTime();
-  unique_lock<mutex> lock(mu_);
+  UniqueLock<Mutex> lock(mu_);
   cnt_++;
 }
 
@@ -57,7 +57,7 @@ double Stats::End() {
   CHECK(TLS_REF(g_start_time));
   double e = GetTime() - TLS_REF(g_start_time);
   TLS_REF(g_start_time) = 0;
-  unique_lock<mutex> lock(mu_);
+  UniqueLock<Mutex> lock(mu_);
   elapsed_ += e;
   return e;
 }
