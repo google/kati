@@ -27,8 +27,10 @@
 #include "fileutil.h"
 #include "log.h"
 #include "rule.h"
+#include "stats.h"
 #include "strutil.h"
 #include "symtab.h"
+#include "timeutil.h"
 #include "var.h"
 
 namespace {
@@ -123,6 +125,7 @@ class DepBuilder {
         implicit_rules_(new RuleTrie()),
         first_rule_(NULL),
         depfile_var_name_(Intern(".KATI_DEPFILE")) {
+    ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
     LOG_STAT("%zu variables", ev->mutable_vars()->size());
     LOG_STAT("%zu explicit rules", rules_.size());
@@ -291,6 +294,7 @@ class DepBuilder {
                               const Rule& rule,
                               Symbol output,
                               bool is_suffix_rule) {
+    COLLECT_STATS("make dep (merge rule)");
     if (old_rule.is_double_colon != rule.is_double_colon) {
       ERROR("%s:%d: *** target file `%s' has both : and :: entries.",
             LOCF(rule.loc), output.str().c_str());
@@ -437,6 +441,7 @@ class DepBuilder {
 
   bool PickRule(Symbol output, DepNode* n,
                 shared_ptr<Rule>* out_rule, Vars** out_var) {
+    COLLECT_STATS("make dep (pick rule)");
     shared_ptr<Rule> rule = LookupRule(output);
     Vars* vars = LookupRuleVars(output);
     *out_rule = rule;
@@ -539,6 +544,7 @@ class DepBuilder {
 
     vector<unique_ptr<ScopedVar>> sv;
     if (vars) {
+      COLLECT_STATS("make dep (create scope)");
       for (const auto& p : *vars) {
         Symbol name = p.first;
         RuleVar* var = reinterpret_cast<RuleVar*>(p.second);
@@ -624,6 +630,7 @@ void MakeDep(Evaluator* ev,
              const vector<Symbol>& targets,
              vector<DepNode*>* nodes) {
   DepBuilder db(ev, rules, rule_vars);
+  ScopedTimeReporter tr("make dep (build)");
   db.Build(targets, nodes);
 }
 
