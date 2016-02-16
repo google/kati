@@ -44,6 +44,7 @@ struct Flags {
   const char* makefile;
   const char* ninja_dir;
   const char* ninja_suffix;
+  int num_cpus;
   int num_jobs;
   int remote_num_jobs;
   vector<const char*> subkati_args;

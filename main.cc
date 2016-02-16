@@ -21,6 +21,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "affinity.h"
 #include "dep.h"
 #include "eval.h"
 #include "exec.h"
@@ -132,6 +133,8 @@ static int Run(const vector<Symbol>& targets,
     }
     ClearGlobCache();
   }
+
+  SetAffinityForSingleThread();
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 

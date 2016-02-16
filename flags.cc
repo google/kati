@@ -49,7 +49,7 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
 
 void Flags::Parse(int argc, char** argv) {
   subkati_args.push_back(argv[0]);
-  num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
+  num_jobs = num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
 
   for (int i = 1; i < argc; i++) {

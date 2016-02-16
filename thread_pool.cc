@@ -17,6 +17,7 @@
 #include <stack>
 #include <vector>
 
+#include "affinity.h"
 #include "condvar.h"
 #include "mutex.h"
 #include "thread.h"
@@ -25,6 +26,7 @@ class ThreadPoolImpl : public ThreadPool {
  public:
   explicit ThreadPoolImpl(int num_threads)
       : is_waiting_(false) {
+    SetAffinityForMultiThread();
     threads_.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
       threads_.push_back(thread([this]() { Loop(); }));
@@ -50,6 +52,8 @@ class ThreadPoolImpl : public ThreadPool {
     for (thread& th : threads_) {
       th.join();
     }
+
+    SetAffinityForSingleThread();
   }
 
  private:
