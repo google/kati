@@ -362,7 +362,7 @@ class DepBuilder {
     }
   }
 
-  bool IsIgnorableImplicitRule(const Rule* rule) {
+  static bool IsIgnorableImplicitRule(const Rule* rule) {
     // As kati doesn't have RCS/SCCS related default rules, we can
     // safely ignore suppression for them.
     if (rule->inputs.size() != 1)
@@ -378,7 +378,7 @@ class DepBuilder {
 
   void PopulateImplicitRule(const Rule* rule) {
     for (Symbol output_pattern : rule->output_patterns) {
-      if (output_pattern.str() != "%" && !IsIgnorableImplicitRule(rule))
+      if (output_pattern.str() != "%" || !IsIgnorableImplicitRule(rule))
         implicit_rules_->Add(output_pattern.str(), rule);
     }
   }
