@@ -96,7 +96,7 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
 void Evaluator::EvalAssign(const AssignStmt* stmt) {
   loc_ = stmt->loc();
   last_rule_ = NULL;
-  Symbol lhs = Intern(stmt->lhs->Eval(this));
+  Symbol lhs = stmt->GetLhsSymbol(this);
   if (lhs.empty())
     Error("*** empty variable name.");
   Var* rhs = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,

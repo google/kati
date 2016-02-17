@@ -42,6 +42,8 @@ class Value : public Evaluable {
   virtual Value* Compact() { return this; }
 
   virtual bool IsLiteral() const { return false; }
+  // Only safe after IsLiteral() returns true.
+  virtual StringPiece GetLiteralValueUnsafe() const { return ""; }
 
   string DebugString() const;
 
