@@ -44,7 +44,7 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
 
   virtual Makefile* ReadMakefile(const string& filename) override {
     Makefile* result = NULL;
-    auto p = cache_.insert(make_pair(filename, result));
+    auto p = cache_.emplace(filename, result);
     if (p.second) {
       p.first->second = result = new Makefile(filename);
     } else {

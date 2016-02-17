@@ -125,7 +125,7 @@ Var* Vars::Lookup(Symbol name) const {
 }
 
 void Vars::Assign(Symbol name, Var* v) {
-  auto p = insert(make_pair(name, v));
+  auto p = emplace(name, v);
   if (!p.second) {
     Var* orig = p.first->second;
     if (orig->Origin() == VarOrigin::OVERRIDE ||
@@ -145,7 +145,7 @@ unordered_set<Symbol> Vars::used_env_vars_;
 
 ScopedVar::ScopedVar(Vars* vars, Symbol name, Var* var)
     : vars_(vars), orig_(NULL) {
-  auto p = vars->insert(make_pair(name, var));
+  auto p = vars->emplace(name, var);
   iter_ = p.first;
   if (!p.second) {
     orig_ = iter_->second;

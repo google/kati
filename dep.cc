@@ -349,7 +349,7 @@ class DepBuilder {
       rule->outputs.clear();
       rule->outputs.push_back(output);
 
-      auto p = rules_.insert(make_pair(output, rule));
+      auto p = rules_.emplace(output, rule);
       if (p.second) {
         if (!first_rule_ && output.get(0) != '.') {
           rule->is_default_target = true;
