@@ -30,4 +30,8 @@ int main() {
   assert(sps.size() == 2);
   assert(sps.count(StringPiece("foo")) == 1);
   assert(sps.count(StringPiece("bar")) == 1);
+
+  assert(StringPiece("hogefugahige") == StringPiece("hogefugahige"));
+  assert(StringPiece("hogefugahoge") != StringPiece("hogefugahige"));
+  assert(StringPiece("hogefugahige") != StringPiece("higefugahige"));
 }

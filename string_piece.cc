@@ -21,6 +21,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <ostream>
@@ -32,8 +33,15 @@ typedef StringPiece::size_type size_type;
 bool operator==(const StringPiece& x, const StringPiece& y) {
   if (x.size() != y.size())
     return false;
-
-  return StringPiece::wordmemcmp(x.data(), y.data(), x.size()) == 0;
+  size_t len = x.size();
+  if (len >= sizeof(uint64_t)) {
+    len -= sizeof(uint64_t);
+    uint64_t xt = *reinterpret_cast<const uint64_t*>(x.data() + len);
+    uint64_t yt = *reinterpret_cast<const uint64_t*>(y.data() + len);
+    if (xt != yt)
+      return false;
+  }
+  return StringPiece::wordmemcmp(x.data(), y.data(), len) == 0;
 }
 
 void StringPiece::CopyToString(std::string* target) const {
