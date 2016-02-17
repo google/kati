@@ -423,6 +423,30 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 }
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
+#ifdef __SSE4_2__
+  static const char ranges[] = "\n\n\\\\";
+  while (e < s.size()) {
+    e += SkipUntilSSE42(s.data() + e, s.size() - e, ranges, 4);
+    char c = s[e];
+    if (c == '\\') {
+      if (s[e+1] == '\n') {
+        e += 2;
+        ++*lf_cnt;
+      } else if (s[e+1] == '\r' && s[e+2] == '\n') {
+        e += 3;
+        ++*lf_cnt;
+      } else if (s[e+1] == '\\') {
+        e += 2;
+      } else {
+        e++;
+      }
+    } else if (c == '\n') {
+      ++*lf_cnt;
+      return e;
+    }
+  }
+  return e;
+#else
   bool prev_backslash = false;
   for (; e < s.size(); e++) {
     char c = s[e];
@@ -439,6 +463,7 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
     }
   }
   return e;
+#endif
 }
 
 StringPiece TrimLeadingCurdir(StringPiece s) {
