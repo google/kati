@@ -595,7 +595,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
         new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC));
     av.push_back(move(s));
   }
-  vector<unique_ptr<ScopedVar>> sv;
+  vector<unique_ptr<ScopedGlobalVar>> sv;
   for (size_t i = 1; ; i++) {
     string s;
     Symbol tmpvar_name_sym(Symbol::IsUninitialized{});
@@ -606,8 +606,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       tmpvar_name_sym = Intern(s);
     }
     if (i < args.size()) {
-      sv.emplace_back(new ScopedVar(ev->mutable_vars(),
-                                    tmpvar_name_sym, av[i-1].get()));
+      sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i-1].get()));
     } else {
       // We need to blank further automatic vars
       Var *v = ev->LookupVar(tmpvar_name_sym);
@@ -615,8 +614,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       if (v->Origin() != VarOrigin::AUTOMATIC) break;
 
       av.emplace_back(new SimpleVar("", VarOrigin::AUTOMATIC));
-      sv.emplace_back(new ScopedVar(ev->mutable_vars(),
-                                    tmpvar_name_sym, av[i-1].get()));
+      sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i-1].get()));
     }
   }
 
@@ -633,7 +631,7 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   for (StringPiece tok : WordScanner(list)) {
     unique_ptr<SimpleVar> v(new SimpleVar(
         tok.as_string(), VarOrigin::AUTOMATIC));
-    ScopedVar sv(ev->mutable_vars(), Intern(varname), v.get());
+    ScopedGlobalVar sv(Intern(varname), v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
   }

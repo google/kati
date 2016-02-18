@@ -179,6 +179,8 @@ class Vars : public unordered_map<Symbol, Var*> {
 
   void Assign(Symbol name, Var* v);
 
+  static void add_used_env_vars(Symbol v);
+
   static const unordered_set<Symbol>& used_env_vars() {
     return used_env_vars_;
   }

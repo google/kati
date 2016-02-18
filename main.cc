@@ -105,13 +105,13 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
   Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), stmts);
 }
 
-static void SetVar(StringPiece l, VarOrigin origin, Vars* vars) {
+static void SetVar(StringPiece l, VarOrigin origin) {
   size_t found = l.find('=');
   CHECK(found != string::npos);
   Symbol lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
-  vars->Assign(lhs,
-               new RecursiveVar(NewLiteral(rhs.data()), origin, rhs.data()));
+  lhs.SetGlobalVar(
+      new RecursiveVar(NewLiteral(rhs.data()), origin, rhs.data()));
 }
 
 extern "C" char** environ;
@@ -138,14 +138,12 @@ static int Run(const vector<Symbol>& targets,
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
-  Vars* vars = new Vars();
-  vars->Assign(Intern("MAKEFILE_LIST"),
-               new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                             VarOrigin::FILE));
+  Intern("MAKEFILE_LIST").SetGlobalVar(
+      new SimpleVar(StringPrintf(" %s", g_flags.makefile), VarOrigin::FILE));
   for (char** p = environ; *p; p++) {
-    SetVar(*p, VarOrigin::ENVIRONMENT, vars);
+    SetVar(*p, VarOrigin::ENVIRONMENT);
   }
-  Evaluator* ev = new Evaluator(vars);
+  Evaluator* ev = new Evaluator();
 
   vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
@@ -157,7 +155,7 @@ static int Run(const vector<Symbol>& targets,
   ev->set_is_bootstrap(false);
 
   for (StringPiece l : cl_vars) {
-    SetVar(l, VarOrigin::COMMAND_LINE, ev->mutable_vars());
+    SetVar(l, VarOrigin::COMMAND_LINE);
   }
 
   {
@@ -210,9 +208,6 @@ static int Run(const vector<Symbol>& targets,
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;
   delete ev;
-  // Each Var will be deleted by |ev|.
-  vars->clear();
-  delete vars;
   delete cache_mgr;
 
   return 0;

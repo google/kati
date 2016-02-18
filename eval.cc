@@ -30,9 +30,8 @@
 #include "symtab.h"
 #include "var.h"
 
-Evaluator::Evaluator(const Vars* vars)
-    : vars_(new Vars(*vars)),
-      last_rule_(NULL),
+Evaluator::Evaluator()
+    : last_rule_(NULL),
       current_scope_(NULL),
       avoid_io_(false),
       eval_depth_(0) {
@@ -102,7 +101,7 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
   Var* rhs = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
                      stmt->directive == AssignDirective::OVERRIDE);
   if (rhs)
-    vars_->Assign(lhs, rhs);
+    lhs.SetGlobalVar(rhs);
 }
 
 void Evaluator::EvalRule(const RuleStmt* stmt) {
@@ -284,7 +283,7 @@ void Evaluator::EvalExport(const ExportStmt* stmt) {
 }
 
 Var* Evaluator::LookupVarGlobal(Symbol name) {
-  Var* v = vars_->Lookup(name);
+  Var* v = name.GetGlobalVar();
   if (v->IsDefined())
     return v;
   used_undefined_vars_.insert(name);

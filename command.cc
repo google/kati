@@ -171,12 +171,11 @@ void ParseCommandPrefixes(StringPiece* s, bool* echo, bool* ignore_error) {
 
 CommandEvaluator::CommandEvaluator(Evaluator* ev)
     : ev_(ev) {
-  Vars* vars = ev_->mutable_vars();
 #define INSERT_AUTO_VAR(name, sym) do {                                 \
     Var* v = new name(this, sym);                                       \
-    (*vars)[Intern(sym)] = v;                                           \
-    (*vars)[Intern(sym"D")] = new AutoSuffixDVar(this, sym"D", v);      \
-    (*vars)[Intern(sym"F")] = new AutoSuffixFVar(this, sym"F", v);      \
+    Intern(sym).SetGlobalVar(v);                                        \
+    Intern(sym"D").SetGlobalVar(new AutoSuffixDVar(this, sym"D", v));   \
+    Intern(sym"F").SetGlobalVar(new AutoSuffixFVar(this, sym"F", v));   \
   } while (0)
   INSERT_AUTO_VAR(AutoAtVar, "@");
   INSERT_AUTO_VAR(AutoLessVar, "<");

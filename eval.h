@@ -33,7 +33,7 @@ class Vars;
 
 class Evaluator {
  public:
-  Evaluator(const Vars* vars);
+  Evaluator();
   ~Evaluator();
 
   void EvalAssign(const AssignStmt* stmt);
@@ -56,7 +56,6 @@ class Evaluator {
   const unordered_map<Symbol, Vars*>& rule_vars() const {
     return rule_vars_;
   }
-  Vars* mutable_vars() { return vars_; }
   const unordered_map<Symbol, bool>& exports() const { return exports_; }
 
   void Error(const string& msg);
@@ -97,7 +96,6 @@ class Evaluator {
 
   Var* LookupVarGlobal(Symbol name);
 
-  Vars* vars_;
   unordered_map<Symbol, Vars*> rule_vars_;
   vector<const Rule*> rules_;
   unordered_map<Symbol, bool> exports_;

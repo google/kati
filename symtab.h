@@ -25,6 +25,7 @@ using namespace std;
 extern vector<string*>* g_symbols;
 
 class Symtab;
+class Var;
 
 class Symbol {
  public:
@@ -54,12 +55,25 @@ class Symbol {
 
   bool IsValid() const { return v_ >= 0; }
 
+  Var* GetGlobalVar() const;
+  void SetGlobalVar(Var* v) const;
+
  private:
   explicit Symbol(int v);
 
   int v_;
 
   friend class Symtab;
+};
+
+class ScopedGlobalVar {
+ public:
+  ScopedGlobalVar(Symbol name, Var* var);
+  ~ScopedGlobalVar();
+
+ private:
+  Symbol name_;
+  Var* orig_;
 };
 
 inline bool operator==(const Symbol& x, const Symbol& y) {

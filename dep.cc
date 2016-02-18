@@ -244,7 +244,8 @@ class DepBuilder {
         depfile_var_name_(Intern(".KATI_DEPFILE")) {
     ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
-    LOG_STAT("%zu variables", ev->mutable_vars()->size());
+    // TODO?
+    //LOG_STAT("%zu variables", ev->mutable_vars()->size());
     LOG_STAT("%zu explicit rules", rules_.size());
     LOG_STAT("%zu implicit rules", implicit_rules_->size());
     LOG_STAT("%zu suffix rules", suffix_rules_.size());

@@ -112,6 +112,10 @@ Vars::~Vars() {
   }
 }
 
+void Vars::add_used_env_vars(Symbol v) {
+  used_env_vars_.insert(v);
+}
+
 Var* Vars::Lookup(Symbol name) const {
   auto found = find(name);
   if (found == end())
