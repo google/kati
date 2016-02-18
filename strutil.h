@@ -142,4 +142,6 @@ string ConcatDir(StringPiece b, StringPiece n);
 
 string EchoEscape(const string str);
 
+void EscapeShell(string* s);
+
 #endif  // STRUTIL_H_

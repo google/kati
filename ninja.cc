@@ -543,36 +543,6 @@ class NinjaGenerator {
     return r;
   }
 
-  void EscapeShell(string* s) const {
-    if (s->find_first_of("$`\\\"") == string::npos)
-      return;
-    string r;
-    bool last_dollar = false;
-    for (char c : *s) {
-      switch (c) {
-        case '$':
-          if (last_dollar) {
-            r += c;
-            last_dollar = false;
-          } else {
-            r += '\\';
-            r += c;
-            last_dollar = true;
-          }
-          break;
-        case '`':
-        case '"':
-        case '\\':
-          r += '\\';
-          // fall through.
-        default:
-          r += c;
-          last_dollar = false;
-      }
-    }
-    s->swap(r);
-  }
-
   void EmitBuild(NinjaNode* nn, const string& rule_name,
                  bool use_local_pool, ostringstream* o) {
     const DepNode* node = nn->node;

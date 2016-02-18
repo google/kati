@@ -521,3 +521,33 @@ string EchoEscape(const string str) {
   }
   return buf;
 }
+
+void EscapeShell(string* s) {
+  if (s->find_first_of("$`\\\"") == string::npos)
+    return;
+  string r;
+  bool last_dollar = false;
+  for (char c : *s) {
+    switch (c) {
+      case '$':
+        if (last_dollar) {
+          r += c;
+          last_dollar = false;
+        } else {
+          r += '\\';
+          r += c;
+          last_dollar = true;
+        }
+        break;
+      case '`':
+      case '"':
+      case '\\':
+        r += '\\';
+        // fall through.
+      default:
+        r += c;
+        last_dollar = false;
+    }
+  }
+  s->swap(r);
+}
