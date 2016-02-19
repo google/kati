@@ -184,7 +184,7 @@ class NinjaGenerator {
         start_time_(start_time),
         default_target_(NULL) {
     ev_->set_avoid_io(true);
-    shell_ = ev->EvalVar(kShellSym);
+    shell_ = EscapeNinja(ev->EvalVar(kShellSym));
     if (g_flags.goma_dir)
       gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
 
@@ -525,11 +525,11 @@ class NinjaGenerator {
     EmitBuild(nn, rule_name, use_local_pool, o);
   }
 
-  string EscapeBuildTarget(Symbol s) const {
-    if (s.str().find_first_of("$: ") == string::npos)
-      return s.str();
+  string EscapeNinja(const string& s) const {
+    if (s.find_first_of("$: ") == string::npos)
+      return s;
     string r;
-    for (char c : s.str()) {
+    for (char c : s) {
       switch (c) {
         case '$':
         case ':':
@@ -541,6 +541,10 @@ class NinjaGenerator {
       }
     }
     return r;
+  }
+
+  string EscapeBuildTarget(Symbol s) const {
+    return EscapeNinja(s.str());
   }
 
   void EmitBuild(NinjaNode* nn, const string& rule_name,

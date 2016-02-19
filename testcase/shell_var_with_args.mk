@@ -1,6 +1,8 @@
 # TODO(go): Fix
 
-SHELL := PS4="cmd: " /bin/bash -x
+export FOO=-x
+
+SHELL := PS4="cmd: " /bin/bash $${FOO}
 $(info $(shell echo foo))
 
 test:
