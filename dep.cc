@@ -132,25 +132,27 @@ class DepBuilder {
     LOG_STAT("%zu implicit rules", implicit_rules_->size());
     LOG_STAT("%zu suffix rules", suffix_rules_.size());
 
-    auto found = rules_.find(Intern(".PHONY"));
-    if (found != rules_.end()) {
-      for (Symbol input : found->second->inputs) {
-        phony_.insert(input);
-      }
+    HandleSpecialTargets();
+  }
+
+  void HandleSpecialTargets() {
+    Loc loc;
+    vector<Symbol> targets;
+
+    if (GetRuleInputs(Intern(".PHONY"), &targets, &loc)) {
+      for (Symbol t : targets)
+        phony_.insert(t);
     }
-    found = rules_.find(Intern(".KATI_RESTAT"));
-    if (found != rules_.end()) {
-      for (Symbol input : found->second->inputs) {
-        restat_.insert(input);
-      }
+    if (GetRuleInputs(Intern(".KATI_RESTAT"), &targets, &loc)) {
+      for (Symbol t : targets)
+        restat_.insert(t);
     }
-    found = rules_.find(Intern(".SUFFIXES"));
-    if (found != rules_.end()) {
-      if (found->second->inputs.empty()) {
+    if (GetRuleInputs(Intern(".SUFFIXES"), &targets, &loc)) {
+      if (targets.empty()) {
         suffix_rules_.clear();
       } else {
         WARN("%s:%d: kati doesn't support .SUFFIXES with prerequisites",
-             LOCF(found->second->loc));
+             LOCF(loc));
       }
     }
 
@@ -171,9 +173,8 @@ class DepBuilder {
       NULL
     };
     for (const char** p = kUnsupportedBuiltinTargets; *p; p++) {
-      auto found = rules_.find(Intern(*p));
-      if (found != rules_.end()) {
-        WARN("%s:%d: kati doesn't support %s", LOCF(found->second->loc), *p);
+      if (GetRuleInputs(Intern(*p), &targets, &loc)) {
+        WARN("%s:%d: kati doesn't support %s", LOCF(loc), *p);
       }
     }
   }
@@ -226,6 +227,19 @@ class DepBuilder {
     if (phony_.count(target))
       return true;
     return ::Exists(target.str());
+  }
+
+  bool GetRuleInputs(Symbol s, vector<Symbol>* o, Loc* l) {
+    auto found = rules_.find(s);
+    if (found == rules_.end())
+      return false;
+
+    o->clear();
+    *l = found->second->loc;
+    for (Symbol i : found->second->inputs) {
+      o->push_back(i);
+    }
+    return true;
   }
 
   void PopulateRules(const vector<const Rule*>& rules) {
