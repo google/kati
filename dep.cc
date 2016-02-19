@@ -123,7 +123,7 @@ class DepBuilder {
       : ev_(ev),
         rule_vars_(rule_vars),
         implicit_rules_(new RuleTrie()),
-        first_rule_(NULL),
+        first_rule_(Symbol::IsUninitialized{}),
         depfile_var_name_(Intern(".KATI_DEPFILE")) {
     ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
@@ -182,13 +182,12 @@ class DepBuilder {
   }
 
   void Build(vector<Symbol> targets, vector<DepNode*>* nodes) {
-    if (!first_rule_) {
+    if (!first_rule_.IsValid()) {
       ERROR("*** No targets.");
     }
-    CHECK(!first_rule_->outputs.empty());
 
     if (!g_flags.gen_all_targets && targets.empty()) {
-      targets.push_back(first_rule_->outputs[0]);
+      targets.push_back(first_rule_);
     }
     if (g_flags.gen_all_targets) {
       unordered_set<Symbol> non_root_targets;
@@ -351,9 +350,9 @@ class DepBuilder {
 
       auto p = rules_.emplace(output, rule);
       if (p.second) {
-        if (!first_rule_ && output.get(0) != '.') {
+        if (!first_rule_.IsValid() && output.get(0) != '.') {
           rule->is_default_target = true;
-          first_rule_ = rule;
+          first_rule_ = output;
         }
       } else {
         p.first->second =
@@ -632,7 +631,7 @@ class DepBuilder {
   typedef unordered_map<StringPiece, vector<shared_ptr<Rule>>> SuffixRuleMap;
   SuffixRuleMap suffix_rules_;
 
-  shared_ptr<Rule> first_rule_;
+  Symbol first_rule_;
   unordered_map<Symbol, DepNode*> done_;
   unordered_set<Symbol> phony_;
   unordered_set<Symbol> restat_;
