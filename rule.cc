@@ -50,8 +50,7 @@ bool IsPatternRule(StringPiece s) {
 Rule::Rule()
     : is_double_colon(false),
       is_suffix_rule(false),
-      cmd_lineno(0),
-      is_default_target(false) {
+      cmd_lineno(0) {
 }
 
 void ParseRule(Loc& loc, StringPiece line, char term,
@@ -167,8 +166,6 @@ string Rule::DebugString() const {
     v.push_back("is_double_colon");
   if (is_suffix_rule)
     v.push_back("is_suffix_rule");
-  if (is_default_target)
-    v.push_back("is_default_target");
   if (!cmds.empty()) {
     v.push_back(StringPrintf("cmds=[%s]", JoinValues(cmds, ",").c_str()));
   }
