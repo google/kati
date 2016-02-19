@@ -42,6 +42,7 @@ struct DepNode {
   bool is_phony;
   bool is_restat;
   vector<Symbol> actual_inputs;
+  vector<Symbol> actual_order_only_inputs;
   Vars* rule_vars;
   Var* depfile_var;
   Symbol output_pattern;
