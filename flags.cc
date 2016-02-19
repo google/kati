@@ -100,10 +100,6 @@ void Flags::Parse(int argc, char** argv) {
         "--ninja_dir", argv, &i, &ninja_dir)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       use_find_emulator = true;
-    } else if (!strcmp(arg, "--gen_regen_rule")) {
-      // TODO: Make this default once we have removed unnecessary
-      // command line change from Android build.
-      gen_regen_rule = true;
     } else if (ParseCommandLineOptionWithArg(
         "--goma_dir", argv, &i, &goma_dir)) {
     } else if (ParseCommandLineOptionWithArg(

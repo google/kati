@@ -29,7 +29,6 @@ struct Flags {
   bool enable_kati_warnings;
   bool enable_stat_logs;
   bool gen_all_targets;
-  bool gen_regen_rule;
   bool generate_ninja;
   bool is_dry_run;
   bool is_silent_mode;
