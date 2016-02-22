@@ -127,6 +127,7 @@ void TestEscapeShell() {
   ASSERT_EQ(EscapeShell("foo$`\\baz\"bar"), "foo\\$\\`\\\\baz\\\"bar");
   ASSERT_EQ(EscapeShell("$$"), "\\$$");
   ASSERT_EQ(EscapeShell("$$$"), "\\$$\\$");
+  ASSERT_EQ(EscapeShell("\\\n"), "\\\\\n");
 }
 
 }  // namespace

@@ -524,9 +524,9 @@ string EchoEscape(const string str) {
 
 void EscapeShell(string* s) {
 #ifdef __SSE4_2__
-  static const char ranges[] = "\0\0\n\n\"\"$$\\\\``";
+  static const char ranges[] = "\0\0\"\"$$\\\\``";
   size_t prev = 0;
-  size_t i = SkipUntilSSE42(s->c_str(), s->size(), ranges, 12);
+  size_t i = SkipUntilSSE42(s->c_str(), s->size(), ranges, 10);
   if (i == s->size())
     return;
 
@@ -544,7 +544,7 @@ void EscapeShell(string* s) {
     r += c;
     i++;
     prev = i;
-    i += SkipUntilSSE42(s->c_str() + i, s->size() - i, ranges, 12);
+    i += SkipUntilSSE42(s->c_str() + i, s->size() - i, ranges, 10);
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
