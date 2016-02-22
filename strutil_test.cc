@@ -116,6 +116,19 @@ void TestNormalizePath() {
   ASSERT_EQ(NormalizePath("./../../a/b"), "../../a/b");
 }
 
+string EscapeShell(string s) {
+  ::EscapeShell(&s);
+  return s;
+}
+
+void TestEscapeShell() {
+  ASSERT_EQ(EscapeShell(""), "");
+  ASSERT_EQ(EscapeShell("foo"), "foo");
+  ASSERT_EQ(EscapeShell("foo$`\\baz\"bar"), "foo\\$\\`\\\\baz\\\"bar");
+  ASSERT_EQ(EscapeShell("$$"), "\\$$");
+  ASSERT_EQ(EscapeShell("$$$"), "\\$$\\$");
+}
+
 }  // namespace
 
 int main() {
@@ -126,5 +139,6 @@ int main() {
   TestNoLineBreak();
   TestHasWord();
   TestNormalizePath();
+  TestEscapeShell();
   assert(!g_failed);
 }

@@ -523,6 +523,32 @@ string EchoEscape(const string str) {
 }
 
 void EscapeShell(string* s) {
+#ifdef __SSE4_2__
+  static const char ranges[] = "\0\0\n\n\"\"$$\\\\``";
+  size_t prev = 0;
+  size_t i = SkipUntilSSE42(s->c_str(), s->size(), ranges, 12);
+  if (i == s->size())
+    return;
+
+  string r;
+  for (; i < s->size();) {
+    StringPiece(*s).substr(prev, i - prev).AppendToString(&r);
+    char c = (*s)[i];
+    r += '\\';
+    if (c == '$') {
+      if ((*s)[i+1] == '$') {
+        r += '$';
+        i++;
+      }
+    }
+    r += c;
+    i++;
+    prev = i;
+    i += SkipUntilSSE42(s->c_str() + i, s->size() - i, ranges, 12);
+  }
+  StringPiece(*s).substr(prev).AppendToString(&r);
+  s->swap(r);
+#else
   if (s->find_first_of("$`\\\"") == string::npos)
     return;
   string r;
@@ -550,4 +576,5 @@ void EscapeShell(string* s) {
     }
   }
   s->swap(r);
+#endif
 }
