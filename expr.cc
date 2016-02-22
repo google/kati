@@ -63,7 +63,7 @@ class Literal : public Value {
   }
 
   virtual bool IsLiteral() const override { return true; }
-  virtual StringPiece GetLiteralValueUnsafe() const { return s_; }
+  virtual StringPiece GetLiteralValueUnsafe() const override { return s_; }
 
   virtual string DebugString_() const override {
     return s_.as_string();
