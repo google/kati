@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all: kati ckati ckati_tests
+all: ckati ckati_tests
 
 include Makefile.kati
 include Makefile.ckati
