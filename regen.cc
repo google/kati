@@ -18,13 +18,13 @@
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "fileutil.h"
 #include "find.h"
 #include "io.h"
 #include "log.h"
-#include "mutex.h"
 #include "ninja.h"
 #include "stats.h"
 #include "strutil.h"
@@ -364,7 +364,7 @@ class StampChecker {
         // TODO: Make glob cache thread safe and create a task for each glob.
         for (GlobResult* gr : globs_) {
           if (CheckGlobResult(gr, &err)) {
-            UniqueLock<Mutex> lock(mu_);
+            unique_lock<mutex> lock(mu_);
             if (!needs_regen_) {
               needs_regen_ = true;
               msg_ = err;
@@ -378,7 +378,7 @@ class StampChecker {
       tp->Submit([this, sr]() {
           string err;
           if (CheckShellResult(sr, &err)) {
-            UniqueLock<Mutex> lock(mu_);
+            unique_lock<mutex> lock(mu_);
             if (!needs_regen_) {
               needs_regen_ = true;
               msg_ = err;
@@ -398,7 +398,7 @@ class StampChecker {
   double gen_time_;
   vector<GlobResult*> globs_;
   vector<ShellResult*> commands_;
-  Mutex mu_;
+  mutex mu_;
   bool needs_regen_;
   string msg_;
 };

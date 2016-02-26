@@ -15,9 +15,8 @@
 #ifndef STATS_H_
 #define STATS_H_
 
+#include <mutex>
 #include <string>
-
-#include "mutex.h"
 
 using namespace std;
 
@@ -36,7 +35,7 @@ class Stats {
   const char* name_;
   double elapsed_;
   int cnt_;
-  mutable Mutex mu_;
+  mutable mutex mu_;
 };
 
 class ScopedStatsRecorder {
