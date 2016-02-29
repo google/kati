@@ -427,6 +427,10 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   static const char ranges[] = "\0\0\n\n\\\\";
   while (e < s.size()) {
     e += SkipUntilSSE42(s.data() + e, s.size() - e, ranges, 6);
+    if (e >= s.size()) {
+      CHECK(s.size() == e);
+      break;
+    }
     char c = s[e];
     if (c == '\0')
       break;

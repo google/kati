@@ -133,8 +133,9 @@ void TestEscapeShell() {
 void TestFindEndOfLine() {
   size_t lf_cnt = 0;
   ASSERT_EQ(FindEndOfLine("foo", 0, &lf_cnt), 3);
-  char buf[10] = {'f', 'o', 'o', '\0', 'x', 'y'};
+  char buf[10] = {'f', 'o', '\\', '\0', 'x', 'y'};
   ASSERT_EQ(FindEndOfLine(StringPiece(buf, 6), 0, &lf_cnt), 3);
+  ASSERT_EQ(FindEndOfLine(StringPiece(buf, 2), 0, &lf_cnt), 2);
 }
 
 }  // namespace
