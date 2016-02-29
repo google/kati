@@ -424,10 +424,12 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
 #ifdef __SSE4_2__
-  static const char ranges[] = "\n\n\\\\";
+  static const char ranges[] = "\0\0\n\n\\\\";
   while (e < s.size()) {
-    e += SkipUntilSSE42(s.data() + e, s.size() - e, ranges, 4);
+    e += SkipUntilSSE42(s.data() + e, s.size() - e, ranges, 6);
     char c = s[e];
+    if (c == '\0')
+      break;
     if (c == '\\') {
       if (s[e+1] == '\n') {
         e += 2;

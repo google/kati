@@ -130,6 +130,13 @@ void TestEscapeShell() {
   ASSERT_EQ(EscapeShell("\\\n"), "\\\\\n");
 }
 
+void TestFindEndOfLine() {
+  size_t lf_cnt = 0;
+  ASSERT_EQ(FindEndOfLine("foo", 0, &lf_cnt), 3);
+  char buf[10] = {'f', 'o', 'o', '\0', 'x', 'y'};
+  ASSERT_EQ(FindEndOfLine(StringPiece(buf, 6), 0, &lf_cnt), 3);
+}
+
 }  // namespace
 
 int main() {
@@ -141,5 +148,6 @@ int main() {
   TestHasWord();
   TestNormalizePath();
   TestEscapeShell();
+  TestFindEndOfLine();
   assert(!g_failed);
 }
