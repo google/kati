@@ -29,21 +29,20 @@ class Makefile {
   explicit Makefile(const string& filename);
   ~Makefile();
 
-  const char* buf() const { return buf_; }
-  size_t len() const { return len_; }
+  const string& buf() const { return buf_; }
   const string& filename() const { return filename_; }
 
   const vector<Stmt*>& stmts() const { return stmts_; }
   vector<Stmt*>* mutable_stmts() { return &stmts_; }
 
-  bool Exists() const { return buf_; }
+  bool Exists() const { return exists_; }
 
  private:
-  char* buf_;
-  size_t len_;
+  string buf_;
   uint64_t mtime_;
   string filename_;
   vector<Stmt*> stmts_;
+  bool exists_;
 };
 
 #endif  // FILE_H_

@@ -26,7 +26,7 @@
 #include "stmt.h"
 
 Makefile::Makefile(const string& filename)
-    : buf_(NULL), len_(0), mtime_(0), filename_(filename) {
+    : mtime_(0), filename_(filename), exists_(false) {
   int fd = open(filename.c_str(), O_RDONLY);
   if (fd < 0) {
     return;
@@ -37,14 +37,15 @@ Makefile::Makefile(const string& filename)
     PERROR("fstat failed for %s", filename.c_str());
   }
 
-  len_ = st.st_size;
+  size_t len = st.st_size;
   mtime_ = st.st_mtime;
-  buf_ = new char[len_];
-  ssize_t r = read(fd, buf_, len_);
-  if (r != static_cast<ssize_t>(len_)) {
+  buf_.resize(len);
+  exists_ = true;
+  ssize_t r = read(fd, &buf_[0], len);
+  if (r != static_cast<ssize_t>(len)) {
     if (r < 0)
       PERROR("read failed for %s", filename.c_str());
-    ERROR("Unexpected read length=%zd expected=%zu", r, len_);
+    ERROR("Unexpected read length=%zd expected=%zu", r, len);
   }
 
   if (close(fd) < 0) {
@@ -55,7 +56,6 @@ Makefile::Makefile(const string& filename)
 }
 
 Makefile::~Makefile() {
-  delete[] buf_;
   for (Stmt* stmt : stmts_)
     delete stmt;
 }

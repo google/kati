@@ -529,7 +529,7 @@ class Parser {
 
 void Parse(Makefile* mk) {
   COLLECT_STATS("parse file time");
-  Parser parser(StringPiece(mk->buf(), mk->len()),
+  Parser parser(StringPiece(mk->buf()),
                 mk->filename().c_str(),
                 mk->mutable_stmts());
   parser.Parse();
