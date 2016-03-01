@@ -17,7 +17,6 @@ cc_library_host_static {
     srcs: [
         "affinity.cc",
         "command.cc",
-        "condvar.cc",
         "dep.cc",
         "eval.cc",
         "exec.cc",
@@ -30,7 +29,6 @@ cc_library_host_static {
         "func.cc",
         "io.cc",
         "log.cc",
-        "mutex.cc",
         "ninja.cc",
         "parser.cc",
         "regen.cc",
@@ -41,7 +39,6 @@ cc_library_host_static {
         "stringprintf.cc",
         "strutil.cc",
         "symtab.cc",
-        "thread.cc",
         "thread_pool.cc",
         "timeutil.cc",
         "var.cc",
