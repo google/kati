@@ -82,6 +82,8 @@ void Flags::Parse(int argc, char** argv) {
       dump_kati_stamp = true;
     } else if (!strcmp(arg, "--detect_android_echo")) {
       detect_android_echo = true;
+    } else if (!strcmp(arg, "--detect_depfiles")) {
+      detect_depfiles = true;
     } else if (ParseCommandLineOptionWithArg(
         "-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);

@@ -474,6 +474,8 @@ class NinjaGenerator {
       node->depfile_var->Eval(ev_, depfile);
       return true;
     }
+    if (!g_flags.detect_depfiles)
+      return false;
 
     *cmd_buf += ' ';
     bool result = GetDepfileFromCommand(cmd_buf, depfile);
