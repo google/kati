@@ -60,8 +60,10 @@ void SimpleVar::Eval(Evaluator*, string* s) const {
 }
 
 void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
+  string buf;
+  v->Eval(ev, &buf);
   v_.push_back(' ');
-  v->Eval(ev, &v_);
+  v_ += buf;
 }
 
 StringPiece SimpleVar::String() const {
