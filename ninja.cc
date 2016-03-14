@@ -407,25 +407,19 @@ class NinjaGenerator {
     static bool was_gomacc_found = false;
     bool got_descritpion = false;
     bool use_gomacc = false;
-    bool should_ignore_error = false;
     auto command_count = commands.size();
     for (const Command* c : commands) {
       size_t cmd_begin = cmd_buf->size();
 
       if (!cmd_buf->empty()) {
-        if (should_ignore_error) {
-          *cmd_buf += " ; ";
-        } else {
-          *cmd_buf += " && ";
-        }
+        *cmd_buf += " && ";
       }
-      should_ignore_error = c->ignore_error;
 
       const char* in = c->cmd.c_str();
       while (isspace(*in))
         in++;
 
-      bool needs_subshell = command_count > 1;
+      bool needs_subshell = (command_count > 1 || c->ignore_error);
 
       if (needs_subshell)
         *cmd_buf += '(';
@@ -455,7 +449,7 @@ class NinjaGenerator {
         was_gomacc_found = true;
       }
 
-      if (c == commands.back() && c->ignore_error) {
+      if (c->ignore_error) {
         *cmd_buf += " ; true";
       }
 
