@@ -426,9 +426,6 @@ class NinjaGenerator {
         in++;
 
       bool needs_subshell = command_count > 1;
-      if (*in == '(') {
-        needs_subshell = false;
-      }
 
       if (needs_subshell)
         *cmd_buf += '(';
