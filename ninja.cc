@@ -422,7 +422,7 @@ class NinjaGenerator {
       bool needs_subshell = (command_count > 1 || c->ignore_error);
 
       if (needs_subshell)
-        *cmd_buf += "( ";
+        *cmd_buf += '(';
 
       size_t cmd_start = cmd_buf->size();
       StringPiece translated = TranslateCommand(in, cmd_buf);
@@ -454,7 +454,7 @@ class NinjaGenerator {
       }
 
       if (needs_subshell)
-        *cmd_buf += ')';
+        *cmd_buf += " )";
     }
     return (was_gomacc_found || g_flags.remote_num_jobs ||
             g_flags.goma_dir) && !use_gomacc;
