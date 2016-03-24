@@ -26,8 +26,8 @@ kati: go_src_stamp
 	cp out/bin/kati $@
 
 go_src_stamp: $(GO_SRCS) $(wildcard cmd/*/*.go)
-	-rm -rf out/{src,pkg/*}/github.com/google/kati
-	mkdir -p out/{src,pkg/*}/github.com/google/kati
+	-rm -rf out/src/github.com/google/kati
+	mkdir -p out/src/github.com/google/kati
 	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
 	GOPATH=${KATI_GOPATH} go get github.com/google/kati/cmd/kati
 	touch $@
