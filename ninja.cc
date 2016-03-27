@@ -192,6 +192,10 @@ class NinjaGenerator {
       gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
 
     GetExecutablePath(&kati_binary_);
+    dsan_record_ = Dirname(kati_binary_).as_string() + "/tools/dsan_record.py";
+
+    if (g_flags.dsan_dir)
+      mkdir(g_flags.dsan_dir, 0755);
   }
 
   ~NinjaGenerator() {
@@ -477,6 +481,14 @@ class NinjaGenerator {
     *o << " deps = gcc\n";
   }
 
+  void EmitDsan(const string& rule_name, ostringstream* o) {
+    if (!g_flags.dsan_dir)
+      return;
+
+    string prefix = string(g_flags.dsan_dir) + '/' + rule_name;
+    *o << dsan_record_ << ' ' << prefix << ".trace ";
+  }
+
   void EmitNode(NinjaNode* nn, ostringstream* o) {
     const DepNode* node = nn->node;
     const vector<Command*>& commands = nn->commands;
@@ -503,10 +515,14 @@ class NinjaGenerator {
       if (cmd_buf.size() > 100 * 1000) {
         *o << " rspfile = $out.rsp\n";
         *o << " rspfile_content = " << cmd_buf << "\n";
-        *o << " command = " << shell_ << " $out.rsp\n";
+        *o << " command = ";
+        EmitDsan(rule_name, o);
+        *o << shell_ << " $out.rsp\n";
       } else {
         EscapeShell(&cmd_buf);
-        *o << " command = " << shell_ << ' ' << shell_flags_
+        *o << " command = ";
+        EmitDsan(rule_name, o);
+        *o << shell_ << ' ' << shell_flags_
            << " \"" << cmd_buf << "\"\n";
       }
       if (node->is_restat) {
@@ -779,6 +795,7 @@ class NinjaGenerator {
   string shell_flags_;
   map<string, string> used_envs_;
   string kati_binary_;
+  string dsan_record_;
   const double start_time_;
   vector<NinjaNode*> nodes_;
 

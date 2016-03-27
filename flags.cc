@@ -102,6 +102,8 @@ void Flags::Parse(int argc, char** argv) {
         "--ninja_suffix", argv, &i, &ninja_suffix)) {
     } else if (ParseCommandLineOptionWithArg(
         "--ninja_dir", argv, &i, &ninja_dir)) {
+    } else if (ParseCommandLineOptionWithArg(
+        "--dsan_dir", argv, &i, &dsan_dir)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       use_find_emulator = true;
     } else if (ParseCommandLineOptionWithArg(
