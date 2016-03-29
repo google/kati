@@ -94,10 +94,10 @@ class DepSanitizer(object):
     self.checked[output] = r
     return r
 
-  def parse_trace_file(self, rule, fn):
+  def parse_trace_file(self, err_prefix, fn):
     # TODO: Comment out this.
     if not os.path.exists(fn):
-      print '%s: %s file not exists!' % (rule, fn)
+      print '%s: %s file not exists!' % (err_prefix, fn)
       self.has_error = True
       return set(), set()
 
@@ -106,21 +106,26 @@ class DepSanitizer(object):
     with open(fn) as f:
       a = actual_inputs
       for line in f:
-        if line == '\n':
+        line = line.strip()
+        if line == '':
           a = actual_outputs
+        elif line == 'TIMED OUT':
+          print '%s: timed out - diagnostics will be incomplete' % err_prefix
         else:
-          a.add(line.strip())
+          a.add(line)
     return actual_inputs, actual_outputs
 
   def check_dep(self, output, rule, inputs, products):
+    err_prefix = '%s(%s)' % (rule, output)
+
     fn = os.path.join(self.dsan_dir, rule + '.trace')
-    actual_inputs, actual_outputs = self.parse_trace_file(rule, fn)
+    actual_inputs, actual_outputs = self.parse_trace_file(err_prefix, fn)
 
     output = os.path.abspath(os.path.join(self.cwd, output))
     inputs = set(os.path.abspath(os.path.join(self.cwd, i)) for i in inputs)
 
     if output not in actual_outputs:
-      print '%s: should not have %s as the output' % (rule, output)
+      print '%s: should not have %s as the output' % (err_prefix, output)
       self.has_error = True
 
     undefined_inputs = actual_inputs - inputs - products
@@ -142,7 +147,7 @@ class DepSanitizer(object):
 
       if os.path.isdir(undefined_input):
         continue
-      print '%s: should have %s as an input' % (rule, undefined_input)
+      print '%s: should have %s as an input' % (err_prefix, undefined_input)
       self.has_error = True
 
     return actual_outputs

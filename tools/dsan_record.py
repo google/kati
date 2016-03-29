@@ -332,6 +332,7 @@ if len(sys.argv) <= 2:
   print('Usage: %s outfile command [args]' % sys.argv[0])
   sys.exit(1)
 
+timed_out = False
 outfile = sys.argv[1]
 if outfile == '-f':
   filename = sys.argv[2]
@@ -343,12 +344,17 @@ else:
   os.close(fd)
 
   strace_args = (
-      ['strace',
+      ['timeout',
+       '-k', '30', '180',  # TERM after 3 mins then KILL after 30 secs
+       'strace',
        '-f',  # follow child
        '-e', 'trace=clone,fork,vfork,file,dup,dup2,dup3,fcntl,fchdir',
        '-o' + filename] + sys.argv[2:])
 
   status = subprocess.call(strace_args)
+  if status == 124 or status == 128 + 9 or status == -9:
+    timed_out = True
+    status = subprocess.call(sys.argv[2:])
 
   raw_log = None
   raw_log = open(outfile + '.raw', 'w')
@@ -373,6 +379,8 @@ if outfile:
 else:
   f = sys.stdout
 
+if timed_out:
+  f.write('TIMED OUT\n')
 for path in tracker.inputs:
   f.write(path + '\n')
 f.write('\n')
