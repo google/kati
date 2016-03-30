@@ -145,6 +145,9 @@ class DepSanitizer(object):
       # Python automatically creates them.
       if undefined_input.endswith('.pyc'):
         continue
+      # Ninja's rspfile.
+      if undefined_input == output + '.rsp':
+        continue
 
       if os.path.isdir(undefined_input):
         continue
