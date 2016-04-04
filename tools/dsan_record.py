@@ -301,11 +301,13 @@ class StraceLogTracker(object):
 
       if typ == REMOVE_CONTENT:
         if retval >= 0:
+          self.inputs.discard(paths[0])
           self.outputs.discard(paths[0])
         return
 
       if typ == RENAME_FILE:
         if retval >= 0:
+          self.inputs.discard(paths[0])
           self.outputs.discard(paths[0])
           if paths[1] not in self.inputs:
             self.outputs.add(paths[1])
