@@ -18,6 +18,8 @@
 
 #include "symtab.h"
 
+#include <iostream>
+
 #ifdef ENABLE_TID_CHECK
 #include <pthread.h>
 #endif
@@ -59,13 +61,14 @@ Var* Symbol::GetGlobalVar() const {
   return v;
 }
 
-void Symbol::SetGlobalVar(Var* v) const {
+void Symbol::SetGlobalVar(Var* v, bool is_override) const {
   if (static_cast<size_t>(v_) >= g_symbol_data.size()) {
     g_symbol_data.resize(v_ + 1);
   }
   Var* orig = g_symbol_data[v_].gv;
-  if (orig->Origin() == VarOrigin::OVERRIDE ||
-      orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE) {
+  if (!is_override &&
+      (orig->Origin() == VarOrigin::OVERRIDE ||
+       orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE)) {
     return;
   }
   if (orig->Origin() == VarOrigin::AUTOMATIC) {
