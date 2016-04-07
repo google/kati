@@ -569,6 +569,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   ShellFuncImpl(shell, cmd, &out, &fc);
   if (ShouldStoreCommandResult(cmd)) {
     CommandResult* cr = new CommandResult();
+    cr->shell = shell;
     cr->cmd = cmd;
     cr->find.reset(fc);
     cr->result = out;
