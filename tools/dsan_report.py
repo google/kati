@@ -22,9 +22,6 @@ WHITELIST = [
     # This is created at ckati-time.
     'out/build_number.txt',
     'out/build_date.txt',
-    # This wouldn't be updated often.
-    # TODO: That said, it'd be better to have this in the dependencies.
-    'build/tools/normalize_path.py',
 ]
 WHITELIST = set(os.path.join(os.getcwd(), p) for p in WHITELIST)
 
