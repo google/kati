@@ -177,6 +177,9 @@ with open(sys.argv[2]) as f:
     elif line.startswith(' depfile = '):
       assert not depfile
       depfile = line.split(' ')[3]
+    elif line.startswith(' restat = 1'):
+      # TODO: Do something for restat?
+      pass
 
 dsan.run()
 
