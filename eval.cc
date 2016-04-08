@@ -253,7 +253,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
     for (const string& fname : *files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
-        return;
+        continue;
       }
       DoInclude(fname);
     }
