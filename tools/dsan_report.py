@@ -154,7 +154,7 @@ class DepSanitizer(object):
       print '%s: should have %s as an input' % (err_prefix, undefined_input)
       self.has_error = True
 
-    return actual_outputs
+    return actual_inputs | inputs | actual_outputs
 
 
 if len(sys.argv) != 3:
