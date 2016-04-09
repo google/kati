@@ -90,6 +90,9 @@ class Parser {
 
     if (!if_stack_.empty())
       ERROR("%s:%d: *** missing `endif'.", loc_.filename, loc_.lineno + 1);
+    if (!define_name_.empty())
+      ERROR("%s:%d: *** missing `endef', unterminated `define'.",
+            loc_.filename, define_start_line_);
   }
 
   static void Init() {
