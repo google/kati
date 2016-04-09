@@ -185,6 +185,8 @@ class NinjaGenerator {
         default_target_(NULL) {
     ev_->set_avoid_io(true);
     shell_ = EscapeNinja(ev->EvalVar(kShellSym));
+    const string use_goma_str = ev->EvalVar(Intern("USE_GOMA"));
+    use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
     if (g_flags.goma_dir)
       gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
 
@@ -397,14 +399,6 @@ class NinjaGenerator {
                       const vector<Command*>& commands,
                       string* cmd_buf,
                       string* description) {
-    // TODO: This is a dirty hack to set local_pool even without
-    // --goma_dir or --remote_num_jobs which are not used in AOSP
-    // anymore. This won't set local_pool for targets which appear
-    // before the first command which uses gomacc. Fortunately, such
-    // command appears soon so almost all build targets have
-    // local_pool appropriately, but it's definitely better to come up
-    // with a more reliable solution.
-    static bool was_gomacc_found = false;
     bool got_descritpion = false;
     bool use_gomacc = false;
     auto command_count = commands.size();
@@ -446,7 +440,6 @@ class NinjaGenerator {
         }
       } else if (translated.find("/gomacc") != string::npos) {
         use_gomacc = true;
-        was_gomacc_found = true;
       }
 
       if (c->ignore_error) {
@@ -456,7 +449,7 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += " )";
     }
-    return (was_gomacc_found || g_flags.remote_num_jobs ||
+    return (use_goma_ || g_flags.remote_num_jobs ||
             g_flags.goma_dir) && !use_gomacc;
   }
 
@@ -773,6 +766,7 @@ class NinjaGenerator {
   FILE* fp_;
   unordered_set<Symbol> done_;
   int rule_id_;
+  bool use_goma_;
   string gomacc_;
   string shell_;
   map<string, string> used_envs_;
