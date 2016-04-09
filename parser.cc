@@ -87,6 +87,9 @@ class Parser {
 
       l_ = e + 1;
     }
+
+    if (!if_stack_.empty())
+      ERROR("%s:%d: *** missing `endif'.", loc_.filename, loc_.lineno + 1);
   }
 
   static void Init() {
