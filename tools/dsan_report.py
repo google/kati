@@ -63,6 +63,10 @@ class DepSanitizer(object):
       for tok in f.read().split():
         if tok.endswith(':') or tok == '\\':
           continue
+        # Android specific - files in out directories should be
+        # explicitly defined as inputs.
+        if tok.startswith('out/'):
+          continue
         r.append(tok)
     return r
 
