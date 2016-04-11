@@ -346,9 +346,7 @@ else:
   os.close(fd)
 
   strace_args = (
-      ['timeout',
-       '-k', '30', '180',  # TERM after 3 mins then KILL after 30 secs
-       'strace',
+      [os.path.join(os.path.dirname(__file__), 'strace/strace'),
        '-f',  # follow child
        '-e', 'trace=clone,fork,vfork,file,dup,dup2,dup3,fcntl,fchdir',
        '-o' + filename] + sys.argv[2:])
