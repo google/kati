@@ -39,9 +39,9 @@ class DepSanitizer(object):
     self.cwd = os.getcwd()
     self.has_error = False
 
-  def add_node(self, output, rule, inputs, depfile):
+  def add_node(self, output, rule, inputs, depfile, is_restat):
     assert output not in self.outputs
-    self.outputs[output] = (rule, inputs, depfile)
+    self.outputs[output] = (rule, inputs, depfile, is_restat)
 
   def set_defaults(self, defaults):
     assert not self.defaults
@@ -80,7 +80,7 @@ class DepSanitizer(object):
     # TODO: Why do we need this?
     self.checked[output] = set()
 
-    rule, inputs, depfile = self.outputs[output]
+    rule, inputs, depfile, is_restat = self.outputs[output]
     if depfile:
       inputs += self.read_inputs_from_depfile(rule, depfile)
 
@@ -90,7 +90,14 @@ class DepSanitizer(object):
 
     actual_outputs = set()
     if rule != 'phony':
-      actual_outputs = self.check_dep(output, rule, inputs, products)
+      if is_restat:
+        # A build recipe with restat usually reads the output
+        # first and causes false positives for incremental build.
+        # TODO: Add a flag which specifies a build was an incremental
+        # build or a full build?
+        actual_outputs = set((output,))
+      else:
+        actual_outputs = self.check_dep(output, rule, inputs, products)
 
     r = products | actual_outputs
     self.checked[output] = r
@@ -165,6 +172,7 @@ if len(sys.argv) != 3:
 dsan = DepSanitizer(sys.argv[1])
 
 depfile = None
+is_restat = False
 sys.stderr.write('Parsing %s...\n' % sys.argv[2])
 with open(sys.argv[2]) as f:
   for line in f:
@@ -174,17 +182,19 @@ with open(sys.argv[2]) as f:
       output = toks[1][0:-1]
       rule = toks[2]
       inputs = toks[3:]
-      dsan.add_node(output, rule, inputs, depfile)
+      dsan.add_node(output, rule, inputs, depfile, is_restat)
       depfile = None
+      is_restat = False
     elif line.startswith('default '):
       dsan.set_defaults(line.split(' ')[1:])
     elif line.startswith(' depfile = '):
       assert not depfile
       depfile = line.split(' ')[3]
     elif line.startswith(' restat = 1'):
-      # TODO: Do something for restat?
+      is_restat = True
       pass
 
+sys.stderr.write('Analyzing dependency...\n')
 dsan.run()
 
 if dsan.has_error:
