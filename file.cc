@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "fileutil.h"
 #include "log.h"
 #include "parser.h"
 #include "stmt.h"
@@ -41,7 +42,7 @@ Makefile::Makefile(const string& filename)
   mtime_ = st.st_mtime;
   buf_.resize(len);
   exists_ = true;
-  ssize_t r = read(fd, &buf_[0], len);
+  ssize_t r = HANDLE_EINTR(read(fd, &buf_[0], len));
   if (r != static_cast<ssize_t>(len)) {
     if (r < 0)
       PERROR("read failed for %s", filename.c_str());

@@ -84,7 +84,7 @@ int RunCommand(const string& shell, const string& cmd,
 
       while (true) {
         char buf[4096];
-        ssize_t r = read(pipefd[0], buf, 4096);
+        ssize_t r = HANDLE_EINTR(read(pipefd[0], buf, 4096));
         if (r < 0)
           PERROR("read failed");
         if (r == 0)
