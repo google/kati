@@ -78,6 +78,8 @@ class Parser {
       if (!fixed_lineno_)
         loc_.lineno++;
       StringPiece line(buf_.data() + l_, e - l_);
+      if (line.get(line.size() - 1) == '\r')
+        line.remove_suffix(1);
       orig_line_with_directives_ = line;
       ParseLine(line);
       if (!fixed_lineno_)
