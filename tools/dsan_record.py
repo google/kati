@@ -38,6 +38,10 @@ GET_CWD = 11
 DUP_FD = 12
 CHANGE_DIR_FD = 13
 
+EXITED = 20
+SIGNALED = 21
+DONT_CARE = 22
+
 SYSCALLS = {
   'access': (READ_METADATA, False, True),
   'acct': (WRITE_METADATA, False, True),
@@ -126,13 +130,83 @@ class ProcessState(object):
       self.fds[newfd] = self.fds[oldfd]
 
 
-class StraceLogTracker(object):
-  def __init__(self):
-    self.inputs = set()
-    self.outputs = set()
-    self.procs = {}
-    self.root_pid = None
-    self.fork_parent = None
+class StraceEvent(object):
+  def __init__(self, line):
+    pid, line = line.split(' ', 1)
+    pid = int(pid)
+    line = line.strip()
+    self.pid = pid
+    self.line = line
+    self.syscall = None
+    self.paths = None
+    self.retval = None
+    self.typ = UNKNOWN_TYPE
+    self.fd = None
+    self.is_resumed = False
+
+    if line.startswith('+++ '):
+      self.typ = EXITED
+      return
+
+    if line.startswith('--- '):
+      self.typ = SIGNALED
+      return
+
+    # TODO: Not sure what this is.
+    if line.startswith('utimensat(0, NULL, NULL, 0)'):
+      self.typ = DONT_CARE
+      return
+
+    # A bug of strace?
+    if line.startswith('<... futex resumed>'):
+      self.typ = DONT_CARE
+      return
+
+    self.parse_strace_line(line)
+
+  def __str__(self):
+    return '%d %s' % (self.pid, self.str_helper())
+
+  def str_helper(self):
+    if self.typ == UNKNOWN_TYPE:
+      return 'UNKNOWN (%s)' % self.line
+    if self.typ == EXITED:
+      return 'EXITED (%s)' % self.line
+    if self.typ == SIGNALED:
+      return 'SIGNALED (%s)' % self.line
+    if self.typ == DONT_CARE:
+      return 'DONT_CARE (%s)' % self.line
+
+    paths = self.paths
+    if not self.paths:
+      paths = []
+      if self.fd is not None:
+        paths.append(self.fd)
+
+    subtype = ''
+    if self.syscall == 'clone':
+      subtype = '(fork)' if self.typ == FORK_PROCESS else '(thread)'
+    if self.syscall == 'open' or self.syscall == 'openat':
+      subtype = '(write)' if self.typ == WRITE_CONTENT else '(read)'
+    return '%s%s %s = %s' % (self.syscall, subtype, paths, self.retval)
+
+  def is_syscall(self):
+    return self.typ != UNKNOWN_TYPE and self.typ < EXITED
+
+  def is_finished(self):
+    return not self.is_syscall() or self.retval is not None
+
+  def merge(self, e):
+    assert not self.is_resumed
+    assert e.is_resumed
+    assert self.pid == e.pid
+    assert self.syscall == e.syscall
+    assert e.paths is None
+    assert e.fd is None
+    assert not self.retval
+    self.retval = e.retval
+    if self.typ == UNKNOWN_TYPE:
+      self.typ = e.typ
 
   @staticmethod
   def classify_syscall(syscall, args):
@@ -150,14 +224,16 @@ class StraceLogTracker(object):
       raise Exception('Unknown syscall: ' + syscall)
     return SYSCALLS[syscall][0]
 
-  def parse_strace_line(self, proc, line):
-    m = re.match(r'<\.\.\. (\w+) resumed> .* = (-?\d+|\?)', line)
+  def parse_strace_line(self, line):
+    m = re.match(r'<\.\.\. (\w+) resumed> (.*) = (-?\d+|\?)', line)
     if m:
-      syscall = m.group(1)
-      retval = m.group(2)
-      if retval != '?':
-        retval = int(retval)
-      return syscall, None, retval, None
+      self.syscall = m.group(1)
+      self.typ = self.classify_syscall(self.syscall, m.group(2))
+      self.retval = m.group(3)
+      self.is_resumed = True
+      if self.retval != '?':
+        self.retval = int(self.retval)
+      return
     m = re.match(r'(\w+)\((.*)', line)
     if not m:
       raise Exception('Unexpected line: ' + line)
@@ -171,32 +247,11 @@ class StraceLogTracker(object):
     for path in re.findall(r'".*?"', rest):
       paths.append(path[1:-1])
 
-    # This is xxxat.
-    if SYSCALLS[syscall][1]:
-      fd_end = rest.index(',')
-      fd = rest[:fd_end]
-      paths[0] = proc.resolve_at(fd, paths[0])
-      if syscall == 'symlinkat' or syscall == 'renameat':
-        r = rest[fd_end:]
-        r = re.sub(r'".*", ', '', r, 1)
-        fd_end = r.index(',')
-        fd = r[:fd_end]
-        paths[1] = proc.resolve_at(fd, paths[1])
-
-    if typ == CREATE_LINK:
-      newpath = proc.abspath(paths[1])
-      oldpath = os.path.join(os.path.dirname(newpath), paths[0])
-      paths[0] = oldpath
-      paths[1] = newpath
-    else:
-      paths = map(proc.abspath, paths)
-
     if typ == DUP_FD or typ == CHANGE_DIR_FD:
       m = re.match(r'\d+', rest)
-      if m:
-        assert not paths
-        # TODO: Stop abusing paths for FD.
-        paths = int(m.group(0))
+      assert m
+      assert not paths
+      self.fd = int(m.group(0))
 
     retval = None
     if not rest.endswith(' <unfinished ...>'):
@@ -204,130 +259,176 @@ class StraceLogTracker(object):
       if not m:
         raise Exception('Unexpected line: ' + line)
       retval = int(m.group(1))
-    return syscall, paths, retval, typ
+    self.syscall = syscall
+    self.paths = paths
+    self.retval = retval
+    self.typ = typ
+    self.rest = rest
 
-  def handle_strace_line(self, line):
-    pid, line = line.split(' ', 1)
-    pid = int(pid)
-    line = line.strip()
+  def resolve_paths(self, proc):
+    # This is xxxat.
+    if SYSCALLS[self.syscall][1]:
+      rest = self.rest
+      fd_end = rest.index(',')
+      fd = rest[:fd_end]
+      self.paths[0] = proc.resolve_at(fd, self.paths[0])
+      if self.syscall == 'symlinkat' or self.syscall == 'renameat':
+        r = rest[fd_end:]
+        r = re.sub(r'".*", ', '', r, 1)
+        fd_end = r.index(',')
+        fd = r[:fd_end]
+        self.paths[1] = proc.resolve_at(fd, self.paths[1])
+
+    if self.typ == CREATE_LINK:
+      newpath = proc.abspath(self.paths[1])
+      oldpath = os.path.join(os.path.dirname(newpath), self.paths[0])
+      self.paths[0] = oldpath
+      self.paths[1] = newpath
+    elif self.paths:
+      self.paths = map(proc.abspath, self.paths)
+
+
+class StraceLogTracker(object):
+  def __init__(self, filename):
+    self.inputs = set()
+    self.outputs = set()
+    self.procs = {}
+    self.root_pid = None
+    self.filename = filename
+
+    events = self.read_strace_log(filename)
+    self.handle_strace_events(events)
+
+  def read_strace_log(self, filename):
+    events = []
+    # A map from a PID to an unfinished event.
+    unfinished_events = {}
+    with open(filename) as f:
+      for line in f:
+        event = StraceEvent(line)
+        prev_event = None
+        if event.pid in unfinished_events:
+          prev_event = unfinished_events.pop(event.pid)
+
+        if event.is_finished():
+          if event.is_resumed:
+            assert prev_event
+            prev_event.merge(event)
+          else:
+            assert not prev_event
+            events.append(event)
+        else:
+          assert not prev_event
+          unfinished_events[event.pid] = event
+          events.append(event)
+    assert not unfinished_events
+    #for event in events: print str(event)
+    return events
+
+  def handle_strace_events(self, events):
+    for event in events:
+      #print str(event)
+      try:
+        self.handle_strace_event(event)
+      except:
+        sys.stderr.write('EXCEPTION: %s in %s\n' % (str(event), self.filename))
+        raise
+
+  def handle_strace_event(self, event):
+    pid = event.pid
+    syscall = event.syscall
+    retval = event.retval
+    typ = event.typ
 
     if not self.root_pid:
       self.root_pid = pid
       self.procs[pid] = ProcessState(os.getcwd())
+    proc = self.procs[pid]
 
-    if line.startswith('+++ '):
+    if typ == EXITED:
       assert pid in self.procs
       self.procs[pid] = None
       return
-    if line.startswith('--- '):
+    if typ == SIGNALED:
       return
-
-    # TODO: Not sure what this is.
-    if line.startswith('utimensat(0, NULL, NULL, 0)'):
+    if typ == DONT_CARE:
       return
-
-    # A bug of strace?
-    if line.startswith('<... futex resumed>'):
-      return
-
-    if pid not in self.procs:
-      # TODO: fix
-      #assert self.fork_parent
-      if self.fork_parent:
-        self.procs[pid] = ProcessState(self.fork_parent.cwd)
-        self.fork_parent = None
-      else:
-        self.procs[pid] = ProcessState(self.procs[self.root_pid].cwd)
+    if typ == UNKNOWN_TYPE:
+      raise Exception('Unknown syscall: ' + event.line)
 
     assert pid in self.procs
-    proc = self.procs[pid]
-    syscall, paths, retval, typ = self.parse_strace_line(proc, line)
-    #print (pid, syscall, paths, retval, typ)
+    assert retval is not None
+    assert event.is_syscall()
 
-    if retval is None:
-      #if typ == FORK_PROCESS:
-      if syscall == 'vfork':
-        # This probably means vfork. This assert may fail when
-        # multiple processes vfork at once.
-        # TODO: Come up with a better way.
-        assert not self.fork_parent
-        self.fork_parent = proc
-      proc.set_unfinished(pid, (syscall, paths, typ))
-    else:
-      if typ is None:
-        sc, paths, typ = proc.get_unfinished(pid)
-        assert sc == syscall
+    event.resolve_paths(proc)
+    paths = event.paths
 
-      if typ == UNKNOWN_TYPE:
-        raise Exception('Unknown syscall: ' + line)
+    if typ == FORK_PROCESS:
+      if retval > 0:
+        self.procs[retval] = ProcessState(proc.cwd)
+      return
 
-      if syscall == 'open' or syscall == 'openat':
-        if retval >= 0:
-          proc.opendir(retval, paths[0])
+    if syscall == 'open' or syscall == 'openat':
+      if retval >= 0:
+        proc.opendir(retval, paths[0])
 
-      if typ in [GET_CWD, READ_METADATA, WRITE_METADATA]:
-        return
+    if typ in [GET_CWD, READ_METADATA, WRITE_METADATA]:
+      return
 
-      if typ == CLONE_THREAD:
-        assert retval not in self.procs
-        self.procs[retval] = proc
-        return
+    if typ == CLONE_THREAD:
+      assert retval not in self.procs
+      self.procs[retval] = proc
+      return
 
-      if typ == FORK_PROCESS:
-        if retval not in self.procs:
-          self.procs[retval] = ProcessState(proc.cwd)
-        self.fork_parent = None
-        return
+    if typ == CHANGE_DIR:
+      proc.chdir(paths[0])
+      return
 
-      if typ == CHANGE_DIR:
-        proc.chdir(paths[0])
-        return
+    if typ == CHANGE_DIR_FD:
+      assert event.fd is not None
+      d = proc.resolve_at(str(event.fd), '.')
+      proc.chdir(d)
+      return
 
-      if typ == CHANGE_DIR_FD:
-        assert paths
-        d = proc.resolve_at(str(paths), '.')
-        proc.chdir(d)
-        return
+    if typ == READ_CONTENT:
+      if retval >= 0 and paths[0] not in self.outputs:
+        self.inputs.add(paths[0])
+      return
 
-      if typ == READ_CONTENT:
-        if retval >= 0 and paths[0] not in self.outputs:
+    if typ == WRITE_CONTENT:
+      if retval >= 0 and paths[0] not in self.inputs:
+        self.outputs.add(paths[0])
+      return
+
+    if typ == REMOVE_CONTENT:
+      if retval >= 0:
+        self.inputs.discard(paths[0])
+        self.outputs.discard(paths[0])
+      return
+
+    if typ == RENAME_FILE:
+      if retval >= 0:
+        self.inputs.discard(paths[0])
+        self.outputs.discard(paths[0])
+        if paths[1] not in self.inputs:
+          self.outputs.add(paths[1])
+      return
+
+    if typ == CREATE_LINK:
+      if retval >= 0:
+        if paths[0] not in self.outputs:
           self.inputs.add(paths[0])
-        return
+        if paths[1] not in self.inputs:
+          self.outputs.add(paths[1])
+      return
 
-      if typ == WRITE_CONTENT:
-        if retval >= 0 and paths[0] not in self.inputs:
-          self.outputs.add(paths[0])
-        return
+    if typ == DUP_FD:
+      assert event.fd is not None
+      if retval >= 0:
+        proc.dup(event.fd, retval)
+      return
 
-      if typ == REMOVE_CONTENT:
-        if retval >= 0:
-          self.inputs.discard(paths[0])
-          self.outputs.discard(paths[0])
-        return
-
-      if typ == RENAME_FILE:
-        if retval >= 0:
-          self.inputs.discard(paths[0])
-          self.outputs.discard(paths[0])
-          if paths[1] not in self.inputs:
-            self.outputs.add(paths[1])
-        return
-
-      if typ == CREATE_LINK:
-        if retval >= 0:
-          if paths[0] not in self.outputs:
-            self.inputs.add(paths[0])
-          if paths[1] not in self.inputs:
-            self.outputs.add(paths[1])
-        return
-
-      if typ == DUP_FD:
-        assert paths
-        if retval >= 0:
-          proc.dup(paths, retval)
-        return
-
-      assert False
+    assert False
 
 
 if len(sys.argv) <= 2:
@@ -364,15 +465,7 @@ else:
         raw_log.write(line)
   raw_log.close()
 
-tracker = StraceLogTracker()
-with open(filename) as f:
-  for line in f:
-    #print line
-    try:
-      tracker.handle_strace_line(line)
-    except:
-      sys.stderr.write('EXCEPTION: ' + line)
-      raise
+tracker = StraceLogTracker(filename)
 
 if outfile:
   f = open(outfile, 'w')
