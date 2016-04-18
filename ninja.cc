@@ -481,11 +481,17 @@ class NinjaGenerator {
     *o << " deps = gcc\n";
   }
 
-  void EmitDsan(const string& rule_name, ostringstream* o) {
+  void EmitDsan(Symbol output, ostringstream* o) {
     if (!g_flags.dsan_dir)
       return;
 
-    string prefix = string(g_flags.dsan_dir) + '/' + rule_name;
+    string prefix = string(g_flags.dsan_dir) + '/';
+    for (char c : output.str()) {
+      if (c == '/')
+        prefix += "__";
+      else
+        prefix += c;
+    }
     *o << dsan_record_ << ' ' << prefix << ".trace ";
   }
 
@@ -516,12 +522,12 @@ class NinjaGenerator {
         *o << " rspfile = $out.rsp\n";
         *o << " rspfile_content = " << cmd_buf << "\n";
         *o << " command = ";
-        EmitDsan(rule_name, o);
+        EmitDsan(node->output, o);
         *o << shell_ << " $out.rsp\n";
       } else {
         EscapeShell(&cmd_buf);
         *o << " command = ";
-        EmitDsan(rule_name, o);
+        EmitDsan(node->output, o);
         *o << shell_ << ' ' << shell_flags_
            << " \"" << cmd_buf << "\"\n";
       }

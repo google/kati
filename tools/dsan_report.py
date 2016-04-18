@@ -127,7 +127,7 @@ class DepSanitizer(object):
   def check_dep(self, output, rule, inputs, products):
     err_prefix = '%s(%s)' % (rule, output)
 
-    fn = os.path.join(self.dsan_dir, rule + '.trace')
+    fn = os.path.join(self.dsan_dir, output.replace('/', '__') + '.trace')
     actual_inputs, actual_outputs = self.parse_trace_file(err_prefix, fn)
 
     output = os.path.abspath(os.path.join(self.cwd, output))
