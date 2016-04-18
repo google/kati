@@ -157,11 +157,6 @@ class StraceEvent(object):
       self.typ = DONT_CARE
       return
 
-    # A bug of strace?
-    if line.startswith('<... futex resumed>'):
-      self.typ = DONT_CARE
-      return
-
     self.parse_strace_line(line)
 
   def __str__(self):
