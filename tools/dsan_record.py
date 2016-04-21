@@ -152,11 +152,6 @@ class StraceEvent(object):
       self.typ = SIGNALED
       return
 
-    # TODO: Not sure what this is.
-    if line.startswith('utimensat(0, NULL, NULL, 0)'):
-      self.typ = DONT_CARE
-      return
-
     self.parse_strace_line(line)
 
   def __str__(self):
@@ -350,6 +345,8 @@ class StraceLogTracker(object):
       return
     if typ == UNKNOWN_TYPE:
       raise Exception('Unknown syscall: ' + event.line)
+    if typ in [GET_CWD, READ_METADATA, WRITE_METADATA]:
+      return
 
     assert pid in self.procs
     assert retval is not None
@@ -366,9 +363,6 @@ class StraceLogTracker(object):
     if syscall == 'open' or syscall == 'openat':
       if retval >= 0:
         proc.opendir(retval, paths[0])
-
-    if typ in [GET_CWD, READ_METADATA, WRITE_METADATA]:
-      return
 
     if typ == CLONE_THREAD:
       assert retval not in self.procs
