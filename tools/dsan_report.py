@@ -38,6 +38,7 @@ class DepSanitizer(object):
     self.checked = {}
     self.cwd = os.getcwd()
     self.has_error = False
+    self.is_verbose = False
 
   def add_node(self, output, rule, inputs, depfile, is_restat):
     assert output not in self.outputs
@@ -46,6 +47,9 @@ class DepSanitizer(object):
   def set_defaults(self, defaults):
     assert not self.defaults
     self.defaults = defaults
+
+  def set_is_verbose(self, is_verbose):
+    self.is_verbose = is_verbose
 
   def run(self):
     for o in self.defaults:
@@ -125,6 +129,7 @@ class DepSanitizer(object):
     return actual_inputs, actual_outputs
 
   def check_dep(self, output, rule, inputs, products):
+    has_error = False
     err_prefix = '%s(%s)' % (rule, output)
 
     fn = os.path.join(self.dsan_dir, output.replace('/', '__') + '.trace')
@@ -135,7 +140,7 @@ class DepSanitizer(object):
 
     if output not in actual_outputs:
       print '%s: should not have %s as the output' % (err_prefix, output)
-      self.has_error = True
+      has_error = True
 
     undefined_inputs = actual_inputs - inputs - products
     if output in OUTPUT_WHITELIST:
@@ -160,21 +165,35 @@ class DepSanitizer(object):
       if os.path.isdir(undefined_input):
         continue
       print '%s: should have %s as an input' % (err_prefix, undefined_input)
+      has_error = True
+
+    if has_error:
       self.has_error = True
+      if self.is_verbose:
+        print '%s: inputs: %s' % (err_prefix, inputs | products)
 
     return actual_inputs | inputs | actual_outputs
 
 
-if len(sys.argv) != 3:
+args = list(sys.argv)
+
+is_verbose = False
+if args[1] == '-v':
+  args.pop(1)
+  is_verbose = True
+
+if len(args) != 3:
   print('Usage: %s dsandir build.ninja' % sys.argv[0])
   sys.exit(1)
 
-dsan = DepSanitizer(sys.argv[1])
+dsan = DepSanitizer(args[1])
+dsan.set_is_verbose(is_verbose)
 
 depfile = None
 is_restat = False
-sys.stderr.write('Parsing %s...\n' % sys.argv[2])
-with open(sys.argv[2]) as f:
+defaults = None
+sys.stderr.write('Parsing %s...\n' % args[2])
+with open(args[2]) as f:
   for line in f:
     line = line.rstrip()
     if line.startswith('build '):
@@ -186,13 +205,17 @@ with open(sys.argv[2]) as f:
       depfile = None
       is_restat = False
     elif line.startswith('default '):
-      dsan.set_defaults(line.split(' ')[1:])
+      assert not defaults
+      defaults = line.split(' ')[1:]
     elif line.startswith(' depfile = '):
       assert not depfile
       depfile = line.split(' ')[3]
     elif line.startswith(' restat = 1'):
       is_restat = True
       pass
+
+assert defaults
+dsan.set_defaults(defaults)
 
 sys.stderr.write('Analyzing dependency...\n')
 dsan.run()
