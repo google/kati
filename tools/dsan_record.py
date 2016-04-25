@@ -98,17 +98,8 @@ SYSCALLS = {
 
 class ProcessState(object):
   def __init__(self, cwd):
-    self.unfinished = {}
     self.cwd = cwd
     self.fds = {}
-
-  def set_unfinished(self, tid, info):
-    assert tid not in self.unfinished
-    self.unfinished[tid] = info
-
-  def get_unfinished(self, tid):
-    assert tid in self.unfinished
-    return self.unfinished.pop(tid)
 
   def abspath(self, path):
     return os.path.abspath(os.path.join(self.cwd, path))
