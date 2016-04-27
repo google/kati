@@ -89,6 +89,10 @@ class Evaluator {
     eval_depth_--;
   }
 
+  string GetShell();
+  string GetShellFlag();
+  string GetShellAndFlag();
+
  private:
   Var* EvalRHS(Symbol lhs, Value* rhs, StringPiece orig_rhs, AssignOp op,
                bool is_override = false);
@@ -114,6 +118,9 @@ class Evaluator {
   // Commands which should run at ninja-time (i.e., info, warning, and
   // error).
   vector<string> delayed_output_commands_;
+
+  Symbol posix_sym_;
+  bool is_posix_;
 
   static unordered_set<Symbol> used_undefined_vars_;
 };

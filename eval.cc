@@ -34,7 +34,9 @@ Evaluator::Evaluator()
     : last_rule_(NULL),
       current_scope_(NULL),
       avoid_io_(false),
-      eval_depth_(0) {
+      eval_depth_(0),
+      posix_sym_(Intern(".POSIX")),
+      is_posix_(false) {
 }
 
 Evaluator::~Evaluator() {
@@ -124,6 +126,11 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   if (rule) {
     if (stmt->term == ';') {
       rule->cmds.push_back(stmt->after_term);
+    }
+
+    for (Symbol o : rule->outputs) {
+      if (o == posix_sym_)
+        is_posix_ = true;
     }
 
     LOG("Rule: %s", rule->DebugString().c_str());
@@ -309,6 +316,22 @@ Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
 
 string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
+}
+
+string Evaluator::GetShell() {
+  return EvalVar(kShellSym);
+}
+
+string Evaluator::GetShellFlag() {
+  // TODO: Handle $(.SHELLFLAGS)
+  return is_posix_ ? "-ec" : "-c";
+}
+
+string Evaluator::GetShellAndFlag() {
+  string shell = GetShell();
+  shell += ' ';
+  shell += GetShellFlag();
+  return shell;
 }
 
 void Evaluator::Error(const string& msg) {

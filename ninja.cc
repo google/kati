@@ -184,8 +184,8 @@ class NinjaGenerator {
         start_time_(start_time),
         default_target_(NULL) {
     ev_->set_avoid_io(true);
-    shell_ = EscapeNinja(ev->EvalVar(kShellSym));
-    shell_flags_ = g_flags.posix_shell ? "ec" : "c";
+    shell_ = EscapeNinja(ev->GetShell());
+    shell_flags_ = EscapeNinja(ev->GetShellFlag());
     const string use_goma_str = ev->EvalVar(Intern("USE_GOMA"));
     use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
     if (g_flags.goma_dir)
@@ -502,7 +502,8 @@ class NinjaGenerator {
         *o << " command = " << shell_ << " $out.rsp\n";
       } else {
         EscapeShell(&cmd_buf);
-        *o << " command = " << shell_ << " -" << shell_flags_ << " \"" << cmd_buf << "\"\n";
+        *o << " command = " << shell_ << ' ' << shell_flags_
+           << " \"" << cmd_buf << "\"\n";
       }
       if (node->is_restat) {
         *o << " restat = 1\n";

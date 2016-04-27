@@ -45,7 +45,7 @@ class Executor {
  public:
   explicit Executor(Evaluator* ev)
       : ce_(ev) {
-    shell_ = ev->EvalVar(kShellSym);
+    shell_ = ev->GetShellAndFlag();
   }
 
   double ExecNode(DepNode* n, DepNode* needed_by) {

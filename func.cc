@@ -562,7 +562,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     return;
   }
 
-  const string&& shell = ev->EvalVar(kShellSym);
+  const string&& shell = ev->GetShellAndFlag();
 
   string out;
   FindCommand* fc = NULL;

@@ -1,4 +1,4 @@
-# TODO(go|c-exec): Fix
+# TODO(go): Fix
 
 MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
 
@@ -10,12 +10,11 @@ test:
 
 else
 
-# TODO: Fix
-#$(info $(shell echo foo))
+$(info $(shell echo foo))
 SHELL := echo
-#$(info $(shell echo bar))
+$(info $(shell echo bar))
 .POSIX:
-#$(info $(shell echo baz))
+$(info $(shell echo baz))
 test:
 	foobar
 

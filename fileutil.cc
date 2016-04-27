@@ -65,7 +65,7 @@ int RunCommand(const string& shell, const string& cmd,
                string* s) {
   string cmd_escaped = cmd;
   EscapeShell(&cmd_escaped);
-  string cmd_with_shell = shell + " -c \"" + cmd_escaped + "\"";
+  string cmd_with_shell = shell + " \"" + cmd_escaped + "\"";
   const char* argv[] = {
     "/bin/sh", "-c", cmd_with_shell.c_str(), NULL
   };

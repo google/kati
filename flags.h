@@ -34,7 +34,6 @@ struct Flags {
   bool is_dry_run;
   bool is_silent_mode;
   bool is_syntax_check_only;
-  bool posix_shell;
   bool regen;
   bool regen_ignoring_kati_binary;
   bool use_find_emulator;
