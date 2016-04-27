@@ -185,6 +185,7 @@ class NinjaGenerator {
         default_target_(NULL) {
     ev_->set_avoid_io(true);
     shell_ = EscapeNinja(ev->EvalVar(kShellSym));
+    shell_flags_ = g_flags.posix_shell ? "ec" : "c";
     const string use_goma_str = ev->EvalVar(Intern("USE_GOMA"));
     use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
     if (g_flags.goma_dir)
@@ -501,7 +502,7 @@ class NinjaGenerator {
         *o << " command = " << shell_ << " $out.rsp\n";
       } else {
         EscapeShell(&cmd_buf);
-        *o << " command = " << shell_ << " -c \"" << cmd_buf << "\"\n";
+        *o << " command = " << shell_ << " -" << shell_flags_ << " \"" << cmd_buf << "\"\n";
       }
       if (node->is_restat) {
         *o << " restat = 1\n";
@@ -727,6 +728,7 @@ class NinjaGenerator {
     const vector<CommandResult*>& crs = GetShellCommandResults();
     DumpInt(fp, crs.size());
     for (CommandResult* cr : crs) {
+      DumpString(fp, cr->shell);
       DumpString(fp, cr->cmd);
       DumpString(fp, cr->result);
       if (!cr->find.get()) {
@@ -769,6 +771,7 @@ class NinjaGenerator {
   bool use_goma_;
   string gomacc_;
   string shell_;
+  string shell_flags_;
   map<string, string> used_envs_;
   string kati_binary_;
   const double start_time_;

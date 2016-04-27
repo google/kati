@@ -101,7 +101,8 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
   Var* rhs = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
                      stmt->directive == AssignDirective::OVERRIDE);
   if (rhs)
-    lhs.SetGlobalVar(rhs);
+    lhs.SetGlobalVar(rhs,
+                     stmt->directive == AssignDirective::OVERRIDE);
 }
 
 void Evaluator::EvalRule(const RuleStmt* stmt) {
@@ -252,7 +253,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
     for (const string& fname : *files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
-        return;
+        continue;
       }
       DoInclude(fname);
     }

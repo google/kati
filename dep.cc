@@ -25,6 +25,7 @@
 
 #include "eval.h"
 #include "fileutil.h"
+#include "flags.h"
 #include "log.h"
 #include "rule.h"
 #include "stats.h"
@@ -261,6 +262,10 @@ class DepBuilder {
       for (Symbol t : targets)
         phony_.insert(t);
     }
+    if (GetRuleInputs(Intern(".POSIX"), &targets, &loc)) {
+      // .POSIX: enables bash -e command line option globally
+      g_flags.posix_shell = true;
+    }
     if (GetRuleInputs(Intern(".KATI_RESTAT"), &targets, &loc)) {
       for (Symbol t : targets)
         restat_.insert(t);
@@ -287,7 +292,6 @@ class DepBuilder {
       ".EXPORT_ALL_VARIABLES",
       ".NOTPARALLEL",
       ".ONESHELL",
-      ".POSIX",
       NULL
     };
     for (const char** p = kUnsupportedBuiltinTargets; *p; p++) {

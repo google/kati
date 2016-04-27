@@ -42,6 +42,7 @@ FuncInfo* GetFuncInfo(StringPiece name);
 struct FindCommand;
 
 struct CommandResult {
+  string shell;
   string cmd;
   unique_ptr<FindCommand> find;
   string result;

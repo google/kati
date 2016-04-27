@@ -160,6 +160,8 @@ void ParseCommandPrefixes(StringPiece* s, bool* echo, bool* ignore_error) {
       *echo = false;
     } else if (c == '-') {
       *ignore_error = true;
+    } else if (c == '+') {
+      // ignore recursion marker
     } else {
       break;
     }

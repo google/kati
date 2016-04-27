@@ -569,6 +569,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   ShellFuncImpl(shell, cmd, &out, &fc);
   if (ShouldStoreCommandResult(cmd)) {
     CommandResult* cr = new CommandResult();
+    cr->shell = shell;
     cr->cmd = cmd;
     cr->find.reset(fc);
     cr->result = out;
@@ -583,7 +584,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     Intern("5"), Intern("6"),  Intern("7"), Intern("8"), Intern("9")
   };
 
-  const string&& func_name = args[0]->Eval(ev);
+  const string&& func_name = TrimSpace(args[0]->Eval(ev)).as_string();
   Var* func = ev->LookupVar(Intern(func_name));
   if (!func->IsDefined()) {
     KATI_WARN("%s:%d: *warning*: undefined user function: %s",
