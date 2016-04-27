@@ -17,9 +17,9 @@ all: ckati ckati_tests
 include Makefile.kati
 include Makefile.ckati
 
-test: all ckati_tests go_test
-	ruby runtest.rb
+test: all ckati_tests
+	ruby runtest.rb -c -n
 
-clean: ckati_clean go_clean
+clean: ckati_clean
 
 .PHONY: test clean ckati_tests
