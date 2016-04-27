@@ -18,8 +18,6 @@
 
 #include "symtab.h"
 
-#include <iostream>
-
 #ifdef ENABLE_TID_CHECK
 #include <pthread.h>
 #endif
