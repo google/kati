@@ -126,6 +126,7 @@ ckati_clean:
 	rm -rf $(KATI_INTERMEDIATES_PATH)/*.d
 	rm -rf $(KATI_INTERMEDIATES_PATH)/version.cc
 	rm -rf $(KATI_CXX_TEST_EXES)
+	rm -rf out
 
 .PHONY: ckati_clean
 
