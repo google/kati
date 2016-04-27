@@ -584,11 +584,12 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     Intern("5"), Intern("6"),  Intern("7"), Intern("8"), Intern("9")
   };
 
-  const string&& func_name = TrimSpace(args[0]->Eval(ev)).as_string();
+  const string&& func_name_buf = args[0]->Eval(ev);
+  const StringPiece func_name = TrimSpace(func_name_buf);
   Var* func = ev->LookupVar(Intern(func_name));
   if (!func->IsDefined()) {
     KATI_WARN("%s:%d: *warning*: undefined user function: %s",
-              ev->loc(), func_name.c_str());
+              ev->loc(), func_name.as_string().c_str());
   }
   vector<unique_ptr<SimpleVar>> av;
   for (size_t i = 1; i < args.size(); i++) {
