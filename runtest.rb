@@ -183,6 +183,9 @@ run_make_test = proc do |mk|
       if todos.include?('c-ninja') && ckati && via_ninja
         expected_failure = true
       end
+      if todos.include?('c-exec') && ckati && !via_ninja
+        expected_failure = true
+      end
       if todos.include?('ninja') && via_ninja
         expected_failure = true
       end
