@@ -16,6 +16,10 @@
 
 require 'fileutils'
 
+# suppress GNU make jobserver magic when calling "make"
+ENV.delete('MAKEFLAGS')
+ENV.delete('MAKELEVEL')
+
 while true
   if ARGV[0] == '-s'
     test_serialization = true
