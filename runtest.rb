@@ -127,13 +127,11 @@ def normalize_make_log(expected, mk, via_ninja)
 
   # Normalizations for old/new GNU make.
   expected.gsub!(/[`'"]/, '"')
-  expected.gsub!(/ (?:commands|recipe) for target /,
-                 ' commands for target ')
-  expected.gsub!(/ (?:commands|recipe) commences /,
-                 ' commands commence ')
+  expected.gsub!(' recipe for target ', ' commands for target ')
+  expected.gsub!(' recipe commences ', ' commands commence ')
+  expected.gsub!('missing rule before recipe.', 'missing rule before commands.')
   expected.gsub!(' (did you mean TAB instead of 8 spaces?)', '')
   expected.gsub!('Extraneous text after', 'extraneous text after')
-  expected.gsub!('missing rule before recipe.', 'missing rule before commands.')
   # Not sure if this is useful.
   expected.gsub!(/\s+Stop\.$/, '')
   # GNU make 4.0 has this output.
