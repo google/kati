@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# coding: binary
 #
 # Copyright 2015 Google Inc. All rights reserved
 #
@@ -120,13 +121,20 @@ def normalize_ninja_log(log, mk)
   log
 end
 
+def normalize_quotes(log)
+  log.gsub!(/[`'"]/, '"')
+  # For recent GNU find, which uses Unicode characters.
+  log.gsub!(/(\xe2\x80\x98|\xe2\x80\x99)/, '"')
+  log
+end
+
 def normalize_make_log(expected, mk, via_ninja)
+  expected = normalize_quotes(expected)
   expected.gsub!(/^make(?:\[\d+\])?: (Entering|Leaving) directory.*\n/, '')
   expected.gsub!(/^make(?:\[\d+\])?: /, '')
   expected = move_circular_dep(expected)
 
   # Normalizations for old/new GNU make.
-  expected.gsub!(/[`'"]/, '"')
   expected.gsub!(' recipe for target ', ' commands for target ')
   expected.gsub!(' recipe commences ', ' commands commence ')
   expected.gsub!('missing rule before recipe.', 'missing rule before commands.')
@@ -150,11 +158,12 @@ def normalize_make_log(expected, mk, via_ninja)
 end
 
 def normalize_kati_log(output)
+  output = normalize_quotes(output)
   output = move_circular_dep(output)
+
   # kati specific log messages.
   output.gsub!(/^\*kati\*.*\n/, '')
   output.gsub!(/^c?kati: /, '')
-  output.gsub!(/[`'"]/, '"')
   output.gsub!(/\/bin\/sh: ([^:]*): command not found/,
                "\\1: Command not found")
   output.gsub!(/.*: warning for parse error in an unevaluated line: .*\n/, '')
@@ -223,7 +232,7 @@ run_make_test = proc do |mk|
       end
       cmd += bash_var
       cmd += " #{tc} 2>&1"
-      res = `#{cmd}`
+      res = IO.popen(cmd, 'r:binary', &:read)
       res = normalize_make_log(res, mk, via_ninja)
       expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
