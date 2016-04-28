@@ -9,11 +9,9 @@ before_script:
   - sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ trusty main universe"
   - sudo apt-get update -qq
   - sudo apt-get install -y libstdc++-4.8-dev clang-3.5 ninja-build realpath
-  - sudo ln -sf bash /bin/sh
 
 script:
   - make -j4 ckati
   - ruby runtest.rb -c
   - ruby runtest.rb -c -n
   - ruby runtest.rb -c -n -a
- 
