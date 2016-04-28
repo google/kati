@@ -44,7 +44,8 @@ const double kProcessing = -1.0;
 class Executor {
  public:
   explicit Executor(Evaluator* ev)
-      : ce_(ev) {
+      : ce_(ev),
+        num_commands_(0) {
     shell_ = ev->GetShellAndFlag();
   }
 
