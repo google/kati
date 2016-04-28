@@ -2,7 +2,7 @@
 
 export FOO=-x
 
-SHELL := PS4="cmd: " /bin/bash $${FOO}
+override SHELL := PS4="cmd: " /bin/bash $${FOO}
 $(info $(shell echo foo))
 
 test:

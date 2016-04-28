@@ -1,11 +1,11 @@
 $(info $(SHELL))
 
-SHELL:=/bin/echo
+override SHELL:=/bin/echo
 
 $(info $(shell foo))
 
 echo=/bin/echo
-SHELL=$(echo)
+override SHELL=$(echo)
 
 $(info $(shell bar))
 
