@@ -11,7 +11,7 @@ test:
 else
 
 $(info $(shell echo foo))
-SHELL := echo
+override SHELL := echo
 $(info $(shell echo bar))
 .POSIX:
 $(info $(shell echo baz))
