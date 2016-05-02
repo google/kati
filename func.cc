@@ -318,7 +318,6 @@ void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   for (StringPiece tok : WordScanner(pat)) {
     ScopedTerminator st(tok);
     Glob(tok.data(), &files);
-    sort(files->begin(), files->end());
     for (const string& file : *files) {
       ww.Write(file);
     }

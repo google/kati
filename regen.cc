@@ -263,7 +263,6 @@ class StampChecker {
     COLLECT_STATS("glob time (regen)");
     vector<string>* files;
     Glob(gr->pat.c_str(), &files);
-    sort(files->begin(), files->end());
     bool needs_regen = files->size() != gr->result.size();
     for (size_t i = 0; i < gr->result.size(); i++) {
       if (!needs_regen) {

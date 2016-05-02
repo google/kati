@@ -157,7 +157,7 @@ class GlobCache {
       vector<string>* files = p.first->second = new vector<string>;
       if (strcspn(pat, "?*[\\") != strlen(pat)) {
         glob_t gl;
-        glob(pat, GLOB_NOSORT, NULL, &gl);
+        glob(pat, 0, NULL, &gl);
         for (size_t i = 0; i < gl.gl_pathc; i++) {
           files->push_back(gl.gl_pathv[i]);
         }
