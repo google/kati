@@ -1,4 +1,11 @@
 # TODO(c): Fix this. Maybe $(wildcard) always runs at eval-phase.
+
+# GNU make 4 agrees with ckati.
+MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
+ifeq ($(MAKE)$(MAKEVER),make4)
+$(error test skipped)
+endif
+
 files = $(wildcard *,*)
 
 # if make starts without foo,bar, it will be empty, although expect foo,bar.
