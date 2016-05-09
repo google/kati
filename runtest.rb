@@ -109,13 +109,16 @@ def normalize_ninja_log(log, mk)
             '*** No rule to make target \\1.')
   log.gsub!(/^ninja: warning: multiple rules generate (.*)\. builds involving this target will not be correct.*$/,
             'ninja: warning: multiple rules generate \\1.')
+
   if mk =~ /err_error_in_recipe.mk/
     # This test expects ninja fails. Strip ninja specific error logs.
-    log.gsub!(/^FAILED: .*\n/, '')
-    log.gsub!(/^ninja: .*\n/, '')
+    ninja_failed_subst = ''
   elsif mk =~ /\/fail_/
     # Recipes in these tests fail.
-    log.gsub!(/^FAILED: .*/, '*** [test] Error 1')
+    ninja_failed_subst = "*** [test] Error 1\n"
+  end
+  if ninja_failed_subst
+    log.gsub!(/^FAILED: (.*\n\/bin\/bash)?.*\n/, ninja_failed_subst)
     log.gsub!(/^ninja: .*\n/, '')
   end
   log
