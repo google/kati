@@ -184,6 +184,17 @@ class DepSanitizer(object):
     return actual_inputs | inputs | actual_outputs
 
 
+def unescape_ninja_dollar(m):
+  c = m.group(0)[1]
+  if c == '$' or c == ':' or c == ' ':
+    return c
+  raise Exception("not supported yet: %s" % m.group(0))
+
+
+def unescape_ninja(l):
+  return re.subn(r'\$.', unescape_ninja_dollar, l)[0]
+
+
 args = list(sys.argv)
 
 is_verbose = False
@@ -206,6 +217,7 @@ with open(args[2]) as f:
   for line in f:
     line = line.rstrip()
     if line.startswith('build '):
+      line = unescape_ninja(line)
       toks = line.split(' ')
       output = toks[1][0:-1]
       rule = toks[2]
@@ -214,9 +226,11 @@ with open(args[2]) as f:
       depfile = None
       is_restat = False
     elif line.startswith('default '):
+      line = unescape_ninja(line)
       assert not defaults
       defaults = line.split(' ')[1:]
     elif line.startswith(' depfile = '):
+      line = unescape_ninja(line)
       assert not depfile
       depfile = line.split(' ')[3]
     elif line.startswith(' restat = 1'):
