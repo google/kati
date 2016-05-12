@@ -65,6 +65,8 @@ void Flags::Parse(int argc, char** argv) {
       is_dry_run = true;
     } else if (!strcmp(arg, "-s")) {
       is_silent_mode = true;
+    } else if (!strcmp(arg, "-d")) {
+      enable_debug = true;
     } else if (!strcmp(arg, "--kati_stats")) {
       enable_stat_logs = true;
     } else if (!strcmp(arg, "--warn")) {

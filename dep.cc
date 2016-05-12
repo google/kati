@@ -215,6 +215,8 @@ struct RuleMerger {
       if (r == primary_rule)
         continue;
       FillDepNodeFromRule(output, r, n);
+      if (n->loc.filename == NULL)
+        n->loc = r->loc;
     }
   }
 };
