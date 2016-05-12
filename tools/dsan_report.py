@@ -15,20 +15,36 @@
 # limitations under the License.
 
 import os
+import re
 import sys
 
+# Whitelists for Android
+# TODO: Move to an external file?
 
-WHITELIST = [
+INPUT_WHITELIST = [
     # This is created at ckati-time.
-    'out/build_number.txt',
-    'out/build_date.txt',
+    r'out/build_number\.txt',
+    r'out/build_date\.txt',
+    # Currently, Android build system doesn't specify shared objects
+    # in prebuilts/ for example.
+    # TODO: Probably need a further investigation.
+    r'prebuilts/',
+    # Python automatically creates them.
+    r'.*\.pyc$',
+    # droiddoc uses these HTML files.
+    # TODO: Probably not so important, but maybe better to fix.
+    r'.*/package\.html$',
 ]
-WHITELIST = set(os.path.join(os.getcwd(), p) for p in WHITELIST)
+INPUT_WHITELIST = set(os.path.join(os.getcwd(), p) for p in INPUT_WHITELIST)
+INPUT_WHITELIST_RE = re.compile('|'.join(INPUT_WHITELIST))
 
 OUTPUT_WHITELIST = [
-    'out/host/common/obj/PACKAGING/gpl_source_intermediates/gpl_source.tgz',
+    r'out/host/common/obj/PACKAGING/gpl_source_intermediates/gpl_source\.tgz',
+    # Per discussion in https://android-review.googlesource.com/#/c/224070/
+    r'out/target/product/generic[^/]*/aosp_\w+-symbols-\w+.\w+\.zip',
 ]
 OUTPUT_WHITELIST = set(os.path.join(os.getcwd(), p) for p in OUTPUT_WHITELIST)
+OUTPUT_WHITELIST_RE = re.compile('|'.join(OUTPUT_WHITELIST))
 
 class DepSanitizer(object):
   def __init__(self, dsan_dir):
@@ -143,20 +159,13 @@ class DepSanitizer(object):
       has_error = True
 
     undefined_inputs = actual_inputs - inputs - products
-    if output in OUTPUT_WHITELIST:
+    if OUTPUT_WHITELIST_RE.match(output):
       undefined_inputs = set()
     for undefined_input in undefined_inputs:
       if not undefined_input.startswith(self.cwd):
         continue
 
-      # For Android
-      # TODO: Move to an external file?
-      if undefined_input in WHITELIST:
-        continue
-      if undefined_input.startswith(os.path.join(self.cwd, 'prebuilts')):
-        continue
-      # Python automatically creates them.
-      if undefined_input.endswith('.pyc'):
+      if INPUT_WHITELIST_RE.match(undefined_input):
         continue
       # Ninja's rspfile.
       if undefined_input == output + '.rsp':
