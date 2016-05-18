@@ -484,15 +484,8 @@ class NinjaGenerator {
   void EmitDsan(Symbol output, ostringstream* o) {
     if (!g_flags.dsan_dir)
       return;
-
-    string prefix = string(g_flags.dsan_dir) + '/';
-    for (char c : output.str()) {
-      if (c == '/')
-        prefix += "__";
-      else
-        prefix += c;
-    }
-    *o << dsan_record_ << ' ' << prefix << ".trace ";
+    *o << dsan_record_ << ' ' << g_flags.dsan_dir << '/'
+       << output.str() << ".trace ";
   }
 
   void EmitNode(NinjaNode* nn, ostringstream* o) {

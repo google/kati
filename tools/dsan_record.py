@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import atexit
+import errno
 import os
 import re
 import subprocess
@@ -417,6 +418,12 @@ if len(sys.argv) <= 2:
 
 timed_out = False
 outfile = sys.argv[1]
+try:
+  os.makedirs(os.path.dirname(outfile))
+except OSError as e:
+  if e.errno != errno.EEXIST:
+    raise
+
 if outfile == '-f':
   filename = sys.argv[2]
   outfile = None
