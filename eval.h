@@ -61,6 +61,7 @@ class Evaluator {
   void Error(const string& msg);
 
   void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
+  void set_is_commandline(bool c) { is_commandline_ = c; }
 
   void set_current_scope(Vars* v) { current_scope_ = v; }
 
@@ -109,6 +110,7 @@ class Evaluator {
 
   Loc loc_;
   bool is_bootstrap_;
+  bool is_commandline_;
 
   bool avoid_io_;
   // This value tracks the nest level of make expressions. For

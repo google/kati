@@ -50,6 +50,7 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
                         AssignOp op, bool is_override) {
   VarOrigin origin = (
       (is_bootstrap_ ? VarOrigin::DEFAULT :
+       is_commandline_ ? VarOrigin::COMMAND_LINE :
        is_override ? VarOrigin::OVERRIDE : VarOrigin::FILE));
 
   Var* rhs = NULL;
