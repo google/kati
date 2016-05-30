@@ -51,6 +51,7 @@ class Parser {
         state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
         out_stmts_(stmts),
+        num_define_nest_(0),
         num_if_nest_(0),
         loc_(filename, 0),
         fixed_lineno_(false) {
@@ -281,6 +282,7 @@ class Parser {
       return;
     }
     define_name_ = line;
+    num_define_nest_ = 1;
     define_start_ = 0;
     define_start_line_ = loc_.lineno;
     state_ = ParserState::NOT_AFTER_RULE;
@@ -288,7 +290,12 @@ class Parser {
 
   void ParseInsideDefine(StringPiece line) {
     line = TrimLeftSpace(line);
-    if (GetDirective(line) != "endef") {
+    StringPiece directive = GetDirective(line);
+    if (directive == "define")
+      num_define_nest_++;
+    else if (directive == "endef")
+      num_define_nest_--;
+    if (num_define_nest_ > 0) {
       if (define_start_ == 0)
         define_start_ = l_;
       return;
@@ -516,6 +523,7 @@ class Parser {
   vector<Stmt*>* out_stmts_;
 
   StringPiece define_name_;
+  int num_define_nest_;
   size_t define_start_;
   int define_start_line_;
 
