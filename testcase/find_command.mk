@@ -116,6 +116,8 @@ endif
 	$(call run_find, build/tools/findleaves.py --mindepth=2 testdir file1)
 	$(call run_find, build/tools/findleaves.py --mindepth=3 testdir file1)
 	$(call run_find, build/tools/findleaves.py --mindepth=2 testdir file1)
+	$(call run_find, build/tools/findleaves.py --prune=dir1 --dir=testdir file1)
+	$(call run_find, build/tools/findleaves.py --prune=dir1 --dir=testdir file3 link3)
 	@echo missing chdir / testdir
 	$(call run_find, cd xxx && find .)
 	$(call run_find, if [ -d xxx ]; then find .; fi)
