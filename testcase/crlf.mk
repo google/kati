@@ -1,4 +1,5 @@
 PASS := \
+  PASS \
   PASS
 
 test:

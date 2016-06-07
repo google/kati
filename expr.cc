@@ -537,6 +537,8 @@ Value* ParseExprImpl(const Loc& loc,
         r->AddValue(new Literal(StringPiece(" ")));
         // Skip the current escaped newline
         i += 2;
+        if (n == '\r' && s.get(i) == '\n')
+          i++;
         // Then continue skipping escaped newlines, spaces, and tabs
         for (; i < s.size(); i++) {
           if (s[i] == '\\' && (s.get(i+1) == '\r' || s.get(i+1) == '\n')) {
