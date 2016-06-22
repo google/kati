@@ -230,7 +230,9 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
 
 void Evaluator::DoInclude(const string& fname) {
   Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
-  CHECK(mk->Exists());
+  if (!mk->Exists()) {
+    Error(StringPrintf("%s does not exist", fname.c_str()));
+  }
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
   var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
