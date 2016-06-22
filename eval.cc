@@ -254,7 +254,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
 
     if (stmt->should_exist) {
       if (files->empty()) {
-        // TOOD: Kati does not support building a missing include file.
+        // TODO: Kati does not support building a missing include file.
         Error(StringPrintf("%s: %s", pat.data(), strerror(errno)));
       }
     }
