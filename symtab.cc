@@ -69,6 +69,10 @@ void Symbol::SetGlobalVar(Var* v, bool is_override) const {
        orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE)) {
     return;
   }
+  if (orig->Origin() == VarOrigin::COMMAND_LINE &&
+         v->Origin() == VarOrigin::FILE) {
+    return;
+  }
   if (orig->Origin() == VarOrigin::AUTOMATIC) {
     ERROR("overriding automatic variable is not implemented yet");
   }
