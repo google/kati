@@ -16,6 +16,7 @@
 
 #include "flags.h"
 
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -51,6 +52,13 @@ void Flags::Parse(int argc, char** argv) {
   subkati_args.push_back(argv[0]);
   num_jobs = num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
+
+  if (const char* makeflags = getenv("MAKEFLAGS")) {
+    for (StringPiece tok : WordScanner(makeflags)) {
+      if (!HasPrefix(tok, "-") && tok.find('=') != string::npos)
+        cl_vars.push_back(tok);
+    }
+  }
 
   for (int i = 1; i < argc; i++) {
     const char* arg = argv[i];
