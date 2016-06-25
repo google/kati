@@ -16,6 +16,7 @@
 
 #include "flags.h"
 
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -47,24 +48,15 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
   return false;
 }
 
-extern "C" char** environ;
-
 void Flags::Parse(int argc, char** argv) {
   subkati_args.push_back(argv[0]);
   num_jobs = num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
 
-  for (char** p = environ; *p; p++) {
-    const char* prefix = "MAKEFLAGS=";
-    if (HasPrefix(*p, prefix)) {
-      for (StringPiece tok : WordScanner(*p + strlen(prefix))) {
-        if (!HasPrefix(tok, "-")) {
-          size_t found = tok.find("=");
-          if (found != string::npos) {
-            cl_vars.push_back(tok);
-          }
-        }
-      }
+  if (const char* makeflags = getenv("MAKEFLAGS")) {
+    for (StringPiece tok : WordScanner(makeflags)) {
+      if (!HasPrefix(tok, "-") && tok.find('=') != string::npos)
+        cl_vars.push_back(tok);
     }
   }
 
