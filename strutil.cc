@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <functional>
 #include <stack>
 #include <utility>
 
@@ -38,8 +39,9 @@ static bool isSpace(char c) {
 static int SkipUntilSSE42(const char* s, int len,
                           const char* ranges, int ranges_size) {
   __m128i ranges16 = _mm_loadu_si128((const __m128i*)ranges);
+  len &= ~15;
   int i = 0;
-  do {
+  while (i < len) {
     __m128i b16 = _mm_loadu_si128((const __m128i*)(s + i));
     int r = _mm_cmpestri(
         ranges16, ranges_size, b16, len - i,
@@ -48,10 +50,25 @@ static int SkipUntilSSE42(const char* s, int len,
       return i + r;
     }
     i += 16;
-  } while (i < len);
+  }
   return len;
 }
 #endif
+
+template <typename Cond>
+static int SkipUntil(const char* s, int len,
+                     const char* ranges, int ranges_size,
+                     Cond cond) {
+  int i = 0;
+#ifdef __SSE4_2__
+  i += SkipUntilSSE42(s, len, ranges, ranges_size);
+#endif
+  for (; i < len; i++) {
+    if (cond(s[i]))
+      break;
+  }
+  return i;
+}
 
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
@@ -66,17 +83,11 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     return *this;
   }
 
-#ifdef __SSE4_2__
   static const char ranges[] = "\x09\x0d  ";
-  i = s;
-  i += SkipUntilSSE42(in->data() + s, len - s, ranges, 4);
-#else
-  for (i = s; i < len; i++) {
-    if (isSpace((*in)[i]))
-      break;
-  }
-#endif
-
+  // It's intentional we are not using isSpace here. It seems with
+  // lambda the compiler generates better code.
+  i = s + SkipUntil(in->data() + s, len - s, ranges, 4,
+                    [](char c) { return (9 <= c && c <= 13) || c == 32; });
   return *this;
 }
 
@@ -426,7 +437,8 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
 #ifdef __SSE4_2__
   static const char ranges[] = "\0\0\n\n\\\\";
   while (e < s.size()) {
-    e += SkipUntilSSE42(s.data() + e, s.size() - e, ranges, 6);
+    e += SkipUntil(s.data() + e, s.size() - e, ranges, 6,
+                   [](char c) { return c == 0 || c == '\n' || c == '\\'; });
     if (e >= s.size()) {
       CHECK(s.size() == e);
       break;
@@ -530,11 +542,15 @@ string EchoEscape(const string str) {
   return buf;
 }
 
+static bool NeedsShellEscape(char c) {
+  return c == 0 || c == '"' || c == '$' || c == '\\' || c == '`';
+}
+
 void EscapeShell(string* s) {
 #ifdef __SSE4_2__
   static const char ranges[] = "\0\0\"\"$$\\\\``";
   size_t prev = 0;
-  size_t i = SkipUntilSSE42(s->c_str(), s->size(), ranges, 10);
+  size_t i = SkipUntil(s->c_str(), s->size(), ranges, 10, NeedsShellEscape);
   if (i == s->size())
     return;
 
@@ -552,7 +568,7 @@ void EscapeShell(string* s) {
     r += c;
     i++;
     prev = i;
-    i += SkipUntilSSE42(s->c_str() + i, s->size() - i, ranges, 10);
+    i += SkipUntil(s->c_str() + i, s->size() - i, ranges, 10, NeedsShellEscape);
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
