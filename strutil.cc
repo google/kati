@@ -434,7 +434,6 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 }
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
-#ifdef __SSE4_2__
   static const char ranges[] = "\0\0\n\n\\\\";
   while (e < s.size()) {
     e += SkipUntil(s.data() + e, s.size() - e, ranges, 6,
@@ -464,26 +463,6 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
     }
   }
   return e;
-#else
-  bool prev_backslash = false;
-  for (; e < s.size(); e++) {
-    char c = s[e];
-    if (c == '\0') {
-      return e;
-    } else if (c == '\\') {
-      prev_backslash = !prev_backslash;
-    } else if (c == '\n') {
-      ++*lf_cnt;
-      if (!prev_backslash) {
-        return e;
-      }
-      prev_backslash = false;
-    } else if (c != '\r') {
-      prev_backslash = false;
-    }
-  }
-  return e;
-#endif
 }
 
 StringPiece TrimLeadingCurdir(StringPiece s) {
@@ -547,7 +526,6 @@ static bool NeedsShellEscape(char c) {
 }
 
 void EscapeShell(string* s) {
-#ifdef __SSE4_2__
   static const char ranges[] = "\0\0\"\"$$\\\\``";
   size_t prev = 0;
   size_t i = SkipUntil(s->c_str(), s->size(), ranges, 10, NeedsShellEscape);
@@ -572,33 +550,4 @@ void EscapeShell(string* s) {
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
-#else
-  if (s->find_first_of("$`\\\"") == string::npos)
-    return;
-  string r;
-  bool last_dollar = false;
-  for (char c : *s) {
-    switch (c) {
-      case '$':
-        if (last_dollar) {
-          r += c;
-          last_dollar = false;
-        } else {
-          r += '\\';
-          r += c;
-          last_dollar = true;
-        }
-        break;
-      case '`':
-      case '"':
-      case '\\':
-        r += '\\';
-        // fall through.
-      default:
-        r += c;
-        last_dollar = false;
-    }
-  }
-  s->swap(r);
-#endif
 }
