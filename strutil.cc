@@ -456,7 +456,9 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   bool prev_backslash = false;
   for (; e < s.size(); e++) {
     char c = s[e];
-    if (c == '\\') {
+    if (c == '\0') {
+      return e;
+    } else if (c == '\\') {
       prev_backslash = !prev_backslash;
     } else if (c == '\n') {
       ++*lf_cnt;
