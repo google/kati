@@ -176,7 +176,7 @@ void TestWordScannerInvalidAccess() {
   }
   assert(ss.size() == 2LU);
   ASSERT_EQ(ss[0], "0123");
-  ASSERT_EQ(ss[1], "56789");
+  ASSERT_EQ(ss[1], "456789");
 }
 
 void TestFindEndOfLineInvalidAccess() {
