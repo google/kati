@@ -11,7 +11,10 @@ before_script:
   - sudo apt-get install -y libstdc++-4.8-dev clang-3.5 ninja-build realpath
 
 script:
-  - make -j4 ckati
+  - make -j4 ckati ckati_tests
   - ruby runtest.rb -c
   - ruby runtest.rb -c -n
   - ruby runtest.rb -c -n -a
+  - ./ninja_test
+  - ./string_piece_test
+  - ./strutil_test
