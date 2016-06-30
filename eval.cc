@@ -122,7 +122,10 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
 
   Rule* rule;
   RuleVarAssignment rule_var;
-  ParseRule(loc_, expr, stmt->term, &rule, &rule_var);
+  function<string()> after_term_fn = [this, stmt](){
+    return stmt->after_term ? stmt->after_term->Eval(this) : "";
+  };
+  ParseRule(loc_, expr, stmt->term, after_term_fn, &rule, &rule_var);
 
   if (rule) {
     if (stmt->term == ';') {

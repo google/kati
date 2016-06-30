@@ -15,6 +15,8 @@
 #ifndef RULE_H_
 #define RULE_H_
 
+#include <functional>
+#include <string>
 #include <vector>
 
 #include "loc.h"
@@ -58,8 +60,12 @@ struct RuleVarAssignment {
   AssignOp op;
 };
 
-// If |rule| is not NULL, |rule_var| is filled.
+// If |rule| is not NULL, |rule_var| is filled. If the expression
+// after the terminator |term| is needed (this happens only when
+// |term| is '='), |after_term_fn| will be called to obtain the right
+// hand side.
 void ParseRule(Loc& loc, StringPiece line, char term,
+               function<string()> after_term_fn,
                Rule** rule, RuleVarAssignment* rule_var);
 
 #endif  // RULE_H_

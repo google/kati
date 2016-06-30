@@ -54,6 +54,7 @@ Rule::Rule()
 }
 
 void ParseRule(Loc& loc, StringPiece line, char term,
+               function<string()> after_term_fn,
                Rule** out_rule, RuleVarAssignment* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {
@@ -84,15 +85,31 @@ void ParseRule(Loc& loc, StringPiece line, char term,
 
   StringPiece rest = line.substr(index);
   size_t term_index = rest.find_first_of("=;");
+  string buf;
   if ((term_index != string::npos && rest[term_index] == '=') ||
       (term_index == string::npos && term == '=')) {
     if (term_index == string::npos)
       term_index = rest.size();
-    rule_var->outputs.swap(outputs);
-    ParseAssignStatement(rest, term_index,
-                         &rule_var->lhs, &rule_var->rhs, &rule_var->op);
-    *out_rule = NULL;
-    return;
+    // "test: =foo" is questionable but a valid rule definition (not a
+    // target specific variable).
+    // See https://github.com/google/kati/issues/83
+    if (term_index == 0) {
+      KATI_WARN("%s:%d: defining a target which starts with `=', "
+                "which is not probably what you meant", LOCF(loc));
+      buf = line.as_string();
+      if (term)
+        buf += term;
+      buf += after_term_fn();
+      line = buf;
+      rest = line.substr(index);
+      term_index = string::npos;
+    } else {
+      rule_var->outputs.swap(outputs);
+      ParseAssignStatement(rest, term_index,
+                           &rule_var->lhs, &rule_var->rhs, &rule_var->op);
+      *out_rule = NULL;
+      return;
+    }
   }
 
   Rule* rule = new Rule();
