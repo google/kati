@@ -132,7 +132,7 @@ class StampChecker {
     const string& stamp_filename = GetNinjaStampFilename();
     FILE* fp = fopen(stamp_filename.c_str(), "rb");
     if (!fp) {
-      if (g_flags.dump_kati_stamp)
+      if (g_flags.regen_debug)
         printf("%s: %s\n", stamp_filename.c_str(), strerror(errno));
       return true;
     }
@@ -145,7 +145,7 @@ class StampChecker {
       fprintf(stderr, "incomplete kati_stamp, regenerating...\n");
       RETURN_TRUE;
     }
-    if (g_flags.dump_kati_stamp)
+    if (g_flags.regen_debug)
       printf("Generated time: %f\n", gen_time);
 
     string s, s2;
@@ -163,7 +163,7 @@ class StampChecker {
           }
         }
         if (ShouldIgnoreDirty(s)) {
-          if (g_flags.dump_kati_stamp)
+          if (g_flags.regen_debug)
             printf("file %s: ignored (%f)\n", s.c_str(), ts);
           continue;
         }
@@ -325,7 +325,7 @@ class StampChecker {
 
   bool CheckShellResult(const ShellResult* sr, string* err) {
     if (!ShouldRunCommand(sr)) {
-      if (g_flags.dump_kati_stamp)
+      if (g_flags.regen_debug)
         printf("shell %s: clean (no rerun)\n", sr->cmd.c_str());
       return false;
     }
@@ -351,7 +351,7 @@ class StampChecker {
         //*err += StringPrintf("%s => %s\n", expected.c_str(), result.c_str());
       }
       return true;
-    } else if (g_flags.dump_kati_stamp) {
+    } else if (g_flags.regen_debug) {
       printf("shell %s: clean (rerun)\n", sr->cmd.c_str());
     }
     return false;

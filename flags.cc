@@ -86,10 +86,13 @@ void Flags::Parse(int argc, char** argv) {
     } else if (!strcmp(arg, "--regen")) {
       // TODO: Make this default.
       regen = true;
+    } else if (!strcmp(arg, "--regen_debug")) {
+      regen_debug = true;
     } else if (!strcmp(arg, "--regen_ignoring_kati_binary")) {
       regen_ignoring_kati_binary = true;
     } else if (!strcmp(arg, "--dump_kati_stamp")) {
       dump_kati_stamp = true;
+      regen_debug = true;
     } else if (!strcmp(arg, "--detect_android_echo")) {
       detect_android_echo = true;
     } else if (!strcmp(arg, "--detect_depfiles")) {
