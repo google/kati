@@ -11,9 +11,6 @@ baz: foo
 test1: foo bar baz
 	echo PASS test1 from foo bar baz
 
-# Actually, you can use .PHONY!
-test2: .PHONY
-
 test3:
 	touch test4
 
