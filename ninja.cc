@@ -483,6 +483,9 @@ class NinjaGenerator {
 
     string rule_name = "phony";
     bool use_local_pool = false;
+    if (node->output.get(0) == '.') {
+      return;
+    }
     if (g_flags.enable_debug) {
       *o << "# " << (node->loc.filename ? node->loc.filename : "(null)")
          << ':' << node->loc.lineno << "\n";
