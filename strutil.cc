@@ -57,7 +57,7 @@ static int SkipUntilSSE42(const char* s, int len,
 
 template <typename Cond>
 static int SkipUntil(const char* s, int len,
-                     const char* ranges, int ranges_size,
+                     const char* ranges UNUSED, int ranges_size UNUSED,
                      Cond cond) {
   int i = 0;
 #ifdef __SSE4_2__
