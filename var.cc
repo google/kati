@@ -37,7 +37,7 @@ const char* GetOriginStr(VarOrigin origin) {
   return "*** broken origin ***";
 }
 
-Var::Var() {
+Var::Var() : readonly_(false) {
 }
 
 Var::~Var() {
@@ -130,10 +130,15 @@ Var* Vars::Lookup(Symbol name) const {
   return v;
 }
 
-void Vars::Assign(Symbol name, Var* v) {
+void Vars::Assign(Symbol name, Var* v, bool* readonly) {
+  *readonly = false;
   auto p = emplace(name, v);
   if (!p.second) {
     Var* orig = p.first->second;
+    if (orig->ReadOnly()) {
+      *readonly = true;
+      return;
+    }
     if (orig->Origin() == VarOrigin::OVERRIDE ||
         orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE) {
       return;

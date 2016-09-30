@@ -59,11 +59,20 @@ Var* Symbol::GetGlobalVar() const {
   return v;
 }
 
-void Symbol::SetGlobalVar(Var* v, bool is_override) const {
+void Symbol::SetGlobalVar(Var* v, bool is_override, bool* readonly) const {
   if (static_cast<size_t>(v_) >= g_symbol_data.size()) {
     g_symbol_data.resize(v_ + 1);
   }
   Var* orig = g_symbol_data[v_].gv;
+  if (orig->ReadOnly()) {
+    if (readonly != nullptr)
+      *readonly = true;
+    else
+      ERROR("*** cannot assign to readonly variable: %s", c_str());
+    return;
+  } else if (readonly != nullptr) {
+    *readonly = false;
+  }
   if (!is_override &&
       (orig->Origin() == VarOrigin::OVERRIDE ||
        orig->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE)) {

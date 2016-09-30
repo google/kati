@@ -36,7 +36,8 @@ Evaluator::Evaluator()
       avoid_io_(false),
       eval_depth_(0),
       posix_sym_(Intern(".POSIX")),
-      is_posix_(false) {
+      is_posix_(false),
+      kati_readonly_(Intern(".KATI_READONLY")) {
 }
 
 Evaluator::~Evaluator() {
@@ -69,6 +70,8 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
       Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
+      } else if (prev->ReadOnly()) {
+        Error(StringPrintf("*** cannot assign to readonly variable: %s", lhs.c_str()));
       } else {
         prev->AppendVar(this, rhs_v);
         rhs = prev;
@@ -101,11 +104,31 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
   Symbol lhs = stmt->GetLhsSymbol(this);
   if (lhs.empty())
     Error("*** empty variable name.");
+
+  if (lhs == kati_readonly_) {
+    string rhs;
+    stmt->rhs->Eval(this, &rhs);
+    for (auto const& name : WordScanner(rhs)) {
+      Var* var = Intern(name).GetGlobalVar();
+      if (!var->IsDefined()) {
+        Error(StringPrintf("*** unknown variable: %s", name.as_string().c_str()));
+      }
+      var->SetReadOnly();
+    }
+    return;
+  }
+
   Var* rhs = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
                      stmt->directive == AssignDirective::OVERRIDE);
-  if (rhs)
+  if (rhs) {
+    bool readonly;
     lhs.SetGlobalVar(rhs,
-                     stmt->directive == AssignDirective::OVERRIDE);
+                     stmt->directive == AssignDirective::OVERRIDE,
+                     &readonly);
+    if (readonly) {
+      Error(StringPrintf("*** cannot assign to readonly variable: %s", lhs.c_str()));
+    }
+  }
 }
 
 void Evaluator::EvalRule(const RuleStmt* stmt) {
@@ -167,9 +190,29 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     }
 
     current_scope_ = p.first->second;
+
+    if (lhs == kati_readonly_) {
+      string rhs_value;
+      rhs->Eval(this, &rhs_value);
+      for (auto const& name : WordScanner(rhs_value)) {
+        Var* var = current_scope_->Lookup(Intern(name));
+        if (!var->IsDefined()) {
+          Error(StringPrintf("*** unknown variable: %s", name.as_string().c_str()));
+        }
+        var->SetReadOnly();
+      }
+      current_scope_ = NULL;
+      continue;
+    }
+
     Var* rhs_var = EvalRHS(lhs, rhs, StringPiece("*TODO*"), rule_var.op);
-    if (rhs_var)
-      current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op));
+    if (rhs_var) {
+      bool readonly;
+      current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op), &readonly);
+      if (readonly) {
+        Error(StringPrintf("*** cannot assign to readonly variable: %s", lhs.c_str()));
+      }
+    }
     current_scope_ = NULL;
   }
 }

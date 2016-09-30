@@ -125,6 +125,8 @@ class Evaluator {
   bool is_posix_;
 
   static unordered_set<Symbol> used_undefined_vars_;
+
+  Symbol kati_readonly_;
 };
 
 #endif  // EVAL_H_

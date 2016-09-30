@@ -56,7 +56,7 @@ class Symbol {
   bool IsValid() const { return v_ >= 0; }
 
   Var* GetGlobalVar() const;
-  void SetGlobalVar(Var* v, bool is_override = false) const;
+  void SetGlobalVar(Var* v, bool is_override = false, bool* readonly = nullptr) const;
 
  private:
   explicit Symbol(int v);
