@@ -491,8 +491,8 @@ static bool HasNoIoInShellScript(const string& cmd) {
   return false;
 }
 
-static void ShellFuncImpl(const string& shell, const string& cmd,
-                          string* s, FindCommand** fc) {
+static void ShellFuncImpl(const string& shell, const string& shellflag,
+                          const string& cmd, string* s, FindCommand** fc) {
   LOG("ShellFunc: %s", cmd.c_str());
 
 #ifdef TEST_FIND_EMULATOR
@@ -517,7 +517,7 @@ static void ShellFuncImpl(const string& shell, const string& cmd,
   }
 
   COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd.c_str());
-  RunCommand(shell, cmd, RedirectStderr::NONE, s);
+  RunCommand(shell, shellflag, cmd, RedirectStderr::NONE, s);
   FormatForCommandSubstitution(s);
 
 #ifdef TEST_FIND_EMULATOR
@@ -564,14 +564,16 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     return;
   }
 
-  const string&& shell = ev->GetShellAndFlag();
+  const string&& shell = ev->GetShell();
+  const string&& shellflag = ev->GetShellFlag();
 
   string out;
   FindCommand* fc = NULL;
-  ShellFuncImpl(shell, cmd, &out, &fc);
+  ShellFuncImpl(shell, shellflag, cmd, &out, &fc);
   if (ShouldStoreCommandResult(cmd)) {
     CommandResult* cr = new CommandResult();
     cr->shell = shell;
+    cr->shellflag = shellflag;
     cr->cmd = cmd;
     cr->find.reset(fc);
     cr->result = out;

@@ -737,6 +737,7 @@ class NinjaGenerator {
     DumpInt(fp, crs.size());
     for (CommandResult* cr : crs) {
       DumpString(fp, cr->shell);
+      DumpString(fp, cr->shellflag);
       DumpString(fp, cr->cmd);
       DumpString(fp, cr->result);
       if (!cr->find.get()) {

@@ -36,8 +36,8 @@ enum struct RedirectStderr {
   DEV_NULL,
 };
 
-int RunCommand(const string& shell, const string& cmd,
-               RedirectStderr redirect_stderr,
+int RunCommand(const string& shell, const string& shellflag,
+               const string& cmd, RedirectStderr redirect_stderr,
                string* out);
 
 void GetExecutablePath(string* path);

@@ -46,7 +46,8 @@ class Executor {
   explicit Executor(Evaluator* ev)
       : ce_(ev),
         num_commands_(0) {
-    shell_ = ev->GetShellAndFlag();
+    shell_ = ev->GetShell();
+    shellflag_ = ev->GetShellFlag();
   }
 
   double ExecNode(DepNode* n, DepNode* needed_by) {
@@ -106,7 +107,8 @@ class Executor {
       }
       if (!g_flags.is_dry_run) {
         string out;
-        int result = RunCommand(shell_, command->cmd.c_str(),
+        int result = RunCommand(shell_, shellflag_,
+                                command->cmd.c_str(),
                                 RedirectStderr::STDOUT,
                                 &out);
         printf("%s", out.c_str());
@@ -136,6 +138,7 @@ class Executor {
   CommandEvaluator ce_;
   unordered_map<Symbol, double> done_;
   string shell_;
+  string shellflag_;
   uint64_t num_commands_;
 };
 

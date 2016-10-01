@@ -43,6 +43,7 @@ struct FindCommand;
 
 struct CommandResult {
   string shell;
+  string shellflag;
   string cmd;
   unique_ptr<FindCommand> find;
   string result;
