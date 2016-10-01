@@ -57,7 +57,8 @@ KATI_CXX_GENERATED_SRCS := \
 KATI_CXX_SRCS := $(addprefix $(KATI_SRC_PATH)/,$(KATI_CXX_SRCS))
 KATI_CXX_TEST_SRCS := \
   $(wildcard $(KATI_SRC_PATH)/*_test.cc) \
-  $(wildcard $(KATI_SRC_PATH)/*_bench.cc)
+  $(filter-out $(KATI_SRC_PATH)/fileutil_bench.cc,\
+    $(wildcard $(KATI_SRC_PATH)/*_bench.cc))
 
 KATI_CXX_OBJS := $(patsubst $(KATI_SRC_PATH)/%.cc,$(KATI_INTERMEDIATES_PATH)/%.o,\
 	$(KATI_CXX_SRCS))
