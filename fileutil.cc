@@ -60,15 +60,24 @@ double GetTimestamp(StringPiece filename) {
   return GetTimestampFromStat(st);
 }
 
-int RunCommand(const string& shell, const string& cmd,
-               RedirectStderr redirect_stderr,
+int RunCommand(const string& shell, const string& shellflag,
+               const string& cmd, RedirectStderr redirect_stderr,
                string* s) {
-  string cmd_escaped = cmd;
-  EscapeShell(&cmd_escaped);
-  string cmd_with_shell = shell + " \"" + cmd_escaped + "\"";
-  const char* argv[] = {
-    "/bin/sh", "-c", cmd_with_shell.c_str(), NULL
-  };
+  const char* argv[] = { NULL, NULL, NULL, NULL };
+  string cmd_with_shell;
+  if (shell[0] != '/' || shell.find_first_of(" $") != string::npos) {
+    string cmd_escaped = cmd;
+    EscapeShell(&cmd_escaped);
+    cmd_with_shell = shell + " " + shellflag + " \"" + cmd_escaped + "\"";
+    argv[0] = "/bin/sh";
+    argv[1] = "-c";
+    argv[2] = cmd_with_shell.c_str();
+  } else {
+    // If the shell isn't complicated, we don't need to wrap in /bin/sh
+    argv[0] = shell.c_str();
+    argv[1] = shellflag.c_str();
+    argv[2] = cmd.c_str();
+  }
 
   int pipefd[2];
   if (pipe(pipefd) != 0)

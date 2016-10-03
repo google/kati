@@ -79,3 +79,16 @@ cc_test_host {
         },
     },
 }
+
+cc_benchmark_host {
+    name: "ckati_fileutil_bench",
+    srcs: [
+        "fileutil_bench.cc",
+    ],
+    whole_static_libs: ["libckati"],
+    target: {
+        linux: {
+            host_ldlibs: ["-lrt", "-lpthread"],
+        },
+    },
+}
