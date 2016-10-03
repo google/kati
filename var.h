@@ -56,8 +56,14 @@ class Var : public Evaluable {
 
   virtual string DebugString() const = 0;
 
+  bool ReadOnly() const { return readonly_; }
+  void SetReadOnly() { readonly_ = true; }
+
  protected:
   Var();
+
+ private:
+  bool readonly_;
 };
 
 class SimpleVar : public Var {
@@ -177,7 +183,7 @@ class Vars : public unordered_map<Symbol, Var*> {
 
   Var* Lookup(Symbol name) const;
 
-  void Assign(Symbol name, Var* v);
+  void Assign(Symbol name, Var* v, bool* readonly);
 
   static void add_used_env_vars(Symbol v);
 
