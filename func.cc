@@ -17,9 +17,11 @@
 #include "func.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -571,6 +573,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   ShellFuncImpl(shell, cmd, &out, &fc);
   if (ShouldStoreCommandResult(cmd)) {
     CommandResult* cr = new CommandResult();
+    cr->op = (fc == NULL) ? CommandOp::SHELL : CommandOp::FIND,
     cr->shell = shell;
     cr->cmd = cmd;
     cr->find.reset(fc);
@@ -686,6 +689,124 @@ void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   ev->Error(StringPrintf("*** %s.", a.c_str()));
 }
 
+static void FileReadFunc(Evaluator* ev, const string& filename, string* s) {
+  int fd = open(filename.c_str(), O_RDONLY);
+  if (fd < 0) {
+    if (errno == ENOENT) {
+      if (ShouldStoreCommandResult(filename)) {
+        CommandResult* cr = new CommandResult();
+        cr->op = CommandOp::READ_MISSING;
+        cr->cmd = filename;
+        g_command_results.push_back(cr);
+      }
+      return;
+    } else {
+      ev->Error("*** open failed.");
+    }
+  }
+
+  struct stat st;
+  if (fstat(fd, &st) < 0) {
+    ev->Error("*** fstat failed.");
+  }
+
+  size_t len = st.st_size;
+  string out;
+  out.resize(len);
+  ssize_t r = HANDLE_EINTR(read(fd, &out[0], len));
+  if (r != static_cast<ssize_t>(len)) {
+    ev->Error("*** read failed.");
+  }
+
+  if (close(fd) < 0) {
+    ev->Error("*** close failed.");
+  }
+
+  if (out.back() == '\n') {
+    out.pop_back();
+  }
+
+  if (ShouldStoreCommandResult(filename)) {
+    CommandResult* cr = new CommandResult();
+    cr->op = CommandOp::READ;
+    cr->cmd = filename;
+    g_command_results.push_back(cr);
+  }
+  *s += out;
+}
+
+static void FileWriteFunc(Evaluator* ev, const string& filename, bool append, string text) {
+  FILE* f = fopen(filename.c_str(), append ? "ab" : "wb");
+  if (f == NULL) {
+    ev->Error("*** fopen failed.");
+  }
+
+  if (fwrite(&text[0], text.size(), 1, f) != 1) {
+    ev->Error("*** fwrite failed.");
+  }
+
+  if (fclose(f) != 0) {
+    ev->Error("*** fclose failed.");
+  }
+
+  if (ShouldStoreCommandResult(filename)) {
+    CommandResult* cr = new CommandResult();
+    cr->op = CommandOp::WRITE;
+    cr->cmd = filename;
+    cr->result = text;
+    g_command_results.push_back(cr);
+  }
+}
+
+void FileFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  if (ev->avoid_io()) {
+    ev->Error("*** $(file ...) is not supported in rules.");
+  }
+
+  string arg = args[0]->Eval(ev);
+  StringPiece filename = TrimSpace(arg);
+
+  if (filename.size() <= 1) {
+    ev->Error("*** Missing filename");
+  }
+
+  if (filename[0] == '<') {
+    filename = TrimLeftSpace(filename.substr(1));
+    if (!filename.size()) {
+      ev->Error("*** Missing filename");
+    }
+    if (args.size() > 1) {
+      ev->Error("*** invalid argument");
+    }
+
+    FileReadFunc(ev, filename.as_string(), s);
+  } else if (filename[0] == '>') {
+    bool append = false;
+    if (filename[1] == '>') {
+      append = true;
+      filename = filename.substr(2);
+    } else {
+      filename = filename.substr(1);
+    }
+    filename = TrimLeftSpace(filename);
+    if (!filename.size()) {
+      ev->Error("*** Missing filename");
+    }
+
+    string text;
+    if (args.size() > 1) {
+      text = args[1]->Eval(ev);
+      if (text.size() == 0 || text.back() != '\n') {
+        text.push_back('\n');
+      }
+    }
+
+    FileWriteFunc(ev, filename.as_string(), append, text);
+  } else {
+    ev->Error(StringPrintf("*** Invalid file operation: %s.  Stop.", filename.as_string().c_str()));
+  }
+}
+
 FuncInfo g_func_infos[] = {
   { "patsubst", &PatsubstFunc, 3, 3, false, false },
   { "strip", &StripFunc, 1, 1, false, false },
@@ -727,6 +848,8 @@ FuncInfo g_func_infos[] = {
   { "info", &InfoFunc, 1, 1, false, false },
   { "warning", &WarningFunc, 1, 1, false, false },
   { "error", &ErrorFunc, 1, 1, false, false },
+
+  { "file", &FileFunc, 2, 1, false, false },
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
