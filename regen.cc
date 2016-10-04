@@ -426,8 +426,8 @@ class StampChecker {
         }
       });
 
-    for (ShellResult* sr : commands_) {
-      tp->Submit([this, sr]() {
+    tp->Submit([this]() {
+        for (ShellResult* sr : commands_) {
           string err;
           if (CheckShellResult(sr, &err)) {
             unique_lock<mutex> lock(mu_);
@@ -436,8 +436,8 @@ class StampChecker {
               msg_ = err;
             }
           }
-        });
-    }
+        }
+      });
 
     tp->Wait();
     if (needs_regen_) {
