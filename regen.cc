@@ -23,6 +23,7 @@
 
 #include "fileutil.h"
 #include "find.h"
+#include "func.h"
 #include "io.h"
 #include "log.h"
 #include "ninja.h"
@@ -52,13 +53,13 @@ class StampChecker {
   };
 
   struct ShellResult {
+    CommandOp op;
     string shell;
     string shellflag;
     string cmd;
     string result;
     vector<string> missing_dirs;
     vector<string> read_dirs;
-    bool has_condition;
   };
 
  public:
@@ -232,23 +233,23 @@ class StampChecker {
     for (int i = 0; i < num_crs; i++) {
       ShellResult* sr = new ShellResult;
       commands_.push_back(sr);
+      sr->op = static_cast<CommandOp>(LOAD_INT(fp));
       LOAD_STRING(fp, &sr->shell);
       LOAD_STRING(fp, &sr->shellflag);
       LOAD_STRING(fp, &sr->cmd);
       LOAD_STRING(fp, &sr->result);
-      sr->has_condition = LOAD_INT(fp);
-      if (!sr->has_condition)
-        continue;
 
-      int num_missing_dirs = LOAD_INT(fp);
-      for (int j = 0; j < num_missing_dirs; j++) {
-        LOAD_STRING(fp, &s);
-        sr->missing_dirs.push_back(s);
-      }
-      int num_read_dirs = LOAD_INT(fp);
-      for (int j = 0; j < num_read_dirs; j++) {
-        LOAD_STRING(fp, &s);
-        sr->read_dirs.push_back(s);
+      if (sr->op == CommandOp::FIND) {
+        int num_missing_dirs = LOAD_INT(fp);
+        for (int j = 0; j < num_missing_dirs; j++) {
+          LOAD_STRING(fp, &s);
+          sr->missing_dirs.push_back(s);
+        }
+        int num_read_dirs = LOAD_INT(fp);
+        for (int j = 0; j < num_read_dirs; j++) {
+          LOAD_STRING(fp, &s);
+          sr->read_dirs.push_back(s);
+        }
       }
     }
 
@@ -294,7 +295,7 @@ class StampChecker {
   }
 
   bool ShouldRunCommand(const ShellResult* sr) {
-    if (!sr->has_condition)
+    if (sr->op != CommandOp::FIND)
       return true;
 
     COLLECT_STATS("stat time (regen)");
@@ -326,6 +327,54 @@ class StampChecker {
   }
 
   bool CheckShellResult(const ShellResult* sr, string* err) {
+    if (sr->op == CommandOp::READ_MISSING) {
+      if (Exists(sr->cmd)) {
+        if (g_flags.dump_kati_stamp)
+          printf("file %s: dirty\n", sr->cmd.c_str());
+        else
+          *err = StringPrintf("$(file <%s) was changed, regenerating...\n",
+                              sr->cmd.c_str());
+        return true;
+      }
+      if (g_flags.dump_kati_stamp)
+        printf("file %s: clean\n", sr->cmd.c_str());
+      return false;
+    }
+
+    if (sr->op == CommandOp::READ) {
+      double ts = GetTimestamp(sr->cmd);
+      if (gen_time_ < ts) {
+        if (g_flags.dump_kati_stamp)
+          printf("file %s: dirty\n", sr->cmd.c_str());
+        else
+          *err = StringPrintf("$(file <%s) was changed, regenerating...\n",
+                              sr->cmd.c_str());
+        return true;
+      }
+      if (g_flags.dump_kati_stamp)
+        printf("file %s: clean\n", sr->cmd.c_str());
+      return false;
+    }
+
+    if (sr->op == CommandOp::WRITE || sr->op == CommandOp::APPEND) {
+      FILE* f = fopen(sr->cmd.c_str(), (sr->op == CommandOp::WRITE) ? "wb" : "ab");
+      if (f == NULL) {
+        PERROR("fopen");
+      }
+
+      if (fwrite(&sr->result[0], sr->result.size(), 1, f) != 1) {
+        PERROR("fwrite");
+      }
+
+      if (fclose(f) != 0) {
+        PERROR("fclose");
+      }
+
+      if (g_flags.dump_kati_stamp)
+        printf("file %s: clean (write)\n", sr->cmd.c_str());
+      return false;
+    }
+
     if (!ShouldRunCommand(sr)) {
       if (g_flags.regen_debug)
         printf("shell %s: clean (no rerun)\n", sr->cmd.c_str());
