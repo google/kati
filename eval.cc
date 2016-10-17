@@ -276,7 +276,9 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
 
 void Evaluator::DoInclude(const string& fname) {
   Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
-  CHECK(mk->Exists());
+  if (!mk->Exists()) {
+    Error(StringPrintf("%s does not exist", fname.c_str()));
+  }
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
   var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
@@ -298,7 +300,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
 
     if (stmt->should_exist) {
       if (files->empty()) {
-        // TOOD: Kati does not support building a missing include file.
+        // TODO: Kati does not support building a missing include file.
         Error(StringPrintf("%s: %s", pat.data(), strerror(errno)));
       }
     }
