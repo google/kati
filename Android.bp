@@ -12,8 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+cc_defaults {
+    name: "ckati_defaults",
+    cflags: [
+        "-W",
+        "-Wall",
+        "-Werror",
+        "-DNOLOG",
+    ],
+    target: {
+        linux: {
+            host_ldlibs: ["-lrt", "-lpthread"],
+        },
+    },
+}
+
 cc_library_host_static {
     name: "libckati",
+    defaults: ["ckati_defaults"],
     srcs: [
         "affinity.cc",
         "command.cc",
@@ -44,25 +60,25 @@ cc_library_host_static {
         "var.cc",
         "version_unknown.cc",
     ],
-    cflags: ["-W", "-Wall", "-DNOLOG"],
 }
 
 cc_binary_host {
     name: "ckati",
-    srcs: [
-        "main.cc",
-    ],
+    defaults: ["ckati_defaults"],
+    srcs: ["main.cc"],
     whole_static_libs: ["libckati"],
-    cflags: ["-W", "-Wall", "-DNOLOG"],
-    target: {
-        linux: {
-            host_ldlibs: ["-lrt", "-lpthread"],
-        },
-    },
+}
+
+cc_binary_host {
+    name: "ckati_stamp_dump",
+    defaults: ["ckati_defaults"],
+    srcs: ["regen_dump.cc"],
+    whole_static_libs: ["libckati"],
 }
 
 cc_test_host {
     name: "ckati_test",
+    defaults: ["ckati_defaults"],
     test_per_src: true,
     srcs: [
         "find_test.cc",
@@ -73,22 +89,13 @@ cc_test_host {
     ],
     gtest: false,
     whole_static_libs: ["libckati"],
-    target: {
-        linux: {
-            host_ldlibs: ["-lrt", "-lpthread"],
-        },
-    },
 }
 
 cc_benchmark_host {
     name: "ckati_fileutil_bench",
+    defaults: ["ckati_defaults"],
     srcs: [
         "fileutil_bench.cc",
     ],
     whole_static_libs: ["libckati"],
-    target: {
-        linux: {
-            host_ldlibs: ["-lrt", "-lpthread"],
-        },
-    },
 }
