@@ -59,6 +59,7 @@ class StampChecker {
     string cmd;
     string result;
     vector<string> missing_dirs;
+    vector<string> files;
     vector<string> read_dirs;
   };
 
@@ -245,6 +246,11 @@ class StampChecker {
           LOAD_STRING(fp, &s);
           sr->missing_dirs.push_back(s);
         }
+        int num_files = LOAD_INT(fp);
+        for (int j = 0; j < num_files; j++) {
+          LOAD_STRING(fp, &s);
+          sr->files.push_back(s);
+        }
         int num_read_dirs = LOAD_INT(fp);
         for (int j = 0; j < num_read_dirs; j++) {
           LOAD_STRING(fp, &s);
@@ -301,6 +307,10 @@ class StampChecker {
     COLLECT_STATS("stat time (regen)");
     for (const string& dir : sr->missing_dirs) {
       if (Exists(dir))
+        return true;
+    }
+    for (const string& file : sr->files) {
+      if (!Exists(file))
         return true;
     }
     for (const string& dir : sr->read_dirs) {

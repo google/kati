@@ -754,6 +754,11 @@ class NinjaGenerator {
           DumpString(fp, d);
         }
 
+        DumpInt(fp, cr->find->found_files->size());
+        for (StringPiece s : *cr->find->found_files) {
+          DumpString(fp, ConcatDir(cr->find->chdir, s));
+        }
+
         DumpInt(fp, cr->find->read_dirs->size());
         for (StringPiece s : *cr->find->read_dirs) {
           DumpString(fp, ConcatDir(cr->find->chdir, s));
