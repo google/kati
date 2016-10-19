@@ -726,8 +726,7 @@ class FindEmulatorImpl : public FindEmulator {
     return (!HasPrefix(s, "../") &&
             !HasPrefix(s, "/") &&
             !HasPrefix(s, ".repo") &&
-            !HasPrefix(s, ".git") &&
-            !HasPrefix(s, "out"));
+            !HasPrefix(s, ".git"));
   }
 
   const DirentNode* FindDir(StringPiece d, bool* should_fallback) {
@@ -874,8 +873,7 @@ class FindEmulatorImpl : public FindEmulator {
       if (!strcmp(ent->d_name, ".") ||
           !strcmp(ent->d_name, "..") ||
           !strcmp(ent->d_name, ".repo") ||
-          !strcmp(ent->d_name, ".git") ||
-          !strcmp(ent->d_name, "out"))
+          !strcmp(ent->d_name, ".git"))
         continue;
 
       string npath = path;
