@@ -49,6 +49,7 @@ struct FindCommand {
   int mindepth;
   bool redirect_to_devnull;
 
+  unique_ptr<vector<string>> found_files;
   unique_ptr<unordered_set<string>> read_dirs;
 
  private:
