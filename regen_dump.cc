@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     ERROR("Incomplete stamp file");
   for (int i = 0; i < num_files; i++) {
     string s;
-    if (!LoadString(fp, s))
+    if (!LoadString(fp, &s))
       ERROR("Incomplete stamp file");
     printf("%s\n", s.c_str());
   }
