@@ -73,7 +73,7 @@ cc_binary_host {
     name: "ckati_stamp_dump",
     defaults: ["ckati_defaults"],
     srcs: ["regen_dump.cc"],
-    whole_static_libs: ["libckati"],
+    static_libs: ["libckati"],
 }
 
 cc_test_host {
@@ -88,7 +88,7 @@ cc_test_host {
         "strutil_test.cc",
     ],
     gtest: false,
-    whole_static_libs: ["libckati"],
+    static_libs: ["libckati"],
 }
 
 cc_benchmark_host {
@@ -97,5 +97,5 @@ cc_benchmark_host {
     srcs: [
         "fileutil_bench.cc",
     ],
-    whole_static_libs: ["libckati"],
+    static_libs: ["libckati"],
 }
