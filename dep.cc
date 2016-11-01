@@ -534,7 +534,7 @@ class DepBuilder {
     if (found == suffix_rules_.end())
       return rule_merger;
 
-    for (shared_ptr<Rule> irule : found->second) {
+    for (const shared_ptr<Rule> &irule : found->second) {
       CHECK(irule->inputs.size() == 1);
       Symbol input = ReplaceSuffix(output, irule->inputs[0]);
       if (!Exists(input))

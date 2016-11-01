@@ -140,7 +140,7 @@ string SortWordsInString(StringPiece s);
 
 string ConcatDir(StringPiece b, StringPiece n);
 
-string EchoEscape(const string str);
+string EchoEscape(const string &str);
 
 void EscapeShell(string* s);
 

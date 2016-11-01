@@ -500,7 +500,7 @@ string ConcatDir(StringPiece b, StringPiece n) {
   return r;
 }
 
-string EchoEscape(const string str) {
+string EchoEscape(const string &str) {
   const char *in = str.c_str();
   string buf;
   for (; *in; in++) {

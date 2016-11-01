@@ -54,7 +54,7 @@ Rule::Rule()
 }
 
 void ParseRule(Loc& loc, StringPiece line, char term,
-               function<string()> after_term_fn,
+               const function<string()> &after_term_fn,
                Rule** out_rule, RuleVarAssignment* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {

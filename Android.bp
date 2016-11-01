@@ -25,6 +25,11 @@ cc_defaults {
             host_ldlibs: ["-lrt", "-lpthread"],
         },
     },
+    tidy_checks: [
+        "-google-global-names-in-headers",
+        "-google-build-using-namespace",
+        "-google-explicit-constructor",
+    ],
 }
 
 cc_library_host_static {
