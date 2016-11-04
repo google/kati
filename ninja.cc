@@ -561,8 +561,13 @@ class NinjaGenerator {
       }
     }
     *o << "\n";
-    if (use_local_pool)
+    if (node->ninja_pool_var) {
+      string pool;
+      node->ninja_pool_var->Eval(ev_, &pool);
+      *o << " pool = " << pool << "\n";
+    } else if (use_local_pool) {
       *o << " pool = local_pool\n";
+    }
     if (node->is_default_target) {
       unique_lock<mutex> lock(mu_);
       default_target_ = node;
