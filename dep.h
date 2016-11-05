@@ -45,6 +45,7 @@ struct DepNode {
   vector<Symbol> actual_order_only_inputs;
   Vars* rule_vars;
   Var* depfile_var;
+  Var* ninja_pool_var;
   Symbol output_pattern;
   Loc loc;
 };
