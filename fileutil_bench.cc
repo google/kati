@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build ignore
+
 #include "fileutil.h"
 #include <benchmark/benchmark.h>
 #include <cstdio>

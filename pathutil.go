@@ -191,7 +191,7 @@ func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
 		return invalidFileid, nil
 	}
 	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-		id = fileid{dev: stat.Dev, ino: stat.Ino}
+		id = fileid{dev: uint64(stat.Dev), ino: stat.Ino}
 	}
 	names, _ := d.Readdirnames(-1)
 	// need sort?
@@ -209,7 +209,7 @@ func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
 		mode := lmode
 		var id fileid
 		if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-			id = fileid{dev: stat.Dev, ino: stat.Ino}
+			id = fileid{dev: uint64(stat.Dev), ino: stat.Ino}
 		}
 		if lmode&os.ModeSymlink == os.ModeSymlink {
 			fi, err = os.Stat(path)
@@ -218,7 +218,7 @@ func (c *fsCacheT) readdir(dir string, id fileid) (fileid, []dirent) {
 			} else {
 				mode = fi.Mode()
 				if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-					id = fileid{dev: stat.Dev, ino: stat.Ino}
+					id = fileid{dev: uint64(stat.Dev), ino: stat.Ino}
 				}
 			}
 		}
