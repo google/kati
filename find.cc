@@ -261,9 +261,7 @@ class DirentDirNode : public DirentNode {
                        vector<string>& out) const override {
     ScopedReadDirTracker srdt(this, *path, cur_read_dirs);
     if (!srdt.ok()) {
-      fprintf(stderr, "FindEmulator: find: File system loop detected; `%s' is "
-              "part of the same file system loop as `%s'.\n",
-              path->c_str(), srdt.conflicted().c_str());
+      // filesystem loop detected
       return true;
     }
 
