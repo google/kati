@@ -16,5 +16,46 @@
 
 #include "log.h"
 
+#include "flags.h"
+#include "strutil.h"
+
+#define BOLD "\033[1m"
+#define RESET "\033[0m"
+#define MAGENTA "\033[35m"
+#define RED "\033[31m"
+
+void ColorErrorLog(const char* file, int line, const char* msg) {
+  if (file == nullptr) {
+    ERROR("%s", msg);
+    return;
+  }
+
+  if (g_flags.color_warnings) {
+    StringPiece filtered = TrimPrefix(msg, "*** ");
+
+    ERROR(BOLD "%s:%d: " RED "error: " RESET BOLD "%s" RESET,
+          file, line, filtered.as_string().c_str());
+  } else {
+    ERROR("%s:%d: %s", file, line, msg);
+  }
+}
+
+void ColorWarnLog(const char* file, int line, const char* msg) {
+  if (file == nullptr) {
+    fprintf(stderr, "%s\n", msg);
+    return;
+  }
+
+  if (g_flags.color_warnings) {
+    StringPiece filtered = TrimPrefix(msg, "*warning*: ");
+    filtered = TrimPrefix(filtered, "warning: ");
+
+    fprintf(stderr, BOLD "%s:%d: " MAGENTA "warning: " RESET BOLD "%s" RESET "\n",
+            file, line, filtered.as_string().c_str());
+  } else {
+    fprintf(stderr, "%s:%d: %s\n", file, line, msg);
+  }
+}
+
 bool g_log_no_exit;
 string* g_last_error;

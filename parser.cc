@@ -92,10 +92,10 @@ class Parser {
     }
 
     if (!if_stack_.empty())
-      ERROR("%s:%d: *** missing `endif'.", loc_.filename, loc_.lineno + 1);
+      ERROR_LOC(Loc(loc_.filename, loc_.lineno + 1), "*** missing `endif'.");
     if (!define_name_.empty())
-      ERROR("%s:%d: *** missing `endef', unterminated `define'.",
-            loc_.filename, define_start_line_);
+      ERROR_LOC(Loc(loc_.filename, define_start_line_),
+                "*** missing `endef', unterminated `define'.");
   }
 
   static void Init() {
@@ -304,7 +304,7 @@ class Parser {
     StringPiece rest = TrimRightSpace(RemoveComment(TrimLeftSpace(
         line.substr(sizeof("endef")))));
     if (!rest.empty()) {
-      WARN("%s:%d: extraneous text after `endef' directive", LOCF(loc_));
+      WARN_LOC(loc_, "extraneous text after `endef' directive");
     }
 
     AssignStmt* stmt = new AssignStmt();
@@ -374,7 +374,7 @@ class Parser {
       }
     }
     if (!s.empty()) {
-      WARN("%s:%d: extraneous text after `ifeq' directive", LOCF(loc_));
+      WARN_LOC(loc_, "extraneous text after `ifeq' directive");
       return true;
     }
     return true;
@@ -411,7 +411,7 @@ class Parser {
 
     num_if_nest_ = st->num_nest + 1;
     if (!HandleDirective(next_if, else_if_directives_)) {
-      WARN("%s:%d: extraneous text after `else' directive", LOCF(loc_));
+      WARN_LOC(loc_, "extraneous text after `else' directive");
     }
     num_if_nest_ = 0;
   }

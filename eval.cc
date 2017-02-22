@@ -383,7 +383,7 @@ string Evaluator::GetShellAndFlag() {
 }
 
 void Evaluator::Error(const string& msg) {
-  ERROR("%s:%d: %s", LOCF(loc_), msg.c_str());
+  ERROR_LOC(loc_, "%s", msg.c_str());
 }
 
 unordered_set<Symbol> Evaluator::used_undefined_vars_;

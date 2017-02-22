@@ -466,8 +466,8 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   string* text = new string;
   args[0]->Eval(ev, text);
   if (ev->avoid_io()) {
-    KATI_WARN("%s:%d: *warning*: $(eval) in a recipe is not recommended: %s",
-              LOCF(ev->loc()), text->c_str());
+    KATI_WARN_LOC(ev->loc(), "*warning*: $(eval) in a recipe is not recommended: %s",
+                  text->c_str());
   }
   vector<Stmt*> stmts;
   Parse(*text, ev->loc(), &stmts);
@@ -555,9 +555,9 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   string cmd = args[0]->Eval(ev);
   if (ev->avoid_io() && !HasNoIoInShellScript(cmd)) {
     if (ev->eval_depth() > 1) {
-      ERROR("%s:%d: kati doesn't support passing results of $(shell) "
-            "to other make constructs: %s",
-            LOCF(ev->loc()), cmd.c_str());
+      ERROR_LOC(ev->loc(), "kati doesn't support passing results of $(shell) "
+                "to other make constructs: %s",
+                cmd.c_str());
     }
     StripShellComment(&cmd);
     *s += "$(";
@@ -595,8 +595,8 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   const StringPiece func_name = TrimSpace(func_name_buf);
   Var* func = ev->LookupVar(Intern(func_name));
   if (!func->IsDefined()) {
-    KATI_WARN("%s:%d: *warning*: undefined user function: %s",
-              ev->loc(), func_name.as_string().c_str());
+    KATI_WARN_LOC(ev->loc(), "*warning*: undefined user function: %s",
+                  func_name.as_string().c_str());
   }
   vector<unique_ptr<SimpleVar>> av;
   for (size_t i = 1; i < args.size(); i++) {
@@ -676,8 +676,7 @@ void WarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
         StringPrintf("echo -e \"%s:%d: %s\" 2>&1", LOCF(ev->loc()), EchoEscape(a).c_str()));
     return;
   }
-  printf("%s:%d: %s\n", LOCF(ev->loc()), a.c_str());
-  fflush(stdout);
+  WARN_LOC(ev->loc(), "%s", a.c_str());
 }
 
 void ErrorFunc(const vector<Value*>& args, Evaluator* ev, string*) {

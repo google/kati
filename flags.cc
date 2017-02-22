@@ -97,6 +97,8 @@ void Flags::Parse(int argc, char** argv) {
       detect_android_echo = true;
     } else if (!strcmp(arg, "--detect_depfiles")) {
       detect_depfiles = true;
+    } else if (!strcmp(arg, "--color_warnings")) {
+      color_warnings = true;
     } else if (ParseCommandLineOptionWithArg(
         "-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);

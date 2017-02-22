@@ -174,6 +174,13 @@ bool HasWord(StringPiece str, StringPiece w) {
   return true;
 }
 
+StringPiece TrimPrefix(StringPiece str, StringPiece prefix) {
+  ssize_t size_diff = str.size() - prefix.size();
+  if (size_diff < 0 || str.substr(0, prefix.size()) != prefix)
+    return str;
+  return str.substr(prefix.size());
+}
+
 StringPiece TrimSuffix(StringPiece str, StringPiece suffix) {
   ssize_t size_diff = str.size() - suffix.size();
   if (size_diff < 0 || str.substr(size_diff) != suffix)

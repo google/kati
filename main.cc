@@ -173,8 +173,8 @@ static int Run(const vector<Symbol>& targets,
   }
 
   for (ParseErrorStmt* err : GetParseErrors()) {
-    WARN("%s:%d: warning for parse error in an unevaluated line: %s",
-         LOCF(err->loc()), err->msg.c_str());
+    WARN_LOC(err->loc(), "warning for parse error in an unevaluated line: %s",
+             err->msg.c_str());
   }
 
   vector<DepNode*> nodes;

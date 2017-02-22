@@ -49,7 +49,7 @@ class Rule {
 
  private:
   void Error(const string& msg) {
-    ERROR("%s:%d: %s", loc.filename, loc.lineno, msg.c_str());
+    ERROR_LOC(loc, "%s", msg.c_str());
   }
 };
 

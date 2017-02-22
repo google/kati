@@ -156,16 +156,18 @@ struct RuleMerger {
     if (rules.empty()) {
       is_double_colon = r->is_double_colon;
     } else if (is_double_colon != r->is_double_colon) {
-      ERROR("%s:%d: *** target file `%s' has both : and :: entries.",
-            LOCF(r->loc), output.c_str());
+      ERROR_LOC(r->loc, "*** target file `%s' has both : and :: entries.",
+                output.c_str());
     }
 
     if (primary_rule && !r->cmds.empty() &&
         !IsSuffixRule(output) && !r->is_double_colon) {
-      WARN("%s:%d: warning: overriding commands for target `%s'",
-           LOCF(r->cmd_loc()), output.c_str());
-      WARN("%s:%d: warning: ignoring old commands for target `%s'",
-           LOCF(primary_rule->cmd_loc()), output.c_str());
+      WARN_LOC(r->cmd_loc(),
+               "warning: overriding commands for target `%s'",
+               output.c_str());
+      WARN_LOC(primary_rule->cmd_loc(),
+               "warning: ignoring old commands for target `%s'",
+               output.c_str());
       primary_rule = r;
     }
     if (!primary_rule && !r->cmds.empty()) {
@@ -274,8 +276,7 @@ class DepBuilder {
       if (targets.empty()) {
         suffix_rules_.clear();
       } else {
-        WARN("%s:%d: kati doesn't support .SUFFIXES with prerequisites",
-             LOCF(loc));
+        WARN_LOC(loc, "kati doesn't support .SUFFIXES with prerequisites");
       }
     }
 
@@ -296,7 +297,7 @@ class DepBuilder {
     };
     for (const char** p = kUnsupportedBuiltinTargets; *p; p++) {
       if (GetRuleInputs(Intern(*p), &targets, &loc)) {
-        WARN("%s:%d: kati doesn't support %s", LOCF(loc), *p);
+        WARN_LOC(loc, "kati doesn't support %s", *p);
       }
     }
   }
