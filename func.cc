@@ -494,7 +494,8 @@ static bool HasNoIoInShellScript(const string& cmd) {
 }
 
 static void ShellFuncImpl(const string& shell, const string& shellflag,
-                          const string& cmd, string* s, FindCommand** fc) {
+                          const string& cmd, const Loc& loc, string* s,
+                          FindCommand** fc) {
   LOG("ShellFunc: %s", cmd.c_str());
 
 #ifdef TEST_FIND_EMULATOR
@@ -505,11 +506,11 @@ static void ShellFuncImpl(const string& shell, const string& shellflag,
     *fc = new FindCommand();
     if ((*fc)->Parse(cmd)) {
 #ifdef TEST_FIND_EMULATOR
-      if (FindEmulator::Get()->HandleFind(cmd, **fc, &out2)) {
+      if (FindEmulator::Get()->HandleFind(cmd, **fc, loc, &out2)) {
         need_check = true;
       }
 #else
-      if (FindEmulator::Get()->HandleFind(cmd, **fc, s)) {
+      if (FindEmulator::Get()->HandleFind(cmd, **fc, loc, s)) {
         return;
       }
 #endif
@@ -571,7 +572,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
   string out;
   FindCommand* fc = NULL;
-  ShellFuncImpl(shell, shellflag, cmd, &out, &fc);
+  ShellFuncImpl(shell, shellflag, cmd, ev->loc(), &out, &fc);
   if (ShouldStoreCommandResult(cmd)) {
     CommandResult* cr = new CommandResult();
     cr->op = (fc == NULL) ? CommandOp::SHELL : CommandOp::FIND,

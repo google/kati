@@ -20,6 +20,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "loc.h"
 #include "string_piece.h"
 
 using namespace std;
@@ -62,7 +63,7 @@ class FindEmulator {
   virtual ~FindEmulator() = default;
 
   virtual bool HandleFind(const string& cmd, const FindCommand& fc,
-                          string* out) = 0;
+                          const Loc& loc, string* out) = 0;
 
   static FindEmulator* Get();
 
