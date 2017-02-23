@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "flags.h"
+#include "log.h"
 #include "stringprintf.h"
 
 using namespace std;
@@ -72,5 +73,23 @@ extern string* g_last_error;
   } while (0)
 
 #define CHECK(c) if (!(c)) ERROR("%s:%d: %s", __FILE__, __LINE__, #c)
+
+// Set of logging functions that will automatically colorize lines that have
+// location information when --color_warnings is set.
+void ColorWarnLog(const char* file, int line, const char *msg);
+void ColorErrorLog(const char* file, int line, const char *msg);
+
+#define WARN_LOC(loc, ...) do {                                 \
+    ColorWarnLog(LOCF(loc), StringPrintf(__VA_ARGS__).c_str()); \
+  } while (0)
+
+#define KATI_WARN_LOC(loc, ...) do {                                  \
+    if (g_flags.enable_kati_warnings)                             \
+      ColorWarnLog(LOCF(loc), StringPrintf(__VA_ARGS__).c_str()); \
+  } while(0)
+
+#define ERROR_LOC(loc, ...) do {                                 \
+    ColorErrorLog(LOCF(loc), StringPrintf(__VA_ARGS__).c_str()); \
+  } while (0)
 
 #endif  // LOG_H_

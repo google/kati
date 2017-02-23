@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   string out;
-  if (!FindEmulator::Get()->HandleFind(cmd, fc, &out)) {
+  if (!FindEmulator::Get()->HandleFind(cmd, fc, Loc(), &out)) {
     fprintf(stderr, "Find emulator does not support this command\n");
     return 1;
   }

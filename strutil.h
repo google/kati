@@ -89,6 +89,8 @@ bool HasSuffix(StringPiece str, StringPiece suffix);
 
 bool HasWord(StringPiece str, StringPiece w);
 
+StringPiece TrimPrefix(StringPiece str, StringPiece suffix);
+
 StringPiece TrimSuffix(StringPiece str, StringPiece suffix);
 
 class Pattern {
