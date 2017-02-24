@@ -21,15 +21,29 @@
 
 #ifdef __linux__
 
+#include <random>
+
 #include <sched.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 void SetAffinityForSingleThread() {
   cpu_set_t cs;
   CPU_ZERO(&cs);
-  int n = g_flags.num_cpus / 2;
-  CPU_SET(n, &cs);
-  if (n > 1)
-    CPU_SET(n + 1, &cs);
+  std::default_random_engine generator(getpid());
+  std::uniform_int_distribution<int> distribution(0,g_flags.num_cpus-1);
+  int cpu = distribution(generator);
+
+  // Try to come up with a CPU and one close to it. This should work on most
+  // hyperthreaded system, but may be less optimal under stranger setups.
+  // Choosing two completely different CPUs would work here as well, it's just a
+  // couple percent faster if they're close (and still faster than letting the
+  // scheduler do whatever it wants).
+  cpu = cpu - (cpu % 2);
+  CPU_SET(cpu, &cs);
+  if (g_flags.num_cpus > 1)
+    CPU_SET(cpu+1, &cs);
+
   if (sched_setaffinity(0, sizeof(cs), &cs) < 0)
     WARN("sched_setaffinity: %s", strerror(errno));
 }
