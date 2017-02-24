@@ -793,6 +793,9 @@ class FindEmulatorImpl : public FindEmulator {
     if (!is_initialized_) {
       ScopedTimeReporter tr("init find emulator time");
       root_.reset(ConstructDirectoryTree(""));
+      if (!root_) {
+        ERROR("FindEmulator: Cannot open root directory");
+      }
       ResolveSymlinks();
       LOG_STAT("%d find nodes", node_cnt_);
       is_initialized_ = true;
@@ -914,8 +917,14 @@ class FindEmulatorImpl : public FindEmulator {
 
   DirentNode* ConstructDirectoryTree(const string& path) {
     DIR* dir = opendir(path.empty() ? "." : path.c_str());
-    if (!dir)
-      PERROR("opendir failed: %s", path.c_str());
+    if (!dir) {
+      if (errno == ENOENT) {
+        LOG("opendir failed: %s", path.c_str());
+        return NULL;
+      } else {
+        PERROR("opendir failed: %s", path.c_str());
+      }
+    }
 
     DirentDirNode* n = new DirentDirNode(path);
 
@@ -940,6 +949,9 @@ class FindEmulatorImpl : public FindEmulator {
       }
       if (d_type == DT_DIR) {
         c = ConstructDirectoryTree(npath);
+        if (c == NULL) {
+          continue;
+        }
       } else if (d_type == DT_LNK) {
         auto s = new DirentSymlinkNode(npath);
         symlinks_.push_back(make_pair(npath, s));
@@ -992,7 +1004,12 @@ class FindEmulatorImpl : public FindEmulator {
 
       if (type == DT_DIR) {
         if (path.find('/') == string::npos) {
-          s->set_to(ConstructDirectoryTree(path));
+          DirentNode* dir = ConstructDirectoryTree(path);
+          if (dir != NULL) {
+            s->set_to(dir);
+          } else {
+            s->set_errno(errno);
+          }
         }
       } else if (type != DT_LNK && type != DT_UNKNOWN) {
           s->set_to(new DirentFileNode(path, type));
