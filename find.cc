@@ -918,7 +918,7 @@ class FindEmulatorImpl : public FindEmulator {
   DirentNode* ConstructDirectoryTree(const string& path) {
     DIR* dir = opendir(path.empty() ? "." : path.c_str());
     if (!dir) {
-      if (errno == ENOENT) {
+      if (errno == ENOENT || errno == EACCES) {
         LOG("opendir failed: %s", path.c_str());
         return NULL;
       } else {
