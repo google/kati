@@ -40,6 +40,8 @@ struct Flags {
   bool regen_ignoring_kati_binary;
   bool use_find_emulator;
   bool color_warnings;
+  bool werror_find_emulator;
+  bool werror_overriding_commands;
   const char* goma_dir;
   const char* ignore_dirty_pattern;
   const char* no_ignore_dirty_pattern;
