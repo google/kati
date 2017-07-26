@@ -131,10 +131,18 @@ int FindUnitTests() {
   CompareFind("find .");
   CompareFind("find -L .");
 
+  CompareFind("find top/C");
+  CompareFind("find top/C/.");
+  CompareFind("find -L top/C");
+  CompareFind("find -L top/C/.");
+
   CompareFind("cd top && find C");
   CompareFind("cd top && find -L C");
+  CompareFind("cd top/C && find .");
 
   CompareFind("cd top/C && find D/./z");
+
+  CompareFind("find .//top");
 
   return unit_test_failed ? 1 : 0;
 }

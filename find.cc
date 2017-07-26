@@ -252,6 +252,8 @@ class DirentDirNode : public DirentNode {
       return this;
     size_t index = d.find('/');
     const string& p = d.substr(0, index).as_string();
+    if (p.empty() || p == ".")
+      return FindDir(d.substr(index + 1));;
     for (auto& child : children_) {
       if (p == child.first) {
         if (index == string::npos)
@@ -827,15 +829,17 @@ class FindEmulatorImpl : public FindEmulator {
       }
     }
 
+    const DirentNode* root = root_.get();
+
     if (!fc.chdir.empty()) {
       if (!CanHandle(fc.chdir)) {
         LOG("FindEmulator: Cannot handle chdir (%.*s): %s",
             SPF(fc.chdir), cmd.c_str());
         return false;
       }
-      bool should_fallback = false;
-      if (!FindDir(fc.chdir, &should_fallback)) {
-        if (should_fallback)
+      root = root->FindDir(fc.chdir);
+      if (!root) {
+        if (Exists(fc.chdir))
           return false;
         if (!fc.redirect_to_devnull) {
           FIND_WARN_LOC(loc, "FindEmulator: cd: %.*s: No such file or directory",
@@ -847,18 +851,16 @@ class FindEmulatorImpl : public FindEmulator {
 
     vector<string> results;
     for (const string& finddir : fc.finddirs) {
-      const string dir = ConcatDir(fc.chdir, finddir);
-
-      if (!CanHandle(dir)) {
+      if (!CanHandle(finddir)) {
         LOG("FindEmulator: Cannot handle find dir (%s): %s",
-            dir.c_str(), cmd.c_str());
+            finddir.c_str(), cmd.c_str());
         return false;
       }
 
-      bool should_fallback = false;
-      const DirentNode* base = FindDir(dir, &should_fallback);
+      const DirentNode* base;
+      base = root->FindDir(finddir);
       if (!base) {
-        if (should_fallback) {
+        if (Exists(finddir)) {
           return false;
         }
         if (!fc.redirect_to_devnull) {
