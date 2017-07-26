@@ -18,3 +18,4 @@ script:
   - ./ninja_test
   - ./string_piece_test
   - ./strutil_test
+  - ./find_test
