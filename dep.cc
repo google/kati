@@ -239,6 +239,7 @@ DepNode::DepNode(Symbol o, bool p, bool r)
       is_restat(r),
       rule_vars(NULL),
       depfile_var(NULL),
+      implicit_outputs_var(NULL),
       ninja_pool_var(NULL),
       output_pattern(Symbol::IsUninitialized()) {
   g_dep_node_pool->push_back(this);
@@ -254,6 +255,7 @@ class DepBuilder {
         implicit_rules_(new RuleTrie()),
         first_rule_(Symbol::IsUninitialized{}),
         depfile_var_name_(Intern(".KATI_DEPFILE")),
+        implicit_outputs_var_name_(Intern(".KATI_IMPLICIT_OUTPUTS")),
         ninja_pool_var_name_(Intern(".KATI_NINJA_POOL")) {
     ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
@@ -616,6 +618,8 @@ class DepBuilder {
 
         if (name == depfile_var_name_) {
           n->depfile_var = new_var;
+        } else if (name == implicit_outputs_var_name_) {
+          n->implicit_outputs_var = new_var;
         } else if (name == ninja_pool_var_name_) {
           n->ninja_pool_var = new_var;
         } else {
@@ -662,6 +666,7 @@ class DepBuilder {
   unordered_set<Symbol> phony_;
   unordered_set<Symbol> restat_;
   Symbol depfile_var_name_;
+  Symbol implicit_outputs_var_name_;
   Symbol ninja_pool_var_name_;
 };
 
