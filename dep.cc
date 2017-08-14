@@ -144,12 +144,37 @@ bool IsSuffixRule(Symbol output) {
 
 struct RuleMerger {
   vector<const Rule*> rules;
+  vector<pair<Symbol, RuleMerger*>> implicit_outputs;
   const Rule* primary_rule;
+  const RuleMerger* parent;
+  Symbol parent_sym;
   bool is_double_colon;
 
   RuleMerger()
       : primary_rule(nullptr),
+        parent(nullptr),
+        parent_sym(Symbol::IsUninitialized()),
         is_double_colon(false) {
+  }
+
+  void AddImplicitOutput(Symbol output, RuleMerger *merger) {
+    implicit_outputs.push_back(make_pair(output, merger));
+  }
+
+  void SetImplicitOutput(Symbol output, Symbol p, const RuleMerger* merger) {
+    if (!merger->primary_rule) {
+      ERROR("*** implicit output `%s' on phony target `%s'", output.c_str(), p.c_str());
+    }
+    if (parent) {
+      ERROR_LOC(merger->primary_rule->cmd_loc(), "*** implicit output `%s' of `%s' was already defined by `%s' at %s:%d",
+                output.c_str(), p.c_str(), parent_sym.c_str(), parent->primary_rule->cmd_loc());
+    }
+    if (primary_rule) {
+      ERROR_LOC(primary_rule->cmd_loc(), "*** implicit output `%s' may not have commands",
+                output.c_str());
+    }
+    parent = merger;
+    parent_sym = p;
   }
 
   void AddRule(Symbol output, const Rule* r) {
@@ -226,6 +251,13 @@ struct RuleMerger {
       if (n->loc.filename == NULL)
         n->loc = r->loc;
     }
+
+    for (auto& implicit_output : implicit_outputs) {
+      n->implicit_outputs.push_back(implicit_output.first);
+      for (const Rule* r : implicit_output.second->rules) {
+        FillDepNodeFromRule(output, r, n);
+      }
+    }
   }
 };
 
@@ -239,7 +271,6 @@ DepNode::DepNode(Symbol o, bool p, bool r)
       is_restat(r),
       rule_vars(NULL),
       depfile_var(NULL),
-      implicit_outputs_var(NULL),
       ninja_pool_var(NULL),
       output_pattern(Symbol::IsUninitialized()) {
   g_dep_node_pool->push_back(this);
@@ -388,6 +419,25 @@ class DepBuilder {
     for (auto& p : suffix_rules_) {
       reverse(p.second.begin(), p.second.end());
     }
+    for (auto& p : rules_) {
+      auto vars = LookupRuleVars(p.first);
+      if (!vars) {
+        continue;
+      }
+      auto var = vars->Lookup(implicit_outputs_var_name_);
+      if (!var->IsDefined()) {
+        continue;
+      }
+
+      string implicit_outputs;
+      var->Eval(ev_, &implicit_outputs);
+
+      for (StringPiece output : WordScanner(implicit_outputs)) {
+        Symbol sym = Intern(TrimLeadingCurdir(output));
+        rules_[sym].SetImplicitOutput(sym, p.first, &p.second);
+        p.second.AddImplicitOutput(sym, &rules_[sym]);
+      }
+    }
   }
 
   bool PopulateSuffixRule(const Rule* rule, Symbol output) {
@@ -519,8 +569,13 @@ class DepBuilder {
     Vars* vars = LookupRuleVars(output);
     *out_rule_merger = rule_merger;
     *out_var = vars;
-    if (rule_merger && rule_merger->primary_rule)
+    if (rule_merger && rule_merger->primary_rule) {
+      for (auto implicit_output : rule_merger->implicit_outputs) {
+        vars = MergeImplicitRuleVars(implicit_output.first, vars);
+      }
+      *out_var = vars;
       return true;
+    }
 
     vector<const Rule*> irules;
     implicit_rules_->Get(output.str(), &irules);
@@ -586,6 +641,14 @@ class DepBuilder {
     if (!PickRule(output, n, &rule_merger, &pattern_rule, &vars)) {
       return n;
     }
+    if (rule_merger && rule_merger->parent) {
+      output = rule_merger->parent_sym;
+      done_[output] = n;
+      n->output = output;
+      if (!PickRule(output, n, &rule_merger, &pattern_rule, &vars)) {
+        return n;
+      }
+    }
     if (rule_merger)
       rule_merger->FillDepNode(output, pattern_rule.get(), n);
     else
@@ -619,13 +682,16 @@ class DepBuilder {
         if (name == depfile_var_name_) {
           n->depfile_var = new_var;
         } else if (name == implicit_outputs_var_name_) {
-          n->implicit_outputs_var = new_var;
         } else if (name == ninja_pool_var_name_) {
           n->ninja_pool_var = new_var;
         } else {
           sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
         }
       }
+    }
+
+    for (Symbol output : n->implicit_outputs) {
+      done_[output] = n;
     }
 
     for (Symbol input : n->actual_inputs) {

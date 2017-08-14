@@ -41,11 +41,11 @@ struct DepNode {
   bool is_default_target;
   bool is_phony;
   bool is_restat;
+  vector<Symbol> implicit_outputs;
   vector<Symbol> actual_inputs;
   vector<Symbol> actual_order_only_inputs;
   Vars* rule_vars;
   Var* depfile_var;
-  Var* implicit_outputs_var;
   Var* ninja_pool_var;
   Symbol output_pattern;
   Loc loc;

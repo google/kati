@@ -547,17 +547,10 @@ class NinjaGenerator {
     const DepNode* node = nn->node;
     string target = EscapeBuildTarget(node->output);
     *o << "build " << target;
-    if (node->implicit_outputs_var) {
-      string implicit_outputs;
-      node->implicit_outputs_var->Eval(ev_, &implicit_outputs);
-
-      bool first = true;
-      for (StringPiece output : WordScanner(implicit_outputs)) {
-        if (first) {
-          *o << " |";
-          first = false;
-        }
-        *o << " " << EscapeNinja(output.as_string()).c_str();
+    if (!node->implicit_outputs.empty()) {
+      *o << " |";
+      for (Symbol output : node->implicit_outputs) {
+        *o << " " << EscapeBuildTarget(output);
       }
     }
     *o << ": " << rule_name;
