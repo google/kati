@@ -44,6 +44,11 @@
 #include "timeutil.h"
 #include "var.h"
 
+// We know that there are leaks in Kati. Turn off LeakSanitizer by default.
+extern "C" const char* __asan_default_options() {
+  return "detect_leaks=0";
+}
+
 static void Init() {
   InitSymtab();
   InitFuncTable();
