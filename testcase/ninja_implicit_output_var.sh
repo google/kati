@@ -19,24 +19,17 @@ set -e
 mk="$@"
 
 cat <<EOF >Makefile
-all: a b
+all: a
 
-a b:
-	touch A
-	echo 1 >>A
-d: a
-c: .KATI_IMPLICIT_OUTPUTS := d
-c:
-	touch C
-	echo 1 >>C
-
-c d: b
+a:
+	if ! [ -z "\$(VAR)" ]; then echo \$(VAR); fi
+a: .KATI_IMPLICIT_OUTPUTS := b
+b: VAR := OK
 EOF
 
-${mk} -j1 all d c
-if [ -e ninja.sh ]; then ./ninja.sh -j1 -w dupbuild=err all d; fi
-
-echo "A:"
-cat A
-echo "C":
-cat C
+${mk} -j1
+if [ -e ninja.sh ]; then
+  ./ninja.sh -j1 -w dupbuild=err;
+else
+  echo OK
+fi
