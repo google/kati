@@ -177,6 +177,8 @@ def normalize_kati_log(output)
   # Normalization for "include foo" with Go kati.
   output.gsub!(/(: )open (\S+): n(o such file or directory)\nNOTE:.*/,
                "\\1\\2: N\\3")
+  # Bionic libc has different error messages than glibc
+  output.gsub!(/Too many symbolic links encountered/, 'Too many levels of symbolic links')
   output
 end
 
