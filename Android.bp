@@ -20,11 +20,6 @@ cc_defaults {
         "-Werror",
         "-DNOLOG",
     ],
-    target: {
-        linux: {
-            host_ldlibs: ["-lrt", "-lpthread"],
-        },
-    },
     tidy_checks: [
         "-google-global-names-in-headers",
         "-google-build-using-namespace",
