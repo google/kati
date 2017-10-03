@@ -55,7 +55,9 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
        is_override ? VarOrigin::OVERRIDE : VarOrigin::FILE));
 
   Var* rhs = NULL;
+  Var* prev = LookupVarInCurrentScope(lhs);
   bool needs_assign = true;
+
   switch (op) {
     case AssignOp::COLON_EQ: {
       SimpleVar* sv = new SimpleVar(origin);
@@ -67,7 +69,6 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
       rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
-      Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else if (prev->ReadOnly()) {
@@ -80,7 +81,6 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
       break;
     }
     case AssignOp::QUESTION_EQ: {
-      Var* prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else {
@@ -88,6 +88,13 @@ Var* Evaluator::EvalRHS(Symbol lhs, Value* rhs_v, StringPiece orig_rhs,
         needs_assign = false;
       }
       break;
+    }
+  }
+
+  prev->Used(this, lhs);
+  if (prev->Deprecated()) {
+    if (needs_assign) {
+      rhs->SetDeprecated(prev->DeprecatedMessage());
     }
   }
 

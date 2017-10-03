@@ -134,6 +134,7 @@ class SymRef : public Value {
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     Var* v = ev->LookupVar(name_);
+    v->Used(ev, name_);
     v->Eval(ev, s);
   }
 
@@ -158,7 +159,9 @@ class VarRef : public Value {
     ev->IncrementEvalDepth();
     const string&& name = name_->Eval(ev);
     ev->DecrementEvalDepth();
-    Var* v = ev->LookupVar(Intern(name));
+    Symbol sym = Intern(name);
+    Var* v = ev->LookupVar(sym);
+    v->Used(ev, sym);
     v->Eval(ev, s);
   }
 
@@ -184,10 +187,12 @@ class VarSubst : public Value {
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->IncrementEvalDepth();
     const string&& name = name_->Eval(ev);
-    Var* v = ev->LookupVar(Intern(name));
+    Symbol sym = Intern(name);
+    Var* v = ev->LookupVar(sym);
     const string&& pat_str = pat_->Eval(ev);
     const string&& subst = subst_->Eval(ev);
     ev->DecrementEvalDepth();
+    v->Used(ev, sym);
     const string&& value = v->Eval(ev);
     WordWriter ww(s);
     Pattern pat(pat_str);

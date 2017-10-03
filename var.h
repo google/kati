@@ -15,11 +15,14 @@
 #ifndef VAR_H_
 #define VAR_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 
+#include "eval.h"
 #include "expr.h"
+#include "log.h"
 #include "stmt.h"
 #include "string_piece.h"
 #include "symtab.h"
@@ -59,11 +62,39 @@ class Var : public Evaluable {
   bool ReadOnly() const { return readonly_; }
   void SetReadOnly() { readonly_ = true; }
 
+  bool Deprecated() const { return message_ && !error_; }
+  void SetDeprecated(StringPiece msg) {
+    message_.reset(new string(msg.as_string()));
+  }
+
+  bool Obsolete() const { return error_; }
+  void SetObsolete(StringPiece msg) {
+    message_.reset(new string(msg.as_string()));
+    error_ = true;
+  }
+
+  const string& DeprecatedMessage() const { return *message_; }
+
+  // This variable was used (either written or read from)
+  void Used(Evaluator* ev, const Symbol& sym) const {
+    if (!message_) {
+      return;
+    }
+
+    if (error_) {
+      ev->Error(StringPrintf("*** %s is obsolete%s.", sym.c_str(), message_->c_str()));
+    } else {
+      WARN_LOC(ev->loc(), "%s has been deprecated%s.", sym.c_str(), message_->c_str());
+    }
+  }
+
  protected:
   Var();
 
  private:
   bool readonly_;
+  unique_ptr<string> message_;
+  bool error_;
 };
 
 class SimpleVar : public Var {
