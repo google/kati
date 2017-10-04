@@ -809,6 +809,66 @@ void FileFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
 }
 
+void DeprecatedVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+  string vars_str = args[0]->Eval(ev);
+  string msg;
+
+  if (args.size() == 2) {
+    msg = ". " + args[1]->Eval(ev);
+  }
+
+  if (ev->avoid_io()) {
+    ev->Error("*** $(KATI_deprecated_var ...) is not supported in rules.");
+  }
+
+  for (StringPiece var : WordScanner(vars_str)) {
+    Symbol sym = Intern(var);
+    Var* v = ev->LookupVar(sym);
+    if (!v->IsDefined()) {
+      v = new SimpleVar(VarOrigin::FILE);
+      sym.SetGlobalVar(v, false, nullptr);
+    }
+
+    if (v->Deprecated()) {
+      ev->Error(StringPrintf("*** Cannot call KATI_deprecated_var on already deprecated variable: %s.", sym.c_str()));
+    } else if (v->Obsolete()) {
+      ev->Error(StringPrintf("*** Cannot call KATI_deprecated_var on already obsolete variable: %s.", sym.c_str()));
+    }
+
+    v->SetDeprecated(msg);
+  }
+}
+
+void ObsoleteVarFunc(const vector<Value*>&args, Evaluator* ev, string*) {
+  string vars_str = args[0]->Eval(ev);
+  string msg;
+
+  if (args.size() == 2) {
+    msg = ". " + args[1]->Eval(ev);
+  }
+
+  if (ev->avoid_io()) {
+    ev->Error("*** $(KATI_obsolete_var ...) is not supported in rules.");
+  }
+
+  for (StringPiece var : WordScanner(vars_str)) {
+    Symbol sym = Intern(var);
+    Var* v = ev->LookupVar(sym);
+    if (!v->IsDefined()) {
+      v = new SimpleVar(VarOrigin::FILE);
+      sym.SetGlobalVar(v, false, nullptr);
+    }
+
+    if (v->Deprecated()) {
+      ev->Error(StringPrintf("*** Cannot call KATI_obsolete_var on already deprecated variable: %s.", sym.c_str()));
+    } else if (v->Obsolete()) {
+      ev->Error(StringPrintf("*** Cannot call KATI_obsolete_var on already obsolete variable: %s.", sym.c_str()));
+    }
+
+    v->SetObsolete(msg);
+  }
+}
+
 FuncInfo g_func_infos[] = {
   { "patsubst", &PatsubstFunc, 3, 3, false, false },
   { "strip", &StripFunc, 1, 1, false, false },
@@ -852,6 +912,10 @@ FuncInfo g_func_infos[] = {
   { "error", &ErrorFunc, 1, 1, false, false },
 
   { "file", &FileFunc, 2, 1, false, false },
+
+  /* Kati custom extension functions */
+  { "KATI_deprecated_var", &DeprecatedVarFunc, 2, 1, false, false },
+  { "KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false },
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;

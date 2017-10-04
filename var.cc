@@ -16,6 +16,7 @@
 
 #include "var.h"
 
+#include "eval.h"
 #include "expr.h"
 #include "log.h"
 
@@ -37,7 +38,7 @@ const char* GetOriginStr(VarOrigin origin) {
   return "*** broken origin ***";
 }
 
-Var::Var() : readonly_(false) {
+Var::Var() : readonly_(false), message_(), error_(false) {
 }
 
 Var::~Var() {
