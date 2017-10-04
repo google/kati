@@ -208,11 +208,15 @@ class StampChecker {
           printf("env %s: dirty (%s => %.*s)\n",
                  s.c_str(), s2.c_str(), SPF(val));
         } else {
-          fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
-                  "regenerating...\n",
-                  s.c_str(), s2.c_str(), SPF(val));
+          fprintf(stderr, "Environment variable %s was modified (%s => %.*s), ",
+                 s.c_str(), s2.c_str(), SPF(val));
         }
-        RETURN_TRUE;
+        if (s == "TMPDIR") {
+          fprintf(stderr, "ignoring changed TMPDIR\n");
+        } else {
+          fprintf(stderr, "regenerating...\n");
+          RETURN_TRUE;
+        }
       } else if (g_flags.dump_kati_stamp) {
         printf("env %s: clean (%.*s)\n", s.c_str(), SPF(val));
       }
@@ -406,14 +410,24 @@ class StampChecker {
     RunCommand(sr->shell, sr->shellflag, sr->cmd, RedirectStderr::DEV_NULL, &result);
     FormatForCommandSubstitution(&result);
     if (sr->result != result) {
-      if (g_flags.dump_kati_stamp) {
-        printf("shell %s: dirty\n", sr->cmd.c_str());
-      } else {
-        *err = StringPrintf("$(shell %s) was changed, regenerating...\n",
-                            sr->cmd.c_str());
-        //*err += StringPrintf("%s => %s\n", expected.c_str(), result.c_str());
+      string previous_result_sorted = SortWordsInString(sr->result);
+      string current_result_sorted  = SortWordsInString(result);
+      printf("Fallback to sorted comparison for %s\n", sr->cmd.c_str());
+
+      // Some shell commands which use unemulated find can return results 
+      // in different orders depending on the filesystem
+      if (previous_result_sorted != current_result_sorted) { 
+        if (g_flags.dump_kati_stamp) {
+          printf("shell %s: dirty\n", sr->cmd.c_str());
+        } else {
+          *err = StringPrintf("$(shell %s) was changed, regenerating...\n",
+                              sr->cmd.c_str());
+          //*err += StringPrintf("%s => %s\n", expected.c_str(), result.c_str());
+        }
+        return true;
+      } else if (g_flags.regen_debug) {
+        printf("shell %s: clean after sort (rerun)\n", sr->cmd.c_str());
       }
-      return true;
     } else if (g_flags.regen_debug) {
       printf("shell %s: clean (rerun)\n", sr->cmd.c_str());
     }
