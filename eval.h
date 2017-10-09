@@ -86,6 +86,15 @@ class Evaluator {
   string GetShellFlag();
   string GetShellAndFlag();
 
+  void CheckStack() {
+    void* addr = __builtin_frame_address(0);
+    if (__builtin_expect(addr < lowest_stack_ && addr >= stack_addr_, 0)) {
+      lowest_stack_ = addr;
+      lowest_loc_ = loc_;
+    }
+  }
+  void DumpStackStats() const;
+
  private:
   Var* EvalRHS(Symbol lhs,
                Value* rhs,
@@ -118,6 +127,11 @@ class Evaluator {
 
   Symbol posix_sym_;
   bool is_posix_;
+
+  void* stack_addr_;
+  size_t stack_size_;
+  void* lowest_stack_;
+  Loc lowest_loc_;
 
   static unordered_set<Symbol> used_undefined_vars_;
 

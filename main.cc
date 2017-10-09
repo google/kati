@@ -195,6 +195,7 @@ static int Run(const vector<Symbol>& targets,
   if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
     GenerateNinja(nodes, ev, orig_args, start_time);
+    ev->DumpStackStats();
     return 0;
   }
 
@@ -215,6 +216,8 @@ static int Run(const vector<Symbol>& targets,
     ScopedTimeReporter tr("exec time");
     Exec(nodes, ev);
   }
+
+  ev->DumpStackStats();
 
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;

@@ -462,6 +462,7 @@ void ValueFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   // TODO: eval leaks everything... for now.
   // const string text = args[0]->Eval(ev);
+  ev->CheckStack();
   string* text = new string;
   args[0]->Eval(ev, text);
   if (ev->avoid_io()) {
@@ -595,6 +596,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       Intern("0"), Intern("1"), Intern("2"), Intern("3"), Intern("4"),
       Intern("5"), Intern("6"), Intern("7"), Intern("8"), Intern("9")};
 
+  ev->CheckStack();
   const string&& func_name_buf = args[0]->Eval(ev);
   const StringPiece func_name = TrimSpace(func_name_buf);
   Var* func = ev->LookupVar(Intern(func_name));
