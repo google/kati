@@ -39,6 +39,7 @@ void TestGetDepfile() {
   delete g_last_error;
   g_last_error = NULL;
 
+  // clang-format off
   ASSERT_EQ(GetDepfile("g++ -c fat.cc -o fat.o", &new_cmd), "");
   ASSERT_EQ(GetDepfile("g++ -c fat.cc -MD -o fat.o -o fuga.o", &new_cmd), "fuga.d.tmp");
   ASSERT_EQ(GetDepfile("g++ -c fat.cc -MD -o fat.o", &new_cmd), "fat.d.tmp");
@@ -59,6 +60,7 @@ void TestGetDepfile() {
   // TODO: Fix for automake.
   // ASSERT_EQ(GetDepfile("(/bin/sh ./libtool  --tag=CXX   --mode=compile g++ -DHAVE_CONFIG_H -I. -I./src -I./src     -Wall -Wwrite-strings -Woverloaded-virtual -Wno-sign-compare  -DNO_FRAME_POINTER  -DNDEBUG -g -O2 -MT libglog_la-logging.lo -MD -MP -MF .deps/libglog_la-logging.Tpo -c -o libglog_la-logging.lo `test -f 'src/logging.cc' || echo './'`src/logging.cc) && (mv -f .deps/libglog_la-logging.Tpo .deps/libglog_la-logging.Plo)", &new_cmd), ".deps/libglog_la-logging.Plo");
   // ASSERT_EQ(GetDepfile("(g++ -DHAVE_CONFIG_H -I. -I./src  -I./src  -pthread     -Wall -Wwrite-strings -Woverloaded-virtual -Wno-sign-compare  -DNO_FRAME_POINTER  -g -O2 -MT signalhandler_unittest-signalhandler_unittest.o -MD -MP -MF .deps/signalhandler_unittest-signalhandler_unittest.Tpo -c -o signalhandler_unittest-signalhandler_unittest.o `test -f 'src/signalhandler_unittest.cc' || echo './'`src/signalhandler_unittest.cc) && (mv -f .deps/signalhandler_unittest-signalhandler_unittest.Tpo .deps/signalhandler_unittest-signalhandler_unittest.Po)", &new_cmd), ".deps/signalhandler_unittest-signalhandler_unittest.Po");
+  // clang-format on
 
   assert(!g_last_error);
 }
