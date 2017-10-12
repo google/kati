@@ -15,6 +15,7 @@
 // +build ignore
 
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,7 @@
 
 // We know that there are leaks in Kati. Turn off LeakSanitizer by default.
 extern "C" const char* __asan_default_options() {
-  return "detect_leaks=0";
+  return "detect_leaks=0:allow_user_segv_handler=1";
 }
 
 static void Init() {
@@ -121,6 +122,97 @@ static void SetVar(StringPiece l, VarOrigin origin) {
 
 extern "C" char** environ;
 
+class SegfaultHandler {
+ public:
+  explicit SegfaultHandler(Evaluator* ev);
+  ~SegfaultHandler();
+
+  void handle(int, siginfo_t*, void*);
+
+ private:
+  static SegfaultHandler* global_handler;
+
+  void dumpstr(const char* s) const {
+    (void)write(STDERR_FILENO, s, strlen(s));
+  }
+  void dumpint(int i) const {
+    char buf[11];
+    char* ptr = buf + sizeof(buf) - 1;
+
+    if (i < 0) {
+      i = -i;
+      dumpstr("-");
+    } else if (i == 0) {
+      dumpstr("0");
+      return;
+    }
+
+    *ptr = '\0';
+    while (ptr > buf && i > 0) {
+      *--ptr = '0' + (i % 10);
+      i = i / 10;
+    }
+
+    dumpstr(ptr);
+  }
+
+  Evaluator* ev_;
+
+  struct sigaction orig_action_;
+  struct sigaction new_action_;
+};
+
+SegfaultHandler* SegfaultHandler::global_handler = nullptr;
+
+SegfaultHandler::SegfaultHandler(Evaluator* ev) : ev_(ev) {
+  CHECK(global_handler == nullptr);
+  global_handler = this;
+
+  // Construct an alternate stack, so that we can handle stack overflows.
+  stack_t ss;
+  ss.ss_sp = malloc(SIGSTKSZ * 2);
+  CHECK(ss.ss_sp != nullptr);
+  ss.ss_size = SIGSTKSZ * 2;
+  ss.ss_flags = 0;
+  if (sigaltstack(&ss, nullptr) == -1) {
+    PERROR("sigaltstack");
+  }
+
+  // Register our segfault handler using the alternate stack, falling
+  // back to the default handler.
+  sigemptyset(&new_action_.sa_mask);
+  new_action_.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESETHAND;
+  new_action_.sa_sigaction = [](int sig, siginfo_t* info, void* context) {
+    if (global_handler != nullptr) {
+      global_handler->handle(sig, info, context);
+    }
+
+    raise(SIGSEGV);
+  };
+  sigaction(SIGSEGV, &new_action_, &orig_action_);
+}
+
+void SegfaultHandler::handle(int sig, siginfo_t* info, void* context) {
+  // Avoid fprintf in case it allocates or tries to do anything else that may
+  // hang.
+  dumpstr("*kati*: Segmentation fault, last evaluated line was ");
+  dumpstr(ev_->loc().filename);
+  dumpstr(":");
+  dumpint(ev_->loc().lineno);
+  dumpstr("\n");
+
+  // Run the original handler, in case we've been preloaded with libSegFault
+  // or similar.
+  if (orig_action_.sa_sigaction != nullptr) {
+    orig_action_.sa_sigaction(sig, info, context);
+  }
+}
+
+SegfaultHandler::~SegfaultHandler() {
+  sigaction(SIGSEGV, &orig_action_, nullptr);
+  global_handler = nullptr;
+}
+
 static int Run(const vector<Symbol>& targets,
                const vector<StringPiece>& cl_vars,
                const string& orig_args) {
@@ -149,14 +241,15 @@ static int Run(const vector<Symbol>& targets,
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT);
   }
-  Evaluator* ev = new Evaluator();
+  unique_ptr<Evaluator> ev(new Evaluator());
+  SegfaultHandler segfault(ev.get());
 
   vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
   ev->set_is_bootstrap(true);
   for (Stmt* stmt : bootstrap_asts) {
     LOG("%s", stmt->DebugString().c_str());
-    stmt->Eval(ev);
+    stmt->Eval(ev.get());
   }
   ev->set_is_bootstrap(false);
 
@@ -165,7 +258,7 @@ static int Run(const vector<Symbol>& targets,
     vector<Stmt*> asts;
     Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
     CHECK(asts.size() == 1);
-    asts[0]->Eval(ev);
+    asts[0]->Eval(ev.get());
   }
   ev->set_is_commandline(false);
 
@@ -174,7 +267,7 @@ static int Run(const vector<Symbol>& targets,
     Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
     for (Stmt* stmt : mk->stmts()) {
       LOG("%s", stmt->DebugString().c_str());
-      stmt->Eval(ev);
+      stmt->Eval(ev.get());
     }
   }
 
@@ -186,7 +279,7 @@ static int Run(const vector<Symbol>& targets,
   vector<DepNode*> nodes;
   {
     ScopedTimeReporter tr("make dep time");
-    MakeDep(ev, ev->rules(), ev->rule_vars(), targets, &nodes);
+    MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);
   }
 
   if (g_flags.is_syntax_check_only)
@@ -194,7 +287,7 @@ static int Run(const vector<Symbol>& targets,
 
   if (g_flags.generate_ninja) {
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(nodes, ev, orig_args, start_time);
+    GenerateNinja(nodes, ev.get(), orig_args, start_time);
     ev->DumpStackStats();
     return 0;
   }
@@ -203,7 +296,7 @@ static int Run(const vector<Symbol>& targets,
     const Symbol name = p.first;
     if (p.second) {
       Var* v = ev->LookupVar(name);
-      const string&& value = v->Eval(ev);
+      const string&& value = v->Eval(ev.get());
       LOG("setenv(%s, %s)", name.c_str(), value.c_str());
       setenv(name.c_str(), value.c_str(), 1);
     } else {
@@ -214,14 +307,13 @@ static int Run(const vector<Symbol>& targets,
 
   {
     ScopedTimeReporter tr("exec time");
-    Exec(nodes, ev);
+    Exec(nodes, ev.get());
   }
 
   ev->DumpStackStats();
 
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;
-  delete ev;
   delete cache_mgr;
 
   return 0;
