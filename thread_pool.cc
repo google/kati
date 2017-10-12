@@ -26,8 +26,7 @@
 
 class ThreadPoolImpl : public ThreadPool {
  public:
-  explicit ThreadPoolImpl(int num_threads)
-      : is_waiting_(false) {
+  explicit ThreadPoolImpl(int num_threads) : is_waiting_(false) {
     SetAffinityForMultiThread();
     threads_.reserve(num_threads);
     for (int i = 0; i < num_threads; i++) {
@@ -35,8 +34,7 @@ class ThreadPoolImpl : public ThreadPool {
     }
   }
 
-  virtual ~ThreadPoolImpl() override {
-  }
+  virtual ~ThreadPoolImpl() override {}
 
   virtual void Submit(function<void(void)> task) override {
     unique_lock<mutex> lock(mu_);

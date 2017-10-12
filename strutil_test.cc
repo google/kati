@@ -160,8 +160,8 @@ void TestFindEndOfLine() {
 // freeing the allocated pages.
 const char* CreateProtectedString(const char* str) {
   int pagesize = sysconf(_SC_PAGE_SIZE);
-  void *buffer;
-  char *buffer_str;
+  void* buffer;
+  char* buffer_str;
 
   // Allocate two pages of memory
   if (posix_memalign(&buffer, pagesize, pagesize * 2) != 0) {

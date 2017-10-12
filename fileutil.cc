@@ -60,10 +60,12 @@ double GetTimestamp(StringPiece filename) {
   return GetTimestampFromStat(st);
 }
 
-int RunCommand(const string& shell, const string& shellflag,
-               const string& cmd, RedirectStderr redirect_stderr,
+int RunCommand(const string& shell,
+               const string& shellflag,
+               const string& cmd,
+               RedirectStderr redirect_stderr,
                string* s) {
-  const char* argv[] = { NULL, NULL, NULL, NULL };
+  const char* argv[] = {NULL, NULL, NULL, NULL};
   string cmd_with_shell;
   if (shell[0] != '/' || shell.find_first_of(" $") != string::npos) {
     string cmd_escaped = cmd;
@@ -98,7 +100,7 @@ int RunCommand(const string& shell, const string& shellflag,
           PERROR("read failed");
         if (r == 0)
           break;
-        s->append(buf, buf+r);
+        s->append(buf, buf + r);
       }
 
       if (result != 0) {
@@ -156,9 +158,7 @@ namespace {
 
 class GlobCache {
  public:
-  ~GlobCache() {
-    Clear();
-  }
+  ~GlobCache() { Clear(); }
 
   void Get(const char* pat, vector<string>** files) {
     auto p = cache_.emplace(pat, nullptr);

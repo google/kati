@@ -30,12 +30,8 @@ namespace {
 
 class AutoVar : public Var {
  public:
-  virtual const char* Flavor() const override {
-    return "undefined";
-  }
-  virtual VarOrigin Origin() const override {
-    return VarOrigin::AUTOMATIC;
-  }
+  virtual const char* Flavor() const override { return "undefined"; }
+  virtual VarOrigin Origin() const override { return VarOrigin::AUTOMATIC; }
 
   virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }
 
@@ -56,13 +52,12 @@ class AutoVar : public Var {
   const char* sym_;
 };
 
-#define DECLARE_AUTO_VAR_CLASS(name)                                    \
-  class name : public AutoVar {                                         \
-   public:                                                              \
-   name(CommandEvaluator* ce, const char* sym)                          \
-       : AutoVar(ce, sym) {}                                            \
-   virtual ~name() = default;                                           \
-   virtual void Eval(Evaluator* ev, string* s) const override;          \
+#define DECLARE_AUTO_VAR_CLASS(name)                                  \
+  class name : public AutoVar {                                       \
+   public:                                                            \
+    name(CommandEvaluator* ce, const char* sym) : AutoVar(ce, sym) {} \
+    virtual ~name() = default;                                        \
+    virtual void Eval(Evaluator* ev, string* s) const override;       \
   }
 
 DECLARE_AUTO_VAR_CLASS(AutoAtVar);
@@ -75,8 +70,7 @@ DECLARE_AUTO_VAR_CLASS(AutoNotImplementedVar);
 class AutoSuffixDVar : public AutoVar {
  public:
   AutoSuffixDVar(CommandEvaluator* ce, const char* sym, Var* wrapped)
-      : AutoVar(ce, sym), wrapped_(wrapped) {
-  }
+      : AutoVar(ce, sym), wrapped_(wrapped) {}
   virtual ~AutoSuffixDVar() = default;
   virtual void Eval(Evaluator* ev, string* s) const override;
 
@@ -130,8 +124,7 @@ void AutoStarVar::Eval(Evaluator*, string* s) const {
 }
 
 void AutoNotImplementedVar::Eval(Evaluator* ev, string*) const {
-  ev->Error(StringPrintf(
-      "Automatic variable `$%s' isn't supported yet", sym_));
+  ev->Error(StringPrintf("Automatic variable `$%s' isn't supported yet", sym_));
 }
 
 void AutoSuffixDVar::Eval(Evaluator* ev, string* s) const {
@@ -171,13 +164,13 @@ void ParseCommandPrefixes(StringPiece* s, bool* echo, bool* ignore_error) {
 
 }  // namespace
 
-CommandEvaluator::CommandEvaluator(Evaluator* ev)
-    : ev_(ev) {
-#define INSERT_AUTO_VAR(name, sym) do {                                 \
+CommandEvaluator::CommandEvaluator(Evaluator* ev) : ev_(ev) {
+#define INSERT_AUTO_VAR(name, sym)                                      \
+  do {                                                                  \
     Var* v = new name(this, sym);                                       \
     Intern(sym).SetGlobalVar(v);                                        \
-    Intern(sym"D").SetGlobalVar(new AutoSuffixDVar(this, sym"D", v));   \
-    Intern(sym"F").SetGlobalVar(new AutoSuffixFVar(this, sym"F", v));   \
+    Intern(sym "D").SetGlobalVar(new AutoSuffixDVar(this, sym "D", v)); \
+    Intern(sym "F").SetGlobalVar(new AutoSuffixFVar(this, sym "F", v)); \
   } while (0)
   INSERT_AUTO_VAR(AutoAtVar, "@");
   INSERT_AUTO_VAR(AutoLessVar, "<");

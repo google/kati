@@ -18,17 +18,19 @@
 
 bool g_failed;
 
-#define ASSERT_EQ(a, b)                                                 \
-  do {                                                                  \
-    if ((a) != (b)) {                                                   \
-      fprintf(stderr,                                                   \
+#define ASSERT_EQ(a, b)                                                     \
+  do {                                                                      \
+    if ((a) != (b)) {                                                       \
+      fprintf(stderr,                                                       \
               "Assertion failure at %s:%d: %s (which is \"%.*s\") vs %s\n", \
-              __FILE__, __LINE__, #a, SPF(GetStringPiece(a)), #b);      \
-      g_failed = true;                                                  \
-    }                                                                   \
-  } while(0)
+              __FILE__, __LINE__, #a, SPF(GetStringPiece(a)), #b);          \
+      g_failed = true;                                                      \
+    }                                                                       \
+  } while (0)
 
-StringPiece GetStringPiece(StringPiece s) { return s; }
+StringPiece GetStringPiece(StringPiece s) {
+  return s;
+}
 StringPiece GetStringPiece(size_t v) {
   static char buf[64];
   sprintf(buf, "%zd", v);

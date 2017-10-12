@@ -31,7 +31,7 @@ void SetAffinityForSingleThread() {
   cpu_set_t cs;
   CPU_ZERO(&cs);
   std::default_random_engine generator(getpid());
-  std::uniform_int_distribution<int> distribution(0,g_flags.num_cpus-1);
+  std::uniform_int_distribution<int> distribution(0, g_flags.num_cpus - 1);
   int cpu = distribution(generator);
 
   // Try to come up with a CPU and one close to it. This should work on most
@@ -42,7 +42,7 @@ void SetAffinityForSingleThread() {
   cpu = cpu - (cpu % 2);
   CPU_SET(cpu, &cs);
   if (g_flags.num_cpus > 1)
-    CPU_SET(cpu+1, &cs);
+    CPU_SET(cpu + 1, &cs);
 
   if (sched_setaffinity(0, sizeof(cs), &cs) < 0)
     WARN("sched_setaffinity: %s", strerror(errno));

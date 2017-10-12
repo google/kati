@@ -27,32 +27,43 @@ Stmt::~Stmt() {}
 
 string RuleStmt::DebugString() const {
   return StringPrintf("RuleStmt(expr=%s term=%d after_term=%s loc=%s:%d)",
-                      expr->DebugString().c_str(),
-                      term,
-                      after_term->DebugString().c_str(),
-                      LOCF(loc()));
+                      expr->DebugString().c_str(), term,
+                      after_term->DebugString().c_str(), LOCF(loc()));
 }
 
 string AssignStmt::DebugString() const {
   const char* opstr = "???";
   switch (op) {
-    case AssignOp::EQ: opstr = "EQ"; break;
-    case AssignOp::COLON_EQ: opstr = "COLON_EQ"; break;
-    case AssignOp::PLUS_EQ: opstr = "PLUS_EQ"; break;
-    case AssignOp::QUESTION_EQ: opstr = "QUESTION_EQ"; break;
+    case AssignOp::EQ:
+      opstr = "EQ";
+      break;
+    case AssignOp::COLON_EQ:
+      opstr = "COLON_EQ";
+      break;
+    case AssignOp::PLUS_EQ:
+      opstr = "PLUS_EQ";
+      break;
+    case AssignOp::QUESTION_EQ:
+      opstr = "QUESTION_EQ";
+      break;
   }
   const char* dirstr = "???";
   switch (directive) {
-    case AssignDirective::NONE: dirstr = ""; break;
-    case AssignDirective::OVERRIDE: dirstr = "override"; break;
-    case AssignDirective::EXPORT: dirstr = "export"; break;
+    case AssignDirective::NONE:
+      dirstr = "";
+      break;
+    case AssignDirective::OVERRIDE:
+      dirstr = "override";
+      break;
+    case AssignDirective::EXPORT:
+      dirstr = "export";
+      break;
   }
-  return StringPrintf("AssignStmt(lhs=%s rhs=%s (%s) "
-                      "opstr=%s dir=%s loc=%s:%d)",
-                      lhs->DebugString().c_str(),
-                      rhs->DebugString().c_str(),
-                      NoLineBreak(orig_rhs.as_string()).c_str(),
-                      opstr, dirstr, LOCF(loc()));
+  return StringPrintf(
+      "AssignStmt(lhs=%s rhs=%s (%s) "
+      "opstr=%s dir=%s loc=%s:%d)",
+      lhs->DebugString().c_str(), rhs->DebugString().c_str(),
+      NoLineBreak(orig_rhs.as_string()).c_str(), opstr, dirstr, LOCF(loc()));
 }
 
 Symbol AssignStmt::GetLhsSymbol(Evaluator* ev) const {
@@ -69,42 +80,44 @@ Symbol AssignStmt::GetLhsSymbol(Evaluator* ev) const {
 }
 
 string CommandStmt::DebugString() const {
-  return StringPrintf("CommandStmt(%s, loc=%s:%d)",
-                      expr->DebugString().c_str(), LOCF(loc()));
+  return StringPrintf("CommandStmt(%s, loc=%s:%d)", expr->DebugString().c_str(),
+                      LOCF(loc()));
 }
 
 string IfStmt::DebugString() const {
   const char* opstr = "???";
   switch (op) {
-    case CondOp::IFEQ: opstr = "ifeq"; break;
-    case CondOp::IFNEQ: opstr = "ifneq"; break;
-    case CondOp::IFDEF: opstr = "ifdef"; break;
-    case CondOp::IFNDEF: opstr = "ifndef"; break;
+    case CondOp::IFEQ:
+      opstr = "ifeq";
+      break;
+    case CondOp::IFNEQ:
+      opstr = "ifneq";
+      break;
+    case CondOp::IFDEF:
+      opstr = "ifdef";
+      break;
+    case CondOp::IFNDEF:
+      opstr = "ifndef";
+      break;
   }
   return StringPrintf("IfStmt(op=%s, lhs=%s, rhs=%s t=%zu f=%zu loc=%s:%d)",
-                      opstr,
-                      lhs->DebugString().c_str(),
-                      rhs->DebugString().c_str(),
-                      true_stmts.size(),
-                      false_stmts.size(),
-                      LOCF(loc()));
+                      opstr, lhs->DebugString().c_str(),
+                      rhs->DebugString().c_str(), true_stmts.size(),
+                      false_stmts.size(), LOCF(loc()));
 }
 
 string IncludeStmt::DebugString() const {
-  return StringPrintf("IncludeStmt(%s, loc=%s:%d)",
-                      expr->DebugString().c_str(), LOCF(loc()));
+  return StringPrintf("IncludeStmt(%s, loc=%s:%d)", expr->DebugString().c_str(),
+                      LOCF(loc()));
 }
 
 string ExportStmt::DebugString() const {
   return StringPrintf("ExportStmt(%s, %d, loc=%s:%d)",
-                      expr->DebugString().c_str(),
-                      is_export,
-                      LOCF(loc()));
+                      expr->DebugString().c_str(), is_export, LOCF(loc()));
 }
 
 string ParseErrorStmt::DebugString() const {
-  return StringPrintf("ParseErrorStmt(%s, loc=%s:%d)",
-                      msg.c_str(),
+  return StringPrintf("ParseErrorStmt(%s, loc=%s:%d)", msg.c_str(),
                       LOCF(loc()));
 }
 
@@ -159,8 +172,7 @@ void ExportStmt::Eval(Evaluator* ev) const {
   ev->EvalExport(this);
 }
 
-ParseErrorStmt::~ParseErrorStmt() {
-}
+ParseErrorStmt::~ParseErrorStmt() {}
 
 void ParseErrorStmt::Eval(Evaluator* ev) const {
   ev->set_loc(loc());

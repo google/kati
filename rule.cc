@@ -47,15 +47,14 @@ bool IsPatternRule(StringPiece s) {
 
 }  // namespace
 
-Rule::Rule()
-    : is_double_colon(false),
-      is_suffix_rule(false),
-      cmd_lineno(0) {
-}
+Rule::Rule() : is_double_colon(false), is_suffix_rule(false), cmd_lineno(0) {}
 
-void ParseRule(Loc& loc, StringPiece line, char term,
-               const function<string()> &after_term_fn,
-               Rule** out_rule, RuleVarAssignment* rule_var) {
+void ParseRule(Loc& loc,
+               StringPiece line,
+               char term,
+               const function<string()>& after_term_fn,
+               Rule** out_rule,
+               RuleVarAssignment* rule_var) {
   size_t index = line.find(':');
   if (index == string::npos) {
     ERROR_LOC(loc, "*** missing separator.");
@@ -67,8 +66,8 @@ void ParseRule(Loc& loc, StringPiece line, char term,
     outputs.push_back(Intern(TrimLeadingCurdir(tok)));
   }
 
-  const bool is_first_pattern = (
-      !outputs.empty() && IsPatternRule(outputs[0].str()));
+  const bool is_first_pattern =
+      (!outputs.empty() && IsPatternRule(outputs[0].str()));
   for (size_t i = 1; i < outputs.size(); i++) {
     if (IsPatternRule(outputs[i].str()) != is_first_pattern) {
       ERROR_LOC(loc, "*** mixed implicit and normal rules: deprecated syntax");
@@ -93,7 +92,8 @@ void ParseRule(Loc& loc, StringPiece line, char term,
     // target specific variable).
     // See https://github.com/google/kati/issues/83
     if (term_index == 0) {
-      KATI_WARN_LOC(loc, "defining a target which starts with `=', "
+      KATI_WARN_LOC(loc,
+                    "defining a target which starts with `=', "
                     "which is not probably what you meant");
       buf = line.as_string();
       if (term)
@@ -104,8 +104,8 @@ void ParseRule(Loc& loc, StringPiece line, char term,
       term_index = string::npos;
     } else {
       rule_var->outputs.swap(outputs);
-      ParseAssignStatement(rest, term_index,
-                           &rule_var->lhs, &rule_var->rhs, &rule_var->op);
+      ParseAssignStatement(rest, term_index, &rule_var->lhs, &rule_var->rhs,
+                           &rule_var->op);
       *out_rule = NULL;
       return;
     }
@@ -139,7 +139,7 @@ void ParseRule(Loc& loc, StringPiece line, char term,
   }
 
   StringPiece second = rest.substr(0, index);
-  StringPiece third = rest.substr(index+1);
+  StringPiece third = rest.substr(index + 1);
 
   for (StringPiece tok : WordScanner(second)) {
     tok = TrimLeadingCurdir(tok);

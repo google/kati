@@ -216,9 +216,9 @@ void WordFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   const string&& n_str = args[0]->Eval(ev);
   int n = GetNumericValueForFunc(n_str);
   if (n < 0) {
-    ev->Error(StringPrintf(
-        "*** non-numeric first argument to `word' function: '%s'.",
-        n_str.c_str()));
+    ev->Error(
+        StringPrintf("*** non-numeric first argument to `word' function: '%s'.",
+                     n_str.c_str()));
   }
   if (n == 0) {
     ev->Error("*** first argument to `word' function must be greater than 0.");
@@ -243,9 +243,9 @@ void WordlistFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
         s_str.c_str()));
   }
   if (si == 0) {
-    ev->Error(StringPrintf(
-        "*** invalid first argument to `wordlist' function: %s`",
-        s_str.c_str()));
+    ev->Error(
+        StringPrintf("*** invalid first argument to `wordlist' function: %s`",
+                     s_str.c_str()));
   }
 
   const string&& e_str = args[1]->Eval(ev);
@@ -303,8 +303,7 @@ void JoinFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   WordWriter ww(s);
   WordScanner::Iterator iter1, iter2;
   for (iter1 = ws1.begin(), iter2 = ws2.begin();
-       iter1 != ws1.end() && iter2 != ws2.end();
-       ++iter1, ++iter2) {
+       iter1 != ws1.end() && iter2 != ws2.end(); ++iter1, ++iter2) {
     ww.Write(*iter1);
     // Use |AppendString| not to append extra ' '.
     AppendString(*iter2, s);
@@ -462,11 +461,12 @@ void ValueFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   // TODO: eval leaks everything... for now.
-  //const string text = args[0]->Eval(ev);
+  // const string text = args[0]->Eval(ev);
   string* text = new string;
   args[0]->Eval(ev, text);
   if (ev->avoid_io()) {
-    KATI_WARN_LOC(ev->loc(), "*warning*: $(eval) in a recipe is not recommended: %s",
+    KATI_WARN_LOC(ev->loc(),
+                  "*warning*: $(eval) in a recipe is not recommended: %s",
                   text->c_str());
   }
   vector<Stmt*> stmts;
@@ -474,7 +474,7 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   for (Stmt* stmt : stmts) {
     LOG("%s", stmt->DebugString().c_str());
     stmt->Eval(ev);
-    //delete stmt;
+    // delete stmt;
   }
 }
 
@@ -488,13 +488,16 @@ void EvalFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 static bool HasNoIoInShellScript(const string& cmd) {
   if (cmd.empty())
     return true;
-  if (HasPrefix(cmd, "echo $((") && cmd[cmd.size()-1] == ')')
+  if (HasPrefix(cmd, "echo $((") && cmd[cmd.size() - 1] == ')')
     return true;
   return false;
 }
 
-static void ShellFuncImpl(const string& shell, const string& shellflag,
-                          const string& cmd, const Loc& loc, string* s,
+static void ShellFuncImpl(const string& shell,
+                          const string& shellflag,
+                          const string& cmd,
+                          const Loc& loc,
+                          string* s,
                           FindCommand** fc) {
   LOG("ShellFunc: %s", cmd.c_str());
 
@@ -526,8 +529,8 @@ static void ShellFuncImpl(const string& shell, const string& shellflag,
 #ifdef TEST_FIND_EMULATOR
   if (need_check) {
     if (*s != out2) {
-      ERROR("FindEmulator is broken: %s\n%s\nvs\n%s",
-            cmd.c_str(), s->c_str(), out2.c_str());
+      ERROR("FindEmulator is broken: %s\n%s\nvs\n%s", cmd.c_str(), s->c_str(),
+            out2.c_str());
     }
   }
 #endif
@@ -556,7 +559,8 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   string cmd = args[0]->Eval(ev);
   if (ev->avoid_io() && !HasNoIoInShellScript(cmd)) {
     if (ev->eval_depth() > 1) {
-      ERROR_LOC(ev->loc(), "kati doesn't support passing results of $(shell) "
+      ERROR_LOC(ev->loc(),
+                "kati doesn't support passing results of $(shell) "
                 "to other make constructs: %s",
                 cmd.c_str());
     }
@@ -588,9 +592,8 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   static const Symbol tmpvar_names[] = {
-    Intern("0"), Intern("1"),  Intern("2"), Intern("3"), Intern("4"),
-    Intern("5"), Intern("6"),  Intern("7"), Intern("8"), Intern("9")
-  };
+      Intern("0"), Intern("1"), Intern("2"), Intern("3"), Intern("4"),
+      Intern("5"), Intern("6"), Intern("7"), Intern("8"), Intern("9")};
 
   const string&& func_name_buf = args[0]->Eval(ev);
   const StringPiece func_name = TrimSpace(func_name_buf);
@@ -606,25 +609,27 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     av.push_back(move(s));
   }
   vector<unique_ptr<ScopedGlobalVar>> sv;
-  for (size_t i = 1; ; i++) {
+  for (size_t i = 1;; i++) {
     string s;
     Symbol tmpvar_name_sym(Symbol::IsUninitialized{});
-    if (i < sizeof(tmpvar_names)/sizeof(tmpvar_names[0])) {
+    if (i < sizeof(tmpvar_names) / sizeof(tmpvar_names[0])) {
       tmpvar_name_sym = tmpvar_names[i];
     } else {
       s = StringPrintf("%d", i);
       tmpvar_name_sym = Intern(s);
     }
     if (i < args.size()) {
-      sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i-1].get()));
+      sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i - 1].get()));
     } else {
       // We need to blank further automatic vars
-      Var *v = ev->LookupVar(tmpvar_name_sym);
-      if (!v->IsDefined()) break;
-      if (v->Origin() != VarOrigin::AUTOMATIC) break;
+      Var* v = ev->LookupVar(tmpvar_name_sym);
+      if (!v->IsDefined())
+        break;
+      if (v->Origin() != VarOrigin::AUTOMATIC)
+        break;
 
       av.emplace_back(new SimpleVar("", VarOrigin::AUTOMATIC));
-      sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i-1].get()));
+      sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i - 1].get()));
     }
   }
 
@@ -639,8 +644,8 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   ev->DecrementEvalDepth();
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(list)) {
-    unique_ptr<SimpleVar> v(new SimpleVar(
-        tok.as_string(), VarOrigin::AUTOMATIC));
+    unique_ptr<SimpleVar> v(
+        new SimpleVar(tok.as_string(), VarOrigin::AUTOMATIC));
     ScopedGlobalVar sv(Intern(varname), v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
@@ -663,7 +668,8 @@ void FlavorFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   const string&& a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    ev->add_delayed_output_command(StringPrintf("echo -e \"%s\"", EchoEscape(a).c_str()));
+    ev->add_delayed_output_command(
+        StringPrintf("echo -e \"%s\"", EchoEscape(a).c_str()));
     return;
   }
   printf("%s\n", a.c_str());
@@ -673,8 +679,8 @@ void InfoFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 void WarningFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   const string&& a = args[0]->Eval(ev);
   if (ev->avoid_io()) {
-    ev->add_delayed_output_command(
-        StringPrintf("echo -e \"%s:%d: %s\" 2>&1", LOCF(ev->loc()), EchoEscape(a).c_str()));
+    ev->add_delayed_output_command(StringPrintf(
+        "echo -e \"%s:%d: %s\" 2>&1", LOCF(ev->loc()), EchoEscape(a).c_str()));
     return;
   }
   WARN_LOC(ev->loc(), "%s", a.c_str());
@@ -737,7 +743,10 @@ static void FileReadFunc(Evaluator* ev, const string& filename, string* s) {
   *s += out;
 }
 
-static void FileWriteFunc(Evaluator* ev, const string& filename, bool append, string text) {
+static void FileWriteFunc(Evaluator* ev,
+                          const string& filename,
+                          bool append,
+                          string text) {
   FILE* f = fopen(filename.c_str(), append ? "ab" : "wb");
   if (f == NULL) {
     ev->Error("*** fopen failed.");
@@ -805,7 +814,8 @@ void FileFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
     FileWriteFunc(ev, filename.as_string(), append, text);
   } else {
-    ev->Error(StringPrintf("*** Invalid file operation: %s.  Stop.", filename.as_string().c_str()));
+    ev->Error(StringPrintf("*** Invalid file operation: %s.  Stop.",
+                           filename.as_string().c_str()));
   }
 }
 
@@ -830,16 +840,22 @@ void DeprecatedVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
     }
 
     if (v->Deprecated()) {
-      ev->Error(StringPrintf("*** Cannot call KATI_deprecated_var on already deprecated variable: %s.", sym.c_str()));
+      ev->Error(
+          StringPrintf("*** Cannot call KATI_deprecated_var on already "
+                       "deprecated variable: %s.",
+                       sym.c_str()));
     } else if (v->Obsolete()) {
-      ev->Error(StringPrintf("*** Cannot call KATI_deprecated_var on already obsolete variable: %s.", sym.c_str()));
+      ev->Error(
+          StringPrintf("*** Cannot call KATI_deprecated_var on already "
+                       "obsolete variable: %s.",
+                       sym.c_str()));
     }
 
     v->SetDeprecated(msg);
   }
 }
 
-void ObsoleteVarFunc(const vector<Value*>&args, Evaluator* ev, string*) {
+void ObsoleteVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   string vars_str = args[0]->Eval(ev);
   string msg;
 
@@ -860,9 +876,14 @@ void ObsoleteVarFunc(const vector<Value*>&args, Evaluator* ev, string*) {
     }
 
     if (v->Deprecated()) {
-      ev->Error(StringPrintf("*** Cannot call KATI_obsolete_var on already deprecated variable: %s.", sym.c_str()));
+      ev->Error(
+          StringPrintf("*** Cannot call KATI_obsolete_var on already "
+                       "deprecated variable: %s.",
+                       sym.c_str()));
     } else if (v->Obsolete()) {
-      ev->Error(StringPrintf("*** Cannot call KATI_obsolete_var on already obsolete variable: %s.", sym.c_str()));
+      ev->Error(StringPrintf(
+          "*** Cannot call KATI_obsolete_var on already obsolete variable: %s.",
+          sym.c_str()));
     }
 
     v->SetObsolete(msg);
@@ -870,52 +891,52 @@ void ObsoleteVarFunc(const vector<Value*>&args, Evaluator* ev, string*) {
 }
 
 FuncInfo g_func_infos[] = {
-  { "patsubst", &PatsubstFunc, 3, 3, false, false },
-  { "strip", &StripFunc, 1, 1, false, false },
-  { "subst", &SubstFunc, 3, 3, false, false },
-  { "findstring", &FindstringFunc, 2, 2, false, false },
-  { "filter", &FilterFunc, 2, 2, false, false },
-  { "filter-out", &FilterOutFunc, 2, 2, false, false },
-  { "sort", &SortFunc, 1, 1, false, false },
-  { "word", &WordFunc, 2, 2, false, false },
-  { "wordlist", &WordlistFunc, 3, 3, false, false },
-  { "words", &WordsFunc, 1, 1, false, false },
-  { "firstword", &FirstwordFunc, 1, 1, false, false },
-  { "lastword", &LastwordFunc, 1, 1, false, false },
+    {"patsubst", &PatsubstFunc, 3, 3, false, false},
+    {"strip", &StripFunc, 1, 1, false, false},
+    {"subst", &SubstFunc, 3, 3, false, false},
+    {"findstring", &FindstringFunc, 2, 2, false, false},
+    {"filter", &FilterFunc, 2, 2, false, false},
+    {"filter-out", &FilterOutFunc, 2, 2, false, false},
+    {"sort", &SortFunc, 1, 1, false, false},
+    {"word", &WordFunc, 2, 2, false, false},
+    {"wordlist", &WordlistFunc, 3, 3, false, false},
+    {"words", &WordsFunc, 1, 1, false, false},
+    {"firstword", &FirstwordFunc, 1, 1, false, false},
+    {"lastword", &LastwordFunc, 1, 1, false, false},
 
-  { "join", &JoinFunc, 2, 2, false, false },
-  { "wildcard", &WildcardFunc, 1, 1, false, false },
-  { "dir", &DirFunc, 1, 1, false, false },
-  { "notdir", &NotdirFunc, 1, 1, false, false },
-  { "suffix", &SuffixFunc, 1, 1, false, false },
-  { "basename", &BasenameFunc, 1, 1, false, false },
-  { "addsuffix", &AddsuffixFunc, 2, 2, false, false },
-  { "addprefix", &AddprefixFunc, 2, 2, false, false },
-  { "realpath", &RealpathFunc, 1, 1, false, false },
-  { "abspath", &AbspathFunc, 1, 1, false, false },
+    {"join", &JoinFunc, 2, 2, false, false},
+    {"wildcard", &WildcardFunc, 1, 1, false, false},
+    {"dir", &DirFunc, 1, 1, false, false},
+    {"notdir", &NotdirFunc, 1, 1, false, false},
+    {"suffix", &SuffixFunc, 1, 1, false, false},
+    {"basename", &BasenameFunc, 1, 1, false, false},
+    {"addsuffix", &AddsuffixFunc, 2, 2, false, false},
+    {"addprefix", &AddprefixFunc, 2, 2, false, false},
+    {"realpath", &RealpathFunc, 1, 1, false, false},
+    {"abspath", &AbspathFunc, 1, 1, false, false},
 
-  { "if", &IfFunc, 3, 2, false, true },
-  { "and", &AndFunc, 0, 0, true, false },
-  { "or", &OrFunc, 0, 0, true, false },
+    {"if", &IfFunc, 3, 2, false, true},
+    {"and", &AndFunc, 0, 0, true, false},
+    {"or", &OrFunc, 0, 0, true, false},
 
-  { "value", &ValueFunc, 1, 1, false, false },
-  { "eval", &EvalFunc, 1, 1, false, false },
-  { "shell", &ShellFunc, 1, 1, false, false },
-  { "call", &CallFunc, 0, 0, false, false },
-  { "foreach", &ForeachFunc, 3, 3, false, false },
+    {"value", &ValueFunc, 1, 1, false, false},
+    {"eval", &EvalFunc, 1, 1, false, false},
+    {"shell", &ShellFunc, 1, 1, false, false},
+    {"call", &CallFunc, 0, 0, false, false},
+    {"foreach", &ForeachFunc, 3, 3, false, false},
 
-  { "origin", &OriginFunc, 1, 1, false, false },
-  { "flavor", &FlavorFunc, 1, 1, false, false },
+    {"origin", &OriginFunc, 1, 1, false, false},
+    {"flavor", &FlavorFunc, 1, 1, false, false},
 
-  { "info", &InfoFunc, 1, 1, false, false },
-  { "warning", &WarningFunc, 1, 1, false, false },
-  { "error", &ErrorFunc, 1, 1, false, false },
+    {"info", &InfoFunc, 1, 1, false, false},
+    {"warning", &WarningFunc, 1, 1, false, false},
+    {"error", &ErrorFunc, 1, 1, false, false},
 
-  { "file", &FileFunc, 2, 1, false, false },
+    {"file", &FileFunc, 2, 1, false, false},
 
-  /* Kati custom extension functions */
-  { "KATI_deprecated_var", &DeprecatedVarFunc, 2, 1, false, false },
-  { "KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false },
+    /* Kati custom extension functions */
+    {"KATI_deprecated_var", &DeprecatedVarFunc, 2, 1, false, false},
+    {"KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false},
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;

@@ -34,7 +34,7 @@ enum struct AssignOp {
   QUESTION_EQ,
 };
 
-enum struct AssignDirective  {
+enum struct AssignDirective {
   NONE = 0,
   OVERRIDE = 1,
   EXPORT = 2,
@@ -86,9 +86,7 @@ struct AssignStmt : public Stmt {
   AssignOp op;
   AssignDirective directive;
 
-  AssignStmt()
-      : lhs_sym_cache_(Symbol::IsUninitialized{}) {
-  }
+  AssignStmt() : lhs_sym_cache_(Symbol::IsUninitialized{}) {}
   virtual ~AssignStmt();
 
   virtual void Eval(Evaluator* ev) const;

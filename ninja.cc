@@ -200,8 +200,7 @@ class NinjaGenerator {
       delete nn;
   }
 
-  void Generate(const vector<DepNode*>& nodes,
-                const string& orig_args) {
+  void Generate(const vector<DepNode*>& nodes, const string& orig_args) {
     unlink(GetNinjaStampFilename().c_str());
     PopulateNinjaNodes(nodes);
     GenerateNinja();
@@ -293,7 +292,7 @@ class NinjaGenerator {
 
         case '\n':
           if (prev_backslash) {
-            cmd_buf->resize(cmd_buf->size()-1);
+            cmd_buf->resize(cmd_buf->size() - 1);
           } else {
             *cmd_buf += ' ';
           }
@@ -317,11 +316,11 @@ class NinjaGenerator {
     }
 
     if (prev_backslash) {
-      cmd_buf->resize(cmd_buf->size()-1);
+      cmd_buf->resize(cmd_buf->size() - 1);
     }
 
     while (true) {
-      char c = (*cmd_buf)[cmd_buf->size()-1];
+      char c = (*cmd_buf)[cmd_buf->size() - 1];
       if (!isspace(c) && c != ';')
         break;
       cmd_buf->resize(cmd_buf->size() - 1);
@@ -331,7 +330,7 @@ class NinjaGenerator {
                        cmd_buf->size() - orig_size);
   }
 
-  bool IsOutputMkdir(const char *name, StringPiece cmd) {
+  bool IsOutputMkdir(const char* name, StringPiece cmd) {
     if (!HasPrefix(cmd, "mkdir -p ")) {
       return false;
     }
@@ -347,7 +346,7 @@ class NinjaGenerator {
     return false;
   }
 
-  bool GetDescriptionFromCommand(StringPiece cmd, string *out) {
+  bool GetDescriptionFromCommand(StringPiece cmd, string* out) {
     if (!HasPrefix(cmd, "echo ")) {
       return false;
     }
@@ -373,21 +372,21 @@ class NinjaGenerator {
         }
       } else {
         switch (*in) {
-        case '\'':
-        case '"':
-        case '`':
-          quote = *in;
-          break;
+          case '\'':
+          case '"':
+          case '`':
+            quote = *in;
+            break;
 
-        case '<':
-        case '>':
-        case '&':
-        case '|':
-        case ';':
-          return false;
+          case '<':
+          case '>':
+          case '&':
+          case '|':
+          case ';':
+            return false;
 
-        default:
-          out_buf += *in;
+          default:
+            out_buf += *in;
         }
       }
     }
@@ -396,7 +395,7 @@ class NinjaGenerator {
     return true;
   }
 
-  bool GenShellScript(const char *name,
+  bool GenShellScript(const char* name,
                       const vector<Command*>& commands,
                       string* cmd_buf,
                       string* description) {
@@ -450,8 +449,8 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += " )";
     }
-    return (use_goma_ || g_flags.remote_num_jobs ||
-            g_flags.goma_dir) && !use_gomacc;
+    return (use_goma_ || g_flags.remote_num_jobs || g_flags.goma_dir) &&
+           !use_gomacc;
   }
 
   bool GetDepfile(const DepNode* node, string* cmd_buf, string* depfile) {
@@ -464,7 +463,7 @@ class NinjaGenerator {
 
     *cmd_buf += ' ';
     bool result = GetDepfileFromCommand(cmd_buf, depfile);
-    cmd_buf->resize(cmd_buf->size()-1);
+    cmd_buf->resize(cmd_buf->size() - 1);
     return result;
   }
 
@@ -487,8 +486,8 @@ class NinjaGenerator {
       return;
     }
     if (g_flags.enable_debug) {
-      *o << "# " << (node->loc.filename ? node->loc.filename : "(null)")
-         << ':' << node->loc.lineno << "\n";
+      *o << "# " << (node->loc.filename ? node->loc.filename : "(null)") << ':'
+         << node->loc.lineno << "\n";
     }
     if (!commands.empty()) {
       rule_name = StringPrintf("rule%d", nn->rule_id);
@@ -496,8 +495,8 @@ class NinjaGenerator {
 
       string description = "build $out";
       string cmd_buf;
-      use_local_pool |= GenShellScript(node->output.c_str(), commands,
-                                       &cmd_buf, &description);
+      use_local_pool |= GenShellScript(node->output.c_str(), commands, &cmd_buf,
+                                       &description);
       *o << " description = " << description << "\n";
       EmitDepfile(nn, &cmd_buf, o);
 
@@ -509,8 +508,8 @@ class NinjaGenerator {
         *o << " command = " << shell_ << " $out.rsp\n";
       } else {
         EscapeShell(&cmd_buf);
-        *o << " command = " << shell_ << ' ' << shell_flags_
-           << " \"" << cmd_buf << "\"\n";
+        *o << " command = " << shell_ << ' ' << shell_flags_ << " \"" << cmd_buf
+           << "\"\n";
       }
       if (node->is_restat) {
         *o << " restat = 1\n";
@@ -530,7 +529,7 @@ class NinjaGenerator {
         case ':':
         case ' ':
           r += '$';
-          // fall through.
+        // fall through.
         default:
           r += c;
       }
@@ -538,12 +537,12 @@ class NinjaGenerator {
     return r;
   }
 
-  string EscapeBuildTarget(Symbol s) const {
-    return EscapeNinja(s.str());
-  }
+  string EscapeBuildTarget(Symbol s) const { return EscapeNinja(s.str()); }
 
-  void EmitBuild(NinjaNode* nn, const string& rule_name,
-                 bool use_local_pool, ostringstream* o) {
+  void EmitBuild(NinjaNode* nn,
+                 const string& rule_name,
+                 bool use_local_pool,
+                 ostringstream* o) {
     const DepNode* node = nn->node;
     string target = EscapeBuildTarget(node->output);
     *o << "build " << target;
@@ -581,9 +580,7 @@ class NinjaGenerator {
     }
   }
 
-  static string GetEnvScriptFilename() {
-    return GetFilename("env%s.sh");
-  }
+  static string GetEnvScriptFilename() { return GetFilename("env%s.sh"); }
 
   void GenerateNinja() {
     ScopedTimeReporter tr("ninja gen (emit)");
@@ -618,12 +615,12 @@ class NinjaGenerator {
     vector<ostringstream> bufs(num_tasks);
     for (int i = 0; i < num_tasks; i++) {
       tp->Submit([this, i, num_nodes_per_task, &bufs]() {
-          int l = min(num_nodes_per_task * (i + 1),
-                      static_cast<int>(nodes_.size()));
-          for (int j = num_nodes_per_task * i; j < l; j++) {
-            EmitNode(nodes_[j], &bufs[i]);
-          }
-        });
+        int l =
+            min(num_nodes_per_task * (i + 1), static_cast<int>(nodes_.size()));
+        for (int j = num_nodes_per_task * i; j < l; j++) {
+          EmitNode(nodes_[j], &bufs[i]);
+        }
+      });
     }
     tp->Wait();
 

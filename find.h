@@ -62,8 +62,10 @@ class FindEmulator {
  public:
   virtual ~FindEmulator() = default;
 
-  virtual bool HandleFind(const string& cmd, const FindCommand& fc,
-                          const Loc& loc, string* out) = 0;
+  virtual bool HandleFind(const string& cmd,
+                          const FindCommand& fc,
+                          const Loc& loc,
+                          string* out) = 0;
 
   static FindEmulator* Get();
 

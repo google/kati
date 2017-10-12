@@ -33,8 +33,7 @@ DEFINE_THREAD_LOCAL(double, g_start_time);
 
 }  // namespace
 
-Stats::Stats(const char* name)
-    : name_(name), elapsed_(0), cnt_(0) {
+Stats::Stats(const char* name) : name_(name), elapsed_(0), cnt_(0) {
   unique_lock<mutex> lock(g_mu);
   if (g_stats == NULL)
     g_stats = new vector<Stats*>;

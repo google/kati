@@ -50,12 +50,12 @@ class ScopedStatsRecorder {
 
 void ReportAllStats();
 
-#define COLLECT_STATS(name)                     \
-  static Stats stats(name);                     \
+#define COLLECT_STATS(name) \
+  static Stats stats(name); \
   ScopedStatsRecorder ssr(&stats)
 
-#define COLLECT_STATS_WITH_SLOW_REPORT(name, msg)       \
-  static Stats stats(name);                             \
+#define COLLECT_STATS_WITH_SLOW_REPORT(name, msg) \
+  static Stats stats(name);                       \
   ScopedStatsRecorder ssr(&stats, msg)
 
 #endif  // STATS_H_

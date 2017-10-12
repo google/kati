@@ -44,9 +44,7 @@ const double kProcessing = -1.0;
 
 class Executor {
  public:
-  explicit Executor(Evaluator* ev)
-      : ce_(ev),
-        num_commands_(0) {
+  explicit Executor(Evaluator* ev) : ce_(ev), num_commands_(0) {
     shell_ = ev->GetShell();
     shellflag_ = ev->GetShellFlag();
   }
@@ -64,8 +62,7 @@ class Executor {
     done_[n->output] = kProcessing;
     double output_ts = GetTimestamp(n->output.c_str());
 
-    LOG("ExecNode: %s for %s",
-        n->output.c_str(),
+    LOG("ExecNode: %s for %s", n->output.c_str(),
         needed_by ? needed_by->output.c_str() : "(null)");
 
     if (!n->has_rule && output_ts == kNotExist && !n->is_phony) {
@@ -108,18 +105,16 @@ class Executor {
       }
       if (!g_flags.is_dry_run) {
         string out;
-        int result = RunCommand(shell_, shellflag_,
-                                command->cmd.c_str(),
-                                RedirectStderr::STDOUT,
-                                &out);
+        int result = RunCommand(shell_, shellflag_, command->cmd.c_str(),
+                                RedirectStderr::STDOUT, &out);
         printf("%s", out.c_str());
         if (result != 0) {
           if (command->ignore_error) {
             fprintf(stderr, "[%s] Error %d (ignored)\n",
                     command->output.c_str(), WEXITSTATUS(result));
           } else {
-            fprintf(stderr, "*** [%s] Error %d\n",
-                    command->output.c_str(), WEXITSTATUS(result));
+            fprintf(stderr, "*** [%s] Error %d\n", command->output.c_str(),
+                    WEXITSTATUS(result));
             exit(1);
           }
         }
@@ -131,9 +126,7 @@ class Executor {
     return output_ts;
   }
 
-  uint64_t Count() {
-    return num_commands_;
-  }
+  uint64_t Count() { return num_commands_; }
 
  private:
   CommandEvaluator ce_;

@@ -20,11 +20,8 @@
 #include "stringprintf.h"
 
 struct Loc {
-  Loc()
-      : filename(0), lineno(-1) {}
-  Loc(const char* f, int l)
-      : filename(f), lineno(l) {
-  }
+  Loc() : filename(0), lineno(-1) {}
+  Loc(const char* f, int l) : filename(f), lineno(l) {}
 
   const char* filename;
   int lineno;

@@ -31,9 +31,7 @@ bool LoadString(FILE* fp, string* s);
 
 struct ScopedFile {
  public:
-  explicit ScopedFile(FILE* fp)
-      : fp_(fp) {
-  }
+  explicit ScopedFile(FILE* fp) : fp_(fp) {}
 
   ~ScopedFile() {
     if (fp_)

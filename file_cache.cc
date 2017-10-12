@@ -32,9 +32,7 @@ MakefileCacheManager* MakefileCacheManager::Get() {
 
 class MakefileCacheManagerImpl : public MakefileCacheManager {
  public:
-  MakefileCacheManagerImpl() {
-    g_instance = this;
-  }
+  MakefileCacheManagerImpl() { g_instance = this; }
 
   virtual ~MakefileCacheManagerImpl() {
     for (auto p : cache_) {
@@ -58,7 +56,7 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
       out->insert(p.first);
   }
 
-private:
+ private:
   unordered_map<string, Makefile*> cache_;
 };
 

@@ -35,12 +35,13 @@
 
 namespace {
 
-#define RETURN_TRUE do {                        \
-      if (g_flags.dump_kati_stamp)              \
-        needs_regen_ = true;                    \
-      else                                      \
-        return true;                            \
-    } while (0)
+#define RETURN_TRUE              \
+  do {                           \
+    if (g_flags.dump_kati_stamp) \
+      needs_regen_ = true;       \
+    else                         \
+      return true;               \
+  } while (0)
 
 bool ShouldIgnoreDirty(StringPiece s) {
   Pattern pat(g_flags.ignore_dirty_pattern);
@@ -66,9 +67,7 @@ class StampChecker {
   };
 
  public:
-  StampChecker()
-      : needs_regen_(false) {
-  }
+  StampChecker() : needs_regen_(false) {}
 
   ~StampChecker() {
     for (GlobResult* gr : globs_) {
@@ -118,21 +117,23 @@ class StampChecker {
   }
 
   bool CheckStep1(const string& orig_args) {
-#define LOAD_INT(fp) ({                                                 \
-        int v = LoadInt(fp);                                            \
-        if (v < 0) {                                                    \
-          fprintf(stderr, "incomplete kati_stamp, regenerating...\n");  \
-          RETURN_TRUE;                                                  \
-        }                                                               \
-        v;                                                              \
-      })
+#define LOAD_INT(fp)                                               \
+  ({                                                               \
+    int v = LoadInt(fp);                                           \
+    if (v < 0) {                                                   \
+      fprintf(stderr, "incomplete kati_stamp, regenerating...\n"); \
+      RETURN_TRUE;                                                 \
+    }                                                              \
+    v;                                                             \
+  })
 
-#define LOAD_STRING(fp, s) ({                                           \
-        if (!LoadString(fp, s)) {                                       \
-          fprintf(stderr, "incomplete kati_stamp, regenerating...\n");  \
-          RETURN_TRUE;                                                  \
-        }                                                               \
-      })
+#define LOAD_STRING(fp, s)                                         \
+  ({                                                               \
+    if (!LoadString(fp, s)) {                                      \
+      fprintf(stderr, "incomplete kati_stamp, regenerating...\n"); \
+      RETURN_TRUE;                                                 \
+    }                                                              \
+  })
 
     const string& stamp_filename = GetNinjaStampFilename();
     FILE* fp = fopen(stamp_filename.c_str(), "rb");
@@ -205,10 +206,11 @@ class StampChecker {
       LOAD_STRING(fp, &s2);
       if (val != s2) {
         if (g_flags.dump_kati_stamp) {
-          printf("env %s: dirty (%s => %.*s)\n",
-                 s.c_str(), s2.c_str(), SPF(val));
+          printf("env %s: dirty (%s => %.*s)\n", s.c_str(), s2.c_str(),
+                 SPF(val));
         } else {
-          fprintf(stderr, "Environment variable %s was modified (%s => %.*s), "
+          fprintf(stderr,
+                  "Environment variable %s was modified (%s => %.*s), "
                   "regenerating...\n",
                   s.c_str(), s2.c_str(), SPF(val));
         }
@@ -369,7 +371,8 @@ class StampChecker {
     }
 
     if (sr->op == CommandOp::WRITE || sr->op == CommandOp::APPEND) {
-      FILE* f = fopen(sr->cmd.c_str(), (sr->op == CommandOp::WRITE) ? "wb" : "ab");
+      FILE* f =
+          fopen(sr->cmd.c_str(), (sr->op == CommandOp::WRITE) ? "wb" : "ab");
       if (f == NULL) {
         PERROR("fopen");
       }
@@ -394,8 +397,7 @@ class StampChecker {
     }
 
     FindCommand fc;
-    if (fc.Parse(sr->cmd) &&
-        !fc.chdir.empty() && ShouldIgnoreDirty(fc.chdir)) {
+    if (fc.Parse(sr->cmd) && !fc.chdir.empty() && ShouldIgnoreDirty(fc.chdir)) {
       if (g_flags.dump_kati_stamp)
         printf("shell %s: ignored\n", sr->cmd.c_str());
       return false;
@@ -403,7 +405,8 @@ class StampChecker {
 
     COLLECT_STATS_WITH_SLOW_REPORT("shell time (regen)", sr->cmd.c_str());
     string result;
-    RunCommand(sr->shell, sr->shellflag, sr->cmd, RedirectStderr::DEV_NULL, &result);
+    RunCommand(sr->shell, sr->shellflag, sr->cmd, RedirectStderr::DEV_NULL,
+               &result);
     FormatForCommandSubstitution(&result);
     if (sr->result != result) {
       if (g_flags.dump_kati_stamp) {
@@ -424,32 +427,32 @@ class StampChecker {
     unique_ptr<ThreadPool> tp(NewThreadPool(g_flags.num_jobs));
 
     tp->Submit([this]() {
-        string err;
-        // TODO: Make glob cache thread safe and create a task for each glob.
-        for (GlobResult* gr : globs_) {
-          if (CheckGlobResult(gr, &err)) {
-            unique_lock<mutex> lock(mu_);
-            if (!needs_regen_) {
-              needs_regen_ = true;
-              msg_ = err;
-            }
-            break;
+      string err;
+      // TODO: Make glob cache thread safe and create a task for each glob.
+      for (GlobResult* gr : globs_) {
+        if (CheckGlobResult(gr, &err)) {
+          unique_lock<mutex> lock(mu_);
+          if (!needs_regen_) {
+            needs_regen_ = true;
+            msg_ = err;
           }
+          break;
         }
-      });
+      }
+    });
 
     tp->Submit([this]() {
-        for (ShellResult* sr : commands_) {
-          string err;
-          if (CheckShellResult(sr, &err)) {
-            unique_lock<mutex> lock(mu_);
-            if (!needs_regen_) {
-              needs_regen_ = true;
-              msg_ = err;
-            }
+      for (ShellResult* sr : commands_) {
+        string err;
+        if (CheckShellResult(sr, &err)) {
+          unique_lock<mutex> lock(mu_);
+          if (!needs_regen_) {
+            needs_regen_ = true;
+            msg_ = err;
           }
         }
-      });
+      }
+    });
 
     tp->Wait();
     if (needs_regen_) {

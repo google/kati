@@ -33,8 +33,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  FILE *fp = fopen(argv[1], "rb");
-  if(!fp)
+  FILE* fp = fopen(argv[1], "rb");
+  if (!fp)
     PERROR("fopen");
 
   ScopedFile sfp(fp);

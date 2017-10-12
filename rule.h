@@ -48,9 +48,7 @@ class Rule {
   int cmd_lineno;
 
  private:
-  void Error(const string& msg) {
-    ERROR_LOC(loc, "%s", msg.c_str());
-  }
+  void Error(const string& msg) { ERROR_LOC(loc, "%s", msg.c_str()); }
 };
 
 struct RuleVarAssignment {
@@ -64,8 +62,11 @@ struct RuleVarAssignment {
 // after the terminator |term| is needed (this happens only when
 // |term| is '='), |after_term_fn| will be called to obtain the right
 // hand side.
-void ParseRule(Loc& loc, StringPiece line, char term,
-               const function<string()> &after_term_fn,
-               Rule** rule, RuleVarAssignment* rule_var);
+void ParseRule(Loc& loc,
+               StringPiece line,
+               char term,
+               const function<string()>& after_term_fn,
+               Rule** rule,
+               RuleVarAssignment* rule_var);
 
 #endif  // RULE_H_

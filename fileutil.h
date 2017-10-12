@@ -36,8 +36,10 @@ enum struct RedirectStderr {
   DEV_NULL,
 };
 
-int RunCommand(const string& shell, const string& shellflag,
-               const string& cmd, RedirectStderr redirect_stderr,
+int RunCommand(const string& shell,
+               const string& shellflag,
+               const string& cmd,
+               RedirectStderr redirect_stderr,
                string* out);
 
 void GetExecutablePath(string* path);
@@ -48,12 +50,13 @@ const unordered_map<string, vector<string>*>& GetAllGlobCache();
 
 void ClearGlobCache();
 
-#define HANDLE_EINTR(x) ({                                \
-      int r;                                              \
-      do {                                                \
-        r = (x);                                          \
-      } while (r == -1 && errno == EINTR);                \
-      r;                                                  \
-    })
+#define HANDLE_EINTR(x)                  \
+  ({                                     \
+    int r;                               \
+    do {                                 \
+      r = (x);                           \
+    } while (r == -1 && errno == EINTR); \
+    r;                                   \
+  })
 
 #endif  // FILEUTIL_H_
