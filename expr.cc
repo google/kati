@@ -52,7 +52,8 @@ class Literal : public Value {
 
   StringPiece val() const { return s_; }
 
-  virtual void Eval(Evaluator*, string* s) const override {
+  virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->CheckStack();
     s->append(s_.begin(), s_.end());
   }
 
@@ -79,6 +80,7 @@ class Expr : public Value {
   void AddValue(Value* v) { vals_.push_back(v); }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->CheckStack();
     for (Value* v : vals_) {
       v->Eval(ev, s);
     }
@@ -119,6 +121,7 @@ class SymRef : public Value {
   virtual ~SymRef() {}
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->CheckStack();
     Var* v = ev->LookupVar(name_);
     v->Used(ev, name_);
     v->Eval(ev, s);
@@ -138,6 +141,7 @@ class VarRef : public Value {
   virtual ~VarRef() { delete name_; }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->CheckStack();
     ev->IncrementEvalDepth();
     const string&& name = name_->Eval(ev);
     ev->DecrementEvalDepth();
@@ -166,6 +170,7 @@ class VarSubst : public Value {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->CheckStack();
     ev->IncrementEvalDepth();
     const string&& name = name_->Eval(ev);
     Symbol sym = Intern(name);
@@ -205,6 +210,7 @@ class Func : public Value {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ev->CheckStack();
     LOG("Invoke func %s(%s)", name(), JoinValues(args_, ",").c_str());
     ev->IncrementEvalDepth();
     fi_->func(args_, ev, s);

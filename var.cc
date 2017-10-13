@@ -59,7 +59,8 @@ SimpleVar::SimpleVar(VarOrigin origin) : origin_(origin) {}
 SimpleVar::SimpleVar(const string& v, VarOrigin origin)
     : v_(v), origin_(origin) {}
 
-void SimpleVar::Eval(Evaluator*, string* s) const {
+void SimpleVar::Eval(Evaluator* ev, string* s) const {
+  ev->CheckStack();
   *s += v_;
 }
 
@@ -82,10 +83,12 @@ RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, StringPiece orig)
     : v_(v), origin_(origin), orig_(orig) {}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
+  ev->CheckStack();
   v_->Eval(ev, s);
 }
 
-void RecursiveVar::AppendVar(Evaluator*, Value* v) {
+void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
+  ev->CheckStack();
   v_ = NewExpr3(v_, NewLiteral(" "), v);
 }
 

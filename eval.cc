@@ -17,6 +17,7 @@
 #include "eval.h"
 
 #include <errno.h>
+#include <pthread.h>
 #include <string.h>
 
 #include "expr.h"
@@ -37,7 +38,20 @@ Evaluator::Evaluator()
       eval_depth_(0),
       posix_sym_(Intern(".POSIX")),
       is_posix_(false),
-      kati_readonly_(Intern(".KATI_READONLY")) {}
+      kati_readonly_(Intern(".KATI_READONLY")) {
+#if defined(__APPLE__)
+  stack_size_ = pthread_get_stacksize_np(pthread_self());
+  stack_addr_ = (char*)pthread_get_stackaddr_np(pthread_self()) - stack_size_;
+#else
+  pthread_attr_t attr;
+  CHECK(pthread_getattr_np(pthread_self(), &attr) == 0);
+  CHECK(pthread_attr_getstack(&attr, &stack_addr_, &stack_size_) == 0);
+  CHECK(pthread_attr_destroy(&attr) == 0);
+#endif
+
+  lowest_stack_ = (char*)stack_addr_ + stack_size_;
+  LOG_STAT("Stack size: %zd bytes", stack_size_);
+}
 
 Evaluator::~Evaluator() {
   // delete vars_;
@@ -289,6 +303,8 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
 }
 
 void Evaluator::DoInclude(const string& fname) {
+  CheckStack();
+
   Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
   if (!mk->Exists()) {
     Error(StringPrintf("%s does not exist", fname.c_str()));
@@ -398,6 +414,12 @@ string Evaluator::GetShellAndFlag() {
 
 void Evaluator::Error(const string& msg) {
   ERROR_LOC(loc_, "%s", msg.c_str());
+}
+
+void Evaluator::DumpStackStats() const {
+  LOG_STAT("Max stack use: %zd bytes at %s:%d",
+           ((char*)stack_addr_ - (char*)lowest_stack_) + stack_size_,
+           LOCF(lowest_loc_));
 }
 
 unordered_set<Symbol> Evaluator::used_undefined_vars_;
