@@ -35,8 +35,7 @@ double GetTime() {
 }
 
 ScopedTimeReporter::ScopedTimeReporter(const char* name)
-    : name_(name), start_(GetTime()) {
-}
+    : name_(name), start_(GetTime()) {}
 
 ScopedTimeReporter::~ScopedTimeReporter() {
   double elapsed = GetTime() - start_;

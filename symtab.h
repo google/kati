@@ -30,17 +30,11 @@ class Var;
 class Symbol {
  public:
   struct IsUninitialized {};
-  explicit Symbol(IsUninitialized)
-    : v_(-1) {
-  }
+  explicit Symbol(IsUninitialized) : v_(-1) {}
 
-  const string& str() const {
-    return *((*g_symbols)[v_]);
-  }
+  const string& str() const { return *((*g_symbols)[v_]); }
 
-  const char* c_str() const {
-    return str().c_str();
-  }
+  const char* c_str() const { return str().c_str(); }
 
   bool empty() const { return !v_; }
 
@@ -56,7 +50,9 @@ class Symbol {
   bool IsValid() const { return v_ >= 0; }
 
   Var* GetGlobalVar() const;
-  void SetGlobalVar(Var* v, bool is_override = false, bool* readonly = nullptr) const;
+  void SetGlobalVar(Var* v,
+                    bool is_override = false,
+                    bool* readonly = nullptr) const;
 
  private:
   explicit Symbol(int v);
@@ -85,12 +81,11 @@ inline bool operator<(const Symbol& x, const Symbol& y) {
 }
 
 namespace std {
-template<> struct hash<Symbol> {
-  size_t operator()(const Symbol& s) const {
-    return s.val();
-  }
+template <>
+struct hash<Symbol> {
+  size_t operator()(const Symbol& s) const { return s.val(); }
 };
-}
+}  // namespace std
 
 extern Symbol kEmptySym;
 extern Symbol kShellSym;

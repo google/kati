@@ -14,9 +14,9 @@
 
 // +build ignore
 
-#include "fileutil.h"
 #include <benchmark/benchmark.h>
 #include <cstdio>
+#include "fileutil.h"
 
 static void BM_RunCommand(benchmark::State& state) {
   std::string shell = "/bin/bash";

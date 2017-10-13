@@ -16,8 +16,8 @@
 
 #include <limits.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -67,30 +67,30 @@ static void Quit() {
 
 static void ReadBootstrapMakefile(const vector<Symbol>& targets,
                                   vector<Stmt*>* stmts) {
-  string bootstrap = (
-      "CC?=cc\n"
+  string bootstrap =
+      ("CC?=cc\n"
 #if defined(__APPLE__)
-      "CXX?=c++\n"
+       "CXX?=c++\n"
 #else
-      "CXX?=g++\n"
+       "CXX?=g++\n"
 #endif
-      "AR?=ar\n"
-      // Pretend to be GNU make 3.81, for compatibility.
-      "MAKE_VERSION?=3.81\n"
-      "KATI?=ckati\n"
-      // Overwrite $SHELL environment variable.
-      "SHELL=/bin/sh\n"
-      // TODO: Add more builtin vars.
+       "AR?=ar\n"
+       // Pretend to be GNU make 3.81, for compatibility.
+       "MAKE_VERSION?=3.81\n"
+       "KATI?=ckati\n"
+       // Overwrite $SHELL environment variable.
+       "SHELL=/bin/sh\n"
+       // TODO: Add more builtin vars.
 
-      // http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
-      // The document above is actually not correct. See default.c:
-      // http://git.savannah.gnu.org/cgit/make.git/tree/default.c?id=4.1
-      ".c.o:\n"
-      "\t$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
-      ".cc.o:\n"
-      "\t$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
-      // TODO: Add more builtin rules.
-                      );
+       // http://www.gnu.org/software/make/manual/make.html#Catalogue-of-Rules
+       // The document above is actually not correct. See default.c:
+       // http://git.savannah.gnu.org/cgit/make.git/tree/default.c?id=4.1
+       ".c.o:\n"
+       "\t$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
+       ".cc.o:\n"
+       "\t$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c -o $@ $<\n"
+       // TODO: Add more builtin rules.
+      );
   if (g_flags.generate_ninja) {
     bootstrap += StringPrintf("MAKE?=make -j%d\n",
                               g_flags.num_jobs <= 1 ? 1 : g_flags.num_jobs / 2);
@@ -98,8 +98,8 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
     bootstrap += StringPrintf("MAKE?=%s\n",
                               JoinStrings(g_flags.subkati_args, " ").c_str());
   }
-  bootstrap += StringPrintf("MAKECMDGOALS?=%s\n",
-                            JoinSymbols(targets, " ").c_str());
+  bootstrap +=
+      StringPrintf("MAKECMDGOALS?=%s\n", JoinSymbols(targets, " ").c_str());
 
   char cwd[PATH_MAX];
   if (!getcwd(cwd, PATH_MAX)) {
@@ -143,8 +143,9 @@ static int Run(const vector<Symbol>& targets,
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
-  Intern("MAKEFILE_LIST").SetGlobalVar(
-      new SimpleVar(StringPrintf(" %s", g_flags.makefile), VarOrigin::FILE));
+  Intern("MAKEFILE_LIST")
+      .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
+                                  VarOrigin::FILE));
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT);
   }

@@ -35,60 +35,72 @@ extern string* g_last_error;
 #ifdef NOLOG
 #define LOG(args...)
 #else
-#define LOG(args...) do {                                           \
-    fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str());    \
-  } while(0)
+#define LOG(args...)                                             \
+  do {                                                           \
+    fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str()); \
+  } while (0)
 #endif
 
-#define LOG_STAT(args...) do {                                      \
-    if (g_flags.enable_stat_logs)                                   \
-      fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str());  \
-  } while(0)
-
-#define PLOG(...) do {                                              \
-    fprintf(stderr, "%s: %s\n", StringPrintf(__VA_ARGS__).c_str(),  \
-            strerror(errno));                                       \
+#define LOG_STAT(args...)                                          \
+  do {                                                             \
+    if (g_flags.enable_stat_logs)                                  \
+      fprintf(stderr, "*kati*: %s\n", StringPrintf(args).c_str()); \
   } while (0)
 
-#define PERROR(...) do {                                            \
-    PLOG(__VA_ARGS__);                                              \
-    exit(1);                                                        \
+#define PLOG(...)                                                  \
+  do {                                                             \
+    fprintf(stderr, "%s: %s\n", StringPrintf(__VA_ARGS__).c_str(), \
+            strerror(errno));                                      \
   } while (0)
 
-#define WARN(...) do {                                          \
+#define PERROR(...)    \
+  do {                 \
+    PLOG(__VA_ARGS__); \
+    exit(1);           \
+  } while (0)
+
+#define WARN(...)                                               \
+  do {                                                          \
     fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str()); \
   } while (0)
 
-#define KATI_WARN(...) do {                                             \
-    if (g_flags.enable_kati_warnings)                                   \
-      fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str());       \
+#define KATI_WARN(...)                                            \
+  do {                                                            \
+    if (g_flags.enable_kati_warnings)                             \
+      fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str()); \
   } while (0)
 
-#define ERROR(...) do {                                                 \
-    if (!g_log_no_exit) {                                               \
-      fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str());       \
-      exit(1);                                                          \
-    }                                                                   \
-    g_last_error = new string(StringPrintf(__VA_ARGS__));               \
+#define ERROR(...)                                                \
+  do {                                                            \
+    if (!g_log_no_exit) {                                         \
+      fprintf(stderr, "%s\n", StringPrintf(__VA_ARGS__).c_str()); \
+      exit(1);                                                    \
+    }                                                             \
+    g_last_error = new string(StringPrintf(__VA_ARGS__));         \
   } while (0)
 
-#define CHECK(c) if (!(c)) ERROR("%s:%d: %s", __FILE__, __LINE__, #c)
+#define CHECK(c) \
+  if (!(c))      \
+  ERROR("%s:%d: %s", __FILE__, __LINE__, #c)
 
 // Set of logging functions that will automatically colorize lines that have
 // location information when --color_warnings is set.
-void ColorWarnLog(const char* file, int line, const char *msg);
-void ColorErrorLog(const char* file, int line, const char *msg);
+void ColorWarnLog(const char* file, int line, const char* msg);
+void ColorErrorLog(const char* file, int line, const char* msg);
 
-#define WARN_LOC(loc, ...) do {                                 \
+#define WARN_LOC(loc, ...)                                      \
+  do {                                                          \
     ColorWarnLog(LOCF(loc), StringPrintf(__VA_ARGS__).c_str()); \
   } while (0)
 
-#define KATI_WARN_LOC(loc, ...) do {                                  \
+#define KATI_WARN_LOC(loc, ...)                                   \
+  do {                                                            \
     if (g_flags.enable_kati_warnings)                             \
       ColorWarnLog(LOCF(loc), StringPrintf(__VA_ARGS__).c_str()); \
-  } while(0)
+  } while (0)
 
-#define ERROR_LOC(loc, ...) do {                                 \
+#define ERROR_LOC(loc, ...)                                      \
+  do {                                                           \
     ColorErrorLog(LOCF(loc), StringPrintf(__VA_ARGS__).c_str()); \
   } while (0)
 

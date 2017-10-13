@@ -36,8 +36,10 @@ static bool isSpace(char c) {
 }
 
 #ifdef __SSE4_2__
-static int SkipUntilSSE42(const char* s, int len,
-                          const char* ranges, int ranges_size) {
+static int SkipUntilSSE42(const char* s,
+                          int len,
+                          const char* ranges,
+                          int ranges_size) {
   __m128i ranges16 = _mm_loadu_si128((const __m128i*)ranges);
   len &= ~15;
   int i = 0;
@@ -56,8 +58,10 @@ static int SkipUntilSSE42(const char* s, int len,
 #endif
 
 template <typename Cond>
-static int SkipUntil(const char* s, int len,
-                     const char* ranges UNUSED, int ranges_size UNUSED,
+static int SkipUntil(const char* s,
+                     int len,
+                     const char* ranges UNUSED,
+                     int ranges_size UNUSED,
                      Cond cond) {
   int i = 0;
 #ifdef __SSE4_2__
@@ -95,9 +99,7 @@ StringPiece WordScanner::Iterator::operator*() const {
   return in->substr(s, i - s);
 }
 
-WordScanner::WordScanner(StringPiece in)
-    : in_(in) {
-}
+WordScanner::WordScanner(StringPiece in) : in_(in) {}
 
 WordScanner::Iterator WordScanner::begin() const {
   Iterator iter;
@@ -121,10 +123,7 @@ void WordScanner::Split(vector<StringPiece>* o) {
     o->push_back(t);
 }
 
-WordWriter::WordWriter(string* o)
-    : out_(o),
-      needs_space_(false) {
-}
+WordWriter::WordWriter(string* o) : out_(o), needs_space_(false) {}
 
 void WordWriter::MaybeAddWhitespace() {
   if (needs_space_) {
@@ -139,8 +138,7 @@ void WordWriter::Write(StringPiece s) {
   AppendString(s, out_);
 }
 
-ScopedTerminator::ScopedTerminator(StringPiece s)
-    : s_(s), c_(s[s.size()]) {
+ScopedTerminator::ScopedTerminator(StringPiece s) : s_(s), c_(s[s.size()]) {
   const_cast<char*>(s_.data())[s_.size()] = '\0';
 }
 
@@ -166,7 +164,7 @@ bool HasWord(StringPiece str, StringPiece w) {
   size_t found = str.find(w);
   if (found == string::npos)
     return false;
-  if (found != 0 && !isSpace(str[found-1]))
+  if (found != 0 && !isSpace(str[found - 1]))
     return false;
   size_t end = found + w.size();
   if (end != str.size() && !isSpace(str[end]))
@@ -188,9 +186,7 @@ StringPiece TrimSuffix(StringPiece str, StringPiece suffix) {
   return str.substr(0, size_diff);
 }
 
-Pattern::Pattern(StringPiece pat)
-    : pat_(pat), percent_index_(pat.find('%')) {
-}
+Pattern::Pattern(StringPiece pat) : pat_(pat), percent_index_(pat.find('%')) {}
 
 bool Pattern::Match(StringPiece str) const {
   if (percent_index_ == string::npos)
@@ -210,7 +206,8 @@ StringPiece Pattern::Stem(StringPiece str) const {
                     str.size() - (pat_.size() - percent_index_ - 1));
 }
 
-void Pattern::AppendSubst(StringPiece str, StringPiece subst,
+void Pattern::AppendSubst(StringPiece str,
+                          StringPiece subst,
                           string* out) const {
   if (percent_index_ == string::npos) {
     if (str == pat_) {
@@ -229,8 +226,8 @@ void Pattern::AppendSubst(StringPiece str, StringPiece subst,
       return;
     } else {
       AppendString(subst.substr(0, subst_percent_index), out);
-      AppendString(str.substr(percent_index_,
-                              str.size() - pat_.size() + 1), out);
+      AppendString(str.substr(percent_index_, str.size() - pat_.size() + 1),
+                   out);
       AppendString(subst.substr(subst_percent_index + 1), out);
       return;
     }
@@ -238,7 +235,8 @@ void Pattern::AppendSubst(StringPiece str, StringPiece subst,
   AppendString(str, out);
 }
 
-void Pattern::AppendSubstRef(StringPiece str, StringPiece subst,
+void Pattern::AppendSubstRef(StringPiece str,
+                             StringPiece subst,
                              string* out) const {
   if (percent_index_ != string::npos && subst.find('%') != string::npos) {
     AppendSubst(str, subst, out);
@@ -266,7 +264,7 @@ StringPiece TrimLeftSpace(StringPiece s) {
   for (; i < s.size(); i++) {
     if (isSpace(s[i]))
       continue;
-    char n = s.get(i+1);
+    char n = s.get(i + 1);
     if (s[i] == '\\' && (n == '\r' || n == '\n')) {
       i++;
       continue;
@@ -372,7 +370,7 @@ void NormalizePath(string* o) {
     }
     prev_start = j;
   }
-  if (j > 1 && (*o)[j-1] == '/')
+  if (j > 1 && (*o)[j - 1] == '/')
     j--;
   o->resize(j);
 }
@@ -395,7 +393,7 @@ void AbsPath(StringPiece s, string* o) {
   NormalizePath(o);
 }
 
-template<typename Cond>
+template <typename Cond>
 size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
   bool prev_backslash = false;
   stack<char> paren_stack;
@@ -425,19 +423,17 @@ size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
 }
 
 size_t FindOutsideParen(StringPiece s, char c) {
-  return FindOutsideParenImpl(s, [&c](char d){return c == d;});
+  return FindOutsideParenImpl(s, [&c](char d) { return c == d; });
 }
 
 size_t FindTwoOutsideParen(StringPiece s, char c1, char c2) {
-  return FindOutsideParenImpl(s, [&c1, &c2](char d){
-      return d == c1 || d == c2;
-    });
+  return FindOutsideParenImpl(
+      s, [&c1, &c2](char d) { return d == c1 || d == c2; });
 }
 
 size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
-  return FindOutsideParenImpl(s, [&c1, &c2, &c3](char d){
-      return d == c1 || d == c2 || d == c3;
-    });
+  return FindOutsideParenImpl(
+      s, [&c1, &c2, &c3](char d) { return d == c1 || d == c2 || d == c3; });
 }
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
@@ -453,13 +449,13 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
     if (c == '\0')
       break;
     if (c == '\\') {
-      if (s[e+1] == '\n') {
+      if (s[e + 1] == '\n') {
         e += 2;
         ++*lf_cnt;
-      } else if (s[e+1] == '\r' && s[e+2] == '\n') {
+      } else if (s[e + 1] == '\r' && s[e + 2] == '\n') {
         e += 3;
         ++*lf_cnt;
-      } else if (s[e+1] == '\\') {
+      } else if (s[e + 1] == '\\') {
         e += 2;
       } else {
         e++;
@@ -479,7 +475,7 @@ StringPiece TrimLeadingCurdir(StringPiece s) {
 }
 
 void FormatForCommandSubstitution(string* s) {
-  while ((*s)[s->size()-1] == '\n')
+  while ((*s)[s->size() - 1] == '\n')
     s->pop_back();
   for (size_t i = 0; i < s->size(); i++) {
     if ((*s)[i] == '\n')
@@ -507,11 +503,11 @@ string ConcatDir(StringPiece b, StringPiece n) {
   return r;
 }
 
-string EchoEscape(const string &str) {
-  const char *in = str.c_str();
+string EchoEscape(const string& str) {
+  const char* in = str.c_str();
   string buf;
   for (; *in; in++) {
-    switch(*in) {
+    switch (*in) {
       case '\\':
         buf += "\\\\\\\\";
         break;
@@ -545,7 +541,7 @@ void EscapeShell(string* s) {
     char c = (*s)[i];
     r += '\\';
     if (c == '$') {
-      if ((*s)[i+1] == '$') {
+      if ((*s)[i + 1] == '$') {
         r += '$';
         i++;
       }

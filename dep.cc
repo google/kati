@@ -73,9 +73,7 @@ void ApplyOutputPattern(const Rule& r,
 
 class RuleTrie {
   struct Entry {
-    Entry(const Rule* r, StringPiece s)
-        : rule(r), suffix(s) {
-    }
+    Entry(const Rule* r, StringPiece s) : rule(r), suffix(s) {}
     const Rule* rule;
     StringPiece suffix;
   };
@@ -127,7 +125,6 @@ class RuleTrie {
   unordered_map<char, RuleTrie*> children_;
 };
 
-
 bool IsSuffixRule(Symbol output) {
   if (output.empty() || output.str()[0] != '.')
     return false;
@@ -136,7 +133,7 @@ bool IsSuffixRule(Symbol output) {
   // If there is only a single dot or the third dot, this is not a
   // suffix rule.
   if (dot_index == string::npos ||
-      rest.substr(dot_index+1).find('.') != string::npos) {
+      rest.substr(dot_index + 1).find('.') != string::npos) {
     return false;
   }
   return true;
@@ -154,23 +151,27 @@ struct RuleMerger {
       : primary_rule(nullptr),
         parent(nullptr),
         parent_sym(Symbol::IsUninitialized()),
-        is_double_colon(false) {
-  }
+        is_double_colon(false) {}
 
-  void AddImplicitOutput(Symbol output, RuleMerger *merger) {
+  void AddImplicitOutput(Symbol output, RuleMerger* merger) {
     implicit_outputs.push_back(make_pair(output, merger));
   }
 
   void SetImplicitOutput(Symbol output, Symbol p, const RuleMerger* merger) {
     if (!merger->primary_rule) {
-      ERROR("*** implicit output `%s' on phony target `%s'", output.c_str(), p.c_str());
+      ERROR("*** implicit output `%s' on phony target `%s'", output.c_str(),
+            p.c_str());
     }
     if (parent) {
-      ERROR_LOC(merger->primary_rule->cmd_loc(), "*** implicit output `%s' of `%s' was already defined by `%s' at %s:%d",
-                output.c_str(), p.c_str(), parent_sym.c_str(), parent->primary_rule->cmd_loc());
+      ERROR_LOC(merger->primary_rule->cmd_loc(),
+                "*** implicit output `%s' of `%s' was already defined by `%s' "
+                "at %s:%d",
+                output.c_str(), p.c_str(), parent_sym.c_str(),
+                parent->primary_rule->cmd_loc());
     }
     if (primary_rule) {
-      ERROR_LOC(primary_rule->cmd_loc(), "*** implicit output `%s' may not have commands",
+      ERROR_LOC(primary_rule->cmd_loc(),
+                "*** implicit output `%s' may not have commands",
                 output.c_str());
     }
     parent = merger;
@@ -185,15 +186,15 @@ struct RuleMerger {
                 output.c_str());
     }
 
-    if (primary_rule && !r->cmds.empty() &&
-        !IsSuffixRule(output) && !r->is_double_colon) {
+    if (primary_rule && !r->cmds.empty() && !IsSuffixRule(output) &&
+        !r->is_double_colon) {
       if (g_flags.werror_overriding_commands) {
         ERROR_LOC(r->cmd_loc(),
-                  "*** overriding commands for target `%s', previously defined at %s:%d",
+                  "*** overriding commands for target `%s', previously defined "
+                  "at %s:%d",
                   output.c_str(), LOCF(primary_rule->cmd_loc()));
       } else {
-        WARN_LOC(r->cmd_loc(),
-                 "warning: overriding commands for target `%s'",
+        WARN_LOC(r->cmd_loc(), "warning: overriding commands for target `%s'",
                  output.c_str());
         WARN_LOC(primary_rule->cmd_loc(),
                  "warning: ignoring old commands for target `%s'",
@@ -208,9 +209,7 @@ struct RuleMerger {
     rules.push_back(r);
   }
 
-  void FillDepNodeFromRule(Symbol output,
-                           const Rule* r,
-                           DepNode* n) const {
+  void FillDepNodeFromRule(Symbol output, const Rule* r, DepNode* n) const {
     if (is_double_colon)
       copy(r->cmds.begin(), r->cmds.end(), back_inserter(n->cmds));
 
@@ -230,9 +229,7 @@ struct RuleMerger {
       n->loc.lineno = r->cmd_lineno;
   }
 
-  void FillDepNode(Symbol output,
-                   const Rule* pattern_rule,
-                   DepNode* n) const {
+  void FillDepNode(Symbol output, const Rule* pattern_rule, DepNode* n) const {
     if (primary_rule) {
       CHECK(!pattern_rule);
       FillDepNodeFromRule(output, primary_rule, n);
@@ -291,7 +288,7 @@ class DepBuilder {
     ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
     // TODO?
-    //LOG_STAT("%zu variables", ev->mutable_vars()->size());
+    // LOG_STAT("%zu variables", ev->mutable_vars()->size());
     LOG_STAT("%zu explicit rules", rules_.size());
     LOG_STAT("%zu implicit rules", implicit_rules_->size());
     LOG_STAT("%zu suffix rules", suffix_rules_.size());
@@ -320,20 +317,18 @@ class DepBuilder {
     }
 
     // Note we can safely ignore .DELETE_ON_ERROR for --ninja mode.
-    static const char* kUnsupportedBuiltinTargets[] = {
-      ".DEFAULT",
-      ".PRECIOUS",
-      ".INTERMEDIATE",
-      ".SECONDARY",
-      ".SECONDEXPANSION",
-      ".IGNORE",
-      ".LOW_RESOLUTION_TIME",
-      ".SILENT",
-      ".EXPORT_ALL_VARIABLES",
-      ".NOTPARALLEL",
-      ".ONESHELL",
-      NULL
-    };
+    static const char* kUnsupportedBuiltinTargets[] = {".DEFAULT",
+                                                       ".PRECIOUS",
+                                                       ".INTERMEDIATE",
+                                                       ".SECONDARY",
+                                                       ".SECONDEXPANSION",
+                                                       ".IGNORE",
+                                                       ".LOW_RESOLUTION_TIME",
+                                                       ".SILENT",
+                                                       ".EXPORT_ALL_VARIABLES",
+                                                       ".NOTPARALLEL",
+                                                       ".ONESHELL",
+                                                       NULL};
     for (const char** p = kUnsupportedBuiltinTargets; *p; p++) {
       if (GetRuleInputs(Intern(*p), &targets, &loc)) {
         WARN_LOC(loc, "kati doesn't support %s", *p);
@@ -341,8 +336,7 @@ class DepBuilder {
     }
   }
 
-  ~DepBuilder() {
-  }
+  ~DepBuilder() {}
 
   void Build(vector<Symbol> targets, vector<DepNode*>* nodes) {
     if (!first_rule_.IsValid()) {
@@ -448,7 +442,7 @@ class DepBuilder {
     size_t dot_index = rest.find('.');
 
     StringPiece input_suffix = rest.substr(0, dot_index);
-    StringPiece output_suffix = rest.substr(dot_index+1);
+    StringPiece output_suffix = rest.substr(dot_index + 1);
     shared_ptr<Rule> r = make_shared<Rule>(*rule);
     r->inputs.clear();
     r->inputs.push_back(Intern(input_suffix));
@@ -477,8 +471,8 @@ class DepBuilder {
     if (!rule->cmds.empty())
       return false;
     const string& i = rule->inputs[0].str();
-    return (i == "RCS/%,v" || i == "RCS/%" || i == "%,v" ||
-            i == "s.%" || i == "SCCS/s.%");
+    return (i == "RCS/%,v" || i == "RCS/%" || i == "%,v" || i == "s.%" ||
+            i == "SCCS/s.%");
   }
 
   void PopulateImplicitRule(const Rule* rule) {
@@ -503,7 +497,9 @@ class DepBuilder {
     return nullptr;
   }
 
-  bool CanPickImplicitRule(const Rule* rule, Symbol output, DepNode* n,
+  bool CanPickImplicitRule(const Rule* rule,
+                           Symbol output,
+                           DepNode* n,
                            shared_ptr<Rule>* out_rule) {
     Symbol matched(Symbol::IsUninitialized{});
     for (Symbol output_pattern : rule->output_patterns) {
@@ -600,7 +596,7 @@ class DepBuilder {
     if (found == suffix_rules_.end())
       return rule_merger;
 
-    for (const shared_ptr<Rule> &irule : found->second) {
+    for (const shared_ptr<Rule>& irule : found->second) {
       CHECK(irule->inputs.size() == 1);
       Symbol input = ReplaceSuffix(output, irule->inputs[0]);
       if (!Exists(input))
@@ -621,18 +617,15 @@ class DepBuilder {
   }
 
   DepNode* BuildPlan(Symbol output, Symbol needed_by UNUSED) {
-    LOG("BuildPlan: %s for %s",
-        output.c_str(),
-        needed_by.c_str());
+    LOG("BuildPlan: %s for %s", output.c_str(), needed_by.c_str());
 
     auto found = done_.find(output);
     if (found != done_.end()) {
       return found->second;
     }
 
-    DepNode* n = new DepNode(output,
-                             phony_.count(output),
-                             restat_.count(output));
+    DepNode* n =
+        new DepNode(output, phony_.count(output), restat_.count(output));
     done_[output] = n;
 
     const RuleMerger* rule_merger = nullptr;

@@ -16,8 +16,8 @@
 
 #include "find.h"
 
-#include <string>
 #include <unistd.h>
+#include <string>
 
 #include "fileutil.h"
 #include "strutil.h"
@@ -92,10 +92,15 @@ void CompareFind(const string& cmd) {
     auto nativeIter = nativeWords.begin();
     auto emulatedIter = emulatedWords.begin();
     fprintf(stderr, "%-20s %-20s\n", "Native:", "Emulated:");
-    while (nativeIter != nativeWords.end() || emulatedIter != emulatedWords.end()) {
+    while (nativeIter != nativeWords.end() ||
+           emulatedIter != emulatedWords.end()) {
       fprintf(stderr, " %-20s %-20s\n",
-              (nativeIter == nativeWords.end()) ? "" : (*nativeIter++).as_string().c_str(),
-              (emulatedIter == emulatedWords.end()) ? "" : (*emulatedIter++).as_string().c_str());
+              (nativeIter == nativeWords.end())
+                  ? ""
+                  : (*nativeIter++).as_string().c_str(),
+              (emulatedIter == emulatedWords.end())
+                  ? ""
+                  : (*emulatedIter++).as_string().c_str());
     }
     fprintf(stderr, "------------------------------------------\n");
     unit_test_failed = true;

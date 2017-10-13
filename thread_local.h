@@ -55,28 +55,23 @@ void ThreadLocalDestructor(void* ptr) {
   delete reinterpret_cast<Type>(ptr);
 }
 
-template<typename Type, pthread_key_t* key>
+template <typename Type, pthread_key_t* key>
 void ThreadLocalInit() {
   if (pthread_key_create(key, ThreadLocalDestructor<Type>))
     ERROR("Failed to create a pthread key for TLS errno=%d", errno);
 }
 
-template<typename Type, pthread_key_t* key, pthread_once_t* once>
+template <typename Type, pthread_key_t* key, pthread_once_t* once>
 class ThreadLocal {
  public:
-  Type& Ref() {
-    return *GetPointer();
-  }
-  Type Get() {
-    return Ref();
-  }
-  void Set(const Type& value) {
-    Ref() = value;
-  }
+  Type& Ref() { return *GetPointer(); }
+  Type Get() { return Ref(); }
+  void Set(const Type& value) { Ref() = value; }
   Type* GetPointer() {
     pthread_once(once, ThreadLocalInit<Type*, key>);
     Type* value = reinterpret_cast<Type*>(pthread_getspecific(*key));
-    if (value) return value;
+    if (value)
+      return value;
     // new Type() for PODs means zero initialization.
     value = new Type();
     int error = pthread_setspecific(*key, value);
@@ -88,11 +83,11 @@ class ThreadLocal {
 
 // We need a namespace for name##_key and name##_once since template parameters
 // do not accept unnamed values such as static global variables.
-#define DEFINE_THREAD_LOCAL(Type, name)                 \
-  namespace {                                           \
-  pthread_once_t name##_once = PTHREAD_ONCE_INIT;       \
-  pthread_key_t name##_key;                             \
-  }                                                     \
+#define DEFINE_THREAD_LOCAL(Type, name)           \
+  namespace {                                     \
+  pthread_once_t name##_once = PTHREAD_ONCE_INIT; \
+  pthread_key_t name##_key;                       \
+  }                                               \
   ThreadLocal<Type, &name##_key, &name##_once> name;
 
 #define TLS_REF(x) x.Ref()

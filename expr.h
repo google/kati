@@ -59,10 +59,14 @@ enum struct ParseExprOpt {
   FUNC,
 };
 
-Value* ParseExprImpl(const Loc& loc, StringPiece s, const char* terms,
+Value* ParseExprImpl(const Loc& loc,
+                     StringPiece s,
+                     const char* terms,
                      ParseExprOpt opt,
-                     size_t* index_out, bool trim_right_space = false);
-Value* ParseExpr(const Loc& loc, StringPiece s,
+                     size_t* index_out,
+                     bool trim_right_space = false);
+Value* ParseExpr(const Loc& loc,
+                 StringPiece s,
                  ParseExprOpt opt = ParseExprOpt::NORMAL);
 
 string JoinValues(const vector<Value*>& vals, const char* sep);

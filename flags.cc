@@ -103,35 +103,32 @@ void Flags::Parse(int argc, char** argv) {
       werror_find_emulator = true;
     } else if (!strcmp(arg, "--werror_overriding_commands")) {
       werror_overriding_commands = true;
-    } else if (ParseCommandLineOptionWithArg(
-        "-j", argv, &i, &num_jobs_str)) {
+    } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {
         ERROR("Invalid -j flag: %s", num_jobs_str);
       }
-    } else if (ParseCommandLineOptionWithArg(
-        "--remote_num_jobs", argv, &i, &num_jobs_str)) {
+    } else if (ParseCommandLineOptionWithArg("--remote_num_jobs", argv, &i,
+                                             &num_jobs_str)) {
       remote_num_jobs = strtol(num_jobs_str, NULL, 10);
       if (remote_num_jobs <= 0) {
         ERROR("Invalid -j flag: %s", num_jobs_str);
       }
-    } else if (ParseCommandLineOptionWithArg(
-        "--ninja_suffix", argv, &i, &ninja_suffix)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--ninja_dir", argv, &i, &ninja_dir)) {
+    } else if (ParseCommandLineOptionWithArg("--ninja_suffix", argv, &i,
+                                             &ninja_suffix)) {
+    } else if (ParseCommandLineOptionWithArg("--ninja_dir", argv, &i,
+                                             &ninja_dir)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       use_find_emulator = true;
+    } else if (ParseCommandLineOptionWithArg("--goma_dir", argv, &i,
+                                             &goma_dir)) {
     } else if (ParseCommandLineOptionWithArg(
-        "--goma_dir", argv, &i, &goma_dir)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--ignore_optional_include",
-        argv, &i, &ignore_optional_include_pattern)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--ignore_dirty",
-        argv, &i, &ignore_dirty_pattern)) {
-    } else if (ParseCommandLineOptionWithArg(
-        "--no_ignore_dirty",
-        argv, &i, &no_ignore_dirty_pattern)) {
+                   "--ignore_optional_include", argv, &i,
+                   &ignore_optional_include_pattern)) {
+    } else if (ParseCommandLineOptionWithArg("--ignore_dirty", argv, &i,
+                                             &ignore_dirty_pattern)) {
+    } else if (ParseCommandLineOptionWithArg("--no_ignore_dirty", argv, &i,
+                                             &no_ignore_dirty_pattern)) {
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {
