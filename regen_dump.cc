@@ -28,12 +28,31 @@
 #include "strutil.h"
 
 int main(int argc, char* argv[]) {
+  bool dump_files = false;
+  bool dump_env = false;
+
   if (argc == 1) {
-    fprintf(stderr, "Usage: ckati_stamp_dump <stamp>\n");
+    fprintf(stderr, "Usage: ckati_stamp_dump [--env] [--files] <stamp>\n");
     return 1;
   }
 
-  FILE* fp = fopen(argv[1], "rb");
+  for (int i = 1; i < argc - 1; i++) {
+    const char* arg = argv[i];
+    if (!strcmp(arg, "--env")) {
+      dump_env = true;
+    } else if (!strcmp(arg, "--files")) {
+      dump_files = true;
+    } else {
+      fprintf(stderr, "Unknown option: %s", arg);
+      return 1;
+    }
+  }
+
+  if (!dump_files && !dump_env) {
+    dump_files = true;
+  }
+
+  FILE* fp = fopen(argv[argc - 1], "rb");
   if (!fp)
     PERROR("fopen");
 
@@ -50,7 +69,33 @@ int main(int argc, char* argv[]) {
     string s;
     if (!LoadString(fp, &s))
       ERROR("Incomplete stamp file");
-    printf("%s\n", s.c_str());
+    if (dump_files)
+      printf("%s\n", s.c_str());
+  }
+
+  int num_undefineds = LoadInt(fp);
+  if (num_undefineds < 0)
+    ERROR("Incomplete stamp file");
+  for (int i = 0; i < num_undefineds; i++) {
+    string s;
+    if (!LoadString(fp, &s))
+      ERROR("Incomplete stamp file");
+    if (dump_env)
+      printf("undefined: %s\n", s.c_str());
+  }
+
+  int num_envs = LoadInt(fp);
+  if (num_envs < 0)
+    ERROR("Incomplete stamp file");
+  for (int i = 0; i < num_envs; i++) {
+    string name;
+    string val;
+    if (!LoadString(fp, &name))
+      ERROR("Incomplete stamp file");
+    if (!LoadString(fp, &val))
+      ERROR("Incomplete stamp file");
+    if (dump_env)
+      printf("%s: %s\n", name.c_str(), val.c_str());
   }
 
   return 0;
