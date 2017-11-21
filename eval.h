@@ -105,6 +105,9 @@ class Evaluator {
 
   Var* LookupVarGlobal(Symbol name);
 
+  // Equivalent to LookupVarInCurrentScope, but doesn't mark as used.
+  Var* PeekVarInCurrentScope(Symbol name);
+
   unordered_map<Symbol, Vars*> rule_vars_;
   vector<const Rule*> rules_;
   unordered_map<Symbol, bool> exports_;

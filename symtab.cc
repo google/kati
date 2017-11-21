@@ -43,6 +43,13 @@ Symbol kShellSym = Symbol(Symbol::IsUninitialized());
 
 Symbol::Symbol(int v) : v_(v) {}
 
+Var* Symbol::PeekGlobalVar() const {
+  if (static_cast<size_t>(v_) >= g_symbol_data.size()) {
+    return kUndefined;
+  }
+  return g_symbol_data[v_].gv;
+}
+
 Var* Symbol::GetGlobalVar() const {
   if (static_cast<size_t>(v_) >= g_symbol_data.size()) {
     g_symbol_data.resize(v_ + 1);

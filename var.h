@@ -190,6 +190,7 @@ class Vars : public unordered_map<Symbol, Var*> {
   ~Vars();
 
   Var* Lookup(Symbol name) const;
+  Var* Peek(Symbol name) const;
 
   void Assign(Symbol name, Var* v, bool* readonly);
 

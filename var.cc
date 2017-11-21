@@ -136,6 +136,13 @@ Var* Vars::Lookup(Symbol name) const {
   return v;
 }
 
+Var* Vars::Peek(Symbol name) const {
+  auto found = find(name);
+  if (found == end())
+    return kUndefined;
+  return found->second;
+}
+
 void Vars::Assign(Symbol name, Var* v, bool* readonly) {
   *readonly = false;
   auto p = emplace(name, v);
