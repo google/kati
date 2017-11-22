@@ -72,20 +72,23 @@ Var* Evaluator::EvalRHS(Symbol lhs,
                                                       : VarOrigin::FILE));
 
   Var* rhs = NULL;
-  Var* prev = LookupVarInCurrentScope(lhs);
+  Var* prev = NULL;
   bool needs_assign = true;
 
   switch (op) {
     case AssignOp::COLON_EQ: {
+      prev = PeekVarInCurrentScope(lhs);
       SimpleVar* sv = new SimpleVar(origin);
       rhs_v->Eval(this, sv->mutable_value());
       rhs = sv;
       break;
     }
     case AssignOp::EQ:
+      prev = PeekVarInCurrentScope(lhs);
       rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
+      prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else if (prev->ReadOnly()) {
@@ -99,6 +102,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
       break;
     }
     case AssignOp::QUESTION_EQ: {
+      prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
         rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else {
@@ -109,10 +113,12 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     }
   }
 
-  prev->Used(this, lhs);
-  if (prev->Deprecated()) {
-    if (needs_assign) {
-      rhs->SetDeprecated(prev->DeprecatedMessage());
+  if (prev != NULL) {
+    prev->Used(this, lhs);
+    if (prev->Deprecated()) {
+      if (needs_assign) {
+        rhs->SetDeprecated(prev->DeprecatedMessage());
+      }
     }
   }
 
@@ -390,6 +396,13 @@ Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
     return current_scope_->Lookup(name);
   }
   return LookupVarGlobal(name);
+}
+
+Var* Evaluator::PeekVarInCurrentScope(Symbol name) {
+  if (current_scope_) {
+    return current_scope_->Peek(name);
+  }
+  return name.PeekGlobalVar();
 }
 
 string Evaluator::EvalVar(Symbol name) {

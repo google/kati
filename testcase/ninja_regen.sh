@@ -39,10 +39,12 @@ fi
 
 sleep_if_necessary 1
 cat <<EOF > Makefile
+VAR3 := unused
 all:
 	echo bar
 	echo VAR=\$(VAR)
 	echo VAR2=\$(VAR2)
+	echo VAR3=\$(VAR3)
 	echo wildcard=\$(wildcard *.mk)
 other:
 	echo foo
@@ -70,6 +72,24 @@ ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} > /dev/null; then
     echo 'Should be regenerated (env added)'
+  fi
+  ./ninja.sh
+fi
+
+export VAR3=testing
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if grep regenerating ${log} >/dev/null; then
+    echo 'Should not regenerate (unused env added)'
+  fi
+  ./ninja.sh
+fi
+
+export VAR3=test2
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if grep regenerating ${log} >/dev/null; then
+    echo 'Should not regenerate (unused env changed)'
   fi
   ./ninja.sh
 fi
