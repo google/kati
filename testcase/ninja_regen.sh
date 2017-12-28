@@ -39,6 +39,8 @@ fi
 
 sleep_if_necessary 1
 cat <<EOF > Makefile
+\$(KATI_deprecated_var VAR4)
+\$(KATI_obsolete_var VAR5)
 VAR3 := unused
 all:
 	echo bar
@@ -90,6 +92,24 @@ ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if grep regenerating ${log} >/dev/null; then
     echo 'Should not regenerate (unused env changed)'
+  fi
+  ./ninja.sh
+fi
+
+export VAR4=foo
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if grep regenerating ${log} >/dev/null; then
+    echo 'Should not regenerate (deprecated env added)'
+  fi
+  ./ninja.sh
+fi
+
+export VAR5=foo
+${mk} 2> ${log}
+if [ -e ninja.sh ]; then
+  if grep regenerating ${log} >/dev/null; then
+    echo 'Should not regenerate (obsolete env added)'
   fi
   ./ninja.sh
 fi

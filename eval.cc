@@ -391,6 +391,15 @@ Var* Evaluator::LookupVar(Symbol name) {
   return LookupVarGlobal(name);
 }
 
+Var* Evaluator::PeekVar(Symbol name) {
+  if (current_scope_) {
+    Var* v = current_scope_->Peek(name);
+    if (v->IsDefined())
+      return v;
+  }
+  return name.PeekGlobalVar();
+}
+
 Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
   if (current_scope_) {
     return current_scope_->Lookup(name);
