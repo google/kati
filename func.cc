@@ -835,7 +835,7 @@ void DeprecatedVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 
   for (StringPiece var : WordScanner(vars_str)) {
     Symbol sym = Intern(var);
-    Var* v = ev->LookupVar(sym);
+    Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
       v = new SimpleVar(VarOrigin::FILE);
       sym.SetGlobalVar(v, false, nullptr);
@@ -871,7 +871,7 @@ void ObsoleteVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
 
   for (StringPiece var : WordScanner(vars_str)) {
     Symbol sym = Intern(var);
-    Var* v = ev->LookupVar(sym);
+    Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
       v = new SimpleVar(VarOrigin::FILE);
       sym.SetGlobalVar(v, false, nullptr);

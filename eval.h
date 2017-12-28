@@ -47,6 +47,9 @@ class Evaluator {
   // For target specific variables.
   Var* LookupVarInCurrentScope(Symbol name);
 
+  // Equivalent to LookupVar, but doesn't mark as used.
+  Var* PeekVar(Symbol name);
+
   string EvalVar(Symbol name);
 
   const Loc& loc() const { return loc_; }
