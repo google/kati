@@ -733,7 +733,8 @@ class FindCommandParser {
         if (!GetNextToken(&tok) || !tok.empty())
           return false;
         return true;
-      } else if (tok == "build/tools/findleaves.py") {
+      } else if (tok == "build/tools/findleaves.py" ||
+                 tok == "build/make/tools/findleaves.py") {
         if (!ParseFindLeaves())
           return false;
         return true;
@@ -1033,7 +1034,8 @@ FindCommand::~FindCommand() {}
 
 bool FindCommand::Parse(const string& cmd) {
   FindCommandParser fcp(cmd, this);
-  if (!HasWord(cmd, "find") && !HasWord(cmd, "build/tools/findleaves.py"))
+  if (!HasWord(cmd, "find") && !HasWord(cmd, "build/tools/findleaves.py") &&
+      !HasWord(cmd, "build/make/tools/findleaves.py"))
     return false;
 
   if (!fcp.Parse())
