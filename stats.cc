@@ -16,6 +16,7 @@
 
 #include "stats.h"
 
+#include <algorithm>
 #include <mutex>
 #include <vector>
 
@@ -40,6 +41,21 @@ Stats::Stats(const char* name) : name_(name), elapsed_(0), cnt_(0) {
   g_stats->push_back(this);
 }
 
+void Stats::DumpTop() const {
+  unique_lock<mutex> lock(mu_);
+  if (detailed_.size() > 0) {
+    vector<pair<string, double>> v(detailed_.begin(), detailed_.end());
+    sort(
+        v.begin(), v.end(),
+        [](const pair<string, double> a, const pair<string, double> b) -> bool {
+          return a.second > b.second;
+        });
+    for (unsigned int i = 0; i < 10 && i < v.size(); i++) {
+      LOG_STAT(" %5.3f %s", v[i].first.c_str(), v[i].second);
+    }
+  }
+}
+
 string Stats::String() const {
   unique_lock<mutex> lock(mu_);
   return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
@@ -52,12 +68,15 @@ void Stats::Start() {
   cnt_++;
 }
 
-double Stats::End() {
+double Stats::End(const char* msg) {
   CHECK(TLS_REF(g_start_time));
   double e = GetTime() - TLS_REF(g_start_time);
   TLS_REF(g_start_time) = 0;
   unique_lock<mutex> lock(mu_);
   elapsed_ += e;
+  if (msg != 0) {
+    detailed_[string(msg)] += e;
+  }
   return e;
 }
 
@@ -71,7 +90,7 @@ ScopedStatsRecorder::ScopedStatsRecorder(Stats* st, const char* msg)
 ScopedStatsRecorder::~ScopedStatsRecorder() {
   if (!g_flags.enable_stat_logs)
     return;
-  double e = st_->End();
+  double e = st_->End(msg_);
   if (msg_ && e > 3.0) {
     LOG_STAT("slow %s (%f): %s", st_->name_, e, msg_);
   }
@@ -82,6 +101,7 @@ void ReportAllStats() {
     return;
   for (Stats* st : *g_stats) {
     LOG_STAT("%s", st->String().c_str());
+    st->DumpTop();
   }
   delete g_stats;
 }
