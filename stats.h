@@ -17,6 +17,7 @@
 
 #include <mutex>
 #include <string>
+#include <unordered_map>
 
 using namespace std;
 
@@ -24,11 +25,12 @@ class Stats {
  public:
   explicit Stats(const char* name);
 
+  void DumpTop() const;
   string String() const;
 
  private:
   void Start();
-  double End();
+  double End(const char* msg);
 
   friend class ScopedStatsRecorder;
 
@@ -36,6 +38,7 @@ class Stats {
   double elapsed_;
   int cnt_;
   mutable mutex mu_;
+  unordered_map<string, double> detailed_;
 };
 
 class ScopedStatsRecorder {
