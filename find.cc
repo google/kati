@@ -526,12 +526,16 @@ class FindCommandParser {
     while (true) {
       if (!GetNextToken(&tok))
         return NULL;
-      if (tok != "-and" && tok != "-a") {
-        UngetToken(tok);
-        return c.release();
+      if (tok == "-and" || tok == "-a") {
+        if (!GetNextToken(&tok) || tok.empty())
+          return NULL;
+      } else {
+        if (tok != "-not" && tok != "\\!" && tok != "\\(" && tok != "-name" &&
+            tok != "-type") {
+          UngetToken(tok);
+          return c.release();
+        }
       }
-      if (!GetNextToken(&tok) || tok.empty())
-        return NULL;
       unique_ptr<FindCond> r(ParseFact(tok));
       if (!r.get()) {
         return NULL;
@@ -562,7 +566,7 @@ class FindCommandParser {
   }
 
   // <expr> ::= <term> {<or> <term>}
-  // <term> ::= <fact> {<and> <fact>}
+  // <term> ::= <fact> {[<and>] <fact>}
   // <fact> ::= <not> <fact> | '\(' <expr> '\)' | <pred>
   // <not> ::= '-not' | '\!'
   // <and> ::= '-and' | '-a'

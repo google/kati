@@ -67,6 +67,7 @@ endif
 	$(call run_find, find testdir -name "file1")
 	$(call run_find, find testdir -name "file1")
 	$(call run_find, find testdir -name "*1")
+	$(call run_find, find testdir -name "*1" -name "file*")
 	$(call run_find, find testdir -name "*1" -and -name "file*")
 	$(call run_find, find testdir -name "*1" -or -name "file*")
 	$(call run_find, find testdir -name "*1" -or -type f)
