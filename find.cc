@@ -449,6 +449,16 @@ class FindCommandParser {
         return false;
       *tok = tok->substr(1, tok->size() - 2);
       return true;
+    } else {
+      // Support stripping off a leading backslash
+      if (c == '\\') {
+        *tok = tok->substr(1);
+      }
+      // But if there are any others, we can't support it, as unescaping would
+      // require allocation
+      if (tok->find("\\") != string::npos) {
+        return false;
+      }
     }
 
     return true;
@@ -473,18 +483,18 @@ class FindCommandParser {
   }
 
   FindCond* ParseFact(StringPiece tok) {
-    if (tok == "-not" || tok == "\\!") {
+    if (tok == "-not" || tok == "!") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
       unique_ptr<FindCond> c(ParseFact(tok));
       if (!c.get())
         return NULL;
       return new NotCond(c.release());
-    } else if (tok == "\\(") {
+    } else if (tok == "(") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
       unique_ptr<FindCond> c(ParseExpr(tok));
-      if (!GetNextToken(&tok) || tok != "\\)") {
+      if (!GetNextToken(&tok) || tok != ")") {
         return NULL;
       }
       return c.release();
@@ -530,7 +540,7 @@ class FindCommandParser {
         if (!GetNextToken(&tok) || tok.empty())
           return NULL;
       } else {
-        if (tok != "-not" && tok != "\\!" && tok != "\\(" && tok != "-name" &&
+        if (tok != "-not" && tok != "!" && tok != "(" && tok != "-name" &&
             tok != "-type") {
           UngetToken(tok);
           return c.release();
@@ -567,8 +577,8 @@ class FindCommandParser {
 
   // <expr> ::= <term> {<or> <term>}
   // <term> ::= <fact> {[<and>] <fact>}
-  // <fact> ::= <not> <fact> | '\(' <expr> '\)' | <pred>
-  // <not> ::= '-not' | '\!'
+  // <fact> ::= <not> <fact> | '(' <expr> ')' | <pred>
+  // <not> ::= '-not' | '!'
   // <and> ::= '-and' | '-a'
   // <or> ::= '-or' | '-o'
   // <pred> ::= <name> | <type> | <maxdepth>
@@ -609,7 +619,7 @@ class FindCommandParser {
           return false;
         }
         fc_->depth = d;
-      } else if (tok[0] == '-' || tok == "\\(") {
+      } else if (tok[0] == '-' || tok == "(" || tok == "!") {
         if (fc_->print_cond.get())
           return false;
         FindCond* c = ParseFindCond(tok);

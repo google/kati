@@ -107,6 +107,17 @@ void CompareFind(const string& cmd) {
   }
 }
 
+void ExpectParseFailure(const string& cmd) {
+  Run(cmd);
+
+  FindCommand fc;
+  if (fc.Parse(cmd)) {
+    fprintf(stderr, "Expected parse failure for `%s`\n", cmd.c_str());
+    fprintf(stderr, "------------------------------------------\n");
+    unit_test_failed = true;
+  }
+}
+
 int FindUnitTests() {
   Run("rm -rf out/find");
   Run("mkdir -p out/find");
@@ -148,6 +159,12 @@ int FindUnitTests() {
   CompareFind("cd top/C && find D/./z");
 
   CompareFind("find .//top");
+
+  CompareFind("find top -type f -name 'a*' -o -name \\*b");
+  CompareFind("find top \\! -name 'a*'");
+  CompareFind("find top \\( -name 'a*' \\)");
+
+  ExpectParseFailure("find top -name a\\*");
 
   return unit_test_failed ? 1 : 0;
 }
