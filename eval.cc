@@ -38,6 +38,7 @@ Evaluator::Evaluator()
       eval_depth_(0),
       posix_sym_(Intern(".POSIX")),
       is_posix_(false),
+      export_error_(false),
       kati_readonly_(Intern(".KATI_READONLY")) {
 #if defined(__APPLE__)
   stack_size_ = pthread_get_stacksize_np(pthread_self());
@@ -358,18 +359,35 @@ void Evaluator::EvalExport(const ExportStmt* stmt) {
   const string&& exports = stmt->expr->Eval(this);
   for (StringPiece tok : WordScanner(exports)) {
     size_t equal_index = tok.find('=');
+    StringPiece lhs;
     if (equal_index == string::npos) {
-      exports_[Intern(tok)] = stmt->is_export;
+      lhs = tok;
     } else if (equal_index == 0 ||
                (equal_index == 1 &&
                 (tok[0] == ':' || tok[0] == '?' || tok[0] == '+'))) {
       // Do not export tokens after an assignment.
       break;
     } else {
-      StringPiece lhs, rhs;
+      StringPiece rhs;
       AssignOp op;
       ParseAssignStatement(tok, equal_index, &lhs, &rhs, &op);
-      exports_[Intern(lhs)] = stmt->is_export;
+    }
+    Symbol sym = Intern(lhs);
+    exports_[sym] = stmt->is_export;
+
+    if (export_message_) {
+      const char* prefix = "";
+      if (!stmt->is_export) {
+        prefix = "un";
+      }
+
+      if (export_error_) {
+        Error(StringPrintf("*** %s: %sexport is obsolete%s.", sym.c_str(),
+                           prefix, export_message_->c_str()));
+      } else {
+        WARN_LOC(loc(), "%s: %sexport has been deprecated%s.", sym.c_str(),
+                 prefix, export_message_->c_str());
+      }
     }
   }
 }

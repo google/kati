@@ -892,6 +892,36 @@ void ObsoleteVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   }
 }
 
+void DeprecateExportFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+  string msg = ". " + args[0]->Eval(ev);
+
+  if (ev->avoid_io()) {
+    ev->Error("*** $(KATI_deprecate_export) is not supported in rules.");
+  }
+
+  if (ev->ExportObsolete()) {
+    ev->Error("*** Export is already obsolete.");
+  } else if (ev->ExportDeprecated()) {
+    ev->Error("*** Export is already deprecated.");
+  }
+
+  ev->SetExportDeprecated(msg);
+}
+
+void ObsoleteExportFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+  string msg = ". " + args[0]->Eval(ev);
+
+  if (ev->avoid_io()) {
+    ev->Error("*** $(KATI_obsolete_export) is not supported in rules.");
+  }
+
+  if (ev->ExportObsolete()) {
+    ev->Error("*** Export is already obsolete.");
+  }
+
+  ev->SetExportObsolete(msg);
+}
+
 FuncInfo g_func_infos[] = {
     {"patsubst", &PatsubstFunc, 3, 3, false, false},
     {"strip", &StripFunc, 1, 1, false, false},
@@ -939,6 +969,8 @@ FuncInfo g_func_infos[] = {
     /* Kati custom extension functions */
     {"KATI_deprecated_var", &DeprecatedVarFunc, 2, 1, false, false},
     {"KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false},
+    {"KATI_deprecate_export", &DeprecateExportFunc, 1, 1, false, false},
+    {"KATI_obsolete_export", &ObsoleteExportFunc, 1, 1, false, false},
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;

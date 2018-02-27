@@ -15,6 +15,7 @@
 #ifndef EVAL_H_
 #define EVAL_H_
 
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -98,6 +99,16 @@ class Evaluator {
   }
   void DumpStackStats() const;
 
+  bool ExportDeprecated() const { return export_message_ && !export_error_; };
+  bool ExportObsolete() const { return export_error_; };
+  void SetExportDeprecated(StringPiece msg) {
+    export_message_.reset(new string(msg.as_string()));
+  }
+  void SetExportObsolete(StringPiece msg) {
+    export_message_.reset(new string(msg.as_string()));
+    export_error_ = true;
+  }
+
  private:
   Var* EvalRHS(Symbol lhs,
                Value* rhs,
@@ -138,6 +149,9 @@ class Evaluator {
   size_t stack_size_;
   void* lowest_stack_;
   Loc lowest_loc_;
+
+  unique_ptr<string> export_message_;
+  bool export_error_;
 
   static unordered_set<Symbol> used_undefined_vars_;
 
