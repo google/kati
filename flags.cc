@@ -113,6 +113,16 @@ void Flags::Parse(int argc, char** argv) {
       warn_suffix_rules = true;
     } else if (!strcmp(arg, "--werror_suffix_rules")) {
       werror_suffix_rules = true;
+    } else if (!strcmp(arg, "--warn_real_to_phony")) {
+      warn_real_to_phony = true;
+    } else if (!strcmp(arg, "--werror_real_to_phony")) {
+      warn_real_to_phony = true;
+      werror_real_to_phony = true;
+    } else if (!strcmp(arg, "--warn_phony_looks_real")) {
+      warn_phony_looks_real = true;
+    } else if (!strcmp(arg, "--werror_phony_looks_real")) {
+      warn_phony_looks_real = true;
+      werror_phony_looks_real = true;
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {

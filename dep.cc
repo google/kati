@@ -701,13 +701,55 @@ class DepBuilder {
       }
     }
 
+    if (g_flags.warn_phony_looks_real && n->is_phony &&
+        output.str().find("/") != string::npos) {
+      if (g_flags.werror_phony_looks_real) {
+        ERROR_LOC(
+            n->loc,
+            "*** PHONY target \"%s\" looks like a real file (contains a \"/\")",
+            output.c_str());
+      } else {
+        WARN_LOC(n->loc,
+                 "warning: PHONY target \"%s\" looks like a real file "
+                 "(contains a \"/\")",
+                 output.c_str());
+      }
+    }
+
     for (Symbol output : n->implicit_outputs) {
       done_[output] = n;
+
+      if (g_flags.warn_phony_looks_real && n->is_phony &&
+          output.str().find("/") != string::npos) {
+        if (g_flags.werror_phony_looks_real) {
+          ERROR_LOC(n->loc,
+                    "*** PHONY target \"%s\" looks like a real file (contains "
+                    "a \"/\")",
+                    output.c_str());
+        } else {
+          WARN_LOC(n->loc,
+                   "warning: PHONY target \"%s\" looks like a real file "
+                   "(contains a \"/\")",
+                   output.c_str());
+        }
+      }
     }
 
     for (Symbol input : n->actual_inputs) {
       DepNode* c = BuildPlan(input, output);
       n->deps.push_back(c);
+
+      if (!n->is_phony && c->is_phony) {
+        if (g_flags.werror_real_to_phony) {
+          ERROR_LOC(n->loc,
+                    "*** real file \"%s\" depends on PHONY target \"%s\"",
+                    output.c_str(), input.c_str());
+        } else if (g_flags.warn_real_to_phony) {
+          WARN_LOC(n->loc,
+                   "warning: real file \"%s\" depends on PHONY target \"%s\"",
+                   output.c_str(), input.c_str());
+        }
+      }
     }
 
     for (Symbol input : n->actual_order_only_inputs) {

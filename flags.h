@@ -47,6 +47,10 @@ struct Flags {
   bool werror_implicit_rules;
   bool warn_suffix_rules;
   bool werror_suffix_rules;
+  bool warn_real_to_phony;
+  bool werror_real_to_phony;
+  bool warn_phony_looks_real;
+  bool werror_phony_looks_real;
   const char* goma_dir;
   const char* ignore_dirty_pattern;
   const char* no_ignore_dirty_pattern;
