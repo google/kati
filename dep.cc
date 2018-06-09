@@ -716,6 +716,25 @@ class DepBuilder {
       }
     }
 
+    if (!g_flags.writable.empty() && !n->is_phony) {
+      bool found = false;
+      for (const auto& w : g_flags.writable) {
+        if (StringPiece(output.str()).starts_with(w)) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        if (g_flags.werror_writable) {
+          ERROR_LOC(n->loc, "*** writing to readonly directory: \"%s\"",
+                    output.c_str());
+        } else {
+          WARN_LOC(n->loc, "warning: writing to readonly directory: \"%s\"",
+                   output.c_str());
+        }
+      }
+    }
+
     for (Symbol output : n->implicit_outputs) {
       done_[output] = n;
 
@@ -731,6 +750,25 @@ class DepBuilder {
                    "warning: PHONY target \"%s\" looks like a real file "
                    "(contains a \"/\")",
                    output.c_str());
+        }
+      }
+
+      if (!g_flags.writable.empty() && !n->is_phony) {
+        bool found = false;
+        for (const auto& w : g_flags.writable) {
+          if (StringPiece(output.str()).starts_with(w)) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          if (g_flags.werror_writable) {
+            ERROR_LOC(n->loc, "*** writing to readonly directory: \"%s\"",
+                      output.c_str());
+          } else {
+            WARN_LOC(n->loc, "warning: writing to readonly directory: \"%s\"",
+                     output.c_str());
+          }
         }
       }
     }

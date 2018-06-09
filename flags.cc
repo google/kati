@@ -52,6 +52,7 @@ void Flags::Parse(int argc, char** argv) {
   subkati_args.push_back(argv[0]);
   num_jobs = num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
+  const char* writable_str;
 
   if (const char* makeflags = getenv("MAKEFLAGS")) {
     for (StringPiece tok : WordScanner(makeflags)) {
@@ -123,6 +124,8 @@ void Flags::Parse(int argc, char** argv) {
     } else if (!strcmp(arg, "--werror_phony_looks_real")) {
       warn_phony_looks_real = true;
       werror_phony_looks_real = true;
+    } else if (!strcmp(arg, "--werror_writable")) {
+      werror_writable = true;
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {
@@ -149,6 +152,9 @@ void Flags::Parse(int argc, char** argv) {
                                              &ignore_dirty_pattern)) {
     } else if (ParseCommandLineOptionWithArg("--no_ignore_dirty", argv, &i,
                                              &no_ignore_dirty_pattern)) {
+    } else if (ParseCommandLineOptionWithArg("--writable", argv, &i,
+                                             &writable_str)) {
+      writable.push_back(writable_str);
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {

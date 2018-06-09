@@ -51,6 +51,7 @@ struct Flags {
   bool werror_real_to_phony;
   bool warn_phony_looks_real;
   bool werror_phony_looks_real;
+  bool werror_writable;
   const char* goma_dir;
   const char* ignore_dirty_pattern;
   const char* no_ignore_dirty_pattern;
@@ -64,6 +65,7 @@ struct Flags {
   vector<const char*> subkati_args;
   vector<Symbol> targets;
   vector<StringPiece> cl_vars;
+  vector<string> writable;
 
   void Parse(int argc, char** argv);
 };
