@@ -440,6 +440,13 @@ class DepBuilder {
     if (!IsSuffixRule(output))
       return false;
 
+    if (g_flags.werror_suffix_rules) {
+      ERROR_LOC(rule->loc, "*** suffix rules are obsolete: %s", output.c_str());
+    } else if (g_flags.warn_suffix_rules) {
+      WARN_LOC(rule->loc, "warning: suffix rules are deprecated: %s",
+               output.c_str());
+    }
+
     const StringPiece rest = StringPiece(output.str()).substr(1);
     size_t dot_index = rest.find('.');
 
@@ -479,8 +486,17 @@ class DepBuilder {
 
   void PopulateImplicitRule(const Rule* rule) {
     for (Symbol output_pattern : rule->output_patterns) {
-      if (output_pattern.str() != "%" || !IsIgnorableImplicitRule(rule))
+      if (output_pattern.str() != "%" || !IsIgnorableImplicitRule(rule)) {
+        if (g_flags.werror_implicit_rules) {
+          ERROR_LOC(rule->loc, "*** implicit rules are obsolete: %s",
+                    output_pattern.c_str());
+        } else if (g_flags.warn_implicit_rules) {
+          WARN_LOC(rule->loc, "warning: implicit rules are deprecated: %s",
+                   output_pattern.c_str());
+        }
+
         implicit_rules_->Add(output_pattern.str(), rule);
+      }
     }
   }
 

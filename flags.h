@@ -43,6 +43,10 @@ struct Flags {
   bool no_builtin_rules;
   bool werror_find_emulator;
   bool werror_overriding_commands;
+  bool warn_implicit_rules;
+  bool werror_implicit_rules;
+  bool warn_suffix_rules;
+  bool werror_suffix_rules;
   const char* goma_dir;
   const char* ignore_dirty_pattern;
   const char* no_ignore_dirty_pattern;

@@ -105,6 +105,14 @@ void Flags::Parse(int argc, char** argv) {
       werror_find_emulator = true;
     } else if (!strcmp(arg, "--werror_overriding_commands")) {
       werror_overriding_commands = true;
+    } else if (!strcmp(arg, "--warn_implicit_rules")) {
+      warn_implicit_rules = true;
+    } else if (!strcmp(arg, "--werror_implicit_rules")) {
+      werror_implicit_rules = true;
+    } else if (!strcmp(arg, "--warn_suffix_rules")) {
+      warn_suffix_rules = true;
+    } else if (!strcmp(arg, "--werror_suffix_rules")) {
+      werror_suffix_rules = true;
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {
