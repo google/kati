@@ -99,6 +99,8 @@ void Flags::Parse(int argc, char** argv) {
       detect_depfiles = true;
     } else if (!strcmp(arg, "--color_warnings")) {
       color_warnings = true;
+    } else if (!strcmp(arg, "--no_builtin_rules")) {
+      no_builtin_rules = true;
     } else if (!strcmp(arg, "--werror_find_emulator")) {
       werror_find_emulator = true;
     } else if (!strcmp(arg, "--werror_overriding_commands")) {
