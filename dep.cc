@@ -349,6 +349,8 @@ class DepBuilder {
     if (g_flags.gen_all_targets) {
       unordered_set<Symbol> non_root_targets;
       for (const auto& p : rules_) {
+        if (p.first.get(0) == '.')
+          continue;
         for (const Rule* r : p.second.rules) {
           for (Symbol t : r->inputs)
             non_root_targets.insert(t);
@@ -359,7 +361,7 @@ class DepBuilder {
 
       for (const auto& p : rules_) {
         Symbol t = p.first;
-        if (!non_root_targets.count(t)) {
+        if (!non_root_targets.count(t) && t.get(0) != '.') {
           targets.push_back(p.first);
         }
       }
