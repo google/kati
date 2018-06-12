@@ -349,6 +349,8 @@ class DepBuilder {
     if (g_flags.gen_all_targets) {
       unordered_set<Symbol> non_root_targets;
       for (const auto& p : rules_) {
+        if (p.first.get(0) == '.')
+          continue;
         for (const Rule* r : p.second.rules) {
           for (Symbol t : r->inputs)
             non_root_targets.insert(t);
@@ -359,7 +361,7 @@ class DepBuilder {
 
       for (const auto& p : rules_) {
         Symbol t = p.first;
-        if (!non_root_targets.count(t)) {
+        if (!non_root_targets.count(t) && t.get(0) != '.') {
           targets.push_back(p.first);
         }
       }
@@ -438,6 +440,13 @@ class DepBuilder {
     if (!IsSuffixRule(output))
       return false;
 
+    if (g_flags.werror_suffix_rules) {
+      ERROR_LOC(rule->loc, "*** suffix rules are obsolete: %s", output.c_str());
+    } else if (g_flags.warn_suffix_rules) {
+      WARN_LOC(rule->loc, "warning: suffix rules are deprecated: %s",
+               output.c_str());
+    }
+
     const StringPiece rest = StringPiece(output.str()).substr(1);
     size_t dot_index = rest.find('.');
 
@@ -477,8 +486,17 @@ class DepBuilder {
 
   void PopulateImplicitRule(const Rule* rule) {
     for (Symbol output_pattern : rule->output_patterns) {
-      if (output_pattern.str() != "%" || !IsIgnorableImplicitRule(rule))
+      if (output_pattern.str() != "%" || !IsIgnorableImplicitRule(rule)) {
+        if (g_flags.werror_implicit_rules) {
+          ERROR_LOC(rule->loc, "*** implicit rules are obsolete: %s",
+                    output_pattern.c_str());
+        } else if (g_flags.warn_implicit_rules) {
+          WARN_LOC(rule->loc, "warning: implicit rules are deprecated: %s",
+                   output_pattern.c_str());
+        }
+
         implicit_rules_->Add(output_pattern.str(), rule);
+      }
     }
   }
 
@@ -683,13 +701,93 @@ class DepBuilder {
       }
     }
 
+    if (g_flags.warn_phony_looks_real && n->is_phony &&
+        output.str().find("/") != string::npos) {
+      if (g_flags.werror_phony_looks_real) {
+        ERROR_LOC(
+            n->loc,
+            "*** PHONY target \"%s\" looks like a real file (contains a \"/\")",
+            output.c_str());
+      } else {
+        WARN_LOC(n->loc,
+                 "warning: PHONY target \"%s\" looks like a real file "
+                 "(contains a \"/\")",
+                 output.c_str());
+      }
+    }
+
+    if (!g_flags.writable.empty() && !n->is_phony) {
+      bool found = false;
+      for (const auto& w : g_flags.writable) {
+        if (StringPiece(output.str()).starts_with(w)) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        if (g_flags.werror_writable) {
+          ERROR_LOC(n->loc, "*** writing to readonly directory: \"%s\"",
+                    output.c_str());
+        } else {
+          WARN_LOC(n->loc, "warning: writing to readonly directory: \"%s\"",
+                   output.c_str());
+        }
+      }
+    }
+
     for (Symbol output : n->implicit_outputs) {
       done_[output] = n;
+
+      if (g_flags.warn_phony_looks_real && n->is_phony &&
+          output.str().find("/") != string::npos) {
+        if (g_flags.werror_phony_looks_real) {
+          ERROR_LOC(n->loc,
+                    "*** PHONY target \"%s\" looks like a real file (contains "
+                    "a \"/\")",
+                    output.c_str());
+        } else {
+          WARN_LOC(n->loc,
+                   "warning: PHONY target \"%s\" looks like a real file "
+                   "(contains a \"/\")",
+                   output.c_str());
+        }
+      }
+
+      if (!g_flags.writable.empty() && !n->is_phony) {
+        bool found = false;
+        for (const auto& w : g_flags.writable) {
+          if (StringPiece(output.str()).starts_with(w)) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          if (g_flags.werror_writable) {
+            ERROR_LOC(n->loc, "*** writing to readonly directory: \"%s\"",
+                      output.c_str());
+          } else {
+            WARN_LOC(n->loc, "warning: writing to readonly directory: \"%s\"",
+                     output.c_str());
+          }
+        }
+      }
     }
 
     for (Symbol input : n->actual_inputs) {
       DepNode* c = BuildPlan(input, output);
       n->deps.push_back(c);
+
+      if (!n->is_phony && c->is_phony) {
+        if (g_flags.werror_real_to_phony) {
+          ERROR_LOC(n->loc,
+                    "*** real file \"%s\" depends on PHONY target \"%s\"",
+                    output.c_str(), input.c_str());
+        } else if (g_flags.warn_real_to_phony) {
+          WARN_LOC(n->loc,
+                   "warning: real file \"%s\" depends on PHONY target \"%s\"",
+                   output.c_str(), input.c_str());
+        }
+      }
     }
 
     for (Symbol input : n->actual_order_only_inputs) {
