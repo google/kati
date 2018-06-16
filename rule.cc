@@ -138,6 +138,12 @@ void ParseRule(Loc& loc,
     ERROR_LOC(loc, "*** mixed implicit and normal rules: deprecated syntax");
   }
 
+  // Empty static patterns should not produce rules, but need to eat the commands
+  // So return a rule with no outputs nor output_patterns
+  if (rule->outputs.empty()) {
+    return;
+  }
+
   StringPiece second = rest.substr(0, index);
   StringPiece third = rest.substr(index + 1);
 
