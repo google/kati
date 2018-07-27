@@ -342,7 +342,7 @@ run_shell_test = proc do |sh|
 
   run_in_testdir(sh) do |name|
     cleanup
-    cmd = "sh ../../#{sh} make"
+    cmd = "bash ../../#{sh} make"
     if is_ninja_test
       cmd += ' -s'
     end
@@ -352,15 +352,15 @@ run_shell_test = proc do |sh|
 
     if is_ninja_test
       if ckati
-        cmd = "sh ../../#{sh} ../../ckati --ninja --regen"
+        cmd = "bash ../../#{sh} ../../ckati --ninja --regen"
       else
         next
       end
     else
       if ckati
-        cmd = "sh ../../#{sh} ../../ckati"
+        cmd = "bash ../../#{sh} ../../ckati"
       else
-        cmd = "sh ../../#{sh} ../../kati --use_cache -log_dir=."
+        cmd = "bash ../../#{sh} ../../kati --use_cache -log_dir=."
       end
     end
     cmd += bash_var

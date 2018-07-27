@@ -21,13 +21,13 @@
 #include <vector>
 
 #include "string_piece.h"
+#include "dep.h"
 
 using namespace std;
 
-struct DepNode;
 class Evaluator;
 
-void GenerateNinja(const vector<DepNode*>& nodes,
+void GenerateNinja(const vector<NamedDepNode>& nodes,
                    Evaluator* ev,
                    const string& orig_args,
                    double start_time);
