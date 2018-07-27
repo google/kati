@@ -280,7 +280,7 @@ static int Run(const vector<Symbol>& targets,
              err->msg.c_str());
   }
 
-  vector<DepNode*> nodes;
+  vector<NamedDepNode> nodes;
   {
     ScopedTimeReporter tr("make dep time");
     MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);

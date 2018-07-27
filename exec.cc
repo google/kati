@@ -75,17 +75,17 @@ class Executor {
     }
 
     double latest = kProcessing;
-    for (DepNode* d : n->order_onlys) {
-      if (Exists(d->output.str())) {
+    for (auto const& d : n->order_onlys) {
+      if (Exists(d.second->output.str())) {
         continue;
       }
-      double ts = ExecNode(d, n);
+      double ts = ExecNode(d.second, n);
       if (latest < ts)
         latest = ts;
     }
 
-    for (DepNode* d : n->deps) {
-      double ts = ExecNode(d, n);
+    for (auto const& d : n->deps) {
+      double ts = ExecNode(d.second, n);
       if (latest < ts)
         latest = ts;
     }
@@ -138,14 +138,14 @@ class Executor {
 
 }  // namespace
 
-void Exec(const vector<DepNode*>& roots, Evaluator* ev) {
+void Exec(const vector<NamedDepNode>& roots, Evaluator* ev) {
   unique_ptr<Executor> executor(new Executor(ev));
-  for (DepNode* root : roots) {
-    executor->ExecNode(root, NULL);
+  for (auto const& root : roots) {
+    executor->ExecNode(root.second, NULL);
   }
   if (executor->Count() == 0) {
-    for (DepNode* root : roots) {
-      printf("kati: Nothing to be done for `%s'.\n", root->output.c_str());
+    for (auto const & root : roots) {
+      printf("kati: Nothing to be done for `%s'.\n", root.first.c_str());
     }
   }
 }

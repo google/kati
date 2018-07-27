@@ -338,7 +338,7 @@ class DepBuilder {
 
   ~DepBuilder() {}
 
-  void Build(vector<Symbol> targets, vector<DepNode*>* nodes) {
+  void Build(vector<Symbol> targets, vector<NamedDepNode>* nodes) {
     if (!first_rule_.IsValid()) {
       ERROR("*** No targets.");
     }
@@ -373,7 +373,7 @@ class DepBuilder {
       cur_rule_vars_.reset(new Vars);
       ev_->set_current_scope(cur_rule_vars_.get());
       DepNode* n = BuildPlan(target, Intern(""));
-      nodes->push_back(n);
+      nodes->push_back({target,n});
       ev_->set_current_scope(NULL);
       cur_rule_vars_.reset(NULL);
     }
@@ -775,7 +775,7 @@ class DepBuilder {
 
     for (Symbol input : n->actual_inputs) {
       DepNode* c = BuildPlan(input, output);
-      n->deps.push_back(c);
+      n->deps.push_back({input, c});
 
       if (!n->is_phony && c->is_phony) {
         if (g_flags.werror_real_to_phony) {
@@ -792,7 +792,7 @@ class DepBuilder {
 
     for (Symbol input : n->actual_order_only_inputs) {
       DepNode* c = BuildPlan(input, output);
-      n->order_onlys.push_back(c);
+      n->order_onlys.push_back({input,c});
     }
 
     n->has_rule = true;
@@ -831,7 +831,7 @@ void MakeDep(Evaluator* ev,
              const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
-             vector<DepNode*>* nodes) {
+             vector<NamedDepNode>* nodes) {
   DepBuilder db(ev, rules, rule_vars);
   ScopedTimeReporter tr("make dep (build)");
   db.Build(targets, nodes);

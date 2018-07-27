@@ -200,7 +200,7 @@ class NinjaGenerator {
       delete nn;
   }
 
-  void Generate(const vector<DepNode*>& nodes, const string& orig_args) {
+  void Generate(const vector<NamedDepNode>& nodes, const string& orig_args) {
     unlink(GetNinjaStampFilename().c_str());
     PopulateNinjaNodes(nodes);
     GenerateNinja();
@@ -220,10 +220,10 @@ class NinjaGenerator {
   }
 
  private:
-  void PopulateNinjaNodes(const vector<DepNode*>& nodes) {
+  void PopulateNinjaNodes(const vector<NamedDepNode>& nodes) {
     ScopedTimeReporter tr("ninja gen (eval)");
-    for (DepNode* node : nodes) {
-      PopulateNinjaNode(node);
+    for (auto const& node : nodes) {
+      PopulateNinjaNode(node.second);
     }
   }
 
@@ -248,11 +248,11 @@ class NinjaGenerator {
     nn->rule_id = nn->commands.empty() ? -1 : rule_id_++;
     nodes_.push_back(nn);
 
-    for (DepNode* d : node->deps) {
-      PopulateNinjaNode(d);
+    for (auto const& d : node->deps) {
+      PopulateNinjaNode(d.second);
     }
-    for (DepNode* d : node->order_onlys) {
-      PopulateNinjaNode(d);
+    for (auto const& d : node->order_onlys) {
+      PopulateNinjaNode(d.second);
     }
   }
 
@@ -557,13 +557,13 @@ class NinjaGenerator {
     if (node->is_phony) {
       *o << " _kati_always_build_";
     }
-    for (DepNode* d : node->deps) {
-      *o << " " << EscapeBuildTarget(d->output).c_str();
+    for (auto const& d : node->deps) {
+      *o << " " << EscapeBuildTarget(d.first).c_str();
     }
     if (!node->order_onlys.empty()) {
       *o << " ||";
-      for (DepNode* d : node->order_onlys) {
-        *o << " " << EscapeBuildTarget(d->output).c_str();
+      for (auto const& d : node->order_onlys) {
+        *o << " " << EscapeBuildTarget(d.first).c_str();
       }
     }
     *o << "\n";
@@ -812,7 +812,7 @@ string GetNinjaStampFilename() {
   return NinjaGenerator::GetFilename(".kati_stamp%s");
 }
 
-void GenerateNinja(const vector<DepNode*>& nodes,
+void GenerateNinja(const vector<NamedDepNode>& nodes,
                    Evaluator* ev,
                    const string& orig_args,
                    double start_time) {

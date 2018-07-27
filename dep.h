@@ -29,14 +29,17 @@ class Value;
 class Var;
 class Vars;
 
+typedef pair<Symbol,struct DepNode *> NamedDepNode;
+
 struct DepNode {
   DepNode(Symbol output, bool is_phony, bool is_restat);
+  string DebugString();
 
   Symbol output;
   vector<Value*> cmds;
-  vector<DepNode*> deps;
-  vector<DepNode*> order_onlys;
-  vector<DepNode*> parents;
+  vector<NamedDepNode> deps;
+  vector<NamedDepNode> order_onlys;
+  vector<NamedDepNode> parents;
   bool has_rule;
   bool is_default_target;
   bool is_phony;
@@ -58,6 +61,6 @@ void MakeDep(Evaluator* ev,
              const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars,
              const vector<Symbol>& targets,
-             vector<DepNode*>* nodes);
+             vector<NamedDepNode>* nodes);
 
 #endif  // DEP_H_
