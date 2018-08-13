@@ -39,11 +39,8 @@ Value::Value() {}
 
 Value::~Value() {}
 
-string Value::DebugString() const {
-  if (static_cast<const Value*>(this)) {
-    return NoLineBreak(DebugString_());
-  }
-  return "(null)";
+string Value::DebugString(const Value *v) {
+  return v ? NoLineBreak(v->DebugString_()) : "(null)";
 }
 
 class Literal : public Value {
@@ -94,7 +91,7 @@ class Expr : public Value {
       } else {
         r += ", ";
       }
-      r += v->DebugString();
+      r += DebugString(v);
     }
     if (!r.empty())
       r += ")";
@@ -152,7 +149,7 @@ class VarRef : public Value {
   }
 
   virtual string DebugString_() const override {
-    return StringPrintf("VarRef(%s)", name_->DebugString().c_str());
+    return StringPrintf("VarRef(%s)", Value::DebugString(name_).c_str());
   }
 
  private:
@@ -189,9 +186,9 @@ class VarSubst : public Value {
   }
 
   virtual string DebugString_() const override {
-    return StringPrintf("VarSubst(%s:%s=%s)", name_->DebugString().c_str(),
-                        pat_->DebugString().c_str(),
-                        subst_->DebugString().c_str());
+    return StringPrintf("VarSubst(%s:%s=%s)", Value::DebugString(name_).c_str(),
+                        Value::DebugString(pat_).c_str(),
+                        Value::DebugString(subst_).c_str());
   }
 
  private:
@@ -567,7 +564,7 @@ Value* ParseExpr(const Loc& loc, StringPiece s, ParseExprOpt opt) {
 string JoinValues(const vector<Value*>& vals, const char* sep) {
   vector<string> val_strs;
   for (Value* v : vals) {
-    val_strs.push_back(v->DebugString());
+    val_strs.push_back(Value::DebugString(v));
   }
   return JoinStrings(val_strs, sep);
 }

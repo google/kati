@@ -97,7 +97,7 @@ StringPiece RecursiveVar::String() const {
 }
 
 string RecursiveVar::DebugString() const {
-  return v_->DebugString();
+  return Value::DebugString(v_);
 }
 
 UndefinedVar::UndefinedVar() {}
@@ -165,7 +165,7 @@ void Vars::Assign(Symbol name, Var* v, bool* readonly) {
   }
 }
 
-unordered_set<Symbol> Vars::used_env_vars_;
+SymbolSet Vars::used_env_vars_;
 
 ScopedVar::ScopedVar(Vars* vars, Symbol name, Var* var)
     : vars_(vars), orig_(NULL) {

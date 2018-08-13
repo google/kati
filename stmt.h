@@ -86,7 +86,7 @@ struct AssignStmt : public Stmt {
   AssignOp op;
   AssignDirective directive;
 
-  AssignStmt() : lhs_sym_cache_(Symbol::IsUninitialized{}) {}
+  AssignStmt() {}
   virtual ~AssignStmt();
 
   virtual void Eval(Evaluator* ev) const;

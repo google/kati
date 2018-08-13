@@ -45,7 +45,7 @@ class Value : public Evaluable {
   // Only safe after IsLiteral() returns true.
   virtual StringPiece GetLiteralValueUnsafe() const { return ""; }
 
-  string DebugString() const;
+  static string DebugString(const Value *);
 
  protected:
   Value();
