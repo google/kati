@@ -78,7 +78,7 @@ class Evaluator {
   }
   void clear_delayed_output_commands() { delayed_output_commands_.clear(); }
 
-  static const unordered_set<Symbol>& used_undefined_vars() {
+  static const SymbolSet& used_undefined_vars() {
     return used_undefined_vars_;
   }
 
@@ -153,9 +153,7 @@ class Evaluator {
   unique_ptr<string> export_message_;
   bool export_error_;
 
-  static unordered_set<Symbol> used_undefined_vars_;
-
-  Symbol kati_readonly_;
+  static SymbolSet used_undefined_vars_;
 };
 
 #endif  // EVAL_H_

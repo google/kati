@@ -27,8 +27,8 @@ Stmt::~Stmt() {}
 
 string RuleStmt::DebugString() const {
   return StringPrintf("RuleStmt(expr=%s term=%d after_term=%s loc=%s:%d)",
-                      expr->DebugString().c_str(), term,
-                      after_term->DebugString().c_str(), LOCF(loc()));
+                      Value::DebugString(expr).c_str(), term,
+                      Value::DebugString(after_term).c_str(), LOCF(loc()));
 }
 
 string AssignStmt::DebugString() const {
@@ -62,7 +62,7 @@ string AssignStmt::DebugString() const {
   return StringPrintf(
       "AssignStmt(lhs=%s rhs=%s (%s) "
       "opstr=%s dir=%s loc=%s:%d)",
-      lhs->DebugString().c_str(), rhs->DebugString().c_str(),
+      Value::DebugString(lhs).c_str(), Value::DebugString(rhs).c_str(),
       NoLineBreak(orig_rhs.as_string()).c_str(), opstr, dirstr, LOCF(loc()));
 }
 
@@ -80,7 +80,7 @@ Symbol AssignStmt::GetLhsSymbol(Evaluator* ev) const {
 }
 
 string CommandStmt::DebugString() const {
-  return StringPrintf("CommandStmt(%s, loc=%s:%d)", expr->DebugString().c_str(),
+  return StringPrintf("CommandStmt(%s, loc=%s:%d)", Value::DebugString(expr).c_str(),
                       LOCF(loc()));
 }
 
@@ -101,19 +101,19 @@ string IfStmt::DebugString() const {
       break;
   }
   return StringPrintf("IfStmt(op=%s, lhs=%s, rhs=%s t=%zu f=%zu loc=%s:%d)",
-                      opstr, lhs->DebugString().c_str(),
-                      rhs->DebugString().c_str(), true_stmts.size(),
+                      opstr, Value::DebugString(lhs).c_str(),
+                      Value::DebugString(rhs).c_str(), true_stmts.size(),
                       false_stmts.size(), LOCF(loc()));
 }
 
 string IncludeStmt::DebugString() const {
-  return StringPrintf("IncludeStmt(%s, loc=%s:%d)", expr->DebugString().c_str(),
+  return StringPrintf("IncludeStmt(%s, loc=%s:%d)", Value::DebugString(expr).c_str(),
                       LOCF(loc()));
 }
 
 string ExportStmt::DebugString() const {
   return StringPrintf("ExportStmt(%s, %d, loc=%s:%d)",
-                      expr->DebugString().c_str(), is_export, LOCF(loc()));
+                      Value::DebugString(expr).c_str(), is_export, LOCF(loc()));
 }
 
 string ParseErrorStmt::DebugString() const {

@@ -64,6 +64,7 @@ void StripShellComment(string* cmd) {
             in++;
           break;
         }
+        /* FALLTHRU */
 
       case '\'':
       case '"':
@@ -613,7 +614,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   vector<unique_ptr<ScopedGlobalVar>> sv;
   for (size_t i = 1;; i++) {
     string s;
-    Symbol tmpvar_name_sym(Symbol::IsUninitialized{});
+    Symbol tmpvar_name_sym;
     if (i < sizeof(tmpvar_names) / sizeof(tmpvar_names[0])) {
       tmpvar_name_sym = tmpvar_names[i];
     } else {

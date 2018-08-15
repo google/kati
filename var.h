@@ -196,10 +196,10 @@ class Vars : public unordered_map<Symbol, Var*> {
 
   static void add_used_env_vars(Symbol v);
 
-  static const unordered_set<Symbol>& used_env_vars() { return used_env_vars_; }
+  static const SymbolSet used_env_vars() { return used_env_vars_; }
 
  private:
-  static unordered_set<Symbol> used_env_vars_;
+  static SymbolSet used_env_vars_;
 };
 
 class ScopedVar {

@@ -38,8 +38,7 @@ Evaluator::Evaluator()
       eval_depth_(0),
       posix_sym_(Intern(".POSIX")),
       is_posix_(false),
-      export_error_(false),
-      kati_readonly_(Intern(".KATI_READONLY")) {
+      export_error_(false) {
 #if defined(__APPLE__)
   stack_size_ = pthread_get_stacksize_np(pthread_self());
   stack_addr_ = (char*)pthread_get_stackaddr_np(pthread_self()) - stack_size_;
@@ -137,7 +136,7 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
   if (lhs.empty())
     Error("*** empty variable name.");
 
-  if (lhs == kati_readonly_) {
+  if (lhs == kKatiReadonlySym) {
     string rhs;
     stmt->rhs->Eval(this, &rhs);
     for (auto const& name : WordScanner(rhs)) {
@@ -224,7 +223,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
 
     current_scope_ = p.first->second;
 
-    if (lhs == kati_readonly_) {
+    if (lhs == kKatiReadonlySym) {
       string rhs_value;
       rhs->Eval(this, &rhs_value);
       for (auto const& name : WordScanner(rhs_value)) {
@@ -266,7 +265,7 @@ void Evaluator::EvalCommand(const CommandStmt* stmt) {
   last_rule_->cmds.push_back(stmt->expr);
   if (last_rule_->cmd_lineno == 0)
     last_rule_->cmd_lineno = stmt->loc().lineno;
-  LOG("Command: %s", stmt->expr->DebugString().c_str());
+  LOG("Command: %s", Value::DebugString(stmt->expr).c_str());
 }
 
 void Evaluator::EvalIf(const IfStmt* stmt) {
@@ -462,4 +461,4 @@ void Evaluator::DumpStackStats() const {
            LOCF(lowest_loc_));
 }
 
-unordered_set<Symbol> Evaluator::used_undefined_vars_;
+SymbolSet Evaluator::used_undefined_vars_;

@@ -38,8 +38,9 @@ struct SymbolData {
 vector<string*>* g_symbols;
 static vector<SymbolData> g_symbol_data;
 
-Symbol kEmptySym = Symbol(Symbol::IsUninitialized());
-Symbol kShellSym = Symbol(Symbol::IsUninitialized());
+Symbol kEmptySym;
+Symbol kShellSym;
+Symbol kKatiReadonlySym;
 
 Symbol::Symbol(int v) : v_(v) {}
 
@@ -125,6 +126,7 @@ class Symtab {
 
     kEmptySym = Intern("");
     kShellSym = Intern("SHELL");
+    kKatiReadonlySym = Intern(".KATI_READONLY");
   }
 
   ~Symtab() {

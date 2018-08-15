@@ -228,9 +228,10 @@ class NinjaGenerator {
   }
 
   void PopulateNinjaNode(DepNode* node) {
-    auto p = done_.insert(node->output);
-    if (!p.second)
+    if (done_.exists(node->output)) {
       return;
+    }
+    done_.insert(node->output);
 
     // A hack to exclude out phony target in Android. If this exists,
     // "ninja -t clean" tries to remove this directory and fails.
@@ -628,7 +629,7 @@ class NinjaGenerator {
       fprintf(fp_, "%s", buf.str().c_str());
     }
 
-    unordered_set<Symbol> used_env_vars(Vars::used_env_vars());
+    SymbolSet used_env_vars(Vars::used_env_vars());
     // PATH changes $(shell).
     used_env_vars.insert(Intern("PATH"));
     for (Symbol e : used_env_vars) {
@@ -716,7 +717,6 @@ class NinjaGenerator {
     for (Symbol v : Evaluator::used_undefined_vars()) {
       DumpString(fp, v.str());
     }
-
     DumpInt(fp, used_envs_.size());
     for (const auto& p : used_envs_) {
       DumpString(fp, p.first);
@@ -785,7 +785,7 @@ class NinjaGenerator {
   CommandEvaluator ce_;
   Evaluator* ev_;
   FILE* fp_;
-  unordered_set<Symbol> done_;
+  SymbolSet done_;
   int rule_id_;
   bool use_goma_;
   string gomacc_;
