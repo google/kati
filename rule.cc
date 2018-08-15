@@ -23,152 +23,80 @@
 #include "strutil.h"
 #include "symtab.h"
 
-namespace {
+Rule::Rule() : is_double_colon(false), is_suffix_rule(false), cmd_lineno(0) {}
 
-static void ParseInputs(Rule* r, StringPiece s) {
+
+void Rule::ParseInputs(const StringPiece &inputs_str) {
   bool is_order_only = false;
-  for (StringPiece input : WordScanner(s)) {
+  for (auto const& input : WordScanner(inputs_str)) {
     if (input == "|") {
       is_order_only = true;
       continue;
     }
     Symbol input_sym = Intern(TrimLeadingCurdir(input));
-    if (is_order_only) {
-      r->order_only_inputs.push_back(input_sym);
-    } else {
-      r->inputs.push_back(input_sym);
-    }
+    (is_order_only ? order_only_inputs : inputs).push_back(input_sym);
   }
 }
 
-bool IsPatternRule(StringPiece s) {
-  return s.find('%') != string::npos;
-}
-
-}  // namespace
-
-Rule::Rule() : is_double_colon(false), is_suffix_rule(false), cmd_lineno(0) {}
-
-void ParseRule(Loc& loc,
-               StringPiece line,
-               char term,
-               const function<string()>& after_term_fn,
-               Rule** out_rule,
-               RuleVarAssignment* rule_var) {
-  size_t index = line.find(':');
-  if (index == string::npos) {
-    ERROR_LOC(loc, "*** missing separator.");
-  }
-
-  StringPiece first = line.substr(0, index);
-  vector<Symbol> outputs;
-  for (StringPiece tok : WordScanner(first)) {
-    outputs.push_back(Intern(TrimLeadingCurdir(tok)));
-  }
-
-  const bool is_first_pattern =
-      (!outputs.empty() && IsPatternRule(outputs[0].str()));
-  for (size_t i = 1; i < outputs.size(); i++) {
-    if (IsPatternRule(outputs[i].str()) != is_first_pattern) {
-      ERROR_LOC(loc, "*** mixed implicit and normal rules: deprecated syntax");
-    }
-  }
-
-  bool is_double_colon = false;
-  index++;
-  if (line.get(index) == ':') {
-    is_double_colon = true;
-    index++;
-  }
-
-  StringPiece rest = line.substr(index);
-  size_t term_index = rest.find_first_of("=;");
-  string buf;
-  if ((term_index != string::npos && rest[term_index] == '=') ||
-      (term_index == string::npos && term == '=')) {
-    if (term_index == string::npos)
-      term_index = rest.size();
-    // "test: =foo" is questionable but a valid rule definition (not a
-    // target specific variable).
-    // See https://github.com/google/kati/issues/83
-    if (term_index == 0) {
-      KATI_WARN_LOC(loc,
-                    "defining a target which starts with `=', "
-                    "which is not probably what you meant");
-      buf = line.as_string();
-      if (term)
-        buf += term;
-      buf += after_term_fn();
-      line = buf;
-      rest = line.substr(index);
-      term_index = string::npos;
-    } else {
-      rule_var->outputs.swap(outputs);
-      ParseAssignStatement(rest, term_index, &rule_var->lhs, &rule_var->rhs,
-                           &rule_var->op);
-      *out_rule = NULL;
-      return;
-    }
-  }
-
-  Rule* rule = new Rule();
-  *out_rule = rule;
-  rule->loc = loc;
-  rule->is_double_colon = is_double_colon;
-  if (is_first_pattern) {
-    rule->output_patterns.swap(outputs);
-  } else {
-    rule->outputs.swap(outputs);
-  }
-  if (term_index != string::npos && term != ';') {
-    CHECK(rest[term_index] == ';');
+void Rule::ParsePrerequisites(const StringPiece& line,
+                              size_t separator_pos,
+                              const RuleStmt *rule_stmt) {
+  // line is either
+  //    prerequisites [ ; command ]
+  // or
+  //    target-prerequisites : prereq-patterns [ ; command ]
+  // First, separate command. At this point separator_pos should point to ';'
+  // unless null.
+  StringPiece prereq_string = line;
+  if (separator_pos != string::npos && rule_stmt->sep != RuleStmt::SEP_SEMICOLON) {
+    CHECK(line[separator_pos] == ';');
     // TODO: Maybe better to avoid Intern here?
-    rule->cmds.push_back(
-        NewLiteral(Intern(TrimLeftSpace(rest.substr(term_index + 1))).str()));
-    rest = rest.substr(0, term_index);
+    cmds.push_back(NewLiteral(
+        Intern(TrimLeftSpace(line.substr(separator_pos + 1))).str()));
+    prereq_string = line.substr(0, separator_pos);
   }
 
-  index = rest.find(':');
-  if (index == string::npos) {
-    ParseInputs(rule, rest);
+  if ((separator_pos = prereq_string.find(':')) == string::npos) {
+    // Simple prerequisites
+    ParseInputs(prereq_string);
     return;
   }
 
-  if (is_first_pattern) {
+  // Static pattern rule.
+  if (!output_patterns.empty()) {
     ERROR_LOC(loc, "*** mixed implicit and normal rules: deprecated syntax");
   }
 
-  // Empty static patterns should not produce rules, but need to eat the commands
-  // So return a rule with no outputs nor output_patterns
-  if (rule->outputs.empty()) {
+  // Empty static patterns should not produce rules, but need to eat the
+  // commands So return a rule with no outputs nor output_patterns
+  if (outputs.empty()) {
     return;
   }
 
-  StringPiece second = rest.substr(0, index);
-  StringPiece third = rest.substr(index + 1);
+  StringPiece target_prereq = prereq_string.substr(0, separator_pos);
+  StringPiece prereq_patterns = prereq_string.substr(separator_pos + 1);
 
-  for (StringPiece tok : WordScanner(second)) {
-    tok = TrimLeadingCurdir(tok);
-    for (Symbol output : rule->outputs) {
-      if (!Pattern(tok).Match(output.str())) {
+  for (StringPiece target_pattern : WordScanner(target_prereq)) {
+    target_pattern = TrimLeadingCurdir(target_pattern);
+    for (Symbol target : outputs) {
+      if (!Pattern(target_pattern).Match(target.str())) {
         WARN_LOC(loc, "target `%s' doesn't match the target pattern",
-                 output.c_str());
+                 target.c_str());
       }
     }
-
-    rule->output_patterns.push_back(Intern(tok));
+    output_patterns.push_back(Intern(target_pattern));
   }
 
-  if (rule->output_patterns.empty()) {
+  if (output_patterns.empty()) {
     ERROR_LOC(loc, "*** missing target pattern.");
   }
-  if (rule->output_patterns.size() > 1) {
+  if (output_patterns.size() > 1) {
     ERROR_LOC(loc, "*** multiple target patterns.");
   }
-  if (!IsPatternRule(rule->output_patterns[0].str())) {
+  if (!IsPatternRule(output_patterns[0].str())) {
     ERROR_LOC(loc, "*** target pattern contains no '%%'.");
   }
-  ParseInputs(rule, third);
+  ParseInputs(prereq_patterns);
 }
 
 string Rule::DebugString() const {

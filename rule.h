@@ -37,6 +37,16 @@ class Rule {
 
   string DebugString() const;
 
+  void ParseInputs(const StringPiece& inputs_string);
+
+  void ParsePrerequisites(const StringPiece& line,
+                          size_t pos,
+                          const RuleStmt* rule_stmt);
+
+  static bool IsPatternRule(const StringPiece& target_string) {
+    return target_string.find('%') != string::npos;
+  }
+
   vector<Symbol> outputs;
   vector<Symbol> inputs;
   vector<Symbol> order_only_inputs;
@@ -51,22 +61,5 @@ class Rule {
   void Error(const string& msg) { ERROR_LOC(loc, "%s", msg.c_str()); }
 };
 
-struct RuleVarAssignment {
-  vector<Symbol> outputs;
-  StringPiece lhs;
-  StringPiece rhs;
-  AssignOp op;
-};
-
-// If |rule| is not NULL, |rule_var| is filled. If the expression
-// after the terminator |term| is needed (this happens only when
-// |term| is '='), |after_term_fn| will be called to obtain the right
-// hand side.
-void ParseRule(Loc& loc,
-               StringPiece line,
-               char term,
-               const function<string()>& after_term_fn,
-               Rule** rule,
-               RuleVarAssignment* rule_var);
 
 #endif  // RULE_H_

@@ -94,8 +94,8 @@ class Var : public Evaluable {
   Var();
 
  private:
-  bool readonly_;
   unique_ptr<string> message_;
+  bool readonly_;
   bool error_;
 };
 
@@ -162,7 +162,11 @@ extern UndefinedVar* kUndefined;
 
 class RuleVar : public Var {
  public:
-  RuleVar(Var* v, AssignOp op) : v_(v), op_(op) {}
+  RuleVar(Var* v, AssignOp op, bool readonly) : v_(v), op_(op) {
+    if (readonly) {
+      SetReadOnly();
+    }
+  }
   virtual ~RuleVar() { delete v_; }
 
   virtual const char* Flavor() const override { return v_->Flavor(); }
