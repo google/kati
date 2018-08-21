@@ -46,7 +46,7 @@ const char* GetOriginStr(VarOrigin origin) {
   return "*** broken origin ***";
 }
 
-Var::Var() : readonly_(false), message_(), error_(false) {}
+Var::Var() : message_(), readonly_(false), error_(false) {}
 
 Var::~Var() {}
 

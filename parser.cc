@@ -221,35 +221,54 @@ class Parser {
     }
 
     const bool is_rule = sep != string::npos && line[sep] == ':';
-    RuleStmt* stmt = new RuleStmt();
-    stmt->set_loc(loc_);
+    RuleStmt* rule_stmt = new RuleStmt();
+    rule_stmt->set_loc(loc_);
 
     size_t found = FindTwoOutsideParen(line.substr(sep + 1), '=', ';');
     if (found != string::npos) {
       found += sep + 1;
-      stmt->term = line[found];
+      rule_stmt->lhs = ParseExpr(TrimSpace(line.substr(0, found)));
+      if (line[found] == ';') {
+        rule_stmt->sep = RuleStmt::SEP_SEMICOLON;
+      } else if (line[found] == '=') {
+        if (line.size() > (found + 2) && line[found + 1] == '$' && line[found + 2] == '=') {
+          rule_stmt->sep = RuleStmt::SEP_FINALEQ;
+          found += 2;
+        } else {
+          rule_stmt->sep = RuleStmt::SEP_EQ;
+        }
+      }
       ParseExprOpt opt =
-          stmt->term == ';' ? ParseExprOpt::COMMAND : ParseExprOpt::NORMAL;
-      stmt->after_term = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
-      stmt->expr = ParseExpr(TrimSpace(line.substr(0, found)));
+          rule_stmt->sep == RuleStmt::SEP_SEMICOLON ? ParseExprOpt::COMMAND : ParseExprOpt::NORMAL;
+      rule_stmt->rhs = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
     } else {
-      stmt->term = 0;
-      stmt->after_term = NULL;
-      stmt->expr = ParseExpr(line);
+      rule_stmt->lhs = ParseExpr(line);
+      rule_stmt->sep = RuleStmt::SEP_NULL;
+      rule_stmt->rhs = NULL;
     }
-    out_stmts_->push_back(stmt);
+    out_stmts_->push_back(rule_stmt);
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
   }
 
-  void ParseAssign(StringPiece line, size_t sep) {
-    if (sep == 0) {
+  void ParseAssign(StringPiece line, size_t separator_pos) {
+    if (separator_pos == 0) {
       Error("*** empty variable name ***");
       return;
     }
     StringPiece lhs;
     StringPiece rhs;
     AssignOp op;
-    ParseAssignStatement(line, sep, &lhs, &rhs, &op);
+    ParseAssignStatement(line, separator_pos, &lhs, &rhs, &op);
+
+    // If rhs starts with '$=', this is 'final assignment',
+    // e.g., a combination of the assignment and
+    //  .KATI_READONLY := <lhs>
+    // statement. Note that we assume that ParseAssignStatement
+    // trimmed the left
+    bool is_final = (rhs.size() >= 2 && rhs[0] == '$' && rhs[1] == '=');
+    if (is_final) {
+      rhs = TrimLeftSpace(rhs.substr(2));
+    }
 
     AssignStmt* stmt = new AssignStmt();
     stmt->set_loc(loc_);
@@ -258,6 +277,7 @@ class Parser {
     stmt->orig_rhs = rhs;
     stmt->op = op;
     stmt->directive = current_directive_;
+    stmt->is_final = is_final;
     out_stmts_->push_back(stmt);
     state_ = ParserState::NOT_AFTER_RULE;
   }

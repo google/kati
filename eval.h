@@ -122,6 +122,12 @@ class Evaluator {
   // Equivalent to LookupVarInCurrentScope, but doesn't mark as used.
   Var* PeekVarInCurrentScope(Symbol name);
 
+  void MarkVarsReadonly(Value *var_list);
+
+  void EvalRuleSpecificAssign(const vector<Symbol>& targets,
+                              const RuleStmt *stmt,
+                              const StringPiece& lhs_string, size_t separator_pos);
+
   unordered_map<Symbol, Vars*> rule_vars_;
   vector<const Rule*> rules_;
   unordered_map<Symbol, bool> exports_;

@@ -26,9 +26,9 @@ Stmt::Stmt() {}
 Stmt::~Stmt() {}
 
 string RuleStmt::DebugString() const {
-  return StringPrintf("RuleStmt(expr=%s term=%d after_term=%s loc=%s:%d)",
-                      Value::DebugString(expr).c_str(), term,
-                      Value::DebugString(after_term).c_str(), LOCF(loc()));
+  return StringPrintf("RuleStmt(lhs=%s sep=%d rhs=%s loc=%s:%d)",
+                      Value::DebugString(lhs).c_str(), sep,
+                      Value::DebugString(rhs).c_str(), LOCF(loc()));
 }
 
 string AssignStmt::DebugString() const {
@@ -122,8 +122,8 @@ string ParseErrorStmt::DebugString() const {
 }
 
 RuleStmt::~RuleStmt() {
-  delete expr;
-  delete after_term;
+  delete lhs;
+  delete rhs;
 }
 
 void RuleStmt::Eval(Evaluator* ev) const {

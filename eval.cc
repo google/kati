@@ -150,16 +150,107 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
     return;
   }
 
-  Var* rhs = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
+  Var* var = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
                      stmt->directive == AssignDirective::OVERRIDE);
-  if (rhs) {
+  if (var) {
     bool readonly;
-    lhs.SetGlobalVar(rhs, stmt->directive == AssignDirective::OVERRIDE,
+    lhs.SetGlobalVar(var, stmt->directive == AssignDirective::OVERRIDE,
                      &readonly);
     if (readonly) {
       Error(StringPrintf("*** cannot assign to readonly variable: %s",
                          lhs.c_str()));
     }
+    if (stmt->is_final) {
+      var->SetReadOnly();
+    }
+  }
+}
+
+// With rule broken into
+//   <before_term> <term> <after_term>
+// parses <before_term> into Symbol instances until encountering ':'
+// Returns the remainder of <before_term>.
+static StringPiece ParseRuleTargets(const Loc& loc,
+                                    const StringPiece& before_term,
+                                    vector<Symbol>* targets,
+                                    bool* is_pattern_rule) {
+  size_t pos = before_term.find(':');
+  if (pos == string::npos) {
+    ERROR_LOC(loc, "*** missing separator.");
+  }
+  StringPiece targets_string = before_term.substr(0, pos);
+  size_t pattern_rule_count = 0;
+  for (auto const& word : WordScanner(targets_string)) {
+    StringPiece target = TrimLeadingCurdir(word);
+    targets->push_back(Intern(target));
+    if (Rule::IsPatternRule(target)) {
+      ++pattern_rule_count;
+    }
+  }
+  // Check consistency: either all outputs are patterns or none.
+  if (pattern_rule_count && (pattern_rule_count != targets->size())) {
+    ERROR_LOC(loc, "*** mixed implicit and normal rules: deprecated syntax");
+  }
+  *is_pattern_rule = pattern_rule_count;
+  return before_term.substr(pos + 1);
+}
+
+
+void Evaluator::MarkVarsReadonly(Value* vars_list) {
+  string vars_list_string;
+  vars_list->Eval(this, &vars_list_string);
+  for (auto const& name : WordScanner(vars_list_string)) {
+    Var* var = current_scope_->Lookup(Intern(name));
+    if (!var->IsDefined()) {
+      Error(StringPrintf("*** unknown variable: %s", name.as_string().c_str()));
+    }
+    var->SetReadOnly();
+  }
+}
+
+void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
+                                       const RuleStmt* stmt,
+                                       const StringPiece& after_targets,
+                                       size_t separator_pos) {
+  StringPiece var_name;
+  StringPiece rhs_string;
+  AssignOp assign_op;
+  ParseAssignStatement(after_targets, separator_pos, &var_name, &rhs_string,
+                       &assign_op);
+  Symbol var_sym = Intern(var_name);
+  bool is_final = (stmt->sep == RuleStmt::SEP_FINALEQ);
+  for (Symbol target : targets) {
+    auto p = rule_vars_.emplace(target, nullptr);
+    if (p.second) {
+      p.first->second = new Vars;
+    }
+
+    Value* rhs;
+    if (rhs_string.empty()) {
+      rhs = stmt->rhs;
+    } else if (stmt->rhs) {
+      StringPiece sep(stmt->sep == RuleStmt::SEP_SEMICOLON ? " ; " : " = ");
+      rhs = NewExpr3(NewLiteral(rhs_string), NewLiteral(sep), stmt->rhs);
+    } else {
+      rhs = NewLiteral(rhs_string);
+    }
+
+    current_scope_ = p.first->second;
+    if (var_sym == kKatiReadonlySym) {
+      MarkVarsReadonly(rhs);
+    } else {
+      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op);
+      if (rhs_var) {
+        bool readonly;
+        RuleVar *rule_var = new RuleVar(rhs_var, assign_op, is_final);
+        current_scope_->Assign(var_sym, rule_var, &readonly);
+        if (readonly) {
+          Error(StringPrintf("*** cannot assign to readonly variable: %s",
+                             var_name));
+        }
+      }
+    }
+    current_scope_ = NULL;
   }
 }
 
@@ -167,88 +258,87 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& expr = stmt->expr->Eval(this);
+  const string&& before_term = stmt->lhs->Eval(this);
   // See semicolon.mk.
-  if (expr.find_first_not_of(" \t;") == string::npos) {
-    if (stmt->term == ';')
+  if (before_term.find_first_not_of(" \t;") == string::npos) {
+    if (stmt->sep == RuleStmt::SEP_SEMICOLON)
       Error("*** missing rule before commands.");
     return;
   }
 
-  Rule* rule;
-  RuleVarAssignment rule_var;
-  function<string()> after_term_fn = [this, stmt]() {
-    return stmt->after_term ? stmt->after_term->Eval(this) : "";
-  };
-  ParseRule(loc_, expr, stmt->term, after_term_fn, &rule, &rule_var);
+  vector<Symbol> targets;
+  bool is_pattern_rule;
+  StringPiece after_targets =
+      ParseRuleTargets(loc_, before_term, &targets, &is_pattern_rule);
+  bool is_double_colon = (after_targets[0] == ':');
+  if (is_double_colon) {
+    after_targets = after_targets.substr(1);
+  }
 
-  if (rule) {
-    if (stmt->term == ';') {
-      rule->cmds.push_back(stmt->after_term);
-    }
+  // Figure out if this is a rule-specific variable assignment.
+  // It is an assignment when either after_targets contains an assignment token
+  // or separator is an assignment token, but only if there is no ';' before the
+  // first assignment token.
+  size_t separator_pos = after_targets.find_first_of("=;");
+  char separator = '\0';
+  if (separator_pos != string::npos) {
+    separator = after_targets[separator_pos];
+  } else if (separator_pos == string::npos &&
+             (stmt->sep == RuleStmt::SEP_EQ || stmt->sep == RuleStmt::SEP_FINALEQ)) {
+    separator_pos = after_targets.size();
+    separator = '=';
+  }
 
-    for (Symbol o : rule->outputs) {
-      if (o == posix_sym_)
-        is_posix_ = true;
-    }
-
-    LOG("Rule: %s", rule->DebugString().c_str());
-    rules_.push_back(rule);
-    last_rule_ = rule;
+  // If variable name is not empty, we have rule- or target-specific
+  // variable assignment.
+  if (separator == '=' && separator_pos) {
+    EvalRuleSpecificAssign(targets, stmt, after_targets, separator_pos);
     return;
   }
 
-  Symbol lhs = Intern(rule_var.lhs);
-  for (Symbol output : rule_var.outputs) {
-    auto p = rule_vars_.emplace(output, nullptr);
-    if (p.second) {
-      p.first->second = new Vars;
+  // "test: =foo" is questionable but a valid rule definition (not a
+  // target specific variable).
+  // See https://github.com/google/kati/issues/83
+  string buf;
+  if (!separator_pos) {
+    KATI_WARN_LOC(loc_,
+                  "defining a target which starts with `=', "
+                  "which is not probably what you meant");
+    buf = after_targets.as_string();
+    if (stmt->sep == RuleStmt::SEP_SEMICOLON) {
+      buf += ';';
+    } else if (stmt->sep == RuleStmt::SEP_EQ || stmt->sep == RuleStmt::SEP_FINALEQ) {
+      buf += '=';
     }
-
-    Value* rhs = stmt->after_term;
-    if (!rule_var.rhs.empty()) {
-      Value* lit = NewLiteral(rule_var.rhs);
-      if (rhs) {
-        // TODO: We always insert two whitespaces around the
-        // terminator. Preserve whitespaces properly.
-        if (stmt->term == ';') {
-          rhs = NewExpr3(lit, NewLiteral(StringPiece(" ; ")), rhs);
-        } else {
-          rhs = NewExpr3(lit, NewLiteral(StringPiece(" = ")), rhs);
-        }
-      } else {
-        rhs = lit;
-      }
+    if (stmt->rhs) {
+      buf += stmt->rhs->Eval(this);
     }
-
-    current_scope_ = p.first->second;
-
-    if (lhs == kKatiReadonlySym) {
-      string rhs_value;
-      rhs->Eval(this, &rhs_value);
-      for (auto const& name : WordScanner(rhs_value)) {
-        Var* var = current_scope_->Lookup(Intern(name));
-        if (!var->IsDefined()) {
-          Error(StringPrintf("*** unknown variable: %s",
-                             name.as_string().c_str()));
-        }
-        var->SetReadOnly();
-      }
-      current_scope_ = NULL;
-      continue;
-    }
-
-    Var* rhs_var = EvalRHS(lhs, rhs, StringPiece("*TODO*"), rule_var.op);
-    if (rhs_var) {
-      bool readonly;
-      current_scope_->Assign(lhs, new RuleVar(rhs_var, rule_var.op), &readonly);
-      if (readonly) {
-        Error(StringPrintf("*** cannot assign to readonly variable: %s",
-                           lhs.c_str()));
-      }
-    }
-    current_scope_ = NULL;
+    after_targets = buf;
+    separator_pos = string::npos;
   }
+
+  Rule* rule = new Rule();
+  rule->loc = loc_;
+  rule->is_double_colon = is_double_colon;
+  if (is_pattern_rule) {
+    rule->output_patterns.swap(targets);
+  } else {
+    rule->outputs.swap(targets);
+  }
+  rule->ParsePrerequisites(after_targets, separator_pos, stmt);
+
+  if (stmt->sep == RuleStmt::SEP_SEMICOLON) {
+    rule->cmds.push_back(stmt->rhs);
+  }
+
+  for (Symbol o : rule->outputs) {
+    if (o == posix_sym_)
+      is_posix_ = true;
+  }
+
+  LOG("Rule: %s", rule->DebugString().c_str());
+  rules_.push_back(rule);
+  last_rule_ = rule;
 }
 
 void Evaluator::EvalCommand(const CommandStmt* stmt) {

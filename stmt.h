@@ -67,10 +67,17 @@ struct Stmt {
   StringPiece orig_;
 };
 
+/* Parsed "rule statement" before evaluation is kept as
+ *    <lhs> <sep> <rhs>
+ * where <lhs> and <rhs> as Value instances. <sep> is either command
+ * separator (';') or an assignment ('=' or '=$=').
+ * Until we evaluate <lhs>, we don't know whether it is a rule or
+ * a rule-specific variable assignment.
+ */
 struct RuleStmt : public Stmt {
-  Value* expr;
-  char term;
-  Value* after_term;
+  Value* lhs;
+  enum { SEP_NULL, SEP_SEMICOLON, SEP_EQ, SEP_FINALEQ } sep;
+  Value* rhs;
 
   virtual ~RuleStmt();
 
@@ -85,8 +92,9 @@ struct AssignStmt : public Stmt {
   StringPiece orig_rhs;
   AssignOp op;
   AssignDirective directive;
+  bool is_final;
 
-  AssignStmt() {}
+  AssignStmt() : is_final(false) {}
   virtual ~AssignStmt();
 
   virtual void Eval(Evaluator* ev) const;
