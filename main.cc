@@ -121,7 +121,7 @@ static void SetVar(StringPiece l, VarOrigin origin) {
   Symbol lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
   lhs.SetGlobalVar(
-      new RecursiveVar(NewLiteral(rhs.data()), origin, rhs.data()));
+      new RecursiveVar(Value::NewLiteral(rhs.data()), origin, rhs.data()));
 }
 
 extern "C" char** environ;

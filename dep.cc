@@ -662,9 +662,9 @@ class DepBuilder {
     if (vars) {
       for (const auto& p : *vars) {
         Symbol name = p.first;
-        RuleVar* var = reinterpret_cast<RuleVar*>(p.second);
+        Var* var = p.second;
         CHECK(var);
-        Var* new_var = var->v();
+        Var* new_var = var;
         if (var->op() == AssignOp::PLUS_EQ) {
           Var* old_var = ev_->LookupVar(name);
           if (old_var->IsDefined()) {

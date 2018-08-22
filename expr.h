@@ -37,10 +37,13 @@ class Evaluable {
 
 class Value : public Evaluable {
  public:
+  // All NewExpr calls take ownership of the Value instances.
+  static Value *NewExpr(Value *v1, Value *v2);
+  static Value *NewExpr(Value *v1, Value *v2, Value *v3);
+  static Value *NewExpr(vector<Value *> *values);
+
+  static Value *NewLiteral(StringPiece s);
   virtual ~Value();
-
-  virtual Value* Compact() { return this; }
-
   virtual bool IsLiteral() const { return false; }
   // Only safe after IsLiteral() returns true.
   virtual StringPiece GetLiteralValueUnsafe() const { return ""; }
@@ -70,10 +73,5 @@ Value* ParseExpr(const Loc& loc,
                  ParseExprOpt opt = ParseExprOpt::NORMAL);
 
 string JoinValues(const vector<Value*>& vals, const char* sep);
-
-Value* NewExpr2(Value* v1, Value* v2);
-Value* NewExpr3(Value* v1, Value* v2, Value* v3);
-
-Value* NewLiteral(StringPiece s);
 
 #endif  // EXPR_H_

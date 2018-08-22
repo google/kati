@@ -51,7 +51,7 @@ void Rule::ParsePrerequisites(const StringPiece& line,
   if (separator_pos != string::npos && rule_stmt->sep != RuleStmt::SEP_SEMICOLON) {
     CHECK(line[separator_pos] == ';');
     // TODO: Maybe better to avoid Intern here?
-    cmds.push_back(NewLiteral(
+    cmds.push_back(Value::NewLiteral(
         Intern(TrimLeftSpace(line.substr(separator_pos + 1))).str()));
     prereq_string = line.substr(0, separator_pos);
   }

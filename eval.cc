@@ -78,9 +78,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
   switch (op) {
     case AssignOp::COLON_EQ: {
       prev = PeekVarInCurrentScope(lhs);
-      SimpleVar* sv = new SimpleVar(origin);
-      rhs_v->Eval(this, sv->mutable_value());
-      rhs = sv;
+      rhs = new SimpleVar(origin, this, rhs_v);
       break;
     }
     case AssignOp::EQ:
@@ -230,23 +228,27 @@ void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
       rhs = stmt->rhs;
     } else if (stmt->rhs) {
       StringPiece sep(stmt->sep == RuleStmt::SEP_SEMICOLON ? " ; " : " = ");
-      rhs = NewExpr3(NewLiteral(rhs_string), NewLiteral(sep), stmt->rhs);
+      rhs = Value::NewExpr(Value::NewLiteral(rhs_string), Value::NewLiteral(sep),
+                           stmt->rhs);
     } else {
-      rhs = NewLiteral(rhs_string);
+      rhs = Value::NewLiteral(rhs_string);
     }
 
     current_scope_ = p.first->second;
     if (var_sym == kKatiReadonlySym) {
       MarkVarsReadonly(rhs);
     } else {
-      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op);
+      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op, false);
       if (rhs_var) {
         bool readonly;
-        RuleVar *rule_var = new RuleVar(rhs_var, assign_op, is_final);
-        current_scope_->Assign(var_sym, rule_var, &readonly);
+        rhs_var->SetAssignOp(assign_op);
+        current_scope_->Assign(var_sym, rhs_var, &readonly);
         if (readonly) {
           Error(StringPrintf("*** cannot assign to readonly variable: %s",
                              var_name));
+        }
+        if (is_final) {
+          rhs_var->SetReadOnly();
         }
       }
     }
@@ -407,7 +409,7 @@ void Evaluator::DoInclude(const string& fname) {
   }
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
-  var_list->AppendVar(this, NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
+  var_list->AppendVar(this, Value::NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
   for (Stmt* stmt : mk->stmts()) {
     LOG("%s", stmt->DebugString().c_str());
     stmt->Eval(this);

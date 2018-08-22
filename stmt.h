@@ -27,7 +27,7 @@ using namespace std;
 class Evaluator;
 class Value;
 
-enum struct AssignOp {
+enum struct AssignOp : char {
   EQ,
   COLON_EQ,
   PLUS_EQ,

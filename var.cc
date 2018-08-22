@@ -20,8 +20,7 @@
 #include "expr.h"
 #include "log.h"
 
-UndefinedVar kUndefinedBuf;
-UndefinedVar* kUndefined = &kUndefinedBuf;
+unordered_map<const Var *, string> Var::diagnostic_messages_;
 
 const char* GetOriginStr(VarOrigin origin) {
   switch (origin) {
@@ -46,18 +45,67 @@ const char* GetOriginStr(VarOrigin origin) {
   return "*** broken origin ***";
 }
 
-Var::Var() : message_(), readonly_(false), error_(false) {}
+Var::Var() : Var(VarOrigin::UNDEFINED) {}
 
-Var::~Var() {}
+Var::Var(VarOrigin origin):
+    origin_(origin), readonly_(false), deprecated_(false), obsolete_(false) {
+}
+
+Var::~Var() {
+  diagnostic_messages_.erase(this);
+}
 
 void Var::AppendVar(Evaluator*, Value*) {
   CHECK(false);
 }
 
-SimpleVar::SimpleVar(VarOrigin origin) : origin_(origin) {}
+void Var::SetDeprecated(const StringPiece& msg) {
+  deprecated_ = true;
+  diagnostic_messages_[this] = msg.as_string();
+}
+
+void Var::SetObsolete(const StringPiece& msg) {
+  obsolete_ = true;
+  diagnostic_messages_[this] = msg.as_string();
+}
+
+
+void Var::Used(Evaluator* ev, const Symbol& sym) const {
+  if (obsolete_) {
+    ev->Error(StringPrintf("*** %s is obsolete%s.", sym.c_str(), diagnostic_message_text()));
+  } else if (deprecated_) {
+    WARN_LOC(ev->loc(), "%s has been deprecated%s.", sym.c_str(), diagnostic_message_text());
+  }
+}
+
+const char *Var::diagnostic_message_text() const {
+  auto it = diagnostic_messages_.find(this);
+  return it == diagnostic_messages_.end() ? "" : it->second.c_str();
+}
+
+const string& Var::DeprecatedMessage() const {
+  static const string empty_string;
+  auto it = diagnostic_messages_.find(this);
+  return it == diagnostic_messages_.end() ? empty_string : it->second;
+}
+
+Var *Var::Undefined() {
+  static Var *undefined_var;
+  if (!undefined_var) {
+    undefined_var = new UndefinedVar();
+  }
+  return undefined_var;
+}
+
+SimpleVar::SimpleVar(VarOrigin origin) : Var(origin) {}
 
 SimpleVar::SimpleVar(const string& v, VarOrigin origin)
-    : v_(v), origin_(origin) {}
+    : Var(origin), v_(v) {}
+
+SimpleVar::SimpleVar(VarOrigin origin, Evaluator* ev, Value* v)
+    : Var(origin) {
+  v->Eval(ev, &v_);
+}
 
 void SimpleVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
@@ -80,7 +128,7 @@ string SimpleVar::DebugString() const {
 }
 
 RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, StringPiece orig)
-    : v_(v), origin_(origin), orig_(orig) {}
+    : Var(origin), v_(v), orig_(orig) {}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
@@ -89,7 +137,7 @@ void RecursiveVar::Eval(Evaluator* ev, string* s) const {
 
 void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
   ev->CheckStack();
-  v_ = NewExpr3(v_, NewLiteral(" "), v);
+  v_ = Value::NewExpr(v_, Value::NewLiteral(" "), v);
 }
 
 StringPiece RecursiveVar::String() const {
@@ -127,7 +175,7 @@ void Vars::add_used_env_vars(Symbol v) {
 Var* Vars::Lookup(Symbol name) const {
   auto found = find(name);
   if (found == end())
-    return kUndefined;
+    return Var::Undefined();
   Var* v = found->second;
   if (v->Origin() == VarOrigin::ENVIRONMENT ||
       v->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE) {
@@ -138,9 +186,7 @@ Var* Vars::Lookup(Symbol name) const {
 
 Var* Vars::Peek(Symbol name) const {
   auto found = find(name);
-  if (found == end())
-    return kUndefined;
-  return found->second;
+  return found == end() ? Var::Undefined() : found->second;
 }
 
 void Vars::Assign(Symbol name, Var* v, bool* readonly) {

@@ -114,7 +114,7 @@ class Evaluator {
                Value* rhs,
                StringPiece orig_rhs,
                AssignOp op,
-               bool is_override = false);
+               bool is_override);
   void DoInclude(const string& fname);
 
   Var* LookupVarGlobal(Symbol name);
