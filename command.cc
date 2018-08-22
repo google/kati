@@ -30,8 +30,8 @@ namespace {
 
 class AutoVar : public Var {
  public:
+  AutoVar() : Var(VarOrigin::AUTOMATIC) {}
   virtual const char* Flavor() const override { return "undefined"; }
-  virtual VarOrigin Origin() const override { return VarOrigin::AUTOMATIC; }
 
   virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }
 

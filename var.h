@@ -32,7 +32,7 @@ using namespace std;
 class Evaluator;
 class Value;
 
-enum struct VarOrigin {
+enum struct VarOrigin : char {
   UNDEFINED,
   DEFAULT,
   ENVIRONMENT,
@@ -50,7 +50,8 @@ class Var : public Evaluable {
   virtual ~Var();
 
   virtual const char* Flavor() const = 0;
-  virtual VarOrigin Origin() const = 0;
+
+  VarOrigin Origin() { return origin_; }
   virtual bool IsDefined() const { return true; }
 
   virtual void AppendVar(Evaluator* ev, Value* v);
@@ -62,50 +63,45 @@ class Var : public Evaluable {
   bool ReadOnly() const { return readonly_; }
   void SetReadOnly() { readonly_ = true; }
 
-  bool Deprecated() const { return message_ && !error_; }
-  void SetDeprecated(StringPiece msg) {
-    message_.reset(new string(msg.as_string()));
-  }
+  bool Deprecated() const { return deprecated_; }
+  void SetDeprecated(const StringPiece& msg);
 
-  bool Obsolete() const { return error_; }
-  void SetObsolete(StringPiece msg) {
-    message_.reset(new string(msg.as_string()));
-    error_ = true;
-  }
+  bool Obsolete() const { return obsolete_; }
+  void SetObsolete(const StringPiece& msg);
 
-  const string& DeprecatedMessage() const { return *message_; }
+  const string& DeprecatedMessage() const;
 
   // This variable was used (either written or read from)
-  void Used(Evaluator* ev, const Symbol& sym) const {
-    if (!message_) {
-      return;
-    }
+  void Used(Evaluator* ev, const Symbol& sym) const;
 
-    if (error_) {
-      ev->Error(StringPrintf("*** %s is obsolete%s.", sym.c_str(),
-                             message_->c_str()));
-    } else {
-      WARN_LOC(ev->loc(), "%s has been deprecated%s.", sym.c_str(),
-               message_->c_str());
-    }
-  }
+  AssignOp op() const { return assign_op_; }
+  void SetAssignOp(AssignOp op) { assign_op_ = op; }
+
+  static Var *Undefined();
 
  protected:
   Var();
+  explicit Var(VarOrigin origin);
 
  private:
-  unique_ptr<string> message_;
-  bool readonly_;
-  bool error_;
+  const VarOrigin origin_;
+  AssignOp assign_op_;
+  bool readonly_:1;
+  bool deprecated_:1;
+  bool obsolete_:1;
+
+  const char *diagnostic_message_text() const;
+
+  static unordered_map<const Var *, string> diagnostic_messages_;
 };
 
 class SimpleVar : public Var {
  public:
   explicit SimpleVar(VarOrigin origin);
   SimpleVar(const string& v, VarOrigin origin);
+  SimpleVar(VarOrigin, Evaluator* ev, Value* v);
 
   virtual const char* Flavor() const override { return "simple"; }
-  virtual VarOrigin Origin() const override { return origin_; }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
@@ -115,11 +111,8 @@ class SimpleVar : public Var {
 
   virtual string DebugString() const override;
 
-  string* mutable_value() { return &v_; }
-
  private:
   string v_;
-  VarOrigin origin_;
 };
 
 class RecursiveVar : public Var {
@@ -127,7 +120,6 @@ class RecursiveVar : public Var {
   RecursiveVar(Value* v, VarOrigin origin, StringPiece orig);
 
   virtual const char* Flavor() const override { return "recursive"; }
-  virtual VarOrigin Origin() const override { return origin_; }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
@@ -139,7 +131,6 @@ class RecursiveVar : public Var {
 
  private:
   Value* v_;
-  VarOrigin origin_;
   StringPiece orig_;
 };
 
@@ -148,7 +139,6 @@ class UndefinedVar : public Var {
   UndefinedVar();
 
   virtual const char* Flavor() const override { return "undefined"; }
-  virtual VarOrigin Origin() const override { return VarOrigin::UNDEFINED; }
   virtual bool IsDefined() const override { return false; }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
@@ -156,37 +146,6 @@ class UndefinedVar : public Var {
   virtual StringPiece String() const override;
 
   virtual string DebugString() const override;
-};
-
-extern UndefinedVar* kUndefined;
-
-class RuleVar : public Var {
- public:
-  RuleVar(Var* v, AssignOp op, bool readonly) : v_(v), op_(op) {
-    if (readonly) {
-      SetReadOnly();
-    }
-  }
-  virtual ~RuleVar() { delete v_; }
-
-  virtual const char* Flavor() const override { return v_->Flavor(); }
-  virtual VarOrigin Origin() const override { return v_->Origin(); }
-  virtual bool IsDefined() const override { return v_->IsDefined(); }
-  virtual void Eval(Evaluator* ev, string* s) const override {
-    v_->Eval(ev, s);
-  }
-  virtual void AppendVar(Evaluator* ev, Value* v) override {
-    v_->AppendVar(ev, v);
-  }
-  virtual StringPiece String() const override { return v_->String(); }
-  virtual string DebugString() const override { return v_->DebugString(); }
-
-  Var* v() const { return v_; }
-  AssignOp op() const { return op_; }
-
- private:
-  Var* v_;
-  AssignOp op_;
 };
 
 class Vars : public unordered_map<Symbol, Var*> {

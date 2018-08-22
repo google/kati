@@ -63,18 +63,36 @@ class Literal : public Value {
   StringPiece s_;
 };
 
-class Expr : public Value {
+class ValueList : public Value {
  public:
-  Expr() {}
+  ValueList() {}
 
-  virtual ~Expr() {
+  ValueList(Value *v1, Value *v2, Value *v3)
+      :ValueList(){
+    vals_.reserve(3);
+    vals_.push_back(v1);
+    vals_.push_back(v2);
+    vals_.push_back(v3);
+  }
+
+  ValueList(Value *v1, Value *v2):
+      ValueList() {
+    vals_.reserve(2);
+    vals_.push_back(v1);
+    vals_.push_back(v2);
+  }
+
+  ValueList(vector<Value *> *values):ValueList() {
+    values->shrink_to_fit();
+    values->swap(vals_);
+  }
+
+
+  virtual ~ValueList() {
     for (Value* v : vals_) {
       delete v;
     }
   }
-
-  // Takes the ownership of |v|.
-  void AddValue(Value* v) { vals_.push_back(v); }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->CheckStack();
@@ -87,7 +105,7 @@ class Expr : public Value {
     string r;
     for (Value* v : vals_) {
       if (r.empty()) {
-        r += "Expr(";
+        r += "ValueList(";
       } else {
         r += ", ";
       }
@@ -95,16 +113,6 @@ class Expr : public Value {
     }
     if (!r.empty())
       r += ")";
-    return r;
-  }
-
-  virtual Value* Compact() override {
-    if (vals_.size() != 1) {
-      return this;
-    }
-    Value* r = vals_[0];
-    vals_.clear();
-    delete this;
     return r;
   }
 
@@ -258,6 +266,27 @@ static size_t SkipSpaces(StringPiece s, const char* terms) {
   return s.size();
 }
 
+Value* Value::NewExpr(Value* v1, Value* v2) {
+  return new ValueList(v1, v2);
+}
+
+Value* Value::NewExpr(Value* v1, Value* v2, Value* v3) {
+  return new ValueList(v1, v2, v3);
+}
+
+Value* Value::NewExpr(vector<Value *> *values) {
+  if (values->size() == 1) {
+    Value *v = (*values)[0];
+    values->clear();
+    return v;
+  }
+  return new ValueList(values);
+}
+
+Value* Value::NewLiteral(StringPiece s) {
+  return new Literal(s);
+}
+
 bool ShouldHandleComments(ParseExprOpt opt) {
   return opt != ParseExprOpt::DEFINE && opt != ParseExprOpt::COMMAND;
 }
@@ -396,12 +425,8 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
           ParseExprImpl(loc, s.substr(i + 1), terms, ParseExprOpt::NORMAL, &n);
       i += 1 + n;
       if (s[i] == cp) {
-        Expr* v = new Expr;
-        v->AddValue(vname);
-        v->AddValue(new Literal(":"));
-        v->AddValue(pat);
         *index_out = i + 1;
-        return new VarRef(v);
+        return new VarRef(Value::NewExpr(vname, new Literal(":"), pat));
       }
 
       terms[1] = '\0';
@@ -409,7 +434,7 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
           ParseExprImpl(loc, s.substr(i + 1), terms, ParseExprOpt::NORMAL, &n);
       i += 1 + n;
       *index_out = i + 1;
-      return new VarSubst(vname->Compact(), pat, subst);
+      return new VarSubst(vname, pat, subst);
     }
 
     // GNU make accepts expressions like $((). See unmatched_paren*.mk
@@ -433,11 +458,11 @@ Value* ParseExprImpl(const Loc& loc,
   if (s.get(s.size() - 1) == '\r')
     s.remove_suffix(1);
 
-  Expr* r = new Expr;
   size_t b = 0;
   char save_paren = 0;
   int paren_depth = 0;
   size_t i;
+  vector<Value *> list;
   for (i = 0; i < s.size(); i++) {
     char c = s[i];
     if (terms && strchr(terms, c) && !save_paren) {
@@ -447,13 +472,13 @@ Value* ParseExprImpl(const Loc& loc,
     // Handle a comment.
     if (!terms && c == '#' && ShouldHandleComments(opt)) {
       if (i > b)
-        r->AddValue(new Literal(s.substr(b, i - b)));
+        list.push_back(new Literal(s.substr(b, i - b)));
       bool was_backslash = false;
       for (; i < s.size() && !(s[i] == '\n' && !was_backslash); i++) {
         was_backslash = !was_backslash && s[i] == '\\';
       }
       *index_out = i;
-      return r->Compact();
+      return Value::NewExpr(&list);
     }
 
     if (c == '$') {
@@ -462,10 +487,10 @@ Value* ParseExprImpl(const Loc& loc,
       }
 
       if (i > b)
-        r->AddValue(new Literal(s.substr(b, i - b)));
+        list.push_back(new Literal(s.substr(b, i - b)));
 
       if (s[i + 1] == '$') {
-        r->AddValue(new Literal(StringPiece("$")));
+        list.push_back(new Literal(StringPiece("$")));
         i += 1;
         b = i + 1;
         continue;
@@ -473,15 +498,14 @@ Value* ParseExprImpl(const Loc& loc,
 
       if (terms && strchr(terms, s[i + 1])) {
         *index_out = i + 1;
-        return r->Compact();
+        return Value::NewExpr(&list);
       }
 
       size_t n;
-      Value* v = ParseDollar(loc, s.substr(i), &n);
+      list.push_back(ParseDollar(loc, s.substr(i), &n));
       i += n;
       b = i;
       i--;
-      r->AddValue(v);
       continue;
     }
 
@@ -512,7 +536,7 @@ Value* ParseExprImpl(const Loc& loc,
         continue;
       }
       if (n == '#' && ShouldHandleComments(opt)) {
-        r->AddValue(new Literal(s.substr(b, i - b)));
+        list.push_back(new Literal(s.substr(b, i - b)));
         i++;
         b = i;
         continue;
@@ -522,9 +546,9 @@ Value* ParseExprImpl(const Loc& loc,
           break;
         }
         if (i > b) {
-          r->AddValue(new Literal(TrimRightSpace(s.substr(b, i - b))));
+          list.push_back(new Literal(TrimRightSpace(s.substr(b, i - b))));
         }
-        r->AddValue(new Literal(StringPiece(" ")));
+        list.push_back(new Literal(StringPiece(" ")));
         // Skip the current escaped newline
         i += 2;
         if (n == '\r' && s.get(i) == '\n')
@@ -550,10 +574,10 @@ Value* ParseExprImpl(const Loc& loc,
     if (trim_right_space)
       rest = TrimRightSpace(rest);
     if (!rest.empty())
-      r->AddValue(new Literal(rest));
+      list.push_back(new Literal(rest));
   }
   *index_out = i;
-  return r->Compact();
+  return Value::NewExpr(&list);
 }
 
 Value* ParseExpr(const Loc& loc, StringPiece s, ParseExprOpt opt) {
@@ -567,23 +591,4 @@ string JoinValues(const vector<Value*>& vals, const char* sep) {
     val_strs.push_back(Value::DebugString(v));
   }
   return JoinStrings(val_strs, sep);
-}
-
-Value* NewExpr2(Value* v1, Value* v2) {
-  Expr* e = new Expr();
-  e->AddValue(v1);
-  e->AddValue(v2);
-  return e;
-}
-
-Value* NewExpr3(Value* v1, Value* v2, Value* v3) {
-  Expr* e = new Expr();
-  e->AddValue(v1);
-  e->AddValue(v2);
-  e->AddValue(v3);
-  return e;
-}
-
-Value* NewLiteral(StringPiece s) {
-  return new Literal(s);
 }

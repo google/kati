@@ -30,7 +30,7 @@
 #include "var.h"
 
 struct SymbolData {
-  SymbolData() : gv(kUndefined) {}
+  SymbolData() : gv(Var::Undefined()) {}
 
   Var* gv;
 };
@@ -46,7 +46,7 @@ Symbol::Symbol(int v) : v_(v) {}
 
 Var* Symbol::PeekGlobalVar() const {
   if (static_cast<size_t>(v_) >= g_symbol_data.size()) {
-    return kUndefined;
+    return Var::Undefined();
   }
   return g_symbol_data[v_].gv;
 }
