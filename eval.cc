@@ -64,48 +64,49 @@ Var* Evaluator::EvalRHS(Symbol lhs,
                         Value* rhs_v,
                         StringPiece orig_rhs,
                         AssignOp op,
-                        bool is_override) {
+                        bool is_override,
+                        bool *needs_assign) {
   VarOrigin origin =
       ((is_bootstrap_ ? VarOrigin::DEFAULT
                       : is_commandline_ ? VarOrigin::COMMAND_LINE
                                         : is_override ? VarOrigin::OVERRIDE
                                                       : VarOrigin::FILE));
 
-  Var* rhs = NULL;
+  Var* result = NULL;
   Var* prev = NULL;
-  bool needs_assign = true;
+  *needs_assign = true;
 
   switch (op) {
     case AssignOp::COLON_EQ: {
       prev = PeekVarInCurrentScope(lhs);
-      rhs = new SimpleVar(origin, this, rhs_v);
+      result = new SimpleVar(origin, this, rhs_v);
       break;
     }
     case AssignOp::EQ:
       prev = PeekVarInCurrentScope(lhs);
-      rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
+      result = new RecursiveVar(rhs_v, origin, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else if (prev->ReadOnly()) {
         Error(StringPrintf("*** cannot assign to readonly variable: %s",
                            lhs.c_str()));
       } else {
-        prev->AppendVar(this, rhs_v);
-        rhs = prev;
-        needs_assign = false;
+        result = prev;
+        result->AppendVar(this, rhs_v);
+        *needs_assign = false;
       }
       break;
     }
     case AssignOp::QUESTION_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        rhs = new RecursiveVar(rhs_v, origin, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, orig_rhs);
       } else {
-        rhs = prev;
-        needs_assign = false;
+        result = prev;
+        *needs_assign = false;
       }
       break;
     }
@@ -113,18 +114,13 @@ Var* Evaluator::EvalRHS(Symbol lhs,
 
   if (prev != NULL) {
     prev->Used(this, lhs);
-    if (prev->Deprecated()) {
-      if (needs_assign) {
-        rhs->SetDeprecated(prev->DeprecatedMessage());
-      }
+    if (prev->Deprecated() && *needs_assign) {
+      result->SetDeprecated(prev->DeprecatedMessage());
     }
   }
 
-  LOG("Assign: %s=%s", lhs.c_str(), rhs->DebugString().c_str());
-  if (needs_assign) {
-    return rhs;
-  }
-  return NULL;
+  LOG("Assign: %s=%s", lhs.c_str(), result->DebugString().c_str());
+  return result;
 }
 
 void Evaluator::EvalAssign(const AssignStmt* stmt) {
@@ -148,9 +144,11 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
     return;
   }
 
+  bool needs_assign;
   Var* var = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
-                     stmt->directive == AssignDirective::OVERRIDE);
-  if (var) {
+                     stmt->directive == AssignDirective::OVERRIDE,
+                     &needs_assign);
+  if (needs_assign) {
     bool readonly;
     lhs.SetGlobalVar(var, stmt->directive == AssignDirective::OVERRIDE,
                      &readonly);
@@ -158,9 +156,10 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
       Error(StringPrintf("*** cannot assign to readonly variable: %s",
                          lhs.c_str()));
     }
-    if (stmt->is_final) {
-      var->SetReadOnly();
-    }
+  }
+
+  if (stmt->is_final) {
+    var->SetReadOnly();
   }
 }
 
@@ -238,8 +237,9 @@ void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
     if (var_sym == kKatiReadonlySym) {
       MarkVarsReadonly(rhs);
     } else {
-      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op, false);
-      if (rhs_var) {
+      bool needs_assign;
+      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op, false, &needs_assign);
+      if (needs_assign) {
         bool readonly;
         rhs_var->SetAssignOp(assign_op);
         current_scope_->Assign(var_sym, rhs_var, &readonly);
@@ -247,9 +247,9 @@ void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
           Error(StringPrintf("*** cannot assign to readonly variable: %s",
                              var_name));
         }
-        if (is_final) {
-          rhs_var->SetReadOnly();
-        }
+      }
+      if (is_final) {
+        rhs_var->SetReadOnly();
       }
     }
     current_scope_ = NULL;

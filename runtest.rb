@@ -39,6 +39,9 @@ while true
   elsif ARGV[0] == '-v'
     show_failing = true
     ARGV.shift
+  elsif ARGV[0] == "-q"
+    hide_passing = true
+    ARGV.shift
   else
     break
   end
@@ -294,7 +297,9 @@ run_make_test = proc do |mk|
 
     if expected != output
       if expected_failure
-        puts "#{name}: FAIL (expected)"
+        if !hide_passing
+          puts "#{name}: FAIL (expected)"
+        end
         expected_failures << name
       else
         puts "#{name}: FAIL"
@@ -308,7 +313,9 @@ run_make_test = proc do |mk|
         puts "#{name}: PASS (unexpected)"
         unexpected_passes << name
       else
-        puts "#{name}: PASS"
+        if !hide_passing
+          puts "#{name}: PASS"
+        end
         passes << name
       end
     end
@@ -380,7 +387,9 @@ run_shell_test = proc do |sh|
       puts `diff -u out.make out.kati`
       failures << name
     else
-      puts "#{name}: PASS"
+      if !hide_passing
+        puts "#{name}: PASS"
+      end
       passes << name
     end
   end
@@ -398,7 +407,7 @@ end
 
 puts
 
-if !expected_failures.empty?
+if !expected_failures.empty? && !hide_passing
   puts "=== Expected failures ==="
   expected_failures.each do |n|
     puts n
