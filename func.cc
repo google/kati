@@ -64,7 +64,9 @@ void StripShellComment(string* cmd) {
             in++;
           break;
         }
-        /* FALLTHRU */
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(clang::fallthrough)
+	[[clang::fallthrough]];
+#endif
 
       case '\'':
       case '"':

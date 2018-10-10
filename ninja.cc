@@ -530,7 +530,9 @@ class NinjaGenerator {
         case ':':
         case ' ':
           r += '$';
-        // fall through.
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(clang::fallthrough)
+          [[clang::fallthrough]];
+#endif
         default:
           r += c;
       }
