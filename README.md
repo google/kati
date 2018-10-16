@@ -12,13 +12,12 @@ your Makefile to a ninja file.
 How to use for Android
 ----------------------
 
-Now AOSP has kati and ninja, so all you have to do is
-
-    % export USE_NINJA=true
+For Android-N+, ckati and ninja is used automatically. There is a prebuilt
+checked in under prebuilts/build-tools that is used.
 
 All Android's build commands (m, mmm, mmma, etc.) should just work.
 
-How to use for Android (deprecated way)
+How to use for Android (deprecated -- only for Android M or earlier)
 ----------------------
 
 Set up kati:
@@ -33,7 +32,7 @@ Build Android:
     % cd <android-directory>
     % source build/envsetup.sh
     % lunch <your-choice>
-    % ~/src/kati/m2n --kati_stats  # Use --goma if you are a Googler.
+    % ~/src/kati/m2n --kati_stats
     % ./ninja.sh
 
 You need ninja in your $PATH.
