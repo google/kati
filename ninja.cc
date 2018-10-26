@@ -629,8 +629,10 @@ class NinjaGenerator {
     }
     tp->Wait();
 
-    for (const ostringstream& buf : bufs) {
-      fprintf(fp_, "%s", buf.str().c_str());
+    if (!g_flags.generate_empty_ninja) {
+      for (const ostringstream& buf : bufs) {
+        fprintf(fp_, "%s", buf.str().c_str());
+      }
     }
 
     SymbolSet used_env_vars(Vars::used_env_vars());
@@ -652,8 +654,10 @@ class NinjaGenerator {
         default_targets += EscapeBuildTarget(s);
       }
     }
-    fprintf(fp_, "\n");
-    fprintf(fp_, "default %s\n", default_targets.c_str());
+    if (!g_flags.generate_empty_ninja) {
+      fprintf(fp_, "\n");
+      fprintf(fp_, "default %s\n", default_targets.c_str());
+    }
 
     fclose(fp_);
   }
