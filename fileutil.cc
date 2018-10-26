@@ -31,6 +31,7 @@
 
 #include <unordered_map>
 
+#include "affinity.h"
 #include "log.h"
 #include "strutil.h"
 
@@ -125,6 +126,7 @@ int RunCommand(const string& shell,
       PERROR("dup2 failed");
     close(pipefd[1]);
 
+    SetAffinityForMultiThread();
     execvp(argv[0], const_cast<char**>(argv));
     PLOG("execvp for %s failed", argv[0]);
     kill(getppid(), SIGTERM);
