@@ -126,7 +126,10 @@ int RunCommand(const string& shell,
       PERROR("dup2 failed");
     close(pipefd[1]);
 
-    SetAffinityForMultiThread();
+    if (cmd.find("/goma_ctl.py") != string::npos) {
+      // Set multi thread affinity for Goma.
+      SetAffinityForMultiThread();
+    }
     execvp(argv[0], const_cast<char**>(argv));
     PLOG("execvp for %s failed", argv[0]);
     kill(getppid(), SIGTERM);
