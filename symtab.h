@@ -67,13 +67,13 @@ class Symbol {
 /* A set of symbols represented as bitmap indexed by Symbol's ordinal value. */
 class SymbolSet {
  public:
-  SymbolSet():low_(0), high_(0) {}
+  SymbolSet() : low_(0), high_(0) {}
 
   /* Returns true if Symbol belongs to this set. */
   bool exists(Symbol sym) const {
     size_t bit_nr = static_cast<size_t>(sym.val());
     return sym.IsValid() && bit_nr >= low_ && bit_nr < high_ &&
-        bits_[(bit_nr - low_) / 64][(bit_nr - low_) % 64];
+           bits_[(bit_nr - low_) / 64][(bit_nr - low_) % 64];
   }
 
   /* Adds Symbol to this set.  */
@@ -83,7 +83,7 @@ class SymbolSet {
     }
     size_t bit_nr = static_cast<size_t>(sym.val());
     if (bit_nr < low_ || bit_nr >= high_) {
-        resize(bit_nr);
+      resize(bit_nr);
     }
     bits_[(bit_nr - low_) / 64][(bit_nr - low_) % 64] = true;
   }
@@ -107,8 +107,7 @@ class SymbolSet {
     size_t pos_;
 
     iterator(const SymbolSet* bitset, size_t pos)
-        :bitset_(bitset), pos_(pos) {
-    }
+        : bitset_(bitset), pos_(pos) {}
 
     /* Proceed to the next Symbol.  */
     void next() {
@@ -139,11 +138,9 @@ class SymbolSet {
       return bitset_ == other.bitset_ && pos_ == other.pos_;
     }
 
-    bool operator!=(iterator other) const {
-      return !(*this == other);
-    }
+    bool operator!=(iterator other) const { return !(*this == other); }
 
-    Symbol operator*() {return Symbol(pos_); }
+    Symbol operator*() { return Symbol(pos_); }
 
     friend class SymbolSet;
   };
@@ -154,9 +151,7 @@ class SymbolSet {
     return it;
   }
 
-  iterator end() const {
-    return iterator(this, high_);
-  }
+  iterator end() const { return iterator(this, high_); }
 
  private:
   friend class iterator;
@@ -177,8 +172,9 @@ class SymbolSet {
     if (new_low == low_) {
       bits_.resize((new_high - new_low) / 64);
     } else {
-      std::vector<std::bitset<64> > newbits((new_high - new_low)/64);
-      std::copy(bits_.begin(), bits_.end(), newbits.begin() + (low_ - new_low) / 64);
+      std::vector<std::bitset<64> > newbits((new_high - new_low) / 64);
+      std::copy(bits_.begin(), bits_.end(),
+                newbits.begin() + (low_ - new_low) / 64);
       bits_.swap(newbits);
     }
     low_ = new_low;

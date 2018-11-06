@@ -6,16 +6,27 @@ sudo: required
 compiler:
   - clang
 
+addons:
+  apt:
+    update: true
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-7
+    packages:
+      - clang-7
+      - clang-format-7
+      - realpath
+
 cache: apt
 
 before_script:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y realpath
   - wget https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-linux.zip
   - unzip ninja-linux.zip -d ~/bin
 
 script:
+  - export CXX=clang++-7
   - make -j4 ckati ckati_tests
+  - ./clang-format-check
   - ruby runtest.rb -c
   - ruby runtest.rb -c -n
   - ruby runtest.rb -c -n -a

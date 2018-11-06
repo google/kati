@@ -65,7 +65,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
                         StringPiece orig_rhs,
                         AssignOp op,
                         bool is_override,
-                        bool *needs_assign) {
+                        bool* needs_assign) {
   VarOrigin origin =
       ((is_bootstrap_ ? VarOrigin::DEFAULT
                       : is_commandline_ ? VarOrigin::COMMAND_LINE
@@ -145,9 +145,9 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
   }
 
   bool needs_assign;
-  Var* var = EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
-                     stmt->directive == AssignDirective::OVERRIDE,
-                     &needs_assign);
+  Var* var =
+      EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
+              stmt->directive == AssignDirective::OVERRIDE, &needs_assign);
   if (needs_assign) {
     bool readonly;
     lhs.SetGlobalVar(var, stmt->directive == AssignDirective::OVERRIDE,
@@ -192,7 +192,6 @@ static StringPiece ParseRuleTargets(const Loc& loc,
   return before_term.substr(pos + 1);
 }
 
-
 void Evaluator::MarkVarsReadonly(Value* vars_list) {
   string vars_list_string;
   vars_list->Eval(this, &vars_list_string);
@@ -227,8 +226,8 @@ void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
       rhs = stmt->rhs;
     } else if (stmt->rhs) {
       StringPiece sep(stmt->sep == RuleStmt::SEP_SEMICOLON ? " ; " : " = ");
-      rhs = Value::NewExpr(Value::NewLiteral(rhs_string), Value::NewLiteral(sep),
-                           stmt->rhs);
+      rhs = Value::NewExpr(Value::NewLiteral(rhs_string),
+                           Value::NewLiteral(sep), stmt->rhs);
     } else {
       rhs = Value::NewLiteral(rhs_string);
     }
@@ -238,7 +237,8 @@ void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
       MarkVarsReadonly(rhs);
     } else {
       bool needs_assign;
-      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op, false, &needs_assign);
+      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op,
+                             false, &needs_assign);
       if (needs_assign) {
         bool readonly;
         rhs_var->SetAssignOp(assign_op);
@@ -286,7 +286,8 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   if (separator_pos != string::npos) {
     separator = after_targets[separator_pos];
   } else if (separator_pos == string::npos &&
-             (stmt->sep == RuleStmt::SEP_EQ || stmt->sep == RuleStmt::SEP_FINALEQ)) {
+             (stmt->sep == RuleStmt::SEP_EQ ||
+              stmt->sep == RuleStmt::SEP_FINALEQ)) {
     separator_pos = after_targets.size();
     separator = '=';
   }
@@ -309,7 +310,8 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     buf = after_targets.as_string();
     if (stmt->sep == RuleStmt::SEP_SEMICOLON) {
       buf += ';';
-    } else if (stmt->sep == RuleStmt::SEP_EQ || stmt->sep == RuleStmt::SEP_FINALEQ) {
+    } else if (stmt->sep == RuleStmt::SEP_EQ ||
+               stmt->sep == RuleStmt::SEP_FINALEQ) {
       buf += '=';
     }
     if (stmt->rhs) {
@@ -410,7 +412,8 @@ void Evaluator::DoInclude(const string& fname) {
   }
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
-  var_list->AppendVar(this, Value::NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
+  var_list->AppendVar(
+      this, Value::NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
   for (Stmt* stmt : mk->stmts()) {
     LOG("%s", stmt->DebugString().c_str());
     stmt->Eval(this);

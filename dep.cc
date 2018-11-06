@@ -148,9 +148,7 @@ struct RuleMerger {
   bool is_double_colon;
 
   RuleMerger()
-      : primary_rule(nullptr),
-        parent(nullptr),
-        is_double_colon(false) {}
+      : primary_rule(nullptr), parent(nullptr), is_double_colon(false) {}
 
   void AddImplicitOutput(Symbol output, RuleMerger* merger) {
     implicit_outputs.push_back(make_pair(output, merger));
@@ -370,7 +368,7 @@ class DepBuilder {
       cur_rule_vars_.reset(new Vars);
       ev_->set_current_scope(cur_rule_vars_.get());
       DepNode* n = BuildPlan(target, Intern(""));
-      nodes->push_back({target,n});
+      nodes->push_back({target, n});
       ev_->set_current_scope(NULL);
       cur_rule_vars_.reset(NULL);
     }
@@ -785,7 +783,7 @@ class DepBuilder {
 
     for (Symbol input : n->actual_order_only_inputs) {
       DepNode* c = BuildPlan(input, output);
-      n->order_onlys.push_back({input,c});
+      n->order_onlys.push_back({input, c});
     }
 
     n->has_rule = true;

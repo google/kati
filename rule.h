@@ -61,5 +61,4 @@ class Rule {
   void Error(const string& msg) { ERROR_LOC(loc, "%s", msg.c_str()); }
 };
 
-
 #endif  // RULE_H_

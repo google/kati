@@ -38,17 +38,17 @@ class Evaluable {
 class Value : public Evaluable {
  public:
   // All NewExpr calls take ownership of the Value instances.
-  static Value *NewExpr(Value *v1, Value *v2);
-  static Value *NewExpr(Value *v1, Value *v2, Value *v3);
-  static Value *NewExpr(vector<Value *> *values);
+  static Value* NewExpr(Value* v1, Value* v2);
+  static Value* NewExpr(Value* v1, Value* v2, Value* v3);
+  static Value* NewExpr(vector<Value*>* values);
 
-  static Value *NewLiteral(StringPiece s);
+  static Value* NewLiteral(StringPiece s);
   virtual ~Value();
   virtual bool IsLiteral() const { return false; }
   // Only safe after IsLiteral() returns true.
   virtual StringPiece GetLiteralValueUnsafe() const { return ""; }
 
-  static string DebugString(const Value *);
+  static string DebugString(const Value*);
 
  protected:
   Value();

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+CLANG_FORMAT="clang-format-7"
+if [ -z "$(which $CLANG_FORMAT)" ]; then
+  CLANG_FORMAT="clang-format"
+fi
+
+for f in $(ls *.cc *.h); do
+  if ! diff -U 1 <($CLANG_FORMAT $f) $f; then
+    echo
+    echo "!!!!!!"
+    echo "!! Failed clang-format check, please run 'clang-format -i *.cc *.h'" 1>&2
+    echo "!!!!!!"
+    exit 1
+  fi
+done
