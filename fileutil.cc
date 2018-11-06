@@ -33,7 +33,6 @@
 
 #include "log.h"
 #include "strutil.h"
-#include "flags.h"
 
 bool Exists(StringPiece filename) {
   CHECK(filename.size() < PATH_MAX);
@@ -175,17 +174,6 @@ class GlobCache {
       } else {
         if (Exists(pat))
           files->push_back(pat);
-        else {
-          for (auto inc_path : g_flags.include_dirs) {
-            auto to_check = (inc_path + '/' + pat);
-            LOG("searching for %s in : %s", pat, inc_path.c_str());
-            LOG("checking for Exists(|%s|)", to_check.c_str());
-            if (Exists(to_check.c_str())) {
-              LOG("found %s in : %s", pat, inc_path.c_str());
-              files->push_back(to_check);
-            }
-          }
-        }
       }
     }
     *files = p.first->second;
