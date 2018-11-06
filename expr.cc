@@ -39,7 +39,7 @@ Value::Value() {}
 
 Value::~Value() {}
 
-string Value::DebugString(const Value *v) {
+string Value::DebugString(const Value* v) {
   return v ? NoLineBreak(v->DebugString_()) : "(null)";
 }
 
@@ -67,26 +67,23 @@ class ValueList : public Value {
  public:
   ValueList() {}
 
-  ValueList(Value *v1, Value *v2, Value *v3)
-      :ValueList(){
+  ValueList(Value* v1, Value* v2, Value* v3) : ValueList() {
     vals_.reserve(3);
     vals_.push_back(v1);
     vals_.push_back(v2);
     vals_.push_back(v3);
   }
 
-  ValueList(Value *v1, Value *v2):
-      ValueList() {
+  ValueList(Value* v1, Value* v2) : ValueList() {
     vals_.reserve(2);
     vals_.push_back(v1);
     vals_.push_back(v2);
   }
 
-  ValueList(vector<Value *> *values):ValueList() {
+  ValueList(vector<Value*>* values) : ValueList() {
     values->shrink_to_fit();
     values->swap(vals_);
   }
-
 
   virtual ~ValueList() {
     for (Value* v : vals_) {
@@ -274,9 +271,9 @@ Value* Value::NewExpr(Value* v1, Value* v2, Value* v3) {
   return new ValueList(v1, v2, v3);
 }
 
-Value* Value::NewExpr(vector<Value *> *values) {
+Value* Value::NewExpr(vector<Value*>* values) {
   if (values->size() == 1) {
-    Value *v = (*values)[0];
+    Value* v = (*values)[0];
     values->clear();
     return v;
   }
@@ -462,7 +459,7 @@ Value* ParseExprImpl(const Loc& loc,
   char save_paren = 0;
   int paren_depth = 0;
   size_t i;
-  vector<Value *> list;
+  vector<Value*> list;
   for (i = 0; i < s.size(); i++) {
     char c = s[i];
     if (terms && strchr(terms, c) && !save_paren) {

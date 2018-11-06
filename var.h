@@ -77,7 +77,7 @@ class Var : public Evaluable {
   AssignOp op() const { return assign_op_; }
   void SetAssignOp(AssignOp op) { assign_op_ = op; }
 
-  static Var *Undefined();
+  static Var* Undefined();
 
  protected:
   Var();
@@ -86,13 +86,13 @@ class Var : public Evaluable {
  private:
   const VarOrigin origin_;
   AssignOp assign_op_;
-  bool readonly_:1;
-  bool deprecated_:1;
-  bool obsolete_:1;
+  bool readonly_ : 1;
+  bool deprecated_ : 1;
+  bool obsolete_ : 1;
 
-  const char *diagnostic_message_text() const;
+  const char* diagnostic_message_text() const;
 
-  static unordered_map<const Var *, string> diagnostic_messages_;
+  static unordered_map<const Var*, string> diagnostic_messages_;
 };
 
 class SimpleVar : public Var {

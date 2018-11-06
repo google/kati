@@ -80,8 +80,8 @@ Symbol AssignStmt::GetLhsSymbol(Evaluator* ev) const {
 }
 
 string CommandStmt::DebugString() const {
-  return StringPrintf("CommandStmt(%s, loc=%s:%d)", Value::DebugString(expr).c_str(),
-                      LOCF(loc()));
+  return StringPrintf("CommandStmt(%s, loc=%s:%d)",
+                      Value::DebugString(expr).c_str(), LOCF(loc()));
 }
 
 string IfStmt::DebugString() const {
@@ -107,8 +107,8 @@ string IfStmt::DebugString() const {
 }
 
 string IncludeStmt::DebugString() const {
-  return StringPrintf("IncludeStmt(%s, loc=%s:%d)", Value::DebugString(expr).c_str(),
-                      LOCF(loc()));
+  return StringPrintf("IncludeStmt(%s, loc=%s:%d)",
+                      Value::DebugString(expr).c_str(), LOCF(loc()));
 }
 
 string ExportStmt::DebugString() const {

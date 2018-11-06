@@ -20,7 +20,7 @@
 #include "expr.h"
 #include "log.h"
 
-unordered_map<const Var *, string> Var::diagnostic_messages_;
+unordered_map<const Var*, string> Var::diagnostic_messages_;
 
 const char* GetOriginStr(VarOrigin origin) {
   switch (origin) {
@@ -47,9 +47,8 @@ const char* GetOriginStr(VarOrigin origin) {
 
 Var::Var() : Var(VarOrigin::UNDEFINED) {}
 
-Var::Var(VarOrigin origin):
-    origin_(origin), readonly_(false), deprecated_(false), obsolete_(false) {
-}
+Var::Var(VarOrigin origin)
+    : origin_(origin), readonly_(false), deprecated_(false), obsolete_(false) {}
 
 Var::~Var() {
   diagnostic_messages_.erase(this);
@@ -69,16 +68,17 @@ void Var::SetObsolete(const StringPiece& msg) {
   diagnostic_messages_[this] = msg.as_string();
 }
 
-
 void Var::Used(Evaluator* ev, const Symbol& sym) const {
   if (obsolete_) {
-    ev->Error(StringPrintf("*** %s is obsolete%s.", sym.c_str(), diagnostic_message_text()));
+    ev->Error(StringPrintf("*** %s is obsolete%s.", sym.c_str(),
+                           diagnostic_message_text()));
   } else if (deprecated_) {
-    WARN_LOC(ev->loc(), "%s has been deprecated%s.", sym.c_str(), diagnostic_message_text());
+    WARN_LOC(ev->loc(), "%s has been deprecated%s.", sym.c_str(),
+             diagnostic_message_text());
   }
 }
 
-const char *Var::diagnostic_message_text() const {
+const char* Var::diagnostic_message_text() const {
   auto it = diagnostic_messages_.find(this);
   return it == diagnostic_messages_.end() ? "" : it->second.c_str();
 }
@@ -89,8 +89,8 @@ const string& Var::DeprecatedMessage() const {
   return it == diagnostic_messages_.end() ? empty_string : it->second;
 }
 
-Var *Var::Undefined() {
-  static Var *undefined_var;
+Var* Var::Undefined() {
+  static Var* undefined_var;
   if (!undefined_var) {
     undefined_var = new UndefinedVar();
   }
@@ -99,11 +99,9 @@ Var *Var::Undefined() {
 
 SimpleVar::SimpleVar(VarOrigin origin) : Var(origin) {}
 
-SimpleVar::SimpleVar(const string& v, VarOrigin origin)
-    : Var(origin), v_(v) {}
+SimpleVar::SimpleVar(const string& v, VarOrigin origin) : Var(origin), v_(v) {}
 
-SimpleVar::SimpleVar(VarOrigin origin, Evaluator* ev, Value* v)
-    : Var(origin) {
+SimpleVar::SimpleVar(VarOrigin origin, Evaluator* ev, Value* v) : Var(origin) {
   v->Eval(ev, &v_);
 }
 

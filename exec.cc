@@ -144,7 +144,7 @@ void Exec(const vector<NamedDepNode>& roots, Evaluator* ev) {
     executor->ExecNode(root.second, NULL);
   }
   if (executor->Count() == 0) {
-    for (auto const & root : roots) {
+    for (auto const& root : roots) {
       printf("kati: Nothing to be done for `%s'.\n", root.first.c_str());
     }
   }

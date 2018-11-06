@@ -231,15 +231,17 @@ class Parser {
       if (line[found] == ';') {
         rule_stmt->sep = RuleStmt::SEP_SEMICOLON;
       } else if (line[found] == '=') {
-        if (line.size() > (found + 2) && line[found + 1] == '$' && line[found + 2] == '=') {
+        if (line.size() > (found + 2) && line[found + 1] == '$' &&
+            line[found + 2] == '=') {
           rule_stmt->sep = RuleStmt::SEP_FINALEQ;
           found += 2;
         } else {
           rule_stmt->sep = RuleStmt::SEP_EQ;
         }
       }
-      ParseExprOpt opt =
-          rule_stmt->sep == RuleStmt::SEP_SEMICOLON ? ParseExprOpt::COMMAND : ParseExprOpt::NORMAL;
+      ParseExprOpt opt = rule_stmt->sep == RuleStmt::SEP_SEMICOLON
+                             ? ParseExprOpt::COMMAND
+                             : ParseExprOpt::NORMAL;
       rule_stmt->rhs = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
     } else {
       rule_stmt->lhs = ParseExpr(line);

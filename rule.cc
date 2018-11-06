@@ -25,8 +25,7 @@
 
 Rule::Rule() : is_double_colon(false), is_suffix_rule(false), cmd_lineno(0) {}
 
-
-void Rule::ParseInputs(const StringPiece &inputs_str) {
+void Rule::ParseInputs(const StringPiece& inputs_str) {
   bool is_order_only = false;
   for (auto const& input : WordScanner(inputs_str)) {
     if (input == "|") {
@@ -40,7 +39,7 @@ void Rule::ParseInputs(const StringPiece &inputs_str) {
 
 void Rule::ParsePrerequisites(const StringPiece& line,
                               size_t separator_pos,
-                              const RuleStmt *rule_stmt) {
+                              const RuleStmt* rule_stmt) {
   // line is either
   //    prerequisites [ ; command ]
   // or
@@ -48,7 +47,8 @@ void Rule::ParsePrerequisites(const StringPiece& line,
   // First, separate command. At this point separator_pos should point to ';'
   // unless null.
   StringPiece prereq_string = line;
-  if (separator_pos != string::npos && rule_stmt->sep != RuleStmt::SEP_SEMICOLON) {
+  if (separator_pos != string::npos &&
+      rule_stmt->sep != RuleStmt::SEP_SEMICOLON) {
     CHECK(line[separator_pos] == ';');
     // TODO: Maybe better to avoid Intern here?
     cmds.push_back(Value::NewLiteral(

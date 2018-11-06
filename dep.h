@@ -29,7 +29,7 @@ class Value;
 class Var;
 class Vars;
 
-typedef pair<Symbol,struct DepNode *> NamedDepNode;
+typedef pair<Symbol, struct DepNode*> NamedDepNode;
 
 struct DepNode {
   DepNode(Symbol output, bool is_phony, bool is_restat);
