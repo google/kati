@@ -164,7 +164,7 @@ struct RuleMerger {
                 "*** implicit output `%s' of `%s' was already defined by `%s' "
                 "at %s:%d",
                 output.c_str(), p.c_str(), parent_sym.c_str(),
-                parent->primary_rule->cmd_loc());
+                LOCF(parent->primary_rule->cmd_loc()));
     }
     if (primary_rule) {
       ERROR_LOC(primary_rule->cmd_loc(),
