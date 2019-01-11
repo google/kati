@@ -30,7 +30,7 @@
 void SetAffinityForSingleThread() {
   cpu_set_t cs;
   CPU_ZERO(&cs);
-  std::default_random_engine generator(getpid());
+  std::random_device generator;
   std::uniform_int_distribution<int> distribution(0, g_flags.num_cpus - 1);
   int cpu = distribution(generator);
 
