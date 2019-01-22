@@ -49,6 +49,7 @@ struct Flags {
   bool werror_implicit_rules;
   bool warn_suffix_rules;
   bool werror_suffix_rules;
+  bool top_level_phony;
   bool warn_real_to_phony;
   bool werror_real_to_phony;
   bool warn_phony_looks_real;

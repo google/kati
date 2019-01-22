@@ -768,7 +768,11 @@ class DepBuilder {
       DepNode* c = BuildPlan(input, output);
       n->deps.push_back({input, c});
 
-      if (!n->is_phony && c->is_phony) {
+      bool is_phony = c->is_phony;
+      if (!is_phony && !c->has_rule && g_flags.top_level_phony) {
+        is_phony = input.str().find("/") == string::npos;
+      }
+      if (!n->is_phony && is_phony) {
         if (g_flags.werror_real_to_phony) {
           ERROR_LOC(n->loc,
                     "*** real file \"%s\" depends on PHONY target \"%s\"",

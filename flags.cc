@@ -118,6 +118,8 @@ void Flags::Parse(int argc, char** argv) {
       warn_suffix_rules = true;
     } else if (!strcmp(arg, "--werror_suffix_rules")) {
       werror_suffix_rules = true;
+    } else if (!strcmp(arg, "--top_level_phony")) {
+      top_level_phony = true;
     } else if (!strcmp(arg, "--warn_real_to_phony")) {
       warn_real_to_phony = true;
     } else if (!strcmp(arg, "--werror_real_to_phony")) {
