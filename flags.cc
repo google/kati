@@ -106,6 +106,8 @@ void Flags::Parse(int argc, char** argv) {
       no_builtin_rules = true;
     } else if (!strcmp(arg, "--no_ninja_prelude")) {
       no_ninja_prelude = true;
+    } else if (!strcmp(arg, "--use_ninja_phony_output")) {
+      use_ninja_phony_output = true;
     } else if (!strcmp(arg, "--werror_find_emulator")) {
       werror_find_emulator = true;
     } else if (!strcmp(arg, "--werror_overriding_commands")) {
