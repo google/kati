@@ -18,6 +18,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace std;
 
@@ -33,6 +34,8 @@ class Stats {
   void DumpTop() const;
   string String() const;
 
+  void MarkInteresting(const string& msg);
+
  private:
   double Start();
   double End(double start, const char* msg);
@@ -44,6 +47,7 @@ class Stats {
   int cnt_;
   mutable mutex mu_;
   unordered_map<string, StatsDetails> detailed_;
+  unordered_set<string> interesting_;
 };
 
 class ScopedStatsRecorder {

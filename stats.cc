@@ -53,6 +53,23 @@ void Stats::DumpTop() const {
     // Only print the top 10
     details.resize(min(details.size(), 10LU));
 
+    if (!interesting_.empty()) {
+      // No need to print anything out twice
+      auto interesting = interesting_;
+      for (auto& [n, detail] : details) {
+        interesting.erase(n);
+      }
+
+      for (auto& name : interesting) {
+        auto detail = detailed_.find(name);
+        if (detail == detailed_.end()) {
+          details.emplace_back(name, StatsDetails());
+          continue;
+        }
+        details.emplace_back(*detail);
+      }
+    }
+
     int max_cnt_len = 1;
     for (auto& [name, detail] : details) {
       max_cnt_len =
@@ -91,6 +108,11 @@ double Stats::End(double start, const char* msg) {
     details.cnt_++;
   }
   return e;
+}
+
+void Stats::MarkInteresting(const string& msg) {
+  unique_lock<mutex> lock(mu_);
+  interesting_.emplace(msg);
 }
 
 ScopedStatsRecorder::ScopedStatsRecorder(Stats* st, const char* msg)
