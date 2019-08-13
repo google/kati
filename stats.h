@@ -21,6 +21,11 @@
 
 using namespace std;
 
+struct StatsDetails {
+  int cnt_ = 0;
+  double elapsed_ = 0;
+};
+
 class Stats {
  public:
   explicit Stats(const char* name);
@@ -38,7 +43,7 @@ class Stats {
   double elapsed_;
   int cnt_;
   mutable mutex mu_;
-  unordered_map<string, double> detailed_;
+  unordered_map<string, StatsDetails> detailed_;
 };
 
 class ScopedStatsRecorder {

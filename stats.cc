@@ -42,20 +42,35 @@ Stats::Stats(const char* name) : name_(name), elapsed_(0), cnt_(0) {
 void Stats::DumpTop() const {
   unique_lock<mutex> lock(mu_);
   if (detailed_.size() > 0) {
-    vector<pair<string, double>> v(detailed_.begin(), detailed_.end());
-    sort(
-        v.begin(), v.end(),
-        [](const pair<string, double> a, const pair<string, double> b) -> bool {
-          return a.second > b.second;
-        });
-    for (unsigned int i = 0; i < 10 && i < v.size(); i++) {
-      LOG_STAT(" %5.3f %s", v[i].first.c_str(), v[i].second);
+    vector<pair<string, StatsDetails>> details(detailed_.begin(),
+                                               detailed_.end());
+    sort(details.begin(), details.end(),
+         [](const pair<string, StatsDetails> a,
+            const pair<string, StatsDetails> b) -> bool {
+           return a.second.elapsed_ > b.second.elapsed_;
+         });
+
+    // Only print the top 10
+    details.resize(min(details.size(), 10LU));
+
+    int max_cnt_len = 1;
+    for (auto& [name, detail] : details) {
+      max_cnt_len =
+          max(max_cnt_len, static_cast<int>(to_string(detail.cnt_).length()));
+    }
+
+    for (auto& [name, detail] : details) {
+      LOG_STAT(" %6.3f / %*d %s", detail.elapsed_, max_cnt_len, detail.cnt_,
+               name.c_str());
     }
   }
 }
 
 string Stats::String() const {
   unique_lock<mutex> lock(mu_);
+  if (!detailed_.empty())
+    return StringPrintf("%s: %f / %d (%d unique)", name_, elapsed_, cnt_,
+                        detailed_.size());
   return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
 }
 
@@ -71,7 +86,9 @@ double Stats::End(double start, const char* msg) {
   unique_lock<mutex> lock(mu_);
   elapsed_ += e;
   if (msg != 0) {
-    detailed_[string(msg)] += e;
+    StatsDetails& details = detailed_[string(msg)];
+    details.elapsed_ += e;
+    details.cnt_++;
   }
   return e;
 }
