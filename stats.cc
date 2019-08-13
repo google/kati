@@ -23,14 +23,12 @@
 #include "flags.h"
 #include "log.h"
 #include "stringprintf.h"
-#include "thread_local.h"
 #include "timeutil.h"
 
 namespace {
 
 mutex g_mu;
 vector<Stats*>* g_stats;
-DEFINE_THREAD_LOCAL(double, g_start_time);
 
 }  // namespace
 
@@ -61,17 +59,15 @@ string Stats::String() const {
   return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
 }
 
-void Stats::Start() {
-  CHECK(!TLS_REF(g_start_time));
-  TLS_REF(g_start_time) = GetTime();
+double Stats::Start() {
+  double start = GetTime();
   unique_lock<mutex> lock(mu_);
   cnt_++;
+  return start;
 }
 
-double Stats::End(const char* msg) {
-  CHECK(TLS_REF(g_start_time));
-  double e = GetTime() - TLS_REF(g_start_time);
-  TLS_REF(g_start_time) = 0;
+double Stats::End(double start, const char* msg) {
+  double e = GetTime() - start;
   unique_lock<mutex> lock(mu_);
   elapsed_ += e;
   if (msg != 0) {
@@ -81,16 +77,16 @@ double Stats::End(const char* msg) {
 }
 
 ScopedStatsRecorder::ScopedStatsRecorder(Stats* st, const char* msg)
-    : st_(st), msg_(msg) {
+    : st_(st), msg_(msg), start_time_(0) {
   if (!g_flags.enable_stat_logs)
     return;
-  st_->Start();
+  start_time_ = st_->Start();
 }
 
 ScopedStatsRecorder::~ScopedStatsRecorder() {
   if (!g_flags.enable_stat_logs)
     return;
-  double e = st_->End(msg_);
+  double e = st_->End(start_time_, msg_);
   if (msg_ && e > 3.0) {
     LOG_STAT("slow %s (%f): %s", st_->name_, e, msg_);
   }

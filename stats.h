@@ -29,8 +29,8 @@ class Stats {
   string String() const;
 
  private:
-  void Start();
-  double End(const char* msg);
+  double Start();
+  double End(double start, const char* msg);
 
   friend class ScopedStatsRecorder;
 
@@ -49,6 +49,7 @@ class ScopedStatsRecorder {
  private:
   Stats* st_;
   const char* msg_;
+  double start_time_;
 };
 
 void ReportAllStats();
