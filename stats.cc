@@ -23,14 +23,12 @@
 #include "flags.h"
 #include "log.h"
 #include "stringprintf.h"
-#include "thread_local.h"
 #include "timeutil.h"
 
 namespace {
 
 mutex g_mu;
 vector<Stats*>* g_stats;
-DEFINE_THREAD_LOCAL(double, g_start_time);
 
 }  // namespace
 
@@ -44,53 +42,90 @@ Stats::Stats(const char* name) : name_(name), elapsed_(0), cnt_(0) {
 void Stats::DumpTop() const {
   unique_lock<mutex> lock(mu_);
   if (detailed_.size() > 0) {
-    vector<pair<string, double>> v(detailed_.begin(), detailed_.end());
-    sort(
-        v.begin(), v.end(),
-        [](const pair<string, double> a, const pair<string, double> b) -> bool {
-          return a.second > b.second;
-        });
-    for (unsigned int i = 0; i < 10 && i < v.size(); i++) {
-      LOG_STAT(" %5.3f %s", v[i].first.c_str(), v[i].second);
+    vector<pair<string, StatsDetails>> details(detailed_.begin(),
+                                               detailed_.end());
+    sort(details.begin(), details.end(),
+         [](const pair<string, StatsDetails> a,
+            const pair<string, StatsDetails> b) -> bool {
+           return a.second.elapsed_ > b.second.elapsed_;
+         });
+
+    // Only print the top 10
+    details.resize(min(details.size(), 10LU));
+
+    if (!interesting_.empty()) {
+      // No need to print anything out twice
+      auto interesting = interesting_;
+      for (auto& [n, detail] : details) {
+        interesting.erase(n);
+      }
+
+      for (auto& name : interesting) {
+        auto detail = detailed_.find(name);
+        if (detail == detailed_.end()) {
+          details.emplace_back(name, StatsDetails());
+          continue;
+        }
+        details.emplace_back(*detail);
+      }
+    }
+
+    int max_cnt_len = 1;
+    for (auto& [name, detail] : details) {
+      max_cnt_len =
+          max(max_cnt_len, static_cast<int>(to_string(detail.cnt_).length()));
+    }
+
+    for (auto& [name, detail] : details) {
+      LOG_STAT(" %6.3f / %*d %s", detail.elapsed_, max_cnt_len, detail.cnt_,
+               name.c_str());
     }
   }
 }
 
 string Stats::String() const {
   unique_lock<mutex> lock(mu_);
+  if (!detailed_.empty())
+    return StringPrintf("%s: %f / %d (%d unique)", name_, elapsed_, cnt_,
+                        detailed_.size());
   return StringPrintf("%s: %f / %d", name_, elapsed_, cnt_);
 }
 
-void Stats::Start() {
-  CHECK(!TLS_REF(g_start_time));
-  TLS_REF(g_start_time) = GetTime();
+double Stats::Start() {
+  double start = GetTime();
   unique_lock<mutex> lock(mu_);
   cnt_++;
+  return start;
 }
 
-double Stats::End(const char* msg) {
-  CHECK(TLS_REF(g_start_time));
-  double e = GetTime() - TLS_REF(g_start_time);
-  TLS_REF(g_start_time) = 0;
+double Stats::End(double start, const char* msg) {
+  double e = GetTime() - start;
   unique_lock<mutex> lock(mu_);
   elapsed_ += e;
   if (msg != 0) {
-    detailed_[string(msg)] += e;
+    StatsDetails& details = detailed_[string(msg)];
+    details.elapsed_ += e;
+    details.cnt_++;
   }
   return e;
 }
 
+void Stats::MarkInteresting(const string& msg) {
+  unique_lock<mutex> lock(mu_);
+  interesting_.emplace(msg);
+}
+
 ScopedStatsRecorder::ScopedStatsRecorder(Stats* st, const char* msg)
-    : st_(st), msg_(msg) {
+    : st_(st), msg_(msg), start_time_(0) {
   if (!g_flags.enable_stat_logs)
     return;
-  st_->Start();
+  start_time_ = st_->Start();
 }
 
 ScopedStatsRecorder::~ScopedStatsRecorder() {
   if (!g_flags.enable_stat_logs)
     return;
-  double e = st_->End(msg_);
+  double e = st_->End(start_time_, msg_);
   if (msg_ && e > 3.0) {
     LOG_STAT("slow %s (%f): %s", st_->name_, e, msg_);
   }

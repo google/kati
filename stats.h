@@ -18,8 +18,14 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace std;
+
+struct StatsDetails {
+  int cnt_ = 0;
+  double elapsed_ = 0;
+};
 
 class Stats {
  public:
@@ -28,9 +34,11 @@ class Stats {
   void DumpTop() const;
   string String() const;
 
+  void MarkInteresting(const string& msg);
+
  private:
-  void Start();
-  double End(const char* msg);
+  double Start();
+  double End(double start, const char* msg);
 
   friend class ScopedStatsRecorder;
 
@@ -38,7 +46,8 @@ class Stats {
   double elapsed_;
   int cnt_;
   mutable mutex mu_;
-  unordered_map<string, double> detailed_;
+  unordered_map<string, StatsDetails> detailed_;
+  unordered_set<string> interesting_;
 };
 
 class ScopedStatsRecorder {
@@ -49,6 +58,7 @@ class ScopedStatsRecorder {
  private:
   Stats* st_;
   const char* msg_;
+  double start_time_;
 };
 
 void ReportAllStats();

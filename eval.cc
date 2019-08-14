@@ -26,6 +26,7 @@
 #include "fileutil.h"
 #include "parser.h"
 #include "rule.h"
+#include "stats.h"
 #include "stmt.h"
 #include "strutil.h"
 #include "symtab.h"
@@ -405,6 +406,7 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
 
 void Evaluator::DoInclude(const string& fname) {
   CheckStack();
+  COLLECT_STATS_WITH_SLOW_REPORT("included makefiles", fname.c_str());
 
   Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
   if (!mk->Exists()) {
@@ -418,6 +420,11 @@ void Evaluator::DoInclude(const string& fname) {
     LOG("%s", stmt->DebugString().c_str());
     stmt->Eval(this);
   }
+
+  for (auto& mk : profiled_files_) {
+    stats.MarkInteresting(mk);
+  }
+  profiled_files_.clear();
 }
 
 void Evaluator::EvalInclude(const IncludeStmt* stmt) {

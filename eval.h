@@ -107,6 +107,10 @@ class Evaluator {
     export_error_ = true;
   }
 
+  void ProfileMakefile(StringPiece mk) {
+    profiled_files_.emplace_back(mk.as_string());
+  }
+
  private:
   Var* EvalRHS(Symbol lhs,
                Value* rhs,
@@ -158,6 +162,8 @@ class Evaluator {
 
   unique_ptr<string> export_message_;
   bool export_error_;
+
+  vector<string> profiled_files_;
 
   static SymbolSet used_undefined_vars_;
 };

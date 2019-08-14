@@ -926,6 +926,15 @@ void ObsoleteExportFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   ev->SetExportObsolete(msg);
 }
 
+void ProfileFunc(const vector<Value*>& args, Evaluator* ev, string*) {
+  for (auto arg : args) {
+    string files = arg->Eval(ev);
+    for (StringPiece file : WordScanner(files)) {
+      ev->ProfileMakefile(file);
+    }
+  }
+}
+
 FuncInfo g_func_infos[] = {
     {"patsubst", &PatsubstFunc, 3, 3, false, false},
     {"strip", &StripFunc, 1, 1, false, false},
@@ -975,6 +984,8 @@ FuncInfo g_func_infos[] = {
     {"KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false},
     {"KATI_deprecate_export", &DeprecateExportFunc, 1, 1, false, false},
     {"KATI_obsolete_export", &ObsoleteExportFunc, 1, 1, false, false},
+
+    {"KATI_profile_makefile", &ProfileFunc, 0, 0, false, false},
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
