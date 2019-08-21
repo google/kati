@@ -51,7 +51,7 @@ void Stats::DumpTop() const {
          });
 
     // Only print the top 10
-    details.resize(min(details.size(), 10LU));
+    details.resize(min(details.size(), static_cast<size_t>(10)));
 
     if (!interesting_.empty()) {
       // No need to print anything out twice
