@@ -126,7 +126,7 @@ class RuleTrie {
 };
 
 bool IsSuffixRule(Symbol output) {
-  if (output.empty() || output.str()[0] != '.')
+  if (output.empty() || !IsSpecialTarget(output))
     return false;
   const StringPiece rest = StringPiece(output.str()).substr(1);
   size_t dot_index = rest.find('.');
@@ -344,7 +344,7 @@ class DepBuilder {
     if (g_flags.gen_all_targets) {
       SymbolSet non_root_targets;
       for (const auto& p : rules_) {
-        if (p.first.get(0) == '.')
+        if (IsSpecialTarget(p.first))
           continue;
         for (const Rule* r : p.second.rules) {
           for (Symbol t : r->inputs)
@@ -356,7 +356,7 @@ class DepBuilder {
 
       for (const auto& p : rules_) {
         Symbol t = p.first;
-        if (!non_root_targets.exists(t) && t.get(0) != '.') {
+        if (!non_root_targets.exists(t) && !IsSpecialTarget(t)) {
           targets.push_back(p.first);
         }
       }
@@ -453,7 +453,7 @@ class DepBuilder {
 
   void PopulateExplicitRule(const Rule* rule) {
     for (Symbol output : rule->outputs) {
-      if (!first_rule_.IsValid() && output.get(0) != '.') {
+      if (!first_rule_.IsValid() && !IsSpecialTarget(output)) {
         first_rule_ = output;
       }
       rules_[output].AddRule(output, rule);
@@ -840,4 +840,8 @@ void QuitDepNodePool() {
   for (DepNode* n : *g_dep_node_pool)
     delete n;
   delete g_dep_node_pool;
+}
+
+bool IsSpecialTarget(Symbol output) {
+  return output.get(0) == '.' && output.get(1) != '.';
 }

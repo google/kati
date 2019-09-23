@@ -63,4 +63,6 @@ void MakeDep(Evaluator* ev,
              const vector<Symbol>& targets,
              vector<NamedDepNode>* nodes);
 
+bool IsSpecialTarget(Symbol output);
+
 #endif  // DEP_H_
