@@ -483,7 +483,7 @@ class NinjaGenerator {
 
     string rule_name = "phony";
     bool use_local_pool = false;
-    if (node->output.get(0) == '.') {
+    if (IsSpecialTarget(node->output)) {
       return;
     }
     if (g_flags.enable_debug) {
