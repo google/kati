@@ -69,6 +69,7 @@ struct Flags {
   vector<Symbol> targets;
   vector<StringPiece> cl_vars;
   vector<string> writable;
+  vector<string> include_dirs;
 
   void Parse(int argc, char** argv);
 };

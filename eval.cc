@@ -436,6 +436,15 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
     ScopedTerminator st(pat);
     vector<string>* files;
     Glob(pat.data(), &files);
+    if (files->size() == 0) {
+      for (auto inc_path : g_flags.include_dirs) {
+        auto to_check = (inc_path + '/' + pat.data());
+        LOG("searching for %s in : %s", pat.data(), inc_path.c_str());
+        Glob(to_check.c_str(), &files);
+        if (files->size() > 0)
+          break;
+      }
+    }
 
     if (stmt->should_exist) {
       if (files->empty()) {
