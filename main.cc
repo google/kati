@@ -240,7 +240,7 @@ static int Run(const vector<Symbol>& targets,
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
   Intern("MAKEFILE_LIST")
-      .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
+      .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile.data()),
                                   VarOrigin::FILE));
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT);
@@ -324,7 +324,7 @@ static int Run(const vector<Symbol>& targets,
 }
 
 static void FindFirstMakefie() {
-  if (g_flags.makefile != NULL)
+  if (g_flags.makefile.size())
     return;
   if (Exists("GNUmakefile")) {
     g_flags.makefile = "GNUmakefile";
@@ -359,7 +359,7 @@ int main(int argc, char* argv[]) {
   }
   g_flags.Parse(argc, argv);
   FindFirstMakefie();
-  if (g_flags.makefile == NULL)
+  if (!g_flags.makefile.size())
     ERROR("*** No targets specified and no makefile found.");
   // This depends on command line flags.
   if (g_flags.use_find_emulator)

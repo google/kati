@@ -27,22 +27,22 @@ Flags g_flags;
 static bool ParseCommandLineOptionWithArg(StringPiece option,
                                           char* argv[],
                                           int* index,
-                                          const char** out_arg) {
+                                          std::string &out_arg) {
   const char* arg = argv[*index];
   if (!HasPrefix(arg, option))
     return false;
   if (arg[option.size()] == '\0') {
     ++*index;
-    *out_arg = argv[*index];
+    out_arg = argv[*index];
     return true;
   }
   if (arg[option.size()] == '=') {
-    *out_arg = arg + option.size() + 1;
+    out_arg = arg + option.size() + 1;
     return true;
   }
   // E.g, -j999
   if (option.size() == 2) {
-    *out_arg = arg + option.size();
+    out_arg = arg + option.size();
     return true;
   }
   return false;
@@ -51,8 +51,8 @@ static bool ParseCommandLineOptionWithArg(StringPiece option,
 void Flags::Parse(int argc, char** argv) {
   subkati_args.push_back(argv[0]);
   num_jobs = num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-  const char* num_jobs_str;
-  const char* writable_str;
+  std::string num_jobs_str{""};
+  std::string writable_str{""};
 
   if (const char* makeflags = getenv("MAKEFLAGS")) {
     for (StringPiece tok : WordScanner(makeflags)) {
@@ -132,34 +132,34 @@ void Flags::Parse(int argc, char** argv) {
       werror_phony_looks_real = true;
     } else if (!strcmp(arg, "--werror_writable")) {
       werror_writable = true;
-    } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
-      num_jobs = strtol(num_jobs_str, NULL, 10);
+    } else if (ParseCommandLineOptionWithArg("-j", argv, &i, num_jobs_str)) {
+      num_jobs = strtol(num_jobs_str.data(), NULL, 10);
       if (num_jobs <= 0) {
-        ERROR("Invalid -j flag: %s", num_jobs_str);
+        ERROR("Invalid -j flag: %s", num_jobs_str.data());
       }
     } else if (ParseCommandLineOptionWithArg("--remote_num_jobs", argv, &i,
-                                             &num_jobs_str)) {
-      remote_num_jobs = strtol(num_jobs_str, NULL, 10);
+                                             num_jobs_str)) {
+      remote_num_jobs = strtol(num_jobs_str.data(), NULL, 10);
       if (remote_num_jobs <= 0) {
-        ERROR("Invalid -j flag: %s", num_jobs_str);
+        ERROR("Invalid -j flag: %s", num_jobs_str.data());
       }
     } else if (ParseCommandLineOptionWithArg("--ninja_suffix", argv, &i,
-                                             &ninja_suffix)) {
+                                             ninja_suffix)) {
     } else if (ParseCommandLineOptionWithArg("--ninja_dir", argv, &i,
-                                             &ninja_dir)) {
+                                             ninja_dir)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       use_find_emulator = true;
     } else if (ParseCommandLineOptionWithArg("--goma_dir", argv, &i,
-                                             &goma_dir)) {
+                                             goma_dir)) {
     } else if (ParseCommandLineOptionWithArg(
                    "--ignore_optional_include", argv, &i,
-                   &ignore_optional_include_pattern)) {
+                   ignore_optional_include_pattern)) {
     } else if (ParseCommandLineOptionWithArg("--ignore_dirty", argv, &i,
-                                             &ignore_dirty_pattern)) {
+                                             ignore_dirty_pattern)) {
     } else if (ParseCommandLineOptionWithArg("--no_ignore_dirty", argv, &i,
-                                             &no_ignore_dirty_pattern)) {
+                                             no_ignore_dirty_pattern)) {
     } else if (ParseCommandLineOptionWithArg("--writable", argv, &i,
-                                             &writable_str)) {
+                                             writable_str)) {
       writable.push_back(writable_str);
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
