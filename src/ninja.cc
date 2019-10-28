@@ -188,8 +188,8 @@ class NinjaGenerator {
     shell_flags_ = EscapeNinja(ev->GetShellFlag());
     const string use_goma_str = ev->EvalVar(Intern("USE_GOMA"));
     use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
-    if (g_flags.goma_dir)
-      gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
+    if (g_flags.goma_dir.size())
+      gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir.data());
 
     GetExecutablePath(&kati_binary_);
   }
@@ -213,9 +213,9 @@ class NinjaGenerator {
   }
 
   static string GetFilename(const char* fmt) {
-    string r = g_flags.ninja_dir ? g_flags.ninja_dir : ".";
+    string r = g_flags.ninja_dir;
     r += '/';
-    r += StringPrintf(fmt, g_flags.ninja_suffix ? g_flags.ninja_suffix : "");
+    r += StringPrintf(fmt, g_flags.ninja_suffix.data());
     return r;
   }
 
@@ -438,7 +438,7 @@ class NinjaGenerator {
         cmd_buf->resize(cmd_begin);
         command_count -= 1;
         continue;
-      } else if (g_flags.goma_dir) {
+      } else if (g_flags.goma_dir.size()) {
         size_t pos = GetGomaccPosForAndroidCompileCommand(translated);
         if (pos != string::npos) {
           cmd_buf->insert(cmd_start + pos, gomacc_);
@@ -455,7 +455,7 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += " )";
     }
-    return (use_goma_ || g_flags.remote_num_jobs || g_flags.goma_dir) &&
+    return (use_goma_ || g_flags.remote_num_jobs || g_flags.goma_dir.size()) &&
            !use_gomacc;
   }
 
@@ -592,7 +592,7 @@ class NinjaGenerator {
       if (pool != "none") {
         *o << " pool = " << pool << "\n";
       }
-    } else if (g_flags.default_pool && rule_name != "phony") {
+    } else if (g_flags.default_pool.size() && rule_name != "phony") {
       *o << " pool = " << g_flags.default_pool << "\n";
     } else if (use_local_pool) {
       *o << " pool = local_pool\n";
@@ -626,8 +626,8 @@ class NinjaGenerator {
     }
 
     if (!g_flags.no_ninja_prelude) {
-      if (g_flags.ninja_dir) {
-        fprintf(fp_, "builddir = %s\n\n", g_flags.ninja_dir);
+      if (g_flags.ninja_dir.size()) {
+        fprintf(fp_, "builddir = %s\n\n", g_flags.ninja_dir.data());
       }
 
       fprintf(fp_, "pool local_pool\n");
@@ -720,7 +720,7 @@ class NinjaGenerator {
     fprintf(fp, "exec ninja -f %s ", GetNinjaFilename().c_str());
     if (g_flags.remote_num_jobs > 0) {
       fprintf(fp, "-j%d ", g_flags.remote_num_jobs);
-    } else if (g_flags.goma_dir) {
+    } else if (g_flags.goma_dir.size()) {
       fprintf(fp, "-j500 ");
     }
     fprintf(fp, "\"$@\"\n");

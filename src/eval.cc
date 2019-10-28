@@ -616,7 +616,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
     include_stack_.push_back(stmt->loc());
 
     for (const string& fname : *files) {
-      if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
+      if (!stmt->should_exist && g_flags.ignore_optional_include_pattern.size() &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
         continue;
       }
