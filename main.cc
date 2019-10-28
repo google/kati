@@ -218,7 +218,7 @@ SegfaultHandler::~SegfaultHandler() {
 }
 
 static int Run(const vector<Symbol>& targets,
-               const vector<StringPiece>& cl_vars,
+               const vector<std::string>& cl_vars,
                const string& orig_args) {
   double start_time = GetTime();
 

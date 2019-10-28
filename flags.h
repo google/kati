@@ -67,7 +67,8 @@ struct Flags {
   int remote_num_jobs;
   vector<std::string> subkati_args;
   vector<Symbol> targets;
-  vector<StringPiece> cl_vars;
+  vector<std::string> cl_vars;
+  vector<std::string> targets_strings; // ToDo: improve CLI11 to allow usage of `std::span`s instead of `std::string`s
   vector<string> writable;
 
   void Parse(int argc, char** argv);

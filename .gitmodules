@@ -1,0 +1,6 @@
+[submodule "CLI11"]
+	path = CLI11
+	# url = https://github.com/KOLANICH/CLI11
+	# a temporary solution, not merged into upstream yet
+	url = https://github.com/KOLANICH/CLI11
+	branch = virtual_parse_single

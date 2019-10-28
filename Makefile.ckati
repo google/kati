@@ -15,6 +15,8 @@
 # Find source file location from path to this Makefile
 KATI_SRC_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
 
+CLI11_INCLUDE_DIR := $(KATI_SRC_PATH)/CLI11/include
+
 # Set defaults if they weren't set by the including Makefile
 KATI_CXX ?= $(CXX)
 KATI_LD ?= $(CXX)
@@ -82,17 +84,17 @@ endif
 # Rule to build ckati into KATI_BIN_PATH
 $(KATI_BIN_PATH)/ckati: $(KATI_CXX_OBJS) $(KATI_CXX_GENERATED_OBJS)
 	@mkdir -p $(dir $@)
-	$(KATI_LD) -std=c++17 $(KATI_CXXFLAGS) -o $@ $^ $(KATI_LIBS)
+	$(KATI_LD) -I$(CLI11_INCLUDE_DIR) -std=c++17 $(KATI_CXXFLAGS) -o $@ $^ $(KATI_LIBS)
 
 # Rule to build normal source files into object files in KATI_INTERMEDIATES_PATH
 $(KATI_CXX_OBJS) $(KATI_CXX_TEST_OBJS): $(KATI_INTERMEDIATES_PATH)/%.o: $(KATI_SRC_PATH)/%.cc
 	@mkdir -p $(dir $@)
-	$(KATI_CXX) -c -std=c++17 $(KATI_CXXFLAGS) -o $@ $<
+	$(KATI_CXX) -c -I$(CLI11_INCLUDE_DIR) -std=c++17 $(KATI_CXXFLAGS) -o $@ $<
 
 # Rule to build generated source files into object files in KATI_INTERMEDIATES_PATH
 $(KATI_CXX_GENERATED_OBJS): $(KATI_INTERMEDIATES_PATH)/%.o: $(KATI_INTERMEDIATES_PATH)/%.cc
 	@mkdir -p $(dir $@)
-	$(KATI_CXX) -c -std=c++17 $(KATI_CXXFLAGS) -o $@ $<
+	$(KATI_CXX) -c -I$(CLI11_INCLUDE_DIR) -std=c++17 $(KATI_CXXFLAGS) -o $@ $<
 
 ckati_tests: $(KATI_CXX_TEST_EXES)
 
