@@ -55,6 +55,7 @@ struct Flags {
   bool warn_phony_looks_real;
   bool werror_phony_looks_real;
   bool werror_writable;
+  const char* default_pool;
   const char* goma_dir;
   const char* ignore_dirty_pattern;
   const char* no_ignore_dirty_pattern;

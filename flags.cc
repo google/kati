@@ -161,6 +161,8 @@ void Flags::Parse(int argc, char** argv) {
     } else if (ParseCommandLineOptionWithArg("--writable", argv, &i,
                                              &writable_str)) {
       writable.push_back(writable_str);
+    } else if (ParseCommandLineOptionWithArg("--default_pool", argv, &i,
+                                             &default_pool)) {
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {

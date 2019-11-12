@@ -570,10 +570,18 @@ class NinjaGenerator {
       }
     }
     *o << "\n";
+
+    string pool;
     if (node->ninja_pool_var) {
-      string pool;
       node->ninja_pool_var->Eval(ev_, &pool);
-      *o << " pool = " << pool << "\n";
+    }
+
+    if (pool != "") {
+      if (pool != "none") {
+        *o << " pool = " << pool << "\n";
+      }
+    } else if (g_flags.default_pool) {
+      *o << " pool = " << g_flags.default_pool << "\n";
     } else if (use_local_pool) {
       *o << " pool = local_pool\n";
     }

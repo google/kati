@@ -21,9 +21,23 @@ mk="$@"
 
 cat <<EOF > Makefile
 
-test: .KATI_NINJA_POOL := test_pool
-test:
+test: test_pool test_none test_default test_blank
+
+test_pool: .KATI_NINJA_POOL := test_pool
+test_pool:
 	echo "PASS"
+
+test_none: .KATI_NINJA_POOL := none
+test_none:
+	echo "PASS"
+
+test_default:
+	echo "PASS"
+
+test_blank: .KATI_NINJA_POOL :=
+test_blank:
+	echo "PASS"
+
 EOF
 
 ${mk} 2>${log}
@@ -32,12 +46,55 @@ if [ -e ninja.sh ]; then
   cat <<EOF > build.ninja
 pool test_pool
   depth = 1
+pool default_pool
+  depth = 1
 include kati.ninja
 EOF
   ./ninja.sh
 fi
 if [ -e ninja.sh ]; then
-  if ! grep -q "pool = test_pool" kati.ninja; then
-    echo "Pool not present in build.ninja"
+  if ! grep -A1 "build test_pool:" kati.ninja | grep -q "pool = test_pool"; then
+    echo "test_pool not present for test_pool rule in build.ninja"
+  fi
+  if grep -A1 "build test_none:" kati.ninja | grep -q "pool ="; then
+    echo "unexpected pool present for test_none rule in build.ninja"
+  fi
+  if grep -A1 "build test_default:" kati.ninja | grep -q "pool ="; then
+    echo "unexpected pool present for test_default rule in build.ninja"
+  fi
+  if grep -A1 "build test_blank:" kati.ninja | grep -q "pool ="; then
+    echo "unexpected pool present for test_blank rule in build.ninja"
+  fi
+fi
+
+args=
+if ! echo "${mk}" | grep -qv "kati"; then
+  args=--default_pool=default_pool
+fi
+
+${mk} ${args} 2>${log}
+if [ -e ninja.sh ]; then
+  mv build.ninja kati.ninja
+  cat <<EOF > build.ninja
+pool test_pool
+  depth = 1
+pool default_pool
+  depth = 1
+include kati.ninja
+EOF
+  ./ninja.sh
+fi
+if [ -e ninja.sh ]; then
+  if ! grep -A1 "build test_pool:" kati.ninja | grep -q "pool = test_pool"; then
+    echo "test_pool not present for test_pool rule in build.ninja"
+  fi
+  if grep -A1 "build test_none:" kati.ninja | grep -q "pool = "; then
+    echo "unexpected pool present for test_none rule in build.ninja"
+  fi
+  if ! grep -A1 "build test_default:" kati.ninja | grep -q "pool = default_pool"; then
+    echo "default_pool not present for test_default rule in build.ninja"
+  fi
+  if ! grep -A1 "build test_blank:" kati.ninja | grep -q "pool = default_pool"; then
+    echo "default_pool not present for test_blank rule in build.ninja"
   fi
 fi
