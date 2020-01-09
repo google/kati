@@ -557,7 +557,7 @@ class NinjaGenerator {
     }
     *o << ": " << rule_name;
     vector<Symbol> order_onlys;
-    if (node->is_phony) {
+    if (node->is_phony && !g_flags.use_ninja_phony_output) {
       *o << " _kati_always_build_";
     }
     for (auto const& d : node->deps) {
@@ -584,6 +584,9 @@ class NinjaGenerator {
       *o << " pool = " << g_flags.default_pool << "\n";
     } else if (use_local_pool) {
       *o << " pool = local_pool\n";
+    }
+    if (node->is_phony && g_flags.use_ninja_phony_output) {
+      *o << " phony_output = true\n";
     }
     if (node->is_default_target) {
       unique_lock<mutex> lock(mu_);
@@ -618,7 +621,9 @@ class NinjaGenerator {
       fprintf(fp_, "pool local_pool\n");
       fprintf(fp_, " depth = %d\n\n", g_flags.num_jobs);
 
-      fprintf(fp_, "build _kati_always_build_: phony\n\n");
+      if (!g_flags.use_ninja_phony_output) {
+        fprintf(fp_, "build _kati_always_build_: phony\n\n");
+      }
     }
 
     unique_ptr<ThreadPool> tp(NewThreadPool(g_flags.num_jobs));

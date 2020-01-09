@@ -43,6 +43,7 @@ struct Flags {
   bool color_warnings;
   bool no_builtin_rules;
   bool no_ninja_prelude;
+  bool use_ninja_phony_output;
   bool werror_find_emulator;
   bool werror_overriding_commands;
   bool warn_implicit_rules;
