@@ -18,9 +18,14 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <iostream>
 
 #include "log.h"
 #include "strutil.h"
+
+constexpr const auto helpMessage =
+#include "help.inc"
+    ;
 
 Flags g_flags;
 
@@ -59,6 +64,12 @@ void Flags::Parse(int argc, char** argv) {
       if (!HasPrefix(tok, "-") && tok.find('=') != string::npos)
         cl_vars.push_back(tok);
     }
+  }
+
+  if (argc >= 2 && (!strcmp(argv[1], "-help") || !strcmp(argv[1], "--help") ||
+                    !strcmp(argv[1], "-h"))) {
+    std::cout << helpMessage << std::endl;
+    return;
   }
 
   for (int i = 1; i < argc; i++) {
