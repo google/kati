@@ -283,9 +283,10 @@ void WordsFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
 void FirstwordFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   const string&& text = args[0]->Eval(ev);
-  for (StringPiece tok : WordScanner(text)) {
-    AppendString(tok, s);
-    return;
+  WordScanner ws(text);
+  auto begin = ws.begin();
+  if (begin != ws.end()) {
+    AppendString(*begin, s);
   }
 }
 
