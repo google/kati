@@ -444,6 +444,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
       }
     }
 
+    include_stack_.push_back(stmt->loc());
     for (const string& fname : *files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
@@ -451,6 +452,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
       }
       DoInclude(fname);
     }
+    include_stack_.pop_back();
   }
 }
 
@@ -555,6 +557,9 @@ string Evaluator::GetShellAndFlag() {
 }
 
 void Evaluator::Error(const string& msg) {
+  for (auto& inc : include_stack_) {
+    fprintf(stderr, "In file included from %s:%d:\n", LOCF(inc));
+  }
   ERROR_LOC(loc_, "%s", msg.c_str());
 }
 

@@ -143,6 +143,8 @@ class Evaluator {
   bool is_bootstrap_;
   bool is_commandline_;
 
+  std::vector<Loc> include_stack_;
+
   bool avoid_io_;
   // This value tracks the nest level of make expressions. For
   // example, $(YYY) in $(XXX $(YYY)) is evaluated with depth==2.
