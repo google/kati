@@ -131,6 +131,7 @@ int FindUnitTests() {
   //  drwxr-x--- top
   //  lrwxrwxrwx top/E -> missing
   //  lrwxrwxrwx top/C -> A
+  //  lrwxrwxrwx top/F -> A/B
   //  -rw-r----- top/a
   //  drwxr-x--- top/A
   //  lrwxrwxrwx top/A/D -> B
@@ -141,6 +142,7 @@ int FindUnitTests() {
   Run("cd top && ln -s A C");
   Run("cd top/A && ln -s B D");
   Run("cd top && ln -s missing E");
+  Run("cd top && ln -s A/B F");
   Run("touch top/a top/A/b top/A/B/z");
 
   InitFindEmulator();
@@ -164,6 +166,17 @@ int FindUnitTests() {
   CompareFind("find top -type f -name 'a*' -o -name \\*b");
   CompareFind("find top \\! -name 'a*'");
   CompareFind("find top \\( -name 'a*' \\)");
+
+  // Basic use of ..
+  CompareFind("cd top/C; find ../A");
+
+  // Use of .. in chdir
+  CompareFind("cd top/A/..; find .");
+
+  // .. through a symlink in chdir, should list under top/A/...
+  CompareFind("cd top/F; find ../");
+  // .. through a symlink in finddir, should do the same
+  CompareFind("cd top; find F/..");
 
   ExpectParseFailure("find top -name a\\*");
 

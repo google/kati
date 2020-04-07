@@ -198,6 +198,18 @@ void TestFindEndOfLineInvalidAccess() {
   ASSERT_EQ(FindEndOfLine(CreateProtectedString("a\\"), 0, &lf_cnt), 2);
 }
 
+void TestConcatDir() {
+  ASSERT_EQ(ConcatDir("", ""), "");
+  ASSERT_EQ(ConcatDir(".", ""), "");
+  ASSERT_EQ(ConcatDir("", "."), "");
+  ASSERT_EQ(ConcatDir("a", "b"), "a/b");
+  ASSERT_EQ(ConcatDir("a/", "b"), "a/b");
+  ASSERT_EQ(ConcatDir("a", "/b"), "/b");
+  ASSERT_EQ(ConcatDir("a", ".."), "");
+  ASSERT_EQ(ConcatDir("a", "../b"), "b");
+  ASSERT_EQ(ConcatDir("a", "../../b"), "../b");
+}
+
 }  // namespace
 
 int main() {
@@ -214,5 +226,6 @@ int main() {
   TestFindEndOfLine();
   TestWordScannerInvalidAccess();
   TestFindEndOfLineInvalidAccess();
+  TestConcatDir();
   assert(!g_failed);
 }
