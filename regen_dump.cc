@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
     ERROR("Incomplete stamp file");
   for (int i = 0; i < num_cmds; i++) {
     CommandOp op = static_cast<CommandOp>(LoadInt(fp));
-    string shell, shellflag, cmd, result;
+    string shell, shellflag, cmd, result, file;
     if (!LoadString(fp, &shell))
       ERROR("Incomplete stamp file");
     if (!LoadString(fp, &shellflag))
@@ -156,6 +156,11 @@ int main(int argc, char* argv[]) {
     if (!LoadString(fp, &cmd))
       ERROR("Incomplete stamp file");
     if (!LoadString(fp, &result))
+      ERROR("Incomplete stamp file");
+    if (!LoadString(fp, &file))
+      ERROR("Incomplete stamp file");
+    int line = LoadInt(fp);
+    if (line < 0)
       ERROR("Incomplete stamp file");
 
     if (op == CommandOp::FIND) {
@@ -167,6 +172,7 @@ int main(int argc, char* argv[]) {
         printf("cmd type: FIND\n");
         printf("  shell: %s\n", shell.c_str());
         printf("  shell flags: %s\n", shellflag.c_str());
+        printf("  loc: %s:%d\n", file.c_str(), line);
         printf("  cmd: %s\n", cmd.c_str());
         if (result.length() > 0 && result.length() < 500 &&
             result.find('\n') == std::string::npos) {
@@ -202,6 +208,7 @@ int main(int argc, char* argv[]) {
       } else if (op == CommandOp::APPEND) {
         printf("cmd type: APPEND\n");
       }
+      printf("  loc: %s:%d\n", file.c_str(), line);
       printf("  cmd: %s\n", cmd.c_str());
       if (result.length() > 0 && result.length() < 500 &&
           result.find('\n') == std::string::npos) {

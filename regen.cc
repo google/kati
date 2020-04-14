@@ -245,6 +245,11 @@ class StampChecker {
       LOAD_STRING(fp, &sr->cmd);
       LOAD_STRING(fp, &sr->result);
 
+      string file;
+      // Ignore debug info
+      LOAD_STRING(fp, &file);
+      LOAD_INT(fp);
+
       if (sr->op == CommandOp::FIND) {
         int num_missing_dirs = LOAD_INT(fp);
         for (int j = 0; j < num_missing_dirs; j++) {

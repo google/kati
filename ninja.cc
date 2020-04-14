@@ -771,6 +771,8 @@ class NinjaGenerator {
       DumpString(fp, cr->shellflag);
       DumpString(fp, cr->cmd);
       DumpString(fp, cr->result);
+      DumpString(fp, cr->loc.filename);
+      DumpInt(fp, cr->loc.lineno);
 
       if (cr->op == CommandOp::FIND) {
         vector<string> missing_dirs;

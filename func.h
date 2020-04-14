@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "expr.h"
+#include "loc.h"
 
 using namespace std;
 
@@ -57,6 +58,7 @@ struct CommandResult {
   string cmd;
   unique_ptr<FindCommand> find;
   string result;
+  Loc loc;
 };
 
 const vector<CommandResult*>& GetShellCommandResults();
