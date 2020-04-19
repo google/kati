@@ -31,6 +31,7 @@
 
 #include "fileutil.h"
 #include "log.h"
+#include "stats.h"
 #include "string_piece.h"
 #include "strutil.h"
 #include "timeutil.h"
@@ -43,6 +44,8 @@
       WARN_LOC(__VA_ARGS__);            \
     }                                   \
   } while (0)
+
+static unsigned int find_emulator_node_cnt = 0;
 
 class FindCond {
  public:
@@ -228,7 +231,7 @@ struct ScopedReadDirTracker {
 class DirentDirNode : public DirentNode {
  public:
   explicit DirentDirNode(const DirentDirNode* parent, const string& name)
-      : DirentNode(name), parent_(parent) {}
+      : DirentNode(name), parent_(parent), name_(name) {}
 
   ~DirentDirNode() {
     for (auto& p : children_) {
@@ -237,6 +240,10 @@ class DirentDirNode : public DirentNode {
   }
 
   virtual const DirentNode* FindDir(StringPiece d) const override {
+    if (!is_initialized_) {
+      initialize();
+    }
+
     if (d.empty() || d == ".")
       return this;
     if (d == "..")
@@ -267,6 +274,10 @@ class DirentDirNode : public DirentNode {
                          vector<pair<string, const DirentNode*>>& results,
                          string* path,
                          StringPiece d) const override {
+    if (!is_initialized_) {
+      initialize();
+    }
+
     if (!path->empty())
       path->append("/");
 
@@ -332,6 +343,10 @@ class DirentDirNode : public DirentNode {
                        string* path,
                        unordered_map<const DirentNode*, string>* cur_read_dirs,
                        vector<string>& out) const override {
+    if (!is_initialized_) {
+      initialize();
+    }
+
     ScopedReadDirTracker srdt(this, *path, cur_read_dirs);
     if (!srdt.ok()) {
       FIND_WARN_LOC(loc,
@@ -414,21 +429,53 @@ class DirentDirNode : public DirentNode {
 
   virtual bool IsDirectory() const override { return true; }
 
-  void Add(const string& name, DirentNode* c) {
-    children_.emplace(children_.end(), name, c);
+ private:
+  static unsigned char GetDtTypeFromStat(const struct stat& st) {
+    if (S_ISREG(st.st_mode)) {
+      return DT_REG;
+    } else if (S_ISDIR(st.st_mode)) {
+      return DT_DIR;
+    } else if (S_ISCHR(st.st_mode)) {
+      return DT_CHR;
+    } else if (S_ISBLK(st.st_mode)) {
+      return DT_BLK;
+    } else if (S_ISFIFO(st.st_mode)) {
+      return DT_FIFO;
+    } else if (S_ISLNK(st.st_mode)) {
+      return DT_LNK;
+    } else if (S_ISSOCK(st.st_mode)) {
+      return DT_SOCK;
+    } else {
+      return DT_UNKNOWN;
+    }
   }
 
- private:
+  static unsigned char GetDtType(const string& path) {
+    struct stat st;
+    if (lstat(path.c_str(), &st)) {
+      PERROR("stat for %s", path.c_str());
+    }
+    return GetDtTypeFromStat(st);
+  }
+
+  void initialize() const;
+
   const DirentDirNode* parent_;
-  vector<pair<string, DirentNode*>> children_;
+
+  mutable vector<pair<string, DirentNode*>> children_;
+  mutable string name_;
+  mutable bool is_initialized_ = false;
 };
 
 class DirentSymlinkNode : public DirentNode {
  public:
-  explicit DirentSymlinkNode(const string& name)
-      : DirentNode(name), to_(NULL), errno_(0) {}
+  explicit DirentSymlinkNode(const DirentDirNode* parent, const string& name)
+      : DirentNode(name), name_(name), parent_(parent) {}
 
   virtual const DirentNode* FindDir(StringPiece d) const override {
+    if (!is_initialized_) {
+      initialize();
+    }
     if (errno_ == 0 && to_)
       return to_->FindDir(d);
     return NULL;
@@ -438,6 +485,9 @@ class DirentSymlinkNode : public DirentNode {
                          vector<pair<string, const DirentNode*>>& results,
                          string* path,
                          StringPiece d) const override {
+    if (!is_initialized_) {
+      initialize();
+    }
     if (errno_ != 0) {
       return true;
     }
@@ -457,6 +507,9 @@ class DirentSymlinkNode : public DirentNode {
                        unordered_map<const DirentNode*, string>* cur_read_dirs,
                        vector<string>& out) const override {
     unsigned char type = DT_LNK;
+    if (fc.follows_symlinks && !is_initialized_) {
+      initialize();
+    }
     if (fc.follows_symlinks && errno_ != ENOENT) {
       if (errno_) {
         if (fc.type != FindCommandType::FINDLEAVES) {
@@ -478,17 +531,99 @@ class DirentSymlinkNode : public DirentNode {
   }
 
   virtual bool IsDirectory() const override {
+    if (!is_initialized_) {
+      initialize();
+    }
     return errno_ == 0 && to_ && to_->IsDirectory();
   }
 
-  void set_to(const DirentNode* to) { to_ = to; }
-
-  void set_errno(int e) { errno_ = e; }
-
  private:
-  const DirentNode* to_;
-  int errno_;
+  void initialize() const {
+    COLLECT_STATS("init find emulator DirentSymlinkNode::initialize");
+    char buf[PATH_MAX + 1];
+    buf[PATH_MAX] = 0;
+    ssize_t len = readlink(name_.c_str(), buf, PATH_MAX);
+    if (len <= 0) {
+      errno_ = errno;
+      WARN("readlink failed: %s", name_.c_str());
+      name_ = "";
+      is_initialized_ = true;
+      return;
+    }
+    buf[len] = 0;
+
+    struct stat st;
+    if (stat(name_.c_str(), &st) != 0) {
+      errno_ = errno;
+      LOG("stat failed: %s: %s", name_.c_str(), strerror(errno));
+      name_ = "";
+      is_initialized_ = true;
+      return;
+    }
+
+    // absolute symlinks aren't supported by the find emulator
+    if (*buf != '/') {
+      to_ = parent_->FindDir(buf);
+    }
+
+    name_ = "";
+    is_initialized_ = true;
+  }
+
+  mutable string name_;
+  const DirentDirNode* parent_;
+
+  mutable const DirentNode* to_ = nullptr;
+  mutable int errno_ = 0;
+  mutable bool is_initialized_ = false;
 };
+
+void DirentDirNode::initialize() const {
+  COLLECT_STATS("init find emulator DirentDirNode::initialize");
+  DIR* dir = opendir(name_.empty() ? "." : name_.c_str());
+  if (!dir) {
+    if (errno == ENOENT || errno == EACCES) {
+      LOG("opendir failed: %s", name_.c_str());
+      name_ = "";
+      is_initialized_ = true;
+      return;
+    } else {
+      PERROR("opendir failed: %s", name_.c_str());
+    }
+  }
+
+  struct dirent* ent;
+  while ((ent = readdir(dir)) != NULL) {
+    if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..") ||
+        !strcmp(ent->d_name, ".repo") || !strcmp(ent->d_name, ".git"))
+      continue;
+
+    string npath = name_;
+    if (!name_.empty())
+      npath += '/';
+    npath += ent->d_name;
+
+    DirentNode* c = NULL;
+    auto d_type = ent->d_type;
+    if (d_type == DT_UNKNOWN) {
+      d_type = GetDtType(npath);
+      CHECK(d_type != DT_UNKNOWN);
+    }
+    if (d_type == DT_DIR) {
+      c = new DirentDirNode(this, npath);
+    } else if (d_type == DT_LNK) {
+      c = new DirentSymlinkNode(this, npath);
+    } else {
+      c = new DirentFileNode(npath, d_type);
+    }
+    find_emulator_node_cnt++;
+    children_.emplace(children_.end(), ent->d_name, c);
+  }
+  closedir(dir);
+
+  name_ = "";
+  is_initialized_ = true;
+}
 
 class FindCommandParser {
  public:
@@ -866,9 +1001,7 @@ static FindEmulator* g_instance;
 
 class FindEmulatorImpl : public FindEmulator {
  public:
-  FindEmulatorImpl() : node_cnt_(0), is_initialized_(false) {
-    g_instance = this;
-  }
+  FindEmulatorImpl() { g_instance = this; }
 
   virtual ~FindEmulatorImpl() = default;
 
@@ -895,17 +1028,6 @@ class FindEmulatorImpl : public FindEmulator {
       return false;
     }
 
-    if (!is_initialized_) {
-      ScopedTimeReporter tr("init find emulator time");
-      root_.reset(ConstructDirectoryTree(NULL, ""));
-      if (!root_) {
-        ERROR("FindEmulator: Cannot open root directory");
-      }
-      ResolveSymlinks();
-      LOG_STAT("%d find nodes", node_cnt_);
-      is_initialized_ = true;
-    }
-
     if (!fc.testdir.empty()) {
       if (!CanHandle(fc.testdir)) {
         LOG("FindEmulator: Cannot handle test dir (%.*s): %s", SPF(fc.testdir),
@@ -920,7 +1042,7 @@ class FindEmulatorImpl : public FindEmulator {
       }
     }
 
-    const DirentNode* root = root_.get();
+    const DirentNode* root = root_;
 
     if (!fc.chdir.empty()) {
       if (!CanHandle(fc.chdir)) {
@@ -1002,142 +1124,7 @@ class FindEmulatorImpl : public FindEmulator {
   }
 
  private:
-  static unsigned char GetDtTypeFromStat(const struct stat& st) {
-    if (S_ISREG(st.st_mode)) {
-      return DT_REG;
-    } else if (S_ISDIR(st.st_mode)) {
-      return DT_DIR;
-    } else if (S_ISCHR(st.st_mode)) {
-      return DT_CHR;
-    } else if (S_ISBLK(st.st_mode)) {
-      return DT_BLK;
-    } else if (S_ISFIFO(st.st_mode)) {
-      return DT_FIFO;
-    } else if (S_ISLNK(st.st_mode)) {
-      return DT_LNK;
-    } else if (S_ISSOCK(st.st_mode)) {
-      return DT_SOCK;
-    } else {
-      return DT_UNKNOWN;
-    }
-  }
-
-  static unsigned char GetDtType(const string& path) {
-    struct stat st;
-    if (lstat(path.c_str(), &st)) {
-      PERROR("stat for %s", path.c_str());
-    }
-    return GetDtTypeFromStat(st);
-  }
-
-  DirentNode* ConstructDirectoryTree(DirentDirNode* parent,
-                                     const string& path) {
-    DIR* dir = opendir(path.empty() ? "." : path.c_str());
-    if (!dir) {
-      if (errno == ENOENT || errno == EACCES) {
-        LOG("opendir failed: %s", path.c_str());
-        return NULL;
-      } else {
-        PERROR("opendir failed: %s", path.c_str());
-      }
-    }
-
-    DirentDirNode* n = new DirentDirNode(parent, path);
-
-    struct dirent* ent;
-    while ((ent = readdir(dir)) != NULL) {
-      if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..") ||
-          !strcmp(ent->d_name, ".repo") || !strcmp(ent->d_name, ".git"))
-        continue;
-
-      string npath = path;
-      if (!path.empty())
-        npath += '/';
-      npath += ent->d_name;
-
-      DirentNode* c = NULL;
-      auto d_type = ent->d_type;
-      if (d_type == DT_UNKNOWN) {
-        d_type = GetDtType(npath);
-        CHECK(d_type != DT_UNKNOWN);
-      }
-      if (d_type == DT_DIR) {
-        c = ConstructDirectoryTree(n, npath);
-        if (c == NULL) {
-          continue;
-        }
-      } else if (d_type == DT_LNK) {
-        auto s = new DirentSymlinkNode(npath);
-        symlinks_.push_back(make_pair(npath, s));
-        c = s;
-      } else {
-        c = new DirentFileNode(npath, d_type);
-      }
-      node_cnt_++;
-      n->Add(ent->d_name, c);
-    }
-    closedir(dir);
-
-    return n;
-  }
-
-  void ResolveSymlinks() {
-    vector<pair<string, DirentSymlinkNode*>> symlinks;
-    symlinks.swap(symlinks_);
-    for (const auto& p : symlinks) {
-      const string& path = p.first;
-      DirentSymlinkNode* s = p.second;
-
-      char buf[PATH_MAX + 1];
-      buf[PATH_MAX] = 0;
-      ssize_t len = readlink(path.c_str(), buf, PATH_MAX);
-      if (len < 0) {
-        WARN("readlink failed: %s", path.c_str());
-        continue;
-      }
-      buf[len] = 0;
-
-      struct stat st;
-      unsigned char type = DT_UNKNOWN;
-      if (stat(path.c_str(), &st) == 0) {
-        type = GetDtTypeFromStat(st);
-      } else {
-        s->set_errno(errno);
-        LOG("stat failed: %s: %s", path.c_str(), strerror(errno));
-      }
-
-      if (*buf != '/') {
-        const string npath = ConcatDir(Dirname(path), buf);
-        bool should_fallback = false;
-        const DirentNode* to = FindDir(npath, &should_fallback);
-        if (to) {
-          s->set_to(to);
-          continue;
-        }
-      }
-
-      if (type == DT_DIR) {
-        if (path.find('/') == string::npos) {
-          DirentNode* dir = ConstructDirectoryTree(NULL, path);
-          if (dir != NULL) {
-            s->set_to(dir);
-          } else {
-            s->set_errno(errno);
-          }
-        }
-      } else if (type != DT_LNK && type != DT_UNKNOWN) {
-        s->set_to(new DirentFileNode(path, type));
-      }
-    }
-
-    if (!symlinks_.empty())
-      ResolveSymlinks();
-  }
-
-  unique_ptr<DirentNode> root_;
-  vector<pair<string, DirentSymlinkNode*>> symlinks_;
-  int node_cnt_;
-  bool is_initialized_;
+  DirentNode* root_ = new DirentDirNode(nullptr, "");
 };
 
 }  // namespace
@@ -1170,6 +1157,10 @@ bool FindCommand::Parse(const string& cmd) {
 
 FindEmulator* FindEmulator::Get() {
   return g_instance;
+}
+
+unsigned int FindEmulator::GetNodeCount() {
+  return find_emulator_node_cnt;
 }
 
 void InitFindEmulator() {

@@ -20,6 +20,7 @@
 #include <mutex>
 #include <vector>
 
+#include "find.h"
 #include "flags.h"
 #include "log.h"
 #include "stringprintf.h"
@@ -139,4 +140,6 @@ void ReportAllStats() {
     st->DumpTop();
   }
   delete g_stats;
+
+  LOG_STAT("%u find nodes", FindEmulator::GetNodeCount());
 }

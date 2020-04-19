@@ -77,7 +77,7 @@ void CompareFind(const string& cmd) {
   }
   string emulated;
   if (!FindEmulator::Get()->HandleFind(cmd, fc, Loc(), &emulated)) {
-    fprintf(stderr, "Find emulator cannot parse `%s`\n", cmd.c_str());
+    fprintf(stderr, "Find emulator cannot handle `%s`\n", cmd.c_str());
     exit(1);
   }
 
