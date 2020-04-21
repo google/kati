@@ -22,17 +22,38 @@
 #include <stdio.h>
 
 #include <string>
+#include <vector>
 
+#include "func.h"
 #include "io.h"
 #include "log.h"
 #include "strutil.h"
 
+vector<string> LoadVecString(FILE* fp) {
+  int count = LoadInt(fp);
+  if (count < 0) {
+    ERROR("Incomplete stamp file");
+  }
+  vector<string> ret(count);
+  for (int i = 0; i < count; i++) {
+    if (!LoadString(fp, &ret[i])) {
+      ERROR("Incomplete stamp file");
+    }
+  }
+  return ret;
+}
+
 int main(int argc, char* argv[]) {
   bool dump_files = false;
   bool dump_env = false;
+  bool dump_globs = false;
+  bool dump_cmds = false;
+  bool dump_finds = false;
 
   if (argc == 1) {
-    fprintf(stderr, "Usage: ckati_stamp_dump [--env] [--files] <stamp>\n");
+    fprintf(stderr,
+            "Usage: ckati_stamp_dump [--env] [--files] [--globs] [--cmds] "
+            "[--finds] <stamp>\n");
     return 1;
   }
 
@@ -42,13 +63,19 @@ int main(int argc, char* argv[]) {
       dump_env = true;
     } else if (!strcmp(arg, "--files")) {
       dump_files = true;
+    } else if (!strcmp(arg, "--globs")) {
+      dump_globs = true;
+    } else if (!strcmp(arg, "--cmds")) {
+      dump_cmds = true;
+    } else if (!strcmp(arg, "--finds")) {
+      dump_finds = true;
     } else {
       fprintf(stderr, "Unknown option: %s", arg);
       return 1;
     }
   }
 
-  if (!dump_files && !dump_env) {
+  if (!dump_files && !dump_env && !dump_globs && !dump_cmds && !dump_finds) {
     dump_files = true;
   }
 
@@ -62,26 +89,26 @@ int main(int argc, char* argv[]) {
   if (r != 1)
     ERROR("Incomplete stamp file");
 
-  int num_files = LoadInt(fp);
-  if (num_files < 0)
-    ERROR("Incomplete stamp file");
-  for (int i = 0; i < num_files; i++) {
-    string s;
-    if (!LoadString(fp, &s))
-      ERROR("Incomplete stamp file");
-    if (dump_files)
-      printf("%s\n", s.c_str());
+  //
+  // See regen.cc CheckStep1 for how this is read normally
+  //
+
+  {
+    auto files = LoadVecString(fp);
+    if (dump_files) {
+      for (auto f : files) {
+        printf("%s\n", f.c_str());
+      }
+    }
   }
 
-  int num_undefineds = LoadInt(fp);
-  if (num_undefineds < 0)
-    ERROR("Incomplete stamp file");
-  for (int i = 0; i < num_undefineds; i++) {
-    string s;
-    if (!LoadString(fp, &s))
-      ERROR("Incomplete stamp file");
-    if (dump_env)
-      printf("undefined: %s\n", s.c_str());
+  {
+    auto undefined = LoadVecString(fp);
+    if (dump_env) {
+      for (auto s : undefined) {
+        printf("undefined: %s\n", s.c_str());
+      }
+    }
   }
 
   int num_envs = LoadInt(fp);
@@ -96,6 +123,101 @@ int main(int argc, char* argv[]) {
       ERROR("Incomplete stamp file");
     if (dump_env)
       printf("%s: %s\n", name.c_str(), val.c_str());
+  }
+
+  int num_globs = LoadInt(fp);
+  if (num_globs < 0)
+    ERROR("Incomplete stamp file");
+  for (int i = 0; i < num_globs; i++) {
+    string pat;
+    if (!LoadString(fp, &pat))
+      ERROR("Incomplete stamp file");
+
+    auto files = LoadVecString(fp);
+    if (dump_globs) {
+      printf("%s\n", pat.c_str());
+
+      for (auto s : files) {
+        printf("  %s\n", s.c_str());
+      }
+    }
+  }
+
+  int num_cmds = LoadInt(fp);
+  if (num_cmds < 0)
+    ERROR("Incomplete stamp file");
+  for (int i = 0; i < num_cmds; i++) {
+    CommandOp op = static_cast<CommandOp>(LoadInt(fp));
+    string shell, shellflag, cmd, result, file;
+    if (!LoadString(fp, &shell))
+      ERROR("Incomplete stamp file");
+    if (!LoadString(fp, &shellflag))
+      ERROR("Incomplete stamp file");
+    if (!LoadString(fp, &cmd))
+      ERROR("Incomplete stamp file");
+    if (!LoadString(fp, &result))
+      ERROR("Incomplete stamp file");
+    if (!LoadString(fp, &file))
+      ERROR("Incomplete stamp file");
+    int line = LoadInt(fp);
+    if (line < 0)
+      ERROR("Incomplete stamp file");
+
+    if (op == CommandOp::FIND) {
+      auto missing_dirs = LoadVecString(fp);
+      auto files = LoadVecString(fp);
+      auto read_dirs = LoadVecString(fp);
+
+      if (dump_finds) {
+        printf("cmd type: FIND\n");
+        printf("  shell: %s\n", shell.c_str());
+        printf("  shell flags: %s\n", shellflag.c_str());
+        printf("  loc: %s:%d\n", file.c_str(), line);
+        printf("  cmd: %s\n", cmd.c_str());
+        if (result.length() > 0 && result.length() < 500 &&
+            result.find('\n') == std::string::npos) {
+          printf("  output: %s\n", result.c_str());
+        } else {
+          printf("  output: <%zu bytes>\n", result.length());
+        }
+        printf("  missing dirs:\n");
+        for (auto d : missing_dirs) {
+          printf("    %s\n", d.c_str());
+        }
+        printf("  files:\n");
+        for (auto f : files) {
+          printf("    %s\n", f.c_str());
+        }
+        printf("  read dirs:\n");
+        for (auto d : read_dirs) {
+          printf("    %s\n", d.c_str());
+        }
+        printf("\n");
+      }
+    } else if (dump_cmds) {
+      if (op == CommandOp::SHELL) {
+        printf("cmd type: SHELL\n");
+        printf("  shell: %s\n", shell.c_str());
+        printf("  shell flags: %s\n", shellflag.c_str());
+      } else if (op == CommandOp::READ) {
+        printf("cmd type: READ\n");
+      } else if (op == CommandOp::READ_MISSING) {
+        printf("cmd type: READ_MISSING\n");
+      } else if (op == CommandOp::WRITE) {
+        printf("cmd type: WRITE\n");
+      } else if (op == CommandOp::APPEND) {
+        printf("cmd type: APPEND\n");
+      }
+      printf("  loc: %s:%d\n", file.c_str(), line);
+      printf("  cmd: %s\n", cmd.c_str());
+      if (result.length() > 0 && result.length() < 500 &&
+          result.find('\n') == std::string::npos) {
+        printf("  output: %s\n", result.c_str());
+      } else {
+        printf("  output: <%zu bytes>\n", result.length());
+      }
+      printf("\n");
+    }
   }
 
   return 0;
