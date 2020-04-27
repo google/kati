@@ -134,6 +134,16 @@ void Flags::Parse(int argc, char** argv) {
       werror_phony_looks_real = true;
     } else if (!strcmp(arg, "--werror_writable")) {
       werror_writable = true;
+    } else if (!strcmp(arg, "--warn_real_no_cmds_or_deps")) {
+      warn_real_no_cmds_or_deps = true;
+    } else if (!strcmp(arg, "--werror_real_no_cmds_or_deps")) {
+      warn_real_no_cmds_or_deps = true;
+      werror_real_no_cmds_or_deps = true;
+    } else if (!strcmp(arg, "--warn_real_no_cmds")) {
+      warn_real_no_cmds = true;
+    } else if (!strcmp(arg, "--werror_real_no_cmds")) {
+      warn_real_no_cmds = true;
+      werror_real_no_cmds = true;
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {
