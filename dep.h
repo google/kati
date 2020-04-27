@@ -39,7 +39,6 @@ struct DepNode {
   vector<Value*> cmds;
   vector<NamedDepNode> deps;
   vector<NamedDepNode> order_onlys;
-  vector<NamedDepNode> parents;
   bool has_rule;
   bool is_default_target;
   bool is_phony;
