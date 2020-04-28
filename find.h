@@ -68,6 +68,7 @@ class FindEmulator {
                           string* out) = 0;
 
   static FindEmulator* Get();
+  static unsigned int GetNodeCount();
 
  protected:
   FindEmulator() = default;
