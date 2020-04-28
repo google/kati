@@ -494,7 +494,7 @@ string SortWordsInString(StringPiece s) {
 
 string ConcatDir(StringPiece b, StringPiece n) {
   string r;
-  if (!b.empty()) {
+  if (!b.empty() && (n.empty() || n[0] != '/')) {
     b.AppendToString(&r);
     r += '/';
   }

@@ -221,7 +221,8 @@ struct ScopedReadDirTracker {
 
 class DirentDirNode : public DirentNode {
  public:
-  explicit DirentDirNode(const string& name) : DirentNode(name) {}
+  explicit DirentDirNode(const DirentDirNode* parent, const string& name)
+      : DirentNode(name), parent_(parent) {}
 
   ~DirentDirNode() {
     for (auto& p : children_) {
@@ -232,11 +233,19 @@ class DirentDirNode : public DirentNode {
   virtual const DirentNode* FindDir(StringPiece d) const override {
     if (d.empty() || d == ".")
       return this;
+    if (d == "..")
+      return parent_;
+
     size_t index = d.find('/');
     const string& p = d.substr(0, index).as_string();
     if (p.empty() || p == ".")
       return FindDir(d.substr(index + 1));
-    ;
+    if (p == "..") {
+      if (parent_ == NULL)
+        return NULL;
+      return parent_->FindDir(d.substr(index + 1));
+    }
+
     for (auto& child : children_) {
       if (p == child.first) {
         if (index == string::npos)
@@ -341,6 +350,7 @@ class DirentDirNode : public DirentNode {
   }
 
  private:
+  const DirentDirNode* parent_;
   vector<pair<string, DirentNode*>> children_;
 };
 
@@ -776,8 +786,8 @@ class FindEmulatorImpl : public FindEmulator {
   virtual ~FindEmulatorImpl() = default;
 
   bool CanHandle(StringPiece s) const {
-    return (!HasPrefix(s, "../") && !HasPrefix(s, "/") &&
-            !HasPrefix(s, ".repo") && !HasPrefix(s, ".git"));
+    return (!HasPrefix(s, "/") && !HasPrefix(s, ".repo") &&
+            !HasPrefix(s, ".git"));
   }
 
   const DirentNode* FindDir(StringPiece d, bool* should_fallback) {
@@ -800,7 +810,7 @@ class FindEmulatorImpl : public FindEmulator {
 
     if (!is_initialized_) {
       ScopedTimeReporter tr("init find emulator time");
-      root_.reset(ConstructDirectoryTree(""));
+      root_.reset(ConstructDirectoryTree(NULL, ""));
       if (!root_) {
         ERROR("FindEmulator: Cannot open root directory");
       }
@@ -846,8 +856,9 @@ class FindEmulatorImpl : public FindEmulator {
 
     vector<string> results;
     for (const string& finddir : fc.finddirs) {
-      if (!CanHandle(finddir)) {
-        LOG("FindEmulator: Cannot handle find dir (%s): %s", finddir.c_str(),
+      string fullpath = ConcatDir(fc.chdir, finddir);
+      if (!CanHandle(fullpath)) {
+        LOG("FindEmulator: Cannot handle find dir (%s): %s", fullpath.c_str(),
             cmd.c_str());
         return false;
       }
@@ -855,7 +866,7 @@ class FindEmulatorImpl : public FindEmulator {
       const DirentNode* base;
       base = root->FindDir(finddir);
       if (!base) {
-        if (Exists(finddir)) {
+        if (Exists(fullpath)) {
           return false;
         }
         if (!fc.redirect_to_devnull) {
@@ -925,7 +936,8 @@ class FindEmulatorImpl : public FindEmulator {
     return GetDtTypeFromStat(st);
   }
 
-  DirentNode* ConstructDirectoryTree(const string& path) {
+  DirentNode* ConstructDirectoryTree(DirentDirNode* parent,
+                                     const string& path) {
     DIR* dir = opendir(path.empty() ? "." : path.c_str());
     if (!dir) {
       if (errno == ENOENT || errno == EACCES) {
@@ -936,7 +948,7 @@ class FindEmulatorImpl : public FindEmulator {
       }
     }
 
-    DirentDirNode* n = new DirentDirNode(path);
+    DirentDirNode* n = new DirentDirNode(parent, path);
 
     struct dirent* ent;
     while ((ent = readdir(dir)) != NULL) {
@@ -956,7 +968,7 @@ class FindEmulatorImpl : public FindEmulator {
         CHECK(d_type != DT_UNKNOWN);
       }
       if (d_type == DT_DIR) {
-        c = ConstructDirectoryTree(npath);
+        c = ConstructDirectoryTree(n, npath);
         if (c == NULL) {
           continue;
         }
@@ -1012,7 +1024,7 @@ class FindEmulatorImpl : public FindEmulator {
 
       if (type == DT_DIR) {
         if (path.find('/') == string::npos) {
-          DirentNode* dir = ConstructDirectoryTree(path);
+          DirentNode* dir = ConstructDirectoryTree(NULL, path);
           if (dir != NULL) {
             s->set_to(dir);
           } else {
