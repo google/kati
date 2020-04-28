@@ -139,6 +139,12 @@ class DirentNode {
   virtual ~DirentNode() = default;
 
   virtual const DirentNode* FindDir(StringPiece) const { return NULL; }
+  virtual bool FindNodes(const FindCommand&,
+                         vector<pair<string, const DirentNode*>>&,
+                         string*,
+                         StringPiece) const {
+    return true;
+  }
   virtual bool RunFind(const FindCommand& fc,
                        const Loc& loc,
                        int d,
@@ -257,6 +263,69 @@ class DirentDirNode : public DirentNode {
     return NULL;
   }
 
+  virtual bool FindNodes(const FindCommand& fc,
+                         vector<pair<string, const DirentNode*>>& results,
+                         string* path,
+                         StringPiece d) const override {
+    if (!path->empty())
+      path->append("/");
+
+    size_t orig_path_size = path->size();
+
+    size_t index = d.find('/');
+    const string& p = d.substr(0, index).as_string();
+
+    if (p.empty() || p == ".") {
+      path->append(p);
+      if (index == string::npos) {
+        results.emplace_back(*path, this);
+        return true;
+      }
+      return FindNodes(fc, results, path, d.substr(index + 1));
+    }
+    if (p == "..") {
+      if (parent_ == NULL) {
+        LOG("FindEmulator does not support leaving the source directory: %s",
+            path->c_str());
+        return false;
+      }
+      path->append(p);
+      if (index == string::npos) {
+        results.emplace_back(*path, parent_);
+        return true;
+      }
+      return parent_->FindNodes(fc, results, path, d.substr(index + 1));
+    }
+
+    bool is_wild = p.find_first_of("?*[") != string::npos;
+    if (is_wild) {
+      fc.read_dirs->insert(*path);
+    }
+
+    for (auto& child : children_) {
+      bool matches = false;
+      if (is_wild) {
+        matches = (fnmatch(p.c_str(), child.first.c_str(), FNM_PERIOD) == 0);
+      } else {
+        matches = (p == child.first);
+      }
+      if (matches) {
+        path->append(child.first);
+        if (index == string::npos) {
+          results.emplace_back(*path, child.second);
+        } else {
+          if (!child.second->FindNodes(fc, results, path,
+                                       d.substr(index + 1))) {
+            return false;
+          }
+        }
+        path->resize(orig_path_size);
+      }
+    }
+
+    return true;
+  }
+
   virtual bool RunFind(const FindCommand& fc,
                        const Loc& loc,
                        int d,
@@ -363,6 +432,22 @@ class DirentSymlinkNode : public DirentNode {
     if (errno_ == 0 && to_)
       return to_->FindDir(d);
     return NULL;
+  }
+
+  virtual bool FindNodes(const FindCommand& fc,
+                         vector<pair<string, const DirentNode*>>& results,
+                         string* path,
+                         StringPiece d) const override {
+    if (errno_ != 0) {
+      return true;
+    }
+    if (!to_) {
+      LOG("FindEmulator does not support symlink %s", path->c_str());
+      return false;
+    }
+    if (to_->IsDirectory())
+      fc.read_dirs->insert(*path);
+    return to_->FindNodes(fc, results, path, d);
   }
 
   virtual bool RunFind(const FindCommand& fc,
@@ -641,7 +726,7 @@ class FindCommandParser {
           return false;
         }
         fc_->redirect_to_devnull = true;
-      } else if (tok.find_first_of("|;&><*'\"") != string::npos) {
+      } else if (tok.find_first_of("|;&><'\"") != string::npos) {
         return false;
       } else {
         fc_->finddirs.push_back(tok.as_string());
@@ -724,6 +809,8 @@ class FindCommandParser {
 
       if (tok == "cd") {
         if (!GetNextToken(&tok) || tok.empty() || !fc_->chdir.empty())
+          return false;
+        if (tok.find_first_of("?*[") != string::npos)
           return false;
         fc_->chdir = tok.as_string();
         if (!GetNextToken(&tok) || (tok != ";" && tok != "&&"))
@@ -863,9 +950,12 @@ class FindEmulatorImpl : public FindEmulator {
         return false;
       }
 
-      const DirentNode* base;
-      base = root->FindDir(finddir);
-      if (!base) {
+      string findnodestr;
+      vector<pair<string, const DirentNode*>> bases;
+      if (!root->FindNodes(fc, bases, &findnodestr, finddir)) {
+        return false;
+      }
+      if (bases.empty()) {
         if (Exists(fullpath)) {
           return false;
         }
@@ -877,11 +967,15 @@ class FindEmulatorImpl : public FindEmulator {
         continue;
       }
 
-      string path = finddir;
-      unordered_map<const DirentNode*, string> cur_read_dirs;
-      if (!base->RunFind(fc, loc, 0, &path, &cur_read_dirs, results)) {
-        LOG("FindEmulator: RunFind failed: %s", cmd.c_str());
-        return false;
+      // bash guarantees that globs are sorted
+      sort(bases.begin(), bases.end());
+
+      for (auto [path, base] : bases) {
+        unordered_map<const DirentNode*, string> cur_read_dirs;
+        if (!base->RunFind(fc, loc, 0, &path, &cur_read_dirs, results)) {
+          LOG("FindEmulator: RunFind failed: %s", cmd.c_str());
+          return false;
+        }
       }
     }
 
