@@ -790,6 +790,53 @@ class DepBuilder {
       n->order_onlys.push_back({input, c});
     }
 
+    // Block on werror_writable/werror_phony_looks_real, because otherwise we
+    // can't rely on is_phony being valid for this check.
+    if (!n->is_phony && n->cmds.empty() && g_flags.werror_writable &&
+        g_flags.werror_phony_looks_real) {
+      if (n->deps.empty() && n->order_onlys.empty()) {
+        if (g_flags.werror_real_no_cmds_or_deps) {
+          ERROR_LOC(
+              n->loc,
+              "*** target \"%s\" has no commands or deps that could create it",
+              output.c_str());
+        } else if (g_flags.warn_real_no_cmds_or_deps) {
+          WARN_LOC(n->loc,
+                   "warning: target \"%s\" has no commands or deps that could "
+                   "create it",
+                   output.c_str());
+        }
+      } else {
+        if (n->actual_inputs.size() == 1) {
+          if (g_flags.werror_real_no_cmds) {
+            ERROR_LOC(n->loc,
+                      "*** target \"%s\" has no commands. Should \"%s\" be "
+                      "using .KATI_IMPLICIT_OUTPUTS?",
+                      output.c_str(), n->actual_inputs[0].c_str());
+          } else if (g_flags.warn_real_no_cmds) {
+            WARN_LOC(n->loc,
+                     "warning: target \"%s\" has no commands. Should \"%s\" be "
+                     "using .KATI_IMPLICIT_OUTPUTS?",
+                     output.c_str(), n->actual_inputs[0].c_str());
+          }
+        } else {
+          if (g_flags.werror_real_no_cmds) {
+            ERROR_LOC(
+                n->loc,
+                "*** target \"%s\" has no commands that could create output "
+                "file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?",
+                output.c_str());
+          } else if (g_flags.warn_real_no_cmds) {
+            WARN_LOC(
+                n->loc,
+                "warning: target \"%s\" has no commands that could create "
+                "output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?",
+                output.c_str());
+          }
+        }
+      }
+    }
+
     n->has_rule = true;
     n->is_default_target = first_rule_ == output;
     if (cur_rule_vars_->empty()) {
