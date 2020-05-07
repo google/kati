@@ -17,7 +17,6 @@
 #include "strutil.h"
 
 #include <ctype.h>
-#include <limits.h>
 #include <unistd.h>
 
 #include <algorithm>
