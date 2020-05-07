@@ -28,6 +28,9 @@
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 1300057)
+#include <sys/auxv.h>
+#endif
 
 #include <unordered_map>
 
@@ -133,14 +136,48 @@ int RunCommand(const string& shell,
 }
 
 void GetExecutablePath(string* path) {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GNU__) || defined(__FreeBSD_kernel__) || \
+    defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) ||   \
+    defined(__minix) || defined(__DragonFly__) || defined(_AIX)
   char mypath[PATH_MAX + 1];
-  ssize_t l = readlink("/proc/self/exe", mypath, PATH_MAX);
+
+// On FreeBSD if the exec path specified in ELF auxiliary vectors is
+// preferred, if available.  /proc/curproc/file and the KERN_PROC_PATHNAME
+// sysctl may not return the desired path if there are multiple hardlinks
+// to the file.
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 1300057)
+  if (elf_aux_info(AT_EXECPATH, mypath, sizeof(mypath)) == 0) {
+    *path = mypath;
+    return;
+  }
+#endif
+
+#if defined(__linux__) || defined(__GNU__)
+#define PROC_CUR_EXE "/proc/self/exe"
+#else
+#define PROC_CUR_EXE "/proc/curproc/file"
+#endif
+  ssize_t l = readlink(PROC_CUR_EXE, mypath, PATH_MAX);
   if (l < 0) {
-    PERROR("readlink for /proc/self/exe");
+    PERROR("readlink for " PROC_CUR_EXE);
   }
   mypath[l] = '\0';
-  *path = mypath;
+
+#if _POSIX_VERSION >= 200112 || defined(__GLIBC__)
+  char *real_path = realpath(mypath, NULL);
+  if (real_path == NULL) {
+    PERROR("realpath failed");
+  }
+  *path = real_path;
+  free(real_path);
+#else
+  char real_path[PATH_MAX + 1];
+  char *ret = realpath(mypath, real_path);
+  if (ret == NULL) {
+    PERROR("realpath failed");
+  }
+  *path = real_path;
+#endif
 #elif defined(__APPLE__)
   char mypath[PATH_MAX + 1];
   uint32_t size = PATH_MAX;
