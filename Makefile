@@ -25,6 +25,8 @@ test_quietly: RUN_TESTS_QUIETLY := -q
 run_tests: all ckati_tests
 	ruby runtest.rb -c -n $(RUN_TESTS_QUIETLY)
 
+ckati.1: ckati.md
+	pandoc $< -t man -s -o $@
 
 clean: ckati_clean
 
