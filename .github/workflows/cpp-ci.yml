@@ -1,0 +1,44 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    env:
+      CXX: clang++-9
+      CLANG_FORMAT: clang-format-9
+
+    steps:
+    - uses: actions/checkout@v2.2.0
+    - name: install ninja
+      run: |
+        mkdir -p ${GITHUB_WORKSPACE}/ninja-bin; cd ${GITHUB_WORKSPACE}/ninja-bin
+        wget https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-linux.zip
+        unzip ninja-linux.zip
+        rm ninja-linux.zip
+        echo "::add-path::${GITHUB_WORKSPACE}/ninja-bin"
+    - name: make
+      run: make -j4 ckati ckati_tests
+    - name: clang format
+      run: ./clang-format-check
+    - name: run standalone tests
+      run: ruby runtest.rb -c
+    - name: run ninja tests
+      run: ruby runtest.rb -c -n
+    - name: run ninja all targets tests
+      run: ruby runtest.rb -c -n -a
+    - name: run ninja unit tests
+      run: ./ninja_test
+    - name: run stringpiece unit tests
+      run: ./string_piece_test
+    - name: run strutil unit tests
+      run: ./strutil_test
+    - name: run find unit tests
+      run: ./find_test
