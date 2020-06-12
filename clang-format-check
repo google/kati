@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-CLANG_FORMAT="clang-format-7"
-if [ -z "$(which $CLANG_FORMAT)" ]; then
+if [ -z "$CLANG_FORMAT" ]; then
   CLANG_FORMAT="clang-format"
 fi
 

@@ -14,10 +14,11 @@
 
 // +build ignore
 
+#include "ninja.h"
+
 #include <assert.h>
 
 #include "log.h"
-#include "ninja.h"
 #include "testutil.h"
 
 namespace {

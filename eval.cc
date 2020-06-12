@@ -300,26 +300,10 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
     return;
   }
 
-  // "test: =foo" is questionable but a valid rule definition (not a
-  // target specific variable).
-  // See https://github.com/google/kati/issues/83
-  string buf;
   if (!separator_pos) {
-    KATI_WARN_LOC(loc_,
-                  "defining a target which starts with `=', "
-                  "which is not probably what you meant");
-    buf = after_targets.as_string();
-    if (stmt->sep == RuleStmt::SEP_SEMICOLON) {
-      buf += ';';
-    } else if (stmt->sep == RuleStmt::SEP_EQ ||
-               stmt->sep == RuleStmt::SEP_FINALEQ) {
-      buf += '=';
-    }
-    if (stmt->rhs) {
-      buf += stmt->rhs->Eval(this);
-    }
-    after_targets = buf;
-    separator_pos = string::npos;
+    // We used to make this a warning and otherwise accept it, but Make 4.1
+    // calls this out as an error, so let's follow.
+    Error("*** empty variable name.");
   }
 
   Rule* rule = new Rule();
