@@ -47,7 +47,7 @@
 
 static unsigned int find_emulator_node_cnt = 0;
 
-class FindCond {
+clss FindCond {
  public:
   virtual ~FindCond() = default;
   virtual bool IsTrue(const string& path, unsigned char type) const = 0;
