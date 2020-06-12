@@ -26,7 +26,11 @@ sleep_if_necessary() {
 }
 
 cat <<EOF > Makefile
+# Make 4.1 does not support file reading, which was added in 4.2
+# We don't actually care though, since we're just testing kati's regen
+ifdef KATI
 A := \$(file <file_a)
+endif
 all:
 	echo foo
 EOF
