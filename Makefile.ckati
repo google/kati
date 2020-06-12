@@ -75,7 +75,7 @@ KATI_CXXFLAGS += -O -DNOLOG
 KATI_CXXFLAGS += -march=native
 #KATI_CXXFLAGS += -pg
 
-ifeq ($(shell uname),Linux)
+ifneq (,$(filter $(shell (uname)),Linux GNU))
 KATI_LIBS := -lrt -lpthread
 endif
 

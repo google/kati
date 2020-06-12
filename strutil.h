@@ -17,6 +17,11 @@
 
 #include <string>
 #include <vector>
+#include <limits.h>
+// GNU Hurd doesn't have PATH_MAX
+#if defined(__GNU__) && !defined(PATH_MAX)
+#define PATH_MAX 4096
+#endif
 
 #include "string_piece.h"
 
