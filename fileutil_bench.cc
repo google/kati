@@ -15,7 +15,9 @@
 // +build ignore
 
 #include <benchmark/benchmark.h>
+
 #include <cstdio>
+
 #include "fileutil.h"
 
 static void BM_RunCommand(benchmark::State& state) {

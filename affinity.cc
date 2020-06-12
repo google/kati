@@ -21,11 +21,11 @@
 
 #ifdef __linux__
 
-#include <random>
-
 #include <sched.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <random>
 
 void SetAffinityForSingleThread() {
   cpu_set_t cs;

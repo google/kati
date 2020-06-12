@@ -19,14 +19,14 @@
 
 // +build ignore
 
+#include "string_piece.h"
+
 #include <ctype.h>
 #include <limits.h>
 #include <stdint.h>
 
 #include <algorithm>
 #include <ostream>
-
-#include "string_piece.h"
 
 typedef StringPiece::size_type size_type;
 

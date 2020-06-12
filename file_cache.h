@@ -16,7 +16,6 @@
 #define FILE_CACHE_H_
 
 #include <string>
-
 #include <unordered_set>
 
 using namespace std;
