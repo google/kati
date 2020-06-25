@@ -142,6 +142,7 @@ bool IsSuffixRule(Symbol output) {
 struct RuleMerger {
   vector<const Rule*> rules;
   vector<pair<Symbol, RuleMerger*>> implicit_outputs;
+  vector<Symbol> validations;
   const Rule* primary_rule;
   const RuleMerger* parent;
   Symbol parent_sym;
@@ -153,6 +154,8 @@ struct RuleMerger {
   void AddImplicitOutput(Symbol output, RuleMerger* merger) {
     implicit_outputs.push_back(make_pair(output, merger));
   }
+
+  void AddValidation(Symbol validation) { validations.push_back(validation); }
 
   void SetImplicitOutput(Symbol output, Symbol p, const RuleMerger* merger) {
     if (!merger->primary_rule) {
@@ -252,6 +255,10 @@ struct RuleMerger {
         FillDepNodeFromRule(output, r, n);
       }
     }
+
+    for (auto& validation : validations) {
+      n->actual_validations.push_back(validation);
+    }
   }
 };
 
@@ -279,7 +286,8 @@ class DepBuilder {
         implicit_rules_(new RuleTrie()),
         depfile_var_name_(Intern(".KATI_DEPFILE")),
         implicit_outputs_var_name_(Intern(".KATI_IMPLICIT_OUTPUTS")),
-        ninja_pool_var_name_(Intern(".KATI_NINJA_POOL")) {
+        ninja_pool_var_name_(Intern(".KATI_NINJA_POOL")),
+        validations_var_name_(Intern(".KATI_VALIDATIONS")) {
     ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
     // TODO?
@@ -412,17 +420,26 @@ class DepBuilder {
         continue;
       }
       auto var = vars->Lookup(implicit_outputs_var_name_);
-      if (!var->IsDefined()) {
-        continue;
+      if (var->IsDefined()) {
+        string implicit_outputs;
+        var->Eval(ev_, &implicit_outputs);
+
+        for (StringPiece output : WordScanner(implicit_outputs)) {
+          Symbol sym = Intern(TrimLeadingCurdir(output));
+          rules_[sym].SetImplicitOutput(sym, p.first, &p.second);
+          p.second.AddImplicitOutput(sym, &rules_[sym]);
+        }
       }
 
-      string implicit_outputs;
-      var->Eval(ev_, &implicit_outputs);
+      var = vars->Lookup(validations_var_name_);
+      if (var->IsDefined()) {
+        string validations;
+        var->Eval(ev_, &validations);
 
-      for (StringPiece output : WordScanner(implicit_outputs)) {
-        Symbol sym = Intern(TrimLeadingCurdir(output));
-        rules_[sym].SetImplicitOutput(sym, p.first, &p.second);
-        p.second.AddImplicitOutput(sym, &rules_[sym]);
+        for (StringPiece validation : WordScanner(validations)) {
+          Symbol sym = Intern(TrimLeadingCurdir(validation));
+          p.second.AddValidation(sym);
+        }
       }
     }
   }
@@ -684,6 +701,7 @@ class DepBuilder {
         if (name == depfile_var_name_) {
           n->depfile_var = new_var;
         } else if (name == implicit_outputs_var_name_) {
+        } else if (name == validations_var_name_) {
         } else if (name == ninja_pool_var_name_) {
           n->ninja_pool_var = new_var;
         } else {
@@ -790,6 +808,16 @@ class DepBuilder {
       n->order_onlys.push_back({input, c});
     }
 
+    for (Symbol validation : n->actual_validations) {
+      if (!g_flags.use_ninja_validations) {
+        ERROR_LOC(
+            n->loc,
+            ".KATI_VALIDATIONS not allowed without --use_ninja_validations");
+      }
+      DepNode* c = BuildPlan(validation, output);
+      n->validations.push_back({validation, c});
+    }
+
     // Block on werror_writable/werror_phony_looks_real, because otherwise we
     // can't rely on is_phony being valid for this check.
     if (!n->is_phony && n->cmds.empty() && g_flags.werror_writable &&
@@ -867,6 +895,7 @@ class DepBuilder {
   Symbol depfile_var_name_;
   Symbol implicit_outputs_var_name_;
   Symbol ninja_pool_var_name_;
+  Symbol validations_var_name_;
 };
 
 void MakeDep(Evaluator* ev,
