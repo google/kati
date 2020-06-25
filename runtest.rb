@@ -26,21 +26,21 @@ while true
     test_serialization = true
     ARGV.shift
   elsif ARGV[0] == '-c'
-    ckati = true
+    $ckati = true
     ARGV.shift
     ENV['KATI_VARIANT'] = 'c'
   elsif ARGV[0] == '-n'
-    via_ninja = true
+    $via_ninja = true
     ARGV.shift
     ENV['NINJA_STATUS'] = 'NINJACMD: '
   elsif ARGV[0] == '-a'
     gen_all_targets = true
     ARGV.shift
   elsif ARGV[0] == '-v'
-    show_failing = true
+    $show_failing = true
     ARGV.shift
   elsif ARGV[0] == "-q"
-    hide_passing = true
+    $hide_passing = true
     ARGV.shift
   else
     break
@@ -76,10 +76,10 @@ def move_circular_dep(l)
   circ + l
 end
 
-expected_failures = []
-unexpected_passes = []
-failures = []
-passes = []
+$expected_failures = []
+$unexpected_passes = []
+$failures = []
+$passes = []
 
 if !ARGV.empty?
   test_files = ARGV.map do |test|
@@ -187,35 +187,67 @@ end
 
 bash_var = ' SHELL=/bin/bash'
 
-run_make_test = proc do |mk|
-  c = File.read(mk)
+def is_expected_failure(f)
+  c = File.read(f)
   expected_failure = false
-  if c =~ /\A# TODO(?:\(([-a-z|]+)\))?/
-    if $1
-      todos = $1.split('|')
-      if todos.include?('go') && !ckati
+  if c =~ /\A(#!\/bin\/bash\n)?# TODO(?:\(([-a-z|]+)\))?/
+    if $2
+      todos = $2.split('|')
+      if todos.include?('go') && !$ckati
         expected_failure = true
       end
-      if todos.include?('c') && ckati
+      if todos.include?('c') && $ckati
         expected_failure = true
       end
-      if todos.include?('go-ninja') && !ckati && via_ninja
+      if todos.include?('go-ninja') && !$ckati && $via_ninja
         expected_failure = true
       end
-      if todos.include?('c-ninja') && ckati && via_ninja
+      if todos.include?('c-ninja') && $ckati && $via_ninja
         expected_failure = true
       end
-      if todos.include?('c-exec') && ckati && !via_ninja
+      if todos.include?('c-exec') && $ckati && !$via_ninja
         expected_failure = true
       end
-      if todos.include?('ninja') && via_ninja
+      if todos.include?('ninja') && $via_ninja
         expected_failure = true
       end
     else
       expected_failure = true
     end
   end
+  return expected_failure
+end
 
+report_result = proc do |name, expected, output, expected_failure|
+  if expected != output
+    if expected_failure
+      if !$hide_passing
+        puts "#{name}: FAIL (expected)"
+      end
+      $expected_failures << name
+    else
+      puts "#{name}: FAIL"
+      $failures << name
+    end
+    if !expected_failure || $show_failing
+      puts `diff -u out.make out.kati`
+    end
+  else
+    if expected_failure
+      puts "#{name}: PASS (unexpected)"
+      $unexpected_passes << name
+    else
+      if !$hide_passing
+        puts "#{name}: PASS"
+      end
+      $passes << name
+    end
+  end
+end
+
+run_make_test = proc do |mk|
+  expected_failure = is_expected_failure(mk)
+  c = File.read(mk)
   run_in_testdir(mk) do |name|
     File.open("Makefile", 'w') do |ofile|
       ofile.print(c)
@@ -235,13 +267,13 @@ run_make_test = proc do |mk|
     cleanup
     testcases.each do |tc|
       cmd = 'make'
-      if via_ninja || is_silent_test
+      if $via_ninja || is_silent_test
         cmd += ' -s'
       end
       cmd += bash_var
       cmd += " #{tc} 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
-      res = normalize_make_log(res, mk, via_ninja)
+      res = normalize_make_log(res, mk, $via_ninja)
       expected += "=== #{tc} ===\n" + res
       expected_files = get_output_filenames
       expected += "\n=== FILES ===\n#{expected_files * "\n"}\n"
@@ -251,14 +283,14 @@ run_make_test = proc do |mk|
     testcases.each do |tc|
       json = "#{tc.empty? ? 'test' : tc}"
       cmd = "../../kati -save_json=#{json}.json -log_dir=. --use_find_emulator"
-      if ckati
+      if $ckati
         cmd = "../../ckati --use_find_emulator"
       end
-      if via_ninja
+      if $via_ninja
         cmd += ' --ninja'
       end
       if gen_all_targets
-        if !ckati || !via_ninja
+        if !$ckati || !$via_ninja
           raise "-a should be used with -c -n"
         end
         cmd += ' --gen_all_targets'
@@ -272,7 +304,7 @@ run_make_test = proc do |mk|
       end
       cmd += " 2>&1"
       res = IO.popen(cmd, 'r:binary', &:read)
-      if via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
+      if $via_ninja && File.exist?('build.ninja') && File.exists?('ninja.sh')
         cmd = './ninja.sh -j1 -v'
         if gen_all_targets
           cmd += " #{tc}"
@@ -295,30 +327,7 @@ run_make_test = proc do |mk|
       exit 1
     end
 
-    if expected != output
-      if expected_failure
-        if !hide_passing
-          puts "#{name}: FAIL (expected)"
-        end
-        expected_failures << name
-      else
-        puts "#{name}: FAIL"
-        failures << name
-      end
-      if !expected_failure || show_failing
-        puts `diff -u out.make out.kati`
-      end
-    else
-      if expected_failure
-        puts "#{name}: PASS (unexpected)"
-        unexpected_passes << name
-      else
-        if !hide_passing
-          puts "#{name}: PASS"
-        end
-        passes << name
-      end
-    end
+    report_result.call(name, expected, output, expected_failure)
 
     if name !~ /^err_/ && test_serialization && !expected_failure
       testcases.each do |tc|
@@ -343,9 +352,11 @@ end
 
 run_shell_test = proc do |sh|
   is_ninja_test = sh =~ /\/ninja_/
-  if is_ninja_test && (!ckati || !via_ninja)
+  if is_ninja_test && (!$ckati || !$via_ninja)
     next
   end
+
+  expected_failure = is_expected_failure(sh)
 
   run_in_testdir(sh) do |name|
     cleanup
@@ -358,13 +369,13 @@ run_shell_test = proc do |sh|
     cleanup
 
     if is_ninja_test
-      if ckati
+      if $ckati
         cmd = "bash ../../#{sh} ../../ckati --ninja --regen"
       else
         next
       end
     else
-      if ckati
+      if $ckati
         cmd = "bash ../../#{sh} ../../ckati"
       else
         cmd = "bash ../../#{sh} ../../kati --use_cache -log_dir=."
@@ -382,16 +393,7 @@ run_shell_test = proc do |sh|
     File.open('out.make', 'w'){|ofile|ofile.print(expected)}
     File.open('out.kati', 'w'){|ofile|ofile.print(output)}
 
-    if expected != output
-      puts "#{name}: FAIL"
-      puts `diff -u out.make out.kati`
-      failures << name
-    else
-      if !hide_passing
-        puts "#{name}: PASS"
-      end
-      passes << name
-    end
+    report_result.call(name, expected, output, expected_failure)
   end
 end
 
@@ -407,31 +409,31 @@ end
 
 puts
 
-if !expected_failures.empty? && !hide_passing
+if !$expected_failures.empty? && !$hide_passing
   puts "=== Expected failures ==="
-  expected_failures.each do |n|
+  $expected_failures.each do |n|
     puts n
   end
 end
 
-if !unexpected_passes.empty?
+if !$unexpected_passes.empty?
   puts "=== Unexpected passes ==="
-  unexpected_passes.each do |n|
+  $unexpected_passes.each do |n|
     puts n
   end
 end
 
-if !failures.empty?
+if !$failures.empty?
   puts "=== Failures ==="
-  failures.each do |n|
+  $failures.each do |n|
     puts n
   end
 end
 
 puts
 
-if !unexpected_passes.empty? || !failures.empty?
-  puts "FAIL! (#{failures.size + unexpected_passes.size} fails #{passes.size} passes)"
+if !$unexpected_passes.empty? || !$failures.empty?
+  puts "FAIL! (#{$failures.size + $unexpected_passes.size} fails #{$passes.size} passes)"
   exit 1
 else
   puts 'PASS!'

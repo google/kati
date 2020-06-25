@@ -51,6 +51,7 @@ class Rule {
   vector<Symbol> inputs;
   vector<Symbol> order_only_inputs;
   vector<Symbol> output_patterns;
+  vector<Symbol> validations;
   bool is_double_colon;
   bool is_suffix_rule;
   vector<Value*> cmds;

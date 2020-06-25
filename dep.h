@@ -39,6 +39,7 @@ struct DepNode {
   vector<Value*> cmds;
   vector<NamedDepNode> deps;
   vector<NamedDepNode> order_onlys;
+  vector<NamedDepNode> validations;
   bool has_rule;
   bool is_default_target;
   bool is_phony;
@@ -46,6 +47,7 @@ struct DepNode {
   vector<Symbol> implicit_outputs;
   vector<Symbol> actual_inputs;
   vector<Symbol> actual_order_only_inputs;
+  vector<Symbol> actual_validations;
   Vars* rule_vars;
   Var* depfile_var;
   Var* ninja_pool_var;

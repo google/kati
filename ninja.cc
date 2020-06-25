@@ -255,6 +255,9 @@ class NinjaGenerator {
     for (auto const& d : node->order_onlys) {
       PopulateNinjaNode(d.second);
     }
+    for (auto const& d : node->validations) {
+      PopulateNinjaNode(d.second);
+    }
   }
 
   StringPiece TranslateCommand(const char* in, string* cmd_buf) {
@@ -569,6 +572,13 @@ class NinjaGenerator {
         *o << " " << EscapeBuildTarget(d.first).c_str();
       }
     }
+    if (!node->validations.empty()) {
+      *o << " |@";
+      for (auto const& d : node->validations) {
+        *o << " " << EscapeBuildTarget(d.first).c_str();
+      }
+    }
+
     *o << "\n";
 
     string pool;
