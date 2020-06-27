@@ -13,12 +13,12 @@
 # limitations under the License.
 
 # Find source file location from path to this Makefile
-KATI_SRC_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+KATI_SRC_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))/src
 
 # Set defaults if they weren't set by the including Makefile
 KATI_CXX ?= $(CXX)
 KATI_LD ?= $(CXX)
-KATI_INTERMEDIATES_PATH ?= .
+KATI_INTERMEDIATES_PATH ?= out
 KATI_BIN_PATH ?= .
 
 KATI_CXX_SRCS := \
@@ -127,6 +127,7 @@ ckati_clean:
 	rm -rf $(KATI_INTERMEDIATES_PATH)/*.d
 	rm -rf $(KATI_INTERMEDIATES_PATH)/version.cc
 	rm -rf $(KATI_CXX_TEST_EXES)
+	rm -rf $(KATI_BIN_PATH)/ckati
 	rm -rf out
 
 .PHONY: ckati_clean

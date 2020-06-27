@@ -12,30 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO_SRCS:=$(wildcard *.go)
+GO_SRCS:=$(wildcard golang/kati/*.go golang/cmd/*/*.go)
 
-ifeq (${GOPATH},)
-KATI_GOPATH:=$$(pwd)/out
-else
-KATI_GOPATH:=$$(pwd)/out:$${GOPATH}
-endif
-
-kati: go_src_stamp
-	-rm -f out/bin/kati
-	GOPATH=${KATI_GOPATH} go install -ldflags "-X github.com/google/kati.gitVersion=$(shell git rev-parse HEAD)" github.com/google/kati/cmd/kati
-	cp out/bin/kati $@
-
-go_src_stamp: $(GO_SRCS) $(wildcard cmd/*/*.go)
-	-rm -rf out/src out/pkg
-	mkdir -p out/src/github.com/google/kati
-	cp -a $(GO_SRCS) cmd out/src/github.com/google/kati
-	GOPATH=${KATI_GOPATH} go get github.com/google/kati/cmd/kati
-	touch $@
+kati: $(GO_SRCS)
+	go build -o $@ -ldflags "-X github.com/google/kati.gitVersion=$(shell git rev-parse HEAD)" github.com/google/kati/golang/cmd/kati
 
 go_test: $(GO_SRCS)
-	GOPATH=${KATI_GOPATH} go test *.go
+	go test ./golang/kati
 
 go_clean:
-	rm -rf out kati go_src_stamp
+	rm -rf kati
 
 .PHONY: go_clean go_test

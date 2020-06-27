@@ -1,5 +1,5 @@
 kati
-!cmd/kati/
+!golang/cmd/kati/
 ckati
 para
 *.o
@@ -16,5 +16,4 @@ ninja_test
 string_piece_test
 strutil_bench
 strutil_test
-go_src_stamp
 version.cc
