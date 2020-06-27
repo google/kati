@@ -4,11 +4,11 @@ if [ -z "$CLANG_FORMAT" ]; then
   CLANG_FORMAT="clang-format"
 fi
 
-for f in $(ls *.cc *.h); do
+for f in $(ls src/*.cc src/*.h); do
   if ! diff -U 1 <($CLANG_FORMAT $f) $f; then
     echo
     echo "!!!!!!"
-    echo "!! Failed clang-format check, please run 'clang-format -i *.cc *.h'" 1>&2
+    echo "!! Failed clang-format check, please run 'clang-format -i src/*.cc src/*.h'" 1>&2
     echo "!!!!!!"
     exit 1
   fi
