@@ -1,5 +1,5 @@
 test:
-	echo $(shell pwd)
+	echo $(shell dirname $$(pwd))
 	echo $(shell false)
 	echo $(shell  /bin/echo -e "\na \n  b 	\n " )
 	echo $(shell  /bin/echo -e "\na \n  b 	\n " )X

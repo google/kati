@@ -1,4 +1,4 @@
-# TODO(ninja): Ninja does not believe the timestamp so this test is invalid.
+# TODO(ninja/test2): Ninja does not believe the timestamp so this test is invalid.
 
 test1:
 	touch -t 197101010000 old1

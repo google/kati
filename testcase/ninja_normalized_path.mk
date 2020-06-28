@@ -1,4 +1,5 @@
-# TODO(ninja): This is tough to fix with ninja. Ninja normalizes
+# TODO(ninja-genall)
+# TODO(ninja/test2): This is tough to fix with ninja. Ninja normalizes
 # target names while make does not.
 
 test1:

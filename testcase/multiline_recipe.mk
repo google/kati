@@ -1,5 +1,5 @@
-# TODO(c): fix test6 - \t$${empty} should be empty.
-MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
+# TODO(c/test6): fix test6 - \t$${empty} should be empty.
+MAKEVER:=$(shell make --version | grep "Make [0-9]" | sed -E 's/.*Make ([0-9]).*/\1/')
 ifeq ($(MAKEVER),4)
 AT=@
 endif

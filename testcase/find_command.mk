@@ -1,4 +1,5 @@
-# TODO(go|ninja): This test is only for ckati. ninja: multiple problems
+# TODO(go): This test is only for ckati.
+# TODO(ninja/test2|test4|test5) ninja: multiple problems
 # go: symlink support isn't enough.
 # ninja: find . finds ninja temporary files
 # ninja: escaping ! doesn't seem to be working
@@ -31,7 +32,7 @@ test1:
 	ln -s ../../testdir/dir1 testdir/dir2/link2
 	ln -s broken testdir/dir2/link3
 	mkdir -p build/tools
-	cp ../../testcase/tools/findleaves.py build/tools
+	cp ../../../testcase/tools/findleaves.py build/tools
 
 	mkdir -p testdir3/b/c/d
 	ln -s b testdir3/a

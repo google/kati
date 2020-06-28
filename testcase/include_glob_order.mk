@@ -1,4 +1,4 @@
-MAKEVER:=$(shell make --version | ruby -n0e 'puts $$_[/Make (\d)/,1]')
+MAKEVER:=$(shell make --version | grep "Make [0-9]" | sed -E 's/.*Make ([0-9]).*/\1/')
 
 # GNU make 4 doesn't sort glob results.
 ifeq ($(MAKEVER,4))

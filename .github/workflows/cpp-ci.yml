@@ -29,11 +29,11 @@ jobs:
     - name: clang format
       run: ./clang-format-check
     - name: run standalone tests
-      run: ruby runtest.rb -c
+      run: go test --ckati
     - name: run ninja tests
-      run: ruby runtest.rb -c -n
+      run: go test --ckati --ninja
     - name: run ninja all targets tests
-      run: ruby runtest.rb -c -n -a
+      run: go test --ckati --ninja --all
     - name: run ninja unit tests
       run: ./ninja_test
     - name: run stringpiece unit tests
