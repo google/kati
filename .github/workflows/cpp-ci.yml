@@ -20,7 +20,7 @@ jobs:
     - name: install ninja
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/ninja-bin; cd ${GITHUB_WORKSPACE}/ninja-bin
-        wget https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-linux.zip
+        wget https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip
         unzip ninja-linux.zip
         rm ninja-linux.zip
         echo "::add-path::${GITHUB_WORKSPACE}/ninja-bin"
@@ -29,11 +29,11 @@ jobs:
     - name: clang format
       run: ./clang-format-check
     - name: run standalone tests
-      run: ruby runtest.rb -c
+      run: go test --ckati
     - name: run ninja tests
-      run: ruby runtest.rb -c -n
+      run: go test --ckati --ninja
     - name: run ninja all targets tests
-      run: ruby runtest.rb -c -n -a
+      run: go test --ckati --ninja --all
     - name: run ninja unit tests
       run: ./ninja_test
     - name: run stringpiece unit tests

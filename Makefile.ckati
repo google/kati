@@ -103,11 +103,13 @@ $(KATI_CXX_TEST_EXES): $(KATI_BIN_PATH)/%: $(KATI_INTERMEDIATES_PATH)/%.o
 
 # Rule to generate version.cc
 KATI_GIT_DIR := $(shell git -C $(KATI_SRC_PATH) rev-parse --show-toplevel)
+KATI_VERSION_DEPS :=
 ifneq ($(KATI_GIT_DIR),)
-KATI_VERSION_DEPS := $(KATI_GIT_DIR)/.git/HEAD $(KATI_GIT_DIR)/.git/index
+KATI_VERSION_DEPS := $(wildcard $(KATI_GIT_DIR)/.git/HEAD $(KATI_GIT_DIR)/.git/index)
+endif
+ifneq ($(KATI_VERSION_DEPS),)
 KATI_VERSION := $(shell git -C $(KATI_GIT_DIR) rev-parse HEAD)
 else
-KATI_VERSION_DEPS :=
 KATI_VERSION := unknown
 endif
 $(KATI_INTERMEDIATES_PATH)/version.cc: $(KATI_VERSION_DEPS)

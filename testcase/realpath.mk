@@ -1,13 +1,12 @@
-foo = $(realpath ./foo)
-bar = $(realpath ./bar)
-foofoo = $(realpath ./foo ./foo)
-foobar = $(realpath ./foo ./bar)
+$(shell touch ../foo)
 
-test: foo
+foo = $(realpath ../foo)
+bar = $(realpath ../bar)
+foofoo = $(realpath ../foo ../foo)
+foobar = $(realpath ../foo ../bar)
+
+test:
 	echo $(foo)
 	echo $(bar)
 	echo $(foofoo)
 	echo $(foobar)
-
-foo:
-	touch foo

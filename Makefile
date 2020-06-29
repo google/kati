@@ -17,14 +17,8 @@ all: ckati ckati_tests
 include Makefile.kati
 include Makefile.ckati
 
-test: run_tests
-
-test_quietly: run_tests
-test_quietly: RUN_TESTS_QUIETLY := -q
-
-run_tests: all ckati_tests
-	ruby runtest.rb -c -n $(RUN_TESTS_QUIETLY)
-
+test: all ckati_tests
+	go test --ckati --ninja
 
 clean: ckati_clean
 

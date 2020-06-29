@@ -1,4 +1,4 @@
-# TODO(c): Implement wildcard expansion in prerequisites.
+# TODO(c/test2): Implement wildcard expansion in prerequisites.
 
 test1:
 	touch foo.x

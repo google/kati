@@ -1,4 +1,4 @@
-# TODO(c): bar is built even if foo doesn't exist.
+# TODO(c/test2): bar is built even if foo doesn't exist.
 
 VPATH=dir
 
