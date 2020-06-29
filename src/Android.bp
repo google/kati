@@ -68,6 +68,11 @@ cc_binary_host {
     defaults: ["ckati_defaults"],
     srcs: ["main.cc"],
     whole_static_libs: ["libckati"],
+    target: {
+        linux_glibc: {
+            shared_libs: ["libjemalloc"],
+        },
+    },
 }
 
 cc_binary_host {
