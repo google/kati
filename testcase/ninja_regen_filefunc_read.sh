@@ -19,12 +19,6 @@ set -e
 log=/tmp/log
 mk="$@"
 
-sleep_if_necessary() {
-  if [ x$(uname) != x"Linux" -o x"${TRAVIS}" != x"" ]; then
-    sleep "$@"
-  fi
-}
-
 cat <<EOF > Makefile
 # Make 4.1 does not support file reading, which was added in 4.2
 # We don't actually care though, since we're just testing kati's regen
@@ -48,12 +42,13 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
+sleep 1
 echo regen >file_a
 
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} >/dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (file add)'
   fi
   ./ninja.sh
 fi
@@ -66,13 +61,13 @@ if [ -e ninja.sh ]; then
   ./ninja.sh
 fi
 
-sleep_if_necessary 1
+sleep 1
 echo regen >>file_a
 
 ${mk} 2> ${log}
 if [ -e ninja.sh ]; then
   if ! grep regenerating ${log} >/dev/null; then
-    echo 'Should be regenerated'
+    echo 'Should be regenerated (file change)'
   fi
   ./ninja.sh
 fi
