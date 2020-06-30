@@ -38,6 +38,7 @@ func init() {
 	os.Unsetenv("MAKEFLAGS")
 	os.Unsetenv("MAKELEVEL")
 	os.Setenv("NINJA_STATUS", "NINJACMD: ")
+	os.Setenv("LANG", "C")
 
 	flag.BoolVar(&ckati, "ckati", false, "use ckati")
 	flag.BoolVar(&ninja, "ninja", false, "use ninja")
