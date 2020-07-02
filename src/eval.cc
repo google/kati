@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "expr.h"
@@ -31,6 +32,88 @@
 #include "strutil.h"
 #include "symtab.h"
 #include "var.h"
+
+
+IncludeTreeNode::IncludeTreeNode(const string& file):
+  included_file_(file),
+  include_location_() {
+}
+
+IncludeTreeNode::~IncludeTreeNode() {
+}
+
+IncludeTreeNode::IncludeTreeNode(const IncludeStmt& stmt, const std::string& file) :
+  included_file_(file),
+  include_location_(stmt.loc()) {
+}
+
+void IncludeTreeNode::Add(std::unique_ptr<IncludeTreeNode> child) {
+  children_.push_back(std::move(child));
+}
+
+
+IncludeGraphNode::IncludeGraphNode(const IncludeTreeNode& tree_node) :
+    filename_(tree_node.IncludedFile()) {
+}
+
+IncludeGraphNode::~IncludeGraphNode() {
+}
+
+
+IncludeGraph::IncludeGraph() {
+}
+
+IncludeGraph::~IncludeGraph() {
+}
+
+void IncludeGraph::DumpJSON(FILE* output) {
+  fprintf(output,"{\n");
+  fprintf(output, "  \"nodes\": [");
+  bool first_node = true;
+
+  for (const auto& node : nodes_) {
+    if (first_node) {
+      first_node = false;
+      fprintf(output, "\n");
+    } else {
+      fprintf(output, ",\n");
+    }
+
+    fprintf(output, "    {\n");
+    // TODO(lberki): Quote all these strings properly
+    fprintf(output, "      \"file\": \"%s\",\n", node.first.c_str());
+    fprintf(output, "      \"includes\": [");
+    bool first_include = true;
+    for (const auto& include : node.second->includes_) {
+      if (first_include) {
+        first_include = false;
+        fprintf(output, "\n");
+      } else {
+        fprintf(output, ",\n");
+      }
+
+      fprintf(output, "        \"%s\"", include.c_str());
+    }
+    fprintf(output, "\n      ]\n");
+    fprintf(output, "    }");
+  }
+
+  fprintf(output, "\n");
+  fprintf(output, "  ]\n");
+  fprintf(output, "}\n");
+}
+
+void IncludeGraph::MergeTreeNode(const IncludeTreeNode &tree_node) {
+  std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[tree_node.IncludedFile()];
+  if (graph_node.get() == nullptr) {
+    graph_node.reset(new IncludeGraphNode(tree_node));
+  }
+
+  for (const auto& child : tree_node.Children()) {
+    graph_node->includes_.insert(child->IncludedFile());
+    MergeTreeNode(*child);
+  }
+}
 
 Evaluator::Evaluator()
     : last_rule_(NULL),
@@ -61,17 +144,35 @@ Evaluator::~Evaluator() {
   // }
 }
 
+void Evaluator::in_command_line() {
+  is_commandline_ = true;
+  include_tree_.release();
+  include_tree_stack_.clear();
+}
+
+void Evaluator::in_toplevel_makefile(const string& makefile) {
+  is_commandline_ = false;
+  include_tree_.reset(new IncludeTreeNode(makefile));
+  include_tree_stack_.clear();
+  include_tree_stack_.push_back(include_tree_.get());
+}
+
 Var* Evaluator::EvalRHS(Symbol lhs,
                         Value* rhs_v,
                         StringPiece orig_rhs,
                         AssignOp op,
                         bool is_override,
                         bool* needs_assign) {
-  VarOrigin origin =
-      ((is_bootstrap_ ? VarOrigin::DEFAULT
-                      : is_commandline_ ? VarOrigin::COMMAND_LINE
-                                        : is_override ? VarOrigin::OVERRIDE
-                                                      : VarOrigin::FILE));
+  VarOrigin origin;
+  if (is_bootstrap_) {
+    origin = VarOrigin::DEFAULT;
+  } else if (is_commandline_) {
+    origin = VarOrigin::COMMAND_LINE;
+  } else if (is_override) {
+    origin = VarOrigin::OVERRIDE;
+  } else {
+    origin = VarOrigin::FILE;
+  }
 
   Var* result = NULL;
   Var* prev = NULL;
@@ -429,12 +530,20 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
     }
 
     include_stack_.push_back(stmt->loc());
+
     for (const string& fname : *files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
         continue;
       }
+
+      IncludeTreeNode* include_node = new IncludeTreeNode(*stmt, fname);
+      include_tree_stack_.back()->Add(std::unique_ptr<IncludeTreeNode>(include_node));
+      include_tree_stack_.push_back(include_node);
+
       DoInclude(fname);
+
+      include_tree_stack_.pop_back();
     }
     include_stack_.pop_back();
   }
@@ -551,6 +660,24 @@ void Evaluator::DumpStackStats() const {
   LOG_STAT("Max stack use: %zd bytes at %s:%d",
            ((char*)stack_addr_ - (char*)lowest_stack_) + stack_size_,
            LOCF(lowest_loc_));
+}
+
+void Evaluator::DumpIncludeJSON(const string& filename) const {
+  IncludeGraph graph;
+  graph.MergeTreeNode(*include_tree_);
+  FILE* jsonfile;
+  if (filename == "-") {
+    jsonfile = stdout;
+  } else {
+    jsonfile = fopen(filename.c_str(), "w");
+    if (jsonfile == NULL) {
+      fprintf(stderr, "cannot open JSON dump file: %s\n", strerror(errno));
+      return;
+    }
+  }
+
+  graph.DumpJSON(jsonfile);
+  fclose(jsonfile);
 }
 
 SymbolSet Evaluator::used_undefined_vars_;

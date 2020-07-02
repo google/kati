@@ -257,14 +257,14 @@ static int Run(const vector<Symbol>& targets,
   }
   ev->set_is_bootstrap(false);
 
-  ev->set_is_commandline(true);
+  ev->in_command_line();
   for (StringPiece l : cl_vars) {
     vector<Stmt*> asts;
     Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
     CHECK(asts.size() == 1);
     asts[0]->Eval(ev.get());
   }
-  ev->set_is_commandline(false);
+  ev->in_toplevel_makefile(std::string(g_flags.makefile));
 
   {
     ScopedTimeReporter tr("eval time");
@@ -278,6 +278,10 @@ static int Run(const vector<Symbol>& targets,
   for (ParseErrorStmt* err : GetParseErrors()) {
     WARN_LOC(err->loc(), "warning for parse error in an unevaluated line: %s",
              err->msg.c_str());
+  }
+
+  if (g_flags.dump_include_json != nullptr) {
+    ev->DumpIncludeJSON(std::string(g_flags.dump_include_json));
   }
 
   vector<NamedDepNode> nodes;

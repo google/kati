@@ -15,7 +15,9 @@
 #ifndef EVAL_H_
 #define EVAL_H_
 
+#include <map>
 #include <memory>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -31,6 +33,54 @@ class Makefile;
 class Rule;
 class Var;
 class Vars;
+
+class IncludeGraph;
+
+class IncludeTreeNode {
+ public:
+  // for the top-level Makefile
+  IncludeTreeNode(const string& file);
+
+  // for an actual inclusion
+  IncludeTreeNode(const IncludeStmt& stmt, const string& file);
+
+  ~IncludeTreeNode();
+
+  const string& IncludedFile() const { return included_file_; }
+  const Loc& IncludeLocation() const { return include_location_; }
+  const std::vector<std::unique_ptr<IncludeTreeNode>>& Children() const { return children_; }
+
+  void Add(std::unique_ptr<IncludeTreeNode> child);
+
+ private:
+  std::string included_file_;
+  Loc include_location_;
+  std::vector<std::unique_ptr<IncludeTreeNode>> children_;
+};
+
+class IncludeGraphNode {
+  friend IncludeGraph;
+
+ public:
+  IncludeGraphNode(const IncludeTreeNode& tree_node);
+  ~IncludeGraphNode();
+
+ private:
+  std::string filename_;
+  std::set<std::string> includes_;
+};
+
+class IncludeGraph {
+ public:
+  IncludeGraph();
+  ~IncludeGraph();
+
+  void DumpJSON(FILE* output);
+  void MergeTreeNode(const IncludeTreeNode& tree_node);
+
+ private:
+  std::map<std::string, std::unique_ptr<IncludeGraphNode>> nodes_;
+};
 
 class Evaluator {
  public:
@@ -63,7 +113,9 @@ class Evaluator {
   void Error(const string& msg);
 
   void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
-  void set_is_commandline(bool c) { is_commandline_ = c; }
+
+  void in_command_line();
+  void in_toplevel_makefile(const string& makefile);
 
   void set_current_scope(Vars* v) { current_scope_ = v; }
 
@@ -95,7 +147,9 @@ class Evaluator {
       lowest_loc_ = loc_;
     }
   }
+
   void DumpStackStats() const;
+  void DumpIncludeJSON(const string& filename) const;
 
   bool ExportDeprecated() const { return export_message_ && !export_error_; };
   bool ExportObsolete() const { return export_error_; };
@@ -143,6 +197,8 @@ class Evaluator {
   bool is_bootstrap_;
   bool is_commandline_;
 
+  std::unique_ptr<IncludeTreeNode> include_tree_;
+  std::vector<IncludeTreeNode*> include_tree_stack_;
   std::vector<Loc> include_stack_;
 
   bool avoid_io_;
