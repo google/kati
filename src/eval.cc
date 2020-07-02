@@ -169,7 +169,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
                         bool is_override,
                         bool* needs_assign) {
   VarOrigin origin;
-  Frame* current_frame;
+  Frame* current_frame = nullptr;
 
   if (is_bootstrap_) {
     origin = VarOrigin::DEFAULT;

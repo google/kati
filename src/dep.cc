@@ -660,6 +660,17 @@ class DepBuilder {
     if (!PickRule(output, n, &rule_merger, &pattern_rule, &vars)) {
       return n;
     }
+
+    Loc rule_location;
+    if (rule_merger != nullptr && rule_merger->primary_rule != nullptr) {
+      rule_location = rule_merger->primary_rule->cmd_loc();
+    } else if (pattern_rule.get() != nullptr) {
+      rule_location = pattern_rule->cmd_loc();
+    } else {
+      rule_location = Loc("*UNKNOWN*", 0);
+    }
+
+    // TODO(lberki): When can rule_merger be null?
     if (rule_merger && rule_merger->parent) {
       output = rule_merger->parent_sym;
       done_[output] = n;
@@ -668,12 +679,16 @@ class DepBuilder {
         return n;
       }
     }
+
     if (rule_merger)
       rule_merger->FillDepNode(output, pattern_rule.get(), n);
     else
       RuleMerger().FillDepNode(output, pattern_rule.get(), n);
 
     vector<unique_ptr<ScopedVar>> sv;
+    Frame *dep_frame = new Frame(FrameType::DEPENDENCY, rule_location, output.str());
+    FrameScope(ev_, dep_frame);
+
     if (vars) {
       for (const auto& p : *vars) {
         Symbol name = p.first;
@@ -689,6 +704,8 @@ class DepBuilder {
             if (!s->empty())
               *s += ' ';
             new_var->Eval(ev_, s.get());
+            // TODO(lberki): How does this not leak?
+            // Is this what comment above says?
             new_var = new SimpleVar(*s, old_var->Origin(), old_var->Definition());
           }
         } else if (var->op() == AssignOp::QUESTION_EQ) {
@@ -698,14 +715,15 @@ class DepBuilder {
           }
         }
 
+        Var* dep_var = new_var->AsRuleSpecificVar(dep_frame);
         if (name == depfile_var_name_) {
-          n->depfile_var = new_var;
+          n->depfile_var = dep_var;
         } else if (name == implicit_outputs_var_name_) {
         } else if (name == validations_var_name_) {
         } else if (name == ninja_pool_var_name_) {
-          n->ninja_pool_var = new_var;
+          n->ninja_pool_var = dep_var;
         } else {
-          sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
+          sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, dep_var));
         }
       }
     }
