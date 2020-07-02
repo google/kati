@@ -52,6 +52,7 @@ class Var : public Evaluable {
   virtual const char* Flavor() const = 0;
 
   VarOrigin Origin() { return origin_; }
+  Frame* Definition() const { return definition_; }
   virtual bool IsDefined() const { return true; }
 
   virtual void AppendVar(Evaluator* ev, Value* v);
@@ -99,7 +100,6 @@ class Var : public Evaluable {
 class SimpleVar : public Var {
  public:
   explicit SimpleVar(VarOrigin origin, Frame* definition);
-  SimpleVar(const string& v, VarOrigin origin);
   SimpleVar(const string& v, VarOrigin origin, Frame* definition);
   SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v);
 
