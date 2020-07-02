@@ -36,33 +36,46 @@ class Vars;
 
 class IncludeGraph;
 
-class IncludeTreeNode {
+enum FrameType {
+  MAKEFILE,
+  DEPENDENCY,
+};
+
+class Frame {
  public:
   // for the top-level Makefile
-  IncludeTreeNode(const string& file);
+  Frame(FrameType type, Loc loc, const std::string& name);
 
-  // for an actual inclusion
-  IncludeTreeNode(const IncludeStmt& stmt, const string& file);
+  ~Frame();
 
-  ~IncludeTreeNode();
+  FrameType Type() const { return type_; }
+  const string& Name() const { return name_; }
+  const Loc& Location() const { return location_; }
+  const std::vector<std::unique_ptr<Frame>>& Children() const { return children_; }
 
-  const string& IncludedFile() const { return included_file_; }
-  const Loc& IncludeLocation() const { return include_location_; }
-  const std::vector<std::unique_ptr<IncludeTreeNode>>& Children() const { return children_; }
-
-  void Add(std::unique_ptr<IncludeTreeNode> child);
+  void Add(std::unique_ptr<Frame> child);
 
  private:
-  std::string included_file_;
-  Loc include_location_;
-  std::vector<std::unique_ptr<IncludeTreeNode>> children_;
+  FrameType type_;
+  std::string name_;
+  Loc location_;
+  std::vector<std::unique_ptr<Frame>> children_;
+};
+
+class FrameScope {
+ public:
+  FrameScope(Evaluator* ev, Frame* frame);
+  ~FrameScope();
+
+ private:
+  Evaluator* ev_;
 };
 
 class IncludeGraphNode {
   friend IncludeGraph;
 
  public:
-  IncludeGraphNode(const IncludeTreeNode& tree_node);
+  IncludeGraphNode(const Frame& tree_node);
   ~IncludeGraphNode();
 
  private:
@@ -76,13 +89,15 @@ class IncludeGraph {
   ~IncludeGraph();
 
   void DumpJSON(FILE* output);
-  void MergeTreeNode(const IncludeTreeNode& tree_node);
+  void MergeTreeNode(const Frame& tree_node);
 
  private:
   std::map<std::string, std::unique_ptr<IncludeGraphNode>> nodes_;
 };
 
 class Evaluator {
+  friend FrameScope;
+
  public:
   Evaluator();
   ~Evaluator();
@@ -197,8 +212,8 @@ class Evaluator {
   bool is_bootstrap_;
   bool is_commandline_;
 
-  std::unique_ptr<IncludeTreeNode> include_tree_;
-  std::vector<IncludeTreeNode*> include_tree_stack_;
+  std::unique_ptr<Frame> frames_;
+  std::vector<Frame*> stack_;
   std::vector<Loc> include_stack_;
 
   bool avoid_io_;

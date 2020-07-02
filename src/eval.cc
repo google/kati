@@ -34,26 +34,27 @@
 #include "var.h"
 
 
-IncludeTreeNode::IncludeTreeNode(const string& file):
-  included_file_(file),
-  include_location_() {
+Frame::Frame(FrameType type, Loc loc, const std::string& name):
+    type_(type),
+    name_(name),
+    location_(loc) {
 }
 
-IncludeTreeNode::~IncludeTreeNode() {
+Frame::~Frame() {
 }
 
-IncludeTreeNode::IncludeTreeNode(const IncludeStmt& stmt, const std::string& file) :
-  included_file_(file),
-  include_location_(stmt.loc()) {
-}
-
-void IncludeTreeNode::Add(std::unique_ptr<IncludeTreeNode> child) {
+void Frame::Add(std::unique_ptr<Frame> child) {
   children_.push_back(std::move(child));
 }
 
+FrameScope::FrameScope(Evaluator* ev, Frame* frame) :
+  ev_(ev) {
+  ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
+  ev_->stack_.push_back(frame);
+}
 
-IncludeGraphNode::IncludeGraphNode(const IncludeTreeNode& tree_node) :
-    filename_(tree_node.IncludedFile()) {
+IncludeGraphNode::IncludeGraphNode(const Frame& tree_node) :
+    filename_(tree_node.Name()) {
 }
 
 IncludeGraphNode::~IncludeGraphNode() {
@@ -103,14 +104,14 @@ void IncludeGraph::DumpJSON(FILE* output) {
   fprintf(output, "}\n");
 }
 
-void IncludeGraph::MergeTreeNode(const IncludeTreeNode &tree_node) {
-  std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[tree_node.IncludedFile()];
+void IncludeGraph::MergeTreeNode(const Frame &tree_node) {
+  std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[tree_node.Name()];
   if (graph_node.get() == nullptr) {
     graph_node.reset(new IncludeGraphNode(tree_node));
   }
 
   for (const auto& child : tree_node.Children()) {
-    graph_node->includes_.insert(child->IncludedFile());
+    graph_node->includes_.insert(child->Name());
     MergeTreeNode(*child);
   }
 }
@@ -146,15 +147,15 @@ Evaluator::~Evaluator() {
 
 void Evaluator::in_command_line() {
   is_commandline_ = true;
-  include_tree_.release();
-  include_tree_stack_.clear();
+  frames_.release();
+  stack_.clear();
 }
 
 void Evaluator::in_toplevel_makefile(const string& makefile) {
   is_commandline_ = false;
-  include_tree_.reset(new IncludeTreeNode(makefile));
-  include_tree_stack_.clear();
-  include_tree_stack_.push_back(include_tree_.get());
+  frames_.reset(new Frame(FrameType::MAKEFILE, Loc(), makefile));
+  stack_.clear();
+  stack_.push_back(frames_.get());
 }
 
 Var* Evaluator::EvalRHS(Symbol lhs,
@@ -537,13 +538,13 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
         continue;
       }
 
-      IncludeTreeNode* include_node = new IncludeTreeNode(*stmt, fname);
-      include_tree_stack_.back()->Add(std::unique_ptr<IncludeTreeNode>(include_node));
-      include_tree_stack_.push_back(include_node);
+      Frame* include_node = new Frame(FrameType::MAKEFILE, stmt->loc(), fname);
+      stack_.back()->Add(std::unique_ptr<Frame>(include_node));
+      stack_.push_back(include_node);
 
       DoInclude(fname);
 
-      include_tree_stack_.pop_back();
+      stack_.pop_back();
     }
     include_stack_.pop_back();
   }
@@ -664,7 +665,7 @@ void Evaluator::DumpStackStats() const {
 
 void Evaluator::DumpIncludeJSON(const string& filename) const {
   IncludeGraph graph;
-  graph.MergeTreeNode(*include_tree_);
+  graph.MergeTreeNode(*frames_);
   FILE* jsonfile;
   if (filename == "-") {
     jsonfile = stdout;

@@ -615,12 +615,12 @@ class DepBuilder {
 
     StringPiece output_suffix = GetExt(output.str());
     if (output_suffix.get(0) != '.')
-      return rule_merger;
+      return rule_merger != nullptr;
     output_suffix = output_suffix.substr(1);
 
     SuffixRuleMap::const_iterator found = suffix_rules_.find(output_suffix);
     if (found == suffix_rules_.end())
-      return rule_merger;
+      return rule_merger != nullptr;
 
     for (const shared_ptr<Rule>& irule : found->second) {
       CHECK(irule->inputs.size() == 1);
@@ -639,7 +639,7 @@ class DepBuilder {
       return true;
     }
 
-    return rule_merger;
+    return rule_merger != nullptr;
   }
 
   DepNode* BuildPlan(Symbol output, Symbol needed_by UNUSED) {
