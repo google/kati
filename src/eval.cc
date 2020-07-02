@@ -34,8 +34,9 @@
 #include "var.h"
 
 
-Frame::Frame(FrameType type, Loc loc, const std::string& name):
+Frame::Frame(FrameType type, Frame* parent, Loc loc, const std::string& name):
     type_(type),
+    parent_(parent),
     name_(name),
     location_(loc) {
 }
@@ -157,7 +158,7 @@ void Evaluator::in_command_line() {
 
 void Evaluator::in_toplevel_makefile(const string& makefile) {
   is_commandline_ = false;
-  frames_.reset(new Frame(FrameType::MAKEFILE, Loc(), makefile));
+  frames_.reset(new Frame(FrameType::MAKEFILE, NULL, Loc(), makefile));
   stack_.clear();
   stack_.push_back(frames_.get());
 }
@@ -546,7 +547,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
       }
 
       {
-        Frame* frame = new Frame(FrameType::MAKEFILE, stmt->loc(), fname);
+        Frame* frame = new Frame(FrameType::MAKEFILE, CurrentFrame(), stmt->loc(), fname);
         FrameScope scope(this, frame);
         DoInclude(fname);
       }

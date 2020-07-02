@@ -686,7 +686,8 @@ class DepBuilder {
       RuleMerger().FillDepNode(output, pattern_rule.get(), n);
 
     vector<unique_ptr<ScopedVar>> sv;
-    Frame *dep_frame = new Frame(FrameType::DEPENDENCY, rule_location, output.str());
+    Frame *dep_frame = new Frame(
+        FrameType::DEPENDENCY, ev_->CurrentFrame(), rule_location, output.str());
     FrameScope(ev_, dep_frame);
 
     if (vars) {

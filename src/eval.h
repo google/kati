@@ -44,7 +44,7 @@ enum FrameType {
 class Frame {
  public:
   // for the top-level Makefile
-  Frame(FrameType type, Loc loc, const std::string& name);
+  Frame(FrameType type, Frame* parent, Loc loc, const std::string& name);
 
   ~Frame();
 
@@ -57,6 +57,7 @@ class Frame {
 
  private:
   FrameType type_;
+  Frame* parent_;
   std::string name_;
   Loc location_;
   std::vector<std::unique_ptr<Frame>> children_;

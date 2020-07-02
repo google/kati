@@ -241,6 +241,7 @@ static int Run(const vector<Symbol>& targets,
 
   Frame* frame = new Frame(
       FrameType::MAKEFILE,
+      NULL,
       Loc(g_flags.makefile, 0),
       string(g_flags.makefile));
   Intern("MAKEFILE_LIST")

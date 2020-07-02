@@ -109,16 +109,16 @@ Var* Var::Undefined() {
 }
 
 SimpleVar::SimpleVar(VarOrigin origin, Frame* definition) :
-  Var(origin, definition) {}
+  Var(origin, definition), dep_(nullptr) {}
 
 SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition) :
-  Var(origin, definition), v_(v) {}
+  Var(origin, definition), v_(v), dep_(nullptr) {}
 
 SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition, Frame* dep) :
   Var(origin, definition), v_(v), dep_(dep) {}
 
 SimpleVar::SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v) :
-  Var(origin, definition) {
+  Var(origin, definition), dep_(nullptr) {
   v->Eval(ev, &v_);
 }
 
@@ -151,7 +151,7 @@ string SimpleVar::DebugString() const {
 }
 
 RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, Frame* definition, StringPiece orig)
-    : Var(origin, definition), v_(v), orig_(orig) {}
+    : Var(origin, definition), v_(v), dep_(nullptr), orig_(orig) {}
 
 RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, Frame* definition, Frame* dep, StringPiece orig)
     : Var(origin, definition), v_(v), dep_(dep), orig_(orig) {}
