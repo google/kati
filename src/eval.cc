@@ -53,6 +53,10 @@ FrameScope::FrameScope(Evaluator* ev, Frame* frame) :
   ev_->stack_.push_back(frame);
 }
 
+FrameScope::~FrameScope() {
+  ev_->stack_.pop_back();
+}
+
 IncludeGraphNode::IncludeGraphNode(const Frame& tree_node) :
     filename_(tree_node.Name()) {
 }
@@ -541,13 +545,11 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
         continue;
       }
 
-      Frame* include_node = new Frame(FrameType::MAKEFILE, stmt->loc(), fname);
-      stack_.back()->Add(std::unique_ptr<Frame>(include_node));
-      stack_.push_back(include_node);
-
-      DoInclude(fname);
-
-      stack_.pop_back();
+      {
+        Frame* frame = new Frame(FrameType::MAKEFILE, stmt->loc(), fname);
+        FrameScope scope(this, frame);
+        DoInclude(fname);
+      }
     }
     include_stack_.pop_back();
   }
