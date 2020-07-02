@@ -100,7 +100,8 @@ class SimpleVar : public Var {
  public:
   explicit SimpleVar(VarOrigin origin, Frame* definition);
   SimpleVar(const string& v, VarOrigin origin);
-  SimpleVar(VarOrigin, Evaluator* ev, Value* v);
+  SimpleVar(const string& v, VarOrigin origin, Frame* definition);
+  SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v);
 
   virtual const char* Flavor() const override { return "simple"; }
 

@@ -239,9 +239,13 @@ static int Run(const vector<Symbol>& targets,
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
 
+  Frame* frame = new Frame(
+      FrameType::MAKEFILE,
+      Loc(g_flags.makefile, 0),
+      string(g_flags.makefile));
   Intern("MAKEFILE_LIST")
       .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                                  VarOrigin::FILE));
+                                  VarOrigin::FILE, frame));
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT, nullptr);
   }

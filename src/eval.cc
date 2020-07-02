@@ -185,7 +185,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
   switch (op) {
     case AssignOp::COLON_EQ: {
       prev = PeekVarInCurrentScope(lhs);
-      result = new SimpleVar(origin, this, rhs_v);
+      result = new SimpleVar(origin, current_frame, this, rhs_v);
       break;
     }
     case AssignOp::EQ:

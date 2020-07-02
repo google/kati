@@ -629,7 +629,7 @@ class DepBuilder {
         continue;
 
       *pattern_rule = irule;
-      if (rule_merger)
+      if (rule_merger != nullptr)
         return true;
       if (vars) {
         CHECK(irule->outputs.size() == 1);

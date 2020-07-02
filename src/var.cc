@@ -101,11 +101,17 @@ Var* Var::Undefined() {
   return undefined_var;
 }
 
-SimpleVar::SimpleVar(VarOrigin origin, Frame* definition) : Var(origin, definition) {}
+SimpleVar::SimpleVar(VarOrigin origin, Frame* definition) :
+  Var(origin, definition) {}
 
-SimpleVar::SimpleVar(const string& v, VarOrigin origin) : Var(origin, nullptr), v_(v) {}
+SimpleVar::SimpleVar(const string& v, VarOrigin origin) :
+  Var(origin, nullptr), v_(v) {}
 
-SimpleVar::SimpleVar(VarOrigin origin, Evaluator* ev, Value* v) : Var(origin, nullptr) {
+  SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition) :
+  Var(origin, definition), v_(v) {}
+
+SimpleVar::SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v) :
+  Var(origin, definition) {
   v->Eval(ev, &v_);
 }
 
