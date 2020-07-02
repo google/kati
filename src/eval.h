@@ -151,6 +151,8 @@ class Evaluator {
   void IncrementEvalDepth() { eval_depth_++; }
   void DecrementEvalDepth() { eval_depth_--; }
 
+  Frame* CurrentFrame() const { return stack_.back(); };
+
   string GetShell();
   string GetShellFlag();
   string GetShellAndFlag();

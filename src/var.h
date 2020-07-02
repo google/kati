@@ -98,7 +98,7 @@ class Var : public Evaluable {
 
 class SimpleVar : public Var {
  public:
-  explicit SimpleVar(VarOrigin origin);
+  explicit SimpleVar(VarOrigin origin, Frame* definition);
   SimpleVar(const string& v, VarOrigin origin);
   SimpleVar(VarOrigin, Evaluator* ev, Value* v);
 

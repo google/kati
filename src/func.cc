@@ -846,7 +846,7 @@ void DeprecatedVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
-      v = new SimpleVar(VarOrigin::FILE);
+      v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame());
       sym.SetGlobalVar(v, false, nullptr);
     }
 
@@ -882,7 +882,7 @@ void ObsoleteVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
-      v = new SimpleVar(VarOrigin::FILE);
+      v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame());
       sym.SetGlobalVar(v, false, nullptr);
     }
 
