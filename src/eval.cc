@@ -165,6 +165,8 @@ Var* Evaluator::EvalRHS(Symbol lhs,
                         bool is_override,
                         bool* needs_assign) {
   VarOrigin origin;
+  Frame* current_frame;
+
   if (is_bootstrap_) {
     origin = VarOrigin::DEFAULT;
   } else if (is_commandline_) {
@@ -173,6 +175,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     origin = VarOrigin::OVERRIDE;
   } else {
     origin = VarOrigin::FILE;
+    current_frame = stack_.back();
   }
 
   Var* result = NULL;
@@ -187,12 +190,12 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     }
     case AssignOp::EQ:
       prev = PeekVarInCurrentScope(lhs);
-      result = new RecursiveVar(rhs_v, origin, orig_rhs);
+      result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        result = new RecursiveVar(rhs_v, origin, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
       } else if (prev->ReadOnly()) {
         Error(StringPrintf("*** cannot assign to readonly variable: %s",
                            lhs.c_str()));
@@ -206,7 +209,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     case AssignOp::QUESTION_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        result = new RecursiveVar(rhs_v, origin, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
       } else {
         result = prev;
         *needs_assign = false;

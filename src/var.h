@@ -81,10 +81,11 @@ class Var : public Evaluable {
 
  protected:
   Var();
-  explicit Var(VarOrigin origin);
+  Var(VarOrigin origin, Frame* definition);
 
  private:
   const VarOrigin origin_;
+  Frame* definition_;
   AssignOp assign_op_;
   bool readonly_ : 1;
   bool deprecated_ : 1;
@@ -117,7 +118,7 @@ class SimpleVar : public Var {
 
 class RecursiveVar : public Var {
  public:
-  RecursiveVar(Value* v, VarOrigin origin, StringPiece orig);
+  RecursiveVar(Value* v, VarOrigin origin, Frame* definition, StringPiece orig);
 
   virtual const char* Flavor() const override { return "recursive"; }
 
