@@ -176,11 +176,17 @@ Evaluator::~Evaluator() {
   // }
 }
 
+void Evaluator::in_bootstrap() {
+  is_bootstrap_ = true;
+  is_commandline_ = false;
+}
 void Evaluator::in_command_line() {
+  is_bootstrap_ = false;
   is_commandline_ = true;
 }
 
 void Evaluator::in_toplevel_makefile() {
+  is_commandline_ = false;
   is_commandline_ = false;
 }
 

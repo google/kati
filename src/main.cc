@@ -252,12 +252,11 @@ static int Run(const vector<Symbol>& targets,
 
   {
     ScopedFrame frame(ev->Enter(FrameType::PHASE, "*bootstrap*", Loc()));
-    ev->set_is_bootstrap(true);
+    ev->in_bootstrap();
     for (Stmt* stmt : bootstrap_asts) {
       LOG("%s", stmt->DebugString().c_str());
       stmt->Eval(ev.get());
     }
-    ev->set_is_bootstrap(false);
   }
 
   {

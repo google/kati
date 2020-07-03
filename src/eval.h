@@ -141,8 +141,7 @@ class Evaluator {
 
   void Error(const string& msg);
 
-  void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
-
+  void in_bootstrap();
   void in_command_line();
   void in_toplevel_makefile();
 
