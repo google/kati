@@ -54,13 +54,6 @@ Var::Var(VarOrigin origin, Frame* definition) :
   deprecated_(false),
   obsolete_(false) {}
 
-Var* Var::AsRuleSpecificVar(Frame*) const {
-  // This should only be called for SimpleVar and RecursiveVar, both of which
-  // override this
-  CHECK(false);
-  return NULL;
-}
-
 Var::~Var() {
   diagnostic_messages_.erase(this);
 }
@@ -114,20 +107,9 @@ SimpleVar::SimpleVar(VarOrigin origin, Frame* definition) :
 SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition) :
   Var(origin, definition), v_(v), dep_(nullptr) {}
 
-SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition, Frame* dep) :
-  Var(origin, definition), v_(v), dep_(dep) {}
-
 SimpleVar::SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v) :
   Var(origin, definition), dep_(nullptr) {
   v->Eval(ev, &v_);
-}
-
-Frame* SimpleVar::Dep() const {
-  return dep_;
-}
-
-Var* SimpleVar::AsRuleSpecificVar(Frame* dep) const {
-  return new SimpleVar(v_, Origin(), Definition(), dep);
 }
 
 void SimpleVar::Eval(Evaluator* ev, string* s) const {
@@ -152,17 +134,6 @@ string SimpleVar::DebugString() const {
 
 RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, Frame* definition, StringPiece orig)
     : Var(origin, definition), v_(v), dep_(nullptr), orig_(orig) {}
-
-RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, Frame* definition, Frame* dep, StringPiece orig)
-    : Var(origin, definition), v_(v), dep_(dep), orig_(orig) {}
-
-Frame* RecursiveVar::Dep() const {
-  return dep_;
-}
-
-Var* RecursiveVar::AsRuleSpecificVar(Frame* dep) const {
-  return new RecursiveVar(v_, Origin(), Definition(), dep, orig_);
-}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();

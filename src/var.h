@@ -53,10 +53,6 @@ class Var : public Evaluable {
 
   VarOrigin Origin() const { return origin_; }
   Frame* Definition() const { return definition_; }
-  virtual Frame* Dep() const { return NULL; }
-  virtual Var* AsRuleSpecificVar(Frame* dep) const;
-
-  // virtual Var* AsRuleSpecificVar(Evaluator* ev) = 0;
 
   virtual bool IsDefined() const { return true; }
 
@@ -108,10 +104,6 @@ class SimpleVar : public Var {
   SimpleVar(const string& v, VarOrigin origin, Frame* definition);
   SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v);
 
-  virtual Frame* Dep() const override;
-
-  virtual Var* AsRuleSpecificVar(Frame* dep) const override;
-
   virtual const char* Flavor() const override { return "simple"; }
 
   virtual void Eval(Evaluator* ev, string* s) const override;
@@ -122,9 +114,6 @@ class SimpleVar : public Var {
 
   virtual string DebugString() const override;
 
- private:
-  SimpleVar(const string& v, VarOrigin origin, Frame* definition, Frame* dep);
-
   string v_;
   Frame* dep_;
 };
@@ -132,10 +121,6 @@ class SimpleVar : public Var {
 class RecursiveVar : public Var {
  public:
   RecursiveVar(Value* v, VarOrigin origin, Frame* definition, StringPiece orig);
-
-  virtual Frame* Dep() const override;
-
-  virtual Var* AsRuleSpecificVar(Frame* dep) const override;
 
   virtual const char* Flavor() const override { return "recursive"; }
 
@@ -146,9 +131,6 @@ class RecursiveVar : public Var {
   virtual StringPiece String() const override;
 
   virtual string DebugString() const override;
-
- private:
-  RecursiveVar(Value* v, VarOrigin origin, Frame* definition, Frame* dep, StringPiece orig);
 
   Value* v_;
   Frame* dep_;
