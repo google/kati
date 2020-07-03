@@ -310,6 +310,7 @@ static int Run(const vector<Symbol>& targets,
     ScopedTimeReporter tr("generate ninja time");
     GenerateNinja(nodes, ev.get(), orig_args, start_time);
     ev->DumpStackStats();
+    ev->Finish();
     return 0;
   }
 
