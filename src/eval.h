@@ -230,7 +230,9 @@ class Evaluator {
   bool is_bootstrap_;
   bool is_commandline_;
 
+  bool trace_;
   std::vector<Frame*> stack_;
+
   std::vector<Loc> include_stack_;
 
   bool avoid_io_;

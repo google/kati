@@ -68,6 +68,10 @@ void Frame::PrintTrace(int indent) const {
 
 ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) :
   ev_(ev), frame_(frame) {
+  if (!ev->trace_) {
+    return;
+  }
+
   ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
   ev_->stack_.push_back(frame);
 }
@@ -78,6 +82,10 @@ ScopedFrame::ScopedFrame(ScopedFrame&& other):
 }
 
 ScopedFrame::~ScopedFrame() {
+  if (!ev_->trace_) {
+    return;
+  }
+
   CHECK(frame_ == ev_->stack_.back());
   ev_->stack_.pop_back();
 }
@@ -178,6 +186,8 @@ Evaluator::Evaluator()
   LOG_STAT("Stack size: %zd bytes", stack_size_);
 
   stack_.push_back(new Frame(FrameType::ROOT, nullptr, Loc(), "*root*"));
+
+  trace_ = g_flags.dump_variable_assignment_trace || g_flags.dump_include_json;
 }
 
 Evaluator::~Evaluator() {
@@ -642,11 +652,13 @@ Var* Evaluator::LookupVarGlobal(Symbol name) {
 }
 
 void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var) {
-  if (!var->IsDefined()) {
+  if (g_flags.dump_variable_assignment_trace == nullptr) {
     return;
   }
 
-  return;
+  if (!var->IsDefined()) {
+    return;
+  }
 
   fprintf(stderr, "\n%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
   CurrentFrame()->PrintTrace(2);
@@ -712,6 +724,10 @@ string Evaluator::EvalVar(Symbol name) {
 }
 
 ScopedFrame Evaluator::Enter(FrameType frame_type, const string& name, Loc loc) {
+  if (!trace_) {
+    return ScopedFrame(this, nullptr);
+  }
+
   Frame* frame = new Frame(frame_type, stack_.back(), loc, name);
   return ScopedFrame(this, frame);
 }
