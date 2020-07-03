@@ -59,6 +59,9 @@ class Executor {
       }
       return found->second;
     }
+    Frame* frame = new Frame(FrameType::EXEC, ce_.evaluator()->CurrentFrame(), n->loc, n->output.c_str());
+    FrameScope frame_scope(ce_.evaluator(), frame);
+
     done_[n->output] = kProcessing;
     double output_ts = GetTimestamp(n->output.c_str());
 

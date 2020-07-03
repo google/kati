@@ -40,6 +40,7 @@ enum FrameType {
   MAKEFILE,
   DEPENDENCY,
   CALL,
+  EXEC,
 };
 
 class Frame {

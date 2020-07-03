@@ -23,6 +23,7 @@ using namespace std;
 
 struct DepNode;
 class Evaluator;
+class Frame;
 
 struct Command {
   explicit Command(Symbol o) : output(o), echo(true), ignore_error(false) {}
@@ -37,6 +38,7 @@ class CommandEvaluator {
   explicit CommandEvaluator(Evaluator* ev);
   void Eval(DepNode* n, vector<Command*>* commands);
   const DepNode* current_dep_node() const { return current_dep_node_; }
+  Evaluator* evaluator() const { return ev_; }
 
  private:
   Evaluator* ev_;

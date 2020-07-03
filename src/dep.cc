@@ -661,15 +661,6 @@ class DepBuilder {
       return n;
     }
 
-    Loc rule_location;
-    if (rule_merger != nullptr && rule_merger->primary_rule != nullptr) {
-      rule_location = rule_merger->primary_rule->cmd_loc();
-    } else if (pattern_rule.get() != nullptr) {
-      rule_location = pattern_rule->cmd_loc();
-    } else {
-      rule_location = Loc("*UNKNOWN*", 0);
-    }
-
     // TODO(lberki): When can rule_merger be null?
     if (rule_merger && rule_merger->parent) {
       output = rule_merger->parent_sym;
@@ -687,7 +678,7 @@ class DepBuilder {
 
     vector<unique_ptr<ScopedVar>> sv;
     Frame *dep_frame = new Frame(
-        FrameType::DEPENDENCY, ev_->CurrentFrame(), rule_location, output.str());
+        FrameType::DEPENDENCY, ev_->CurrentFrame(), n->loc, output.str());
     FrameScope(ev_, dep_frame);
 
     if (vars) {
