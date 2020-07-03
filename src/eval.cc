@@ -604,36 +604,68 @@ Var* Evaluator::LookupVarGlobal(Symbol name) {
   return v;
 }
 
-Var* Evaluator::LookupVar(Symbol name) {
-  if (current_scope_) {
-    Var* v = current_scope_->Lookup(name);
-    if (v->IsDefined())
-      return v;
+void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var) {
+  if (!var->IsDefined()) {
+    return;
   }
-  return LookupVarGlobal(name);
+
+  fprintf(stderr, "%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
+  Frame* current = CurrentFrame();
+  while (current != NULL) {
+    fprintf(stderr, "  %s\n", current->Name().c_str());
+    current = current->Parent();
+  }
+}
+
+Var* Evaluator::LookupVar(Symbol name) {
+  Var* result = NULL;
+  if (current_scope_) {
+    result = current_scope_->Lookup(name);
+  }
+
+  if (result == NULL || !result->IsDefined()) {
+    result = LookupVarGlobal(name);
+  }
+
+  TraceVariableLookup("lookup", name, result);
+  return result;
 }
 
 Var* Evaluator::PeekVar(Symbol name) {
+  Var* result = nullptr;
+
   if (current_scope_) {
-    Var* v = current_scope_->Peek(name);
-    if (v->IsDefined())
-      return v;
+    result = current_scope_->Peek(name);
   }
-  return name.PeekGlobalVar();
+
+  if (result == nullptr || !result->IsDefined()) {
+    result = name.PeekGlobalVar();
+  }
+
+  return result;
 }
 
 Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
+  Var* result;
   if (current_scope_) {
-    return current_scope_->Lookup(name);
+    result = current_scope_->Lookup(name);
+  } else {
+    result = LookupVarGlobal(name);
   }
-  return LookupVarGlobal(name);
+
+  TraceVariableLookup("scope lookup", name, result);
+  return result;
 }
 
 Var* Evaluator::PeekVarInCurrentScope(Symbol name) {
+  Var* result;
   if (current_scope_) {
-    return current_scope_->Peek(name);
+    result = current_scope_->Peek(name);
+  } else {
+    result = name.PeekGlobalVar();
   }
-  return name.PeekGlobalVar();
+
+  return result;
 }
 
 string Evaluator::EvalVar(Symbol name) {

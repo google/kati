@@ -39,6 +39,7 @@ class IncludeGraph;
 enum FrameType {
   MAKEFILE,
   DEPENDENCY,
+  CALL,
 };
 
 class Frame {
@@ -49,6 +50,7 @@ class Frame {
   ~Frame();
 
   FrameType Type() const { return type_; }
+  Frame* Parent() const { return parent_; }
   const string& Name() const { return name_; }
   const Loc& Location() const { return location_; }
   const std::vector<std::unique_ptr<Frame>>& Children() const { return children_; }
@@ -152,7 +154,7 @@ class Evaluator {
   void IncrementEvalDepth() { eval_depth_++; }
   void DecrementEvalDepth() { eval_depth_--; }
 
-  Frame* CurrentFrame() const { return stack_.back(); };
+  Frame* CurrentFrame() const { return stack_.empty() ? nullptr : stack_.back(); };
 
   string GetShell();
   string GetShellFlag();
@@ -192,6 +194,7 @@ class Evaluator {
                bool* needs_assign);
   void DoInclude(const string& fname);
 
+  void TraceVariableLookup(const char* operation, Symbol name, Var* var);
   Var* LookupVarGlobal(Symbol name);
 
   // Equivalent to LookupVarInCurrentScope, but doesn't mark as used.
