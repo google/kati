@@ -239,6 +239,9 @@ static int Run(const vector<Symbol>& targets,
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
   unique_ptr<Evaluator> ev(new Evaluator());
+  if (!ev->Start()) {
+    return 1;
+  }
   Intern("MAKEFILE_LIST")
       .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
                                   VarOrigin::FILE, ev->CurrentFrame()));
@@ -330,6 +333,7 @@ static int Run(const vector<Symbol>& targets,
   }
 
   ev->DumpStackStats();
+  ev->Finish();
 
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;

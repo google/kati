@@ -49,21 +49,23 @@ void Frame::Add(std::unique_ptr<Frame> child) {
   children_.push_back(std::move(child));
 }
 
-void Frame::PrintTrace(int indent) const {
+void Frame::PrintJSONTrace(FILE* f, int indent) const {
   if (type_ == FrameType::ROOT) {
     return;
   }
 
-  std::string line = std::string(indent, ' ') + name_;
+  std::string indent_string = std::string(indent, ' ');
+  std::string desc = name_;
   if (location_.filename != nullptr) {
-    line += StringPrintf(" @ %s", location_.filename);
+    desc += StringPrintf(" @ %s", location_.filename);
     if (location_.lineno > 0) {
-      line += StringPrintf(":%d", location_.lineno);
+      desc += StringPrintf(":%d", location_.lineno);
     }
   }
 
-  fprintf(stderr, "%s\n", line.c_str());
-  parent_->PrintTrace(indent);
+  const char* comma = parent_->type_ == FrameType::ROOT ? "" : ",";
+  fprintf(f, "%s\"%s\"%s\n", indent_string.c_str(), desc.c_str(), comma);
+  parent_->PrintJSONTrace(f, indent);
 }
 
 ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) :
@@ -188,15 +190,51 @@ Evaluator::Evaluator()
   stack_.push_back(new Frame(FrameType::ROOT, nullptr, Loc(), "*root*"));
 
   trace_ = g_flags.dump_variable_assignment_trace || g_flags.dump_include_json;
+  assignment_tracefile_ = nullptr;
+  assignment_count_ = 0;
 }
 
 Evaluator::~Evaluator() {
+  if (assignment_tracefile_ != nullptr && assignment_tracefile_ != stderr) {
+    fclose(assignment_tracefile_);
+  }
+
   // delete vars_;
   // for (auto p : rule_vars) {
   //   delete p.second;
   // }
 }
 
+bool Evaluator::Start() {
+  const char* fn = g_flags.dump_variable_assignment_trace;
+  if (!fn) {
+    return true;
+  }
+
+  if (!strcmp(fn, "-")) {
+    assignment_tracefile_ = stderr;
+  } else {
+    assignment_tracefile_ = fopen(fn, "w");
+    if (assignment_tracefile_ == nullptr) {
+      // TODO(lberki): What about error checking for fwrite()?
+      fprintf(stderr, "fopen(%s): %s", fn, strerror(errno));
+      return false;
+    }
+  }
+
+  fprintf(assignment_tracefile_, "{\n");
+  fprintf(assignment_tracefile_, "  \"assignments\": [");
+  return true;
+}
+
+void Evaluator::Finish() {
+  if (assignment_tracefile_ == nullptr) {
+    return;
+  }
+
+  fprintf(assignment_tracefile_, " \n ]\n");
+  fprintf(assignment_tracefile_, "}\n");
+}
 void Evaluator::in_bootstrap() {
   is_bootstrap_ = true;
   is_commandline_ = false;
@@ -652,7 +690,7 @@ Var* Evaluator::LookupVarGlobal(Symbol name) {
 }
 
 void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var) {
-  if (g_flags.dump_variable_assignment_trace == nullptr) {
+  if (assignment_tracefile_ == nullptr) {
     return;
   }
 
@@ -660,12 +698,25 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
     return;
   }
 
-  fprintf(stderr, "\n%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
-  CurrentFrame()->PrintTrace(2);
-  if (var->Definition() != nullptr) {
-    fprintf(stderr, "resulted in value from:\n");
-    var->Definition()->PrintTrace(2);
+  if (assignment_count_++ == 0) {
+    fprintf(assignment_tracefile_, "\n");
+  } else {
+    fprintf(assignment_tracefile_, ",\n");
   }
+
+  bool has_definition_trace = var->Definition() != nullptr;
+  fprintf(assignment_tracefile_, "    {\n");
+  fprintf(assignment_tracefile_, "      \"name\": \"%s\",\n", name.c_str());
+  fprintf(assignment_tracefile_, "      \"operation\": \"%s\",\n", operation);
+  fprintf(assignment_tracefile_, "      \"reference_stack\": [\n");
+  CurrentFrame()->PrintJSONTrace(assignment_tracefile_, 8);
+  fprintf(assignment_tracefile_, "      ]%s\n", has_definition_trace ? "," : "");
+  if (has_definition_trace) {
+    fprintf(assignment_tracefile_, "      \"value_stack\": [\n");
+    var->Definition()->PrintJSONTrace(assignment_tracefile_, 8);
+    fprintf(assignment_tracefile_, "      ]\n");
+  }
+  fprintf(assignment_tracefile_, "    }");
 }
 
 Var* Evaluator::LookupVar(Symbol name) {

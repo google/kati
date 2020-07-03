@@ -59,7 +59,7 @@ class Frame {
   const Loc& Location() const { return location_; }
   const std::vector<std::unique_ptr<Frame>>& Children() const { return children_; }
 
-  void PrintTrace(int indent) const;
+  void PrintJSONTrace(FILE* f, int indent) const;
 
   void Add(std::unique_ptr<Frame> child);
 
@@ -116,6 +116,9 @@ class Evaluator {
  public:
   Evaluator();
   ~Evaluator();
+
+  bool Start();
+  void Finish();
 
   void EvalAssign(const AssignStmt* stmt);
   void EvalRule(const RuleStmt* stmt);
@@ -232,6 +235,8 @@ class Evaluator {
 
   bool trace_;
   std::vector<Frame*> stack_;
+  FILE* assignment_tracefile_;
+  long int assignment_count_;
 
   std::vector<Loc> include_stack_;
 
