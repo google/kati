@@ -120,8 +120,8 @@ static void SetVar(StringPiece l, VarOrigin origin, Frame* definition) {
   CHECK(found != string::npos);
   Symbol lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
-  lhs.SetGlobalVar(new RecursiveVar(
-      Value::NewLiteral(rhs.data()), origin, definition, rhs.data()));
+  lhs.SetGlobalVar(new RecursiveVar(Value::NewLiteral(rhs.data()), origin,
+                                    definition, rhs.data()));
 }
 
 extern "C" char** environ;
@@ -297,7 +297,8 @@ static int Run(const vector<Symbol>& targets,
 
   vector<NamedDepNode> nodes;
   {
-    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*dependency analysis*", Loc()));
+    ScopedFrame frame(
+        ev->Enter(FrameType::PHASE, "*dependency analysis*", Loc()));
     ScopedTimeReporter tr("make dep time");
     MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);
   }

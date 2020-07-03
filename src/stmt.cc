@@ -25,7 +25,7 @@ Stmt::Stmt() {}
 
 Stmt::~Stmt() {}
 
-void Stmt::Eval(Evaluator * ev) const {
+void Stmt::Eval(Evaluator* ev) const {
   ScopedFrame frame(ev->Enter(FrameType::STATEMENT, "statement", loc_));
   EvalStatement(ev);
 }

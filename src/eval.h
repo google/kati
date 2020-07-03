@@ -58,7 +58,9 @@ class Frame {
   Frame* Parent() const { return parent_; }
   const string& Name() const { return name_; }
   const Loc& Location() const { return location_; }
-  const std::vector<std::unique_ptr<Frame>>& Children() const { return children_; }
+  const std::vector<std::unique_ptr<Frame>>& Children() const {
+    return children_;
+  }
 
   void PrintJSONTrace(FILE* f, int indent) const;
 
@@ -81,6 +83,7 @@ class ScopedFrame {
   ~ScopedFrame();
 
   Frame* Current() const { return frame_; }
+
  private:
   Evaluator* ev_;
   Frame* frame_;
@@ -170,7 +173,9 @@ class Evaluator {
   void DecrementEvalDepth() { eval_depth_--; }
 
   ScopedFrame Enter(FrameType frame_type, const string& name, Loc loc);
-  Frame* CurrentFrame() const { return stack_.empty() ? nullptr : stack_.back(); };
+  Frame* CurrentFrame() const {
+    return stack_.empty() ? nullptr : stack_.back();
+  };
 
   string GetShell();
   string GetShellFlag();

@@ -33,17 +33,12 @@
 #include "symtab.h"
 #include "var.h"
 
-
-Frame::Frame(FrameType type, Frame* parent, Loc loc, const std::string& name):
-    type_(type),
-    parent_(parent),
-    name_(name),
-    location_(loc) {
+Frame::Frame(FrameType type, Frame* parent, Loc loc, const std::string& name)
+    : type_(type), parent_(parent), name_(name), location_(loc) {
   CHECK((parent == nullptr) == (type == FrameType::ROOT));
 }
 
-Frame::~Frame() {
-}
+Frame::~Frame() {}
 
 void Frame::Add(std::unique_ptr<Frame> child) {
   children_.push_back(std::move(child));
@@ -68,8 +63,7 @@ void Frame::PrintJSONTrace(FILE* f, int indent) const {
   parent_->PrintJSONTrace(f, indent);
 }
 
-ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) :
-  ev_(ev), frame_(frame) {
+ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) : ev_(ev), frame_(frame) {
   if (!ev->trace_) {
     return;
   }
@@ -78,10 +72,8 @@ ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) :
   ev_->stack_.push_back(frame);
 }
 
-ScopedFrame::ScopedFrame(ScopedFrame&& other):
-  ev_(other.ev_),
-  frame_(other.frame_) {
-}
+ScopedFrame::ScopedFrame(ScopedFrame&& other)
+    : ev_(other.ev_), frame_(other.frame_) {}
 
 ScopedFrame::~ScopedFrame() {
   if (!ev_->trace_) {
@@ -92,22 +84,17 @@ ScopedFrame::~ScopedFrame() {
   ev_->stack_.pop_back();
 }
 
-IncludeGraphNode::IncludeGraphNode(const Frame* frame) :
-    filename_(frame->Name()) {
-}
+IncludeGraphNode::IncludeGraphNode(const Frame* frame)
+    : filename_(frame->Name()) {}
 
-IncludeGraphNode::~IncludeGraphNode() {
-}
+IncludeGraphNode::~IncludeGraphNode() {}
 
+IncludeGraph::IncludeGraph() {}
 
-IncludeGraph::IncludeGraph() {
-}
-
-IncludeGraph::~IncludeGraph() {
-}
+IncludeGraph::~IncludeGraph() {}
 
 void IncludeGraph::DumpJSON(FILE* output) {
-  fprintf(output,"{\n");
+  fprintf(output, "{\n");
   fprintf(output, "  \"nodes\": [");
   bool first_node = true;
 
@@ -151,7 +138,8 @@ void IncludeGraph::MergeTreeNode(const Frame* frame) {
     }
 
     if (!include_stack_.empty()) {
-      IncludeGraphNode* parent_node = nodes_[include_stack_.back()->Name()].get();
+      IncludeGraphNode* parent_node =
+          nodes_[include_stack_.back()->Name()].get();
       parent_node->includes_.insert(frame->Name());
     }
     include_stack_.push_back(frame);
@@ -689,7 +677,9 @@ Var* Evaluator::LookupVarGlobal(Symbol name) {
   return v;
 }
 
-void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var) {
+void Evaluator::TraceVariableLookup(const char* operation,
+                                    Symbol name,
+                                    Var* var) {
   if (assignment_tracefile_ == nullptr) {
     return;
   }
@@ -710,7 +700,8 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
   fprintf(assignment_tracefile_, "      \"operation\": \"%s\",\n", operation);
   fprintf(assignment_tracefile_, "      \"reference_stack\": [\n");
   CurrentFrame()->PrintJSONTrace(assignment_tracefile_, 8);
-  fprintf(assignment_tracefile_, "      ]%s\n", has_definition_trace ? "," : "");
+  fprintf(assignment_tracefile_, "      ]%s\n",
+          has_definition_trace ? "," : "");
   if (has_definition_trace) {
     fprintf(assignment_tracefile_, "      \"value_stack\": [\n");
     var->Definition()->PrintJSONTrace(assignment_tracefile_, 8);
@@ -774,7 +765,9 @@ string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
 }
 
-ScopedFrame Evaluator::Enter(FrameType frame_type, const string& name, Loc loc) {
+ScopedFrame Evaluator::Enter(FrameType frame_type,
+                             const string& name,
+                             Loc loc) {
   if (!trace_) {
     return ScopedFrame(this, nullptr);
   }

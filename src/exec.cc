@@ -59,7 +59,8 @@ class Executor {
       }
       return found->second;
     }
-    ScopedFrame frame(ce_.evaluator()->Enter(FrameType::EXEC, n->output.c_str(), n->loc));
+    ScopedFrame frame(
+        ce_.evaluator()->Enter(FrameType::EXEC, n->output.c_str(), n->loc));
 
     done_[n->output] = kProcessing;
     double output_ts = GetTimestamp(n->output.c_str());

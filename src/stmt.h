@@ -55,7 +55,7 @@ struct Stmt {
   void set_loc(Loc loc) { loc_ = loc; }
   StringPiece orig() const { return orig_; }
 
-  void Eval(Evaluator *) const;
+  void Eval(Evaluator*) const;
   virtual void EvalStatement(Evaluator* ev) const = 0;
 
   virtual string DebugString() const = 0;

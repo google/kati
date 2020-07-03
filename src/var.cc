@@ -47,12 +47,12 @@ const char* GetOriginStr(VarOrigin origin) {
 
 Var::Var() : Var(VarOrigin::UNDEFINED, nullptr) {}
 
-Var::Var(VarOrigin origin, Frame* definition) :
-  origin_(origin),
-  definition_(definition),
-  readonly_(false),
-  deprecated_(false),
-  obsolete_(false) {}
+Var::Var(VarOrigin origin, Frame* definition)
+    : origin_(origin),
+      definition_(definition),
+      readonly_(false),
+      deprecated_(false),
+      obsolete_(false) {}
 
 Var::~Var() {
   diagnostic_messages_.erase(this);
@@ -101,14 +101,17 @@ Var* Var::Undefined() {
   return undefined_var;
 }
 
-SimpleVar::SimpleVar(VarOrigin origin, Frame* definition) :
-  Var(origin, definition), dep_(nullptr) {}
+SimpleVar::SimpleVar(VarOrigin origin, Frame* definition)
+    : Var(origin, definition), dep_(nullptr) {}
 
-SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition) :
-  Var(origin, definition), v_(v), dep_(nullptr) {}
+SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition)
+    : Var(origin, definition), v_(v), dep_(nullptr) {}
 
-SimpleVar::SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v) :
-  Var(origin, definition), dep_(nullptr) {
+SimpleVar::SimpleVar(VarOrigin origin,
+                     Frame* definition,
+                     Evaluator* ev,
+                     Value* v)
+    : Var(origin, definition), dep_(nullptr) {
   v->Eval(ev, &v_);
 }
 
@@ -132,7 +135,10 @@ string SimpleVar::DebugString() const {
   return v_;
 }
 
-RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, Frame* definition, StringPiece orig)
+RecursiveVar::RecursiveVar(Value* v,
+                           VarOrigin origin,
+                           Frame* definition,
+                           StringPiece orig)
     : Var(origin, definition), v_(v), dep_(nullptr), orig_(orig) {}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
