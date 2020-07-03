@@ -78,7 +78,7 @@ class ScopedFrame {
  public:
   ScopedFrame(Evaluator* ev, Frame* frame);
   // We only allow moving; copying would double stack frames
-  ScopedFrame(ScopedFrame& other) = delete;
+  ScopedFrame(const ScopedFrame& other) = delete;
   ScopedFrame(ScopedFrame&& other);
   ~ScopedFrame();
 
