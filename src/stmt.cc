@@ -26,8 +26,7 @@ Stmt::Stmt() {}
 Stmt::~Stmt() {}
 
 void Stmt::Eval(Evaluator * ev) const {
-  Frame* frame = new Frame(FrameType::STATEMENT, ev->CurrentFrame(), loc_, "statement");
-  FrameScope frame_scope(ev, frame);
+  ScopedFrame frame(ev->Enter(FrameType::STATEMENT, "statement", loc_));
   EvalStatement(ev);
 }
 

@@ -54,7 +54,7 @@ void Frame::PrintTrace(int indent) const {
     return;
   }
 
-  std::string line = std::string(indent, ' ');
+  std::string line = std::string(indent, ' ') + name_;
   if (location_.filename != nullptr) {
     line += StringPrintf(" @ %s", location_.filename);
     if (location_.lineno > 0) {
@@ -66,15 +66,19 @@ void Frame::PrintTrace(int indent) const {
   parent_->PrintTrace(indent);
 }
 
-FrameScope::FrameScope(Evaluator* ev, Frame* frame) :
-  ev_(ev) {
-  if (!ev_->stack_.empty()) {
-    ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
-  }
+ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) :
+  ev_(ev), frame_(frame) {
+  ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
   ev_->stack_.push_back(frame);
 }
 
-FrameScope::~FrameScope() {
+ScopedFrame::ScopedFrame(ScopedFrame&& other):
+  ev_(other.ev_),
+  frame_(other.frame_) {
+}
+
+ScopedFrame::~ScopedFrame() {
+  CHECK(frame_ == ev_->stack_.back());
   ev_->stack_.pop_back();
 }
 
@@ -564,8 +568,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
       }
 
       {
-        Frame* frame = new Frame(FrameType::EVAL, CurrentFrame(), stmt->loc(), fname);
-        FrameScope scope(this, frame);
+        ScopedFrame frame(Enter(FrameType::EVAL, fname, stmt->loc()));
         DoInclude(fname);
       }
     }
@@ -625,8 +628,6 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
   if (!var->IsDefined()) {
     return;
   }
-
-  return;
 
   fprintf(stderr, "\n%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
   CurrentFrame()->PrintTrace(2);
@@ -689,6 +690,11 @@ Var* Evaluator::PeekVarInCurrentScope(Symbol name) {
 
 string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
+}
+
+ScopedFrame Evaluator::Enter(FrameType frame_type, const string& name, Loc loc) {
+  Frame* frame = new Frame(frame_type, stack_.back(), loc, name);
+  return ScopedFrame(this, frame);
 }
 
 string Evaluator::GetShell() {

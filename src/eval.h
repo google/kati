@@ -71,13 +71,18 @@ class Frame {
   std::vector<std::unique_ptr<Frame>> children_;
 };
 
-class FrameScope {
+class ScopedFrame {
  public:
-  FrameScope(Evaluator* ev, Frame* frame);
-  ~FrameScope();
+  ScopedFrame(Evaluator* ev, Frame* frame);
+  // We only allow moving; copying would double stack frames
+  ScopedFrame(ScopedFrame& other) = delete;
+  ScopedFrame(ScopedFrame&& other);
+  ~ScopedFrame();
 
+  Frame* Current() const { return frame_; }
  private:
   Evaluator* ev_;
+  Frame* frame_;
 };
 
 class IncludeGraphNode {
@@ -105,7 +110,7 @@ class IncludeGraph {
 };
 
 class Evaluator {
-  friend FrameScope;
+  friend ScopedFrame;
 
  public:
   Evaluator();
@@ -160,6 +165,7 @@ class Evaluator {
   void IncrementEvalDepth() { eval_depth_++; }
   void DecrementEvalDepth() { eval_depth_--; }
 
+  ScopedFrame Enter(FrameType frame_type, const string& name, Loc loc);
   Frame* CurrentFrame() const { return stack_.empty() ? nullptr : stack_.back(); };
 
   string GetShell();

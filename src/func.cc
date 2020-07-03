@@ -644,8 +644,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   ev->DecrementEvalDepth();
 
   {
-    Frame* frame = new Frame(FrameType::CALL, ev->CurrentFrame(), ev->loc(), func_sym.c_str());
-    FrameScope frame_scope(ev, frame);
+    ScopedFrame frame(ev->Enter(FrameType::CALL, func_sym.str(), ev->loc()));
     func->Eval(ev, s);
   }
 

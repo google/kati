@@ -677,9 +677,7 @@ class DepBuilder {
       RuleMerger().FillDepNode(output, pattern_rule.get(), n);
 
     vector<unique_ptr<ScopedVar>> sv;
-    Frame *dep_frame = new Frame(
-        FrameType::DEPENDENCY, ev_->CurrentFrame(), n->loc, output.str());
-    FrameScope(ev_, dep_frame);
+    ScopedFrame frame(ev_->Enter(FrameType::DEPENDENCY, output.str(), n->loc));
 
     if (vars) {
       for (const auto& p : *vars) {
@@ -698,7 +696,7 @@ class DepBuilder {
             new_var->Eval(ev_, s.get());
             // TODO(lberki): How does this not leak?
             // Is this what comment above says?
-            new_var = new SimpleVar(*s, old_var->Origin(), old_var->Definition());
+            new_var = new SimpleVar(*s, old_var->Origin(), frame.Current());
           }
         } else if (var->op() == AssignOp::QUESTION_EQ) {
           Var* old_var = ev_->LookupVar(name);
@@ -707,15 +705,14 @@ class DepBuilder {
           }
         }
 
-        Var* dep_var = new_var->AsRuleSpecificVar(dep_frame);
         if (name == depfile_var_name_) {
-          n->depfile_var = dep_var;
+          n->depfile_var = new_var;
         } else if (name == implicit_outputs_var_name_) {
         } else if (name == validations_var_name_) {
         } else if (name == ninja_pool_var_name_) {
-          n->ninja_pool_var = dep_var;
+          n->ninja_pool_var = new_var;
         } else {
-          sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, dep_var));
+          sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
         }
       }
     }

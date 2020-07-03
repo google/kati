@@ -239,15 +239,9 @@ static int Run(const vector<Symbol>& targets,
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
   unique_ptr<Evaluator> ev(new Evaluator());
-
-  Frame* frame = new Frame(
-      FrameType::EVAL,
-      ev->CurrentFrame(),
-      Loc(g_flags.makefile, 0),
-      string(g_flags.makefile));
   Intern("MAKEFILE_LIST")
       .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                                  VarOrigin::FILE, frame));
+                                  VarOrigin::FILE, ev->CurrentFrame()));
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT, nullptr);
   }
@@ -257,11 +251,7 @@ static int Run(const vector<Symbol>& targets,
   ReadBootstrapMakefile(targets, &bootstrap_asts);
 
   {
-    Frame* frame = new Frame(FrameType::PHASE,
-                             ev->CurrentFrame(),
-                             Loc(),
-                             "*bootstrap*");
-    FrameScope frame_scope(ev.get(), frame);
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*bootstrap*", Loc()));
     ev->set_is_bootstrap(true);
     for (Stmt* stmt : bootstrap_asts) {
       LOG("%s", stmt->DebugString().c_str());
@@ -271,11 +261,7 @@ static int Run(const vector<Symbol>& targets,
   }
 
   {
-    Frame* frame = new Frame(FrameType::PHASE,
-                             ev->CurrentFrame(),
-                             Loc(),
-                             "*command line*");
-    FrameScope frame_scope(ev.get(), frame);
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*command line*", Loc()));
     ev->in_command_line();
     for (StringPiece l : cl_vars) {
       vector<Stmt*> asts;
@@ -287,7 +273,7 @@ static int Run(const vector<Symbol>& targets,
   ev->in_toplevel_makefile();
 
   {
-    FrameScope frame_scope(ev.get(), frame);
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*eval*", Loc()));
     ScopedTimeReporter tr("eval time");
     Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
     for (Stmt* stmt : mk->stmts()) {
@@ -307,11 +293,7 @@ static int Run(const vector<Symbol>& targets,
 
   vector<NamedDepNode> nodes;
   {
-    Frame* frame = new Frame(FrameType::PHASE,
-                             ev->CurrentFrame(),
-                             Loc(),
-                             "*dependency analysis*");
-    FrameScope frame_scope(ev.get(), frame);
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*dependency analysis*", Loc()));
     ScopedTimeReporter tr("make dep time");
     MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);
   }
@@ -320,11 +302,7 @@ static int Run(const vector<Symbol>& targets,
     return 0;
 
   if (g_flags.generate_ninja) {
-    Frame* frame = new Frame(FrameType::PHASE,
-                             ev->CurrentFrame(),
-                             Loc(),
-                             "*ninja generation*");
-    FrameScope frame_scope(ev.get(), frame);
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*ninja generation*", Loc()));
     ScopedTimeReporter tr("generate ninja time");
     GenerateNinja(nodes, ev.get(), orig_args, start_time);
     ev->DumpStackStats();
@@ -345,11 +323,7 @@ static int Run(const vector<Symbol>& targets,
   }
 
   {
-    Frame* frame = new Frame(FrameType::PHASE,
-                             ev->CurrentFrame(),
-                             Loc(),
-                             "*execution*");
-    FrameScope frame_scope(ev.get(), frame);
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*execution*", Loc()));
     ScopedTimeReporter tr("exec time");
     Exec(nodes, ev.get());
   }
