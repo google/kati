@@ -44,6 +44,7 @@ enum FrameType {
   STATEMENT,   // Denotes individual statements for better location reporting
   DEPENDENCY,  // Dependency analysis. += requires variable expansion here.
   EXEC,        // Execution phase. Expansoin of = and rule-specific variables.
+  NINJA,       // Ninja file generation
 };
 
 class Frame {
