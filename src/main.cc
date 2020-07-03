@@ -255,23 +255,39 @@ static int Run(const vector<Symbol>& targets,
 
   vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
-  ev->set_is_bootstrap(true);
-  for (Stmt* stmt : bootstrap_asts) {
-    LOG("%s", stmt->DebugString().c_str());
-    stmt->Eval(ev.get());
-  }
-  ev->set_is_bootstrap(false);
-
-  ev->in_command_line();
-  for (StringPiece l : cl_vars) {
-    vector<Stmt*> asts;
-    Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
-    CHECK(asts.size() == 1);
-    asts[0]->Eval(ev.get());
-  }
-  ev->in_toplevel_makefile(std::string(g_flags.makefile));
 
   {
+    Frame* frame = new Frame(FrameType::PHASE,
+                             ev->CurrentFrame(),
+                             Loc(),
+                             "*bootstrap*");
+    FrameScope frame_scope(ev.get(), frame);
+    ev->set_is_bootstrap(true);
+    for (Stmt* stmt : bootstrap_asts) {
+      LOG("%s", stmt->DebugString().c_str());
+      stmt->Eval(ev.get());
+    }
+    ev->set_is_bootstrap(false);
+  }
+
+  {
+    Frame* frame = new Frame(FrameType::PHASE,
+                             ev->CurrentFrame(),
+                             Loc(),
+                             "*command line*");
+    FrameScope frame_scope(ev.get(), frame);
+    ev->in_command_line();
+    for (StringPiece l : cl_vars) {
+      vector<Stmt*> asts;
+      Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
+      CHECK(asts.size() == 1);
+      asts[0]->Eval(ev.get());
+    }
+  }
+  ev->in_toplevel_makefile();
+
+  {
+    FrameScope frame_scope(ev.get(), frame);
     ScopedTimeReporter tr("eval time");
     Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
     for (Stmt* stmt : mk->stmts()) {
@@ -291,6 +307,11 @@ static int Run(const vector<Symbol>& targets,
 
   vector<NamedDepNode> nodes;
   {
+    Frame* frame = new Frame(FrameType::PHASE,
+                             ev->CurrentFrame(),
+                             Loc(),
+                             "*dependency analysis*");
+    FrameScope frame_scope(ev.get(), frame);
     ScopedTimeReporter tr("make dep time");
     MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);
   }
@@ -299,6 +320,11 @@ static int Run(const vector<Symbol>& targets,
     return 0;
 
   if (g_flags.generate_ninja) {
+    Frame* frame = new Frame(FrameType::PHASE,
+                             ev->CurrentFrame(),
+                             Loc(),
+                             "*ninja generation*");
+    FrameScope frame_scope(ev.get(), frame);
     ScopedTimeReporter tr("generate ninja time");
     GenerateNinja(nodes, ev.get(), orig_args, start_time);
     ev->DumpStackStats();
@@ -319,6 +345,11 @@ static int Run(const vector<Symbol>& targets,
   }
 
   {
+    Frame* frame = new Frame(FrameType::PHASE,
+                             ev->CurrentFrame(),
+                             Loc(),
+                             "*execution*");
+    FrameScope frame_scope(ev.get(), frame);
     ScopedTimeReporter tr("exec time");
     Exec(nodes, ev.get());
   }

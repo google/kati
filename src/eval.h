@@ -38,9 +38,11 @@ class IncludeGraph;
 
 enum FrameType {
   MAKEFILE,
+  STATEMENT,
   DEPENDENCY,
   CALL,
   EXEC,
+  PHASE,
 };
 
 class Frame {
@@ -134,7 +136,7 @@ class Evaluator {
   void set_is_bootstrap(bool b) { is_bootstrap_ = b; }
 
   void in_command_line();
-  void in_toplevel_makefile(const string& makefile);
+  void in_toplevel_makefile();
 
   void set_current_scope(Vars* v) { current_scope_ = v; }
 

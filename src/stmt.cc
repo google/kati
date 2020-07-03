@@ -25,6 +25,12 @@ Stmt::Stmt() {}
 
 Stmt::~Stmt() {}
 
+void Stmt::Eval(Evaluator * ev) const {
+  Frame* frame = new Frame(FrameType::STATEMENT, ev->CurrentFrame(), loc_, "statement");
+  FrameScope frame_scope(ev, frame);
+  EvalStatement(ev);
+}
+
 string RuleStmt::DebugString() const {
   return StringPrintf("RuleStmt(lhs=%s sep=%d rhs=%s loc=%s:%d)",
                       Value::DebugString(lhs).c_str(), sep,
@@ -126,7 +132,7 @@ RuleStmt::~RuleStmt() {
   delete rhs;
 }
 
-void RuleStmt::Eval(Evaluator* ev) const {
+void RuleStmt::EvalStatement(Evaluator* ev) const {
   ev->EvalRule(this);
 }
 
@@ -135,7 +141,7 @@ AssignStmt::~AssignStmt() {
   delete rhs;
 }
 
-void AssignStmt::Eval(Evaluator* ev) const {
+void AssignStmt::EvalStatement(Evaluator* ev) const {
   ev->EvalAssign(this);
 }
 
@@ -143,7 +149,7 @@ CommandStmt::~CommandStmt() {
   delete expr;
 }
 
-void CommandStmt::Eval(Evaluator* ev) const {
+void CommandStmt::EvalStatement(Evaluator* ev) const {
   ev->EvalCommand(this);
 }
 
@@ -152,7 +158,7 @@ IfStmt::~IfStmt() {
   delete rhs;
 }
 
-void IfStmt::Eval(Evaluator* ev) const {
+void IfStmt::EvalStatement(Evaluator* ev) const {
   ev->EvalIf(this);
 }
 
@@ -160,7 +166,7 @@ IncludeStmt::~IncludeStmt() {
   delete expr;
 }
 
-void IncludeStmt::Eval(Evaluator* ev) const {
+void IncludeStmt::EvalStatement(Evaluator* ev) const {
   ev->EvalInclude(this);
 }
 
@@ -168,13 +174,13 @@ ExportStmt::~ExportStmt() {
   delete expr;
 }
 
-void ExportStmt::Eval(Evaluator* ev) const {
+void ExportStmt::EvalStatement(Evaluator* ev) const {
   ev->EvalExport(this);
 }
 
 ParseErrorStmt::~ParseErrorStmt() {}
 
-void ParseErrorStmt::Eval(Evaluator* ev) const {
+void ParseErrorStmt::EvalStatement(Evaluator* ev) const {
   ev->set_loc(loc());
   ev->Error(msg);
 }

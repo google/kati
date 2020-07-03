@@ -50,7 +50,9 @@ void Frame::Add(std::unique_ptr<Frame> child) {
 
 FrameScope::FrameScope(Evaluator* ev, Frame* frame) :
   ev_(ev) {
-  ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
+  if (!ev_->stack_.empty()) {
+    ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
+  }
   ev_->stack_.push_back(frame);
 }
 
@@ -152,15 +154,10 @@ Evaluator::~Evaluator() {
 
 void Evaluator::in_command_line() {
   is_commandline_ = true;
-  frames_.release();
-  stack_.clear();
 }
 
-void Evaluator::in_toplevel_makefile(const string& makefile) {
+void Evaluator::in_toplevel_makefile() {
   is_commandline_ = false;
-  frames_.reset(new Frame(FrameType::MAKEFILE, NULL, Loc(), makefile));
-  stack_.clear();
-  stack_.push_back(frames_.get());
 }
 
 Var* Evaluator::EvalRHS(Symbol lhs,
