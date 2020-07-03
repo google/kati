@@ -82,8 +82,8 @@ ScopedFrame::~ScopedFrame() {
   ev_->stack_.pop_back();
 }
 
-IncludeGraphNode::IncludeGraphNode(const Frame& tree_node) :
-    filename_(tree_node.Name()) {
+IncludeGraphNode::IncludeGraphNode(const Frame* frame) :
+    filename_(frame->Name()) {
 }
 
 IncludeGraphNode::~IncludeGraphNode() {
@@ -133,15 +133,26 @@ void IncludeGraph::DumpJSON(FILE* output) {
   fprintf(output, "}\n");
 }
 
-void IncludeGraph::MergeTreeNode(const Frame &tree_node) {
-  std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[tree_node.Name()];
-  if (graph_node.get() == nullptr) {
-    graph_node.reset(new IncludeGraphNode(tree_node));
+void IncludeGraph::MergeTreeNode(const Frame* frame) {
+  if (frame->Type() == FrameType::EVAL) {
+    std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[frame->Name()];
+    if (graph_node.get() == nullptr) {
+      graph_node.reset(new IncludeGraphNode(frame));
+    }
+
+    if (!include_stack_.empty()) {
+      IncludeGraphNode* parent_node = nodes_[include_stack_.back()->Name()].get();
+      parent_node->includes_.insert(frame->Name());
+    }
+    include_stack_.push_back(frame);
   }
 
-  for (const auto& child : tree_node.Children()) {
-    graph_node->includes_.insert(child->Name());
-    MergeTreeNode(*child);
+  for (const auto& child : frame->Children()) {
+    MergeTreeNode(child.get());
+  }
+
+  if (frame->Type() == FrameType::EVAL) {
+    include_stack_.pop_back();
   }
 }
 
@@ -635,6 +646,8 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
     return;
   }
 
+  return;
+
   fprintf(stderr, "\n%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
   CurrentFrame()->PrintTrace(2);
   if (var->Definition() != nullptr) {
@@ -734,7 +747,7 @@ void Evaluator::DumpStackStats() const {
 
 void Evaluator::DumpIncludeJSON(const string& filename) const {
   IncludeGraph graph;
-  graph.MergeTreeNode(*frames_);
+  graph.MergeTreeNode(stack_.front());
   FILE* jsonfile;
   if (filename == "-") {
     jsonfile = stdout;

@@ -89,7 +89,7 @@ class IncludeGraphNode {
   friend IncludeGraph;
 
  public:
-  IncludeGraphNode(const Frame& tree_node);
+  IncludeGraphNode(const Frame* frame);
   ~IncludeGraphNode();
 
  private:
@@ -103,10 +103,11 @@ class IncludeGraph {
   ~IncludeGraph();
 
   void DumpJSON(FILE* output);
-  void MergeTreeNode(const Frame& tree_node);
+  void MergeTreeNode(const Frame* frame);
 
  private:
   std::map<std::string, std::unique_ptr<IncludeGraphNode>> nodes_;
+  std::vector<const Frame*> include_stack_;
 };
 
 class Evaluator {
@@ -229,7 +230,6 @@ class Evaluator {
   bool is_bootstrap_;
   bool is_commandline_;
 
-  std::unique_ptr<Frame> frames_;
   std::vector<Frame*> stack_;
   std::vector<Loc> include_stack_;
 
