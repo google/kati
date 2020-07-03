@@ -37,12 +37,13 @@ class Vars;
 class IncludeGraph;
 
 enum FrameType {
-  MAKEFILE,
-  STATEMENT,
-  DEPENDENCY,
-  CALL,
-  EXEC,
-  PHASE,
+  ROOT,        // Root node. Exactly one of this exists.
+  PHASE,       // Markers for various phases of the execution.
+  EVAL,        // Initial evaluation pass: include, := variables, etc.
+  CALL,        // $(call)
+  STATEMENT,   // Denotes individual statements for better location reporting
+  DEPENDENCY,  // Dependency analysis. += requires variable expansion here.
+  EXEC,        // Execution phase. Expansoin of = and rule-specific variables.
 };
 
 class Frame {
@@ -57,6 +58,8 @@ class Frame {
   const string& Name() const { return name_; }
   const Loc& Location() const { return location_; }
   const std::vector<std::unique_ptr<Frame>>& Children() const { return children_; }
+
+  void PrintTrace(int indent) const;
 
   void Add(std::unique_ptr<Frame> child);
 

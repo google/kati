@@ -238,10 +238,11 @@ static int Run(const vector<Symbol>& targets,
   SetAffinityForSingleThread();
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
+  unique_ptr<Evaluator> ev(new Evaluator());
 
   Frame* frame = new Frame(
-      FrameType::MAKEFILE,
-      NULL,
+      FrameType::EVAL,
+      ev->CurrentFrame(),
       Loc(g_flags.makefile, 0),
       string(g_flags.makefile));
   Intern("MAKEFILE_LIST")
@@ -250,7 +251,6 @@ static int Run(const vector<Symbol>& targets,
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT, nullptr);
   }
-  unique_ptr<Evaluator> ev(new Evaluator());
   SegfaultHandler segfault(ev.get());
 
   vector<Stmt*> bootstrap_asts;

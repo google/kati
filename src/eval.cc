@@ -39,6 +39,7 @@ Frame::Frame(FrameType type, Frame* parent, Loc loc, const std::string& name):
     parent_(parent),
     name_(name),
     location_(loc) {
+  CHECK((parent == nullptr) == (type == FrameType::ROOT));
 }
 
 Frame::~Frame() {
@@ -46,6 +47,23 @@ Frame::~Frame() {
 
 void Frame::Add(std::unique_ptr<Frame> child) {
   children_.push_back(std::move(child));
+}
+
+void Frame::PrintTrace(int indent) const {
+  if (type_ == FrameType::ROOT) {
+    return;
+  }
+
+  std::string line = std::string(indent, ' ');
+  if (location_.filename != nullptr) {
+    line += StringPrintf(" @ %s", location_.filename);
+    if (location_.lineno > 0) {
+      line += StringPrintf(":%d", location_.lineno);
+    }
+  }
+
+  fprintf(stderr, "%s\n", line.c_str());
+  parent_->PrintTrace(indent);
 }
 
 FrameScope::FrameScope(Evaluator* ev, Frame* frame) :
@@ -143,6 +161,8 @@ Evaluator::Evaluator()
 
   lowest_stack_ = (char*)stack_addr_ + stack_size_;
   LOG_STAT("Stack size: %zd bytes", stack_size_);
+
+  stack_.push_back(new Frame(FrameType::ROOT, nullptr, Loc(), "*root*"));
 }
 
 Evaluator::~Evaluator() {
@@ -544,7 +564,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
       }
 
       {
-        Frame* frame = new Frame(FrameType::MAKEFILE, CurrentFrame(), stmt->loc(), fname);
+        Frame* frame = new Frame(FrameType::EVAL, CurrentFrame(), stmt->loc(), fname);
         FrameScope scope(this, frame);
         DoInclude(fname);
       }
@@ -606,30 +626,13 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
     return;
   }
 
+  return;
+
   fprintf(stderr, "\n%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
-  Frame* current = CurrentFrame();
-  while (current != NULL) {
-    fprintf(stderr, "  %s", current->Name().c_str());
-    if (current->Location().filename != nullptr) {
-      fprintf(stderr, " @ %s:%d",
-        current->Location().filename, current->Location().lineno);
-    }
-
-    fprintf(stderr, "\n");
-    current = current->Parent();
-  }
-
-  fprintf(stderr, "resulted in value from:\n");
-  current = var->Definition();
-  while (current != NULL) {
-    fprintf(stderr, "  %s", current->Name().c_str());
-    if (current->Location().filename != nullptr) {
-      fprintf(stderr, " @ %s:%d",
-        current->Location().filename, current->Location().lineno);
-    }
-
-    fprintf(stderr, "\n");
-    current = current->Parent();
+  CurrentFrame()->PrintTrace(2);
+  if (var->Definition() != nullptr) {
+    fprintf(stderr, "resulted in value from:\n");
+    var->Definition()->PrintTrace(2);
   }
 }
 
