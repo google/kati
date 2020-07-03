@@ -669,12 +669,12 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
 }
 
 Var* Evaluator::LookupVar(Symbol name) {
-  Var* result = NULL;
+  Var* result = nullptr;
   if (current_scope_) {
     result = current_scope_->Lookup(name);
   }
 
-  if (result == NULL || !result->IsDefined()) {
+  if (result == nullptr || !result->IsDefined()) {
     result = LookupVarGlobal(name);
   }
 
