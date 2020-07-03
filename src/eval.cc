@@ -609,20 +609,26 @@ void Evaluator::TraceVariableLookup(const char* operation, Symbol name, Var* var
   fprintf(stderr, "\n%s for %s at %d:\n", operation, name.c_str(), loc().lineno);
   Frame* current = CurrentFrame();
   while (current != NULL) {
-    fprintf(stderr, "  %s @ %s:%d\n",
-        current->Name().c_str(),
-        current->Location().filename,
-        current->Location().lineno);
+    fprintf(stderr, "  %s", current->Name().c_str());
+    if (current->Location().filename != nullptr) {
+      fprintf(stderr, " @ %s:%d",
+        current->Location().filename, current->Location().lineno);
+    }
+
+    fprintf(stderr, "\n");
     current = current->Parent();
   }
 
   fprintf(stderr, "resulted in value from:\n");
   current = var->Definition();
   while (current != NULL) {
-    fprintf(stderr, "  %s @ %s:%d\n",
-        current->Name().c_str(),
-        current->Location().filename,
-        current->Location().lineno);
+    fprintf(stderr, "  %s", current->Name().c_str());
+    if (current->Location().filename != nullptr) {
+      fprintf(stderr, " @ %s:%d",
+        current->Location().filename, current->Location().lineno);
+    }
+
+    fprintf(stderr, "\n");
     current = current->Parent();
   }
 }
