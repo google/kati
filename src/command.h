@@ -23,7 +23,6 @@ using namespace std;
 
 struct DepNode;
 class Evaluator;
-class Frame;
 
 struct Command {
   explicit Command(Symbol o) : output(o), echo(true), ignore_error(false) {}

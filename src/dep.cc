@@ -660,8 +660,6 @@ class DepBuilder {
     if (!PickRule(output, n, &rule_merger, &pattern_rule, &vars)) {
       return n;
     }
-
-    // TODO(lberki): When can rule_merger be null?
     if (rule_merger && rule_merger->parent) {
       output = rule_merger->parent_sym;
       done_[output] = n;
@@ -694,8 +692,6 @@ class DepBuilder {
             if (!s->empty())
               *s += ' ';
             new_var->Eval(ev_, s.get());
-            // TODO(lberki): How does this not leak?
-            // Is this what comment above says?
             new_var = new SimpleVar(*s, old_var->Origin(), frame.Current());
           }
         } else if (var->op() == AssignOp::QUESTION_EQ) {
