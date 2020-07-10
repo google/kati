@@ -95,7 +95,7 @@ IncludeGraph::~IncludeGraph() {}
 
 void IncludeGraph::DumpJSON(FILE* output) {
   fprintf(output, "{\n");
-  fprintf(output, "  \"nodes\": [");
+  fprintf(output, "  \"include_graph\": [");
   bool first_node = true;
 
   for (const auto& node : nodes_) {
@@ -177,7 +177,7 @@ Evaluator::Evaluator()
 
   stack_.push_back(new Frame(FrameType::ROOT, nullptr, Loc(), "*root*"));
 
-  trace_ = g_flags.dump_variable_assignment_trace || g_flags.dump_include_json;
+  trace_ = g_flags.dump_variable_assignment_trace || g_flags.dump_include_graph;
   assignment_tracefile_ = nullptr;
   assignment_count_ = 0;
 }

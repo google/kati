@@ -42,3 +42,5 @@ jobs:
       run: ./strutil_test
     - name: run find unit tests
       run: ./find_test
+    - name: run JSON dump tests
+      run: testcase/dump/run.sh

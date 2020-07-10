@@ -291,8 +291,8 @@ static int Run(const vector<Symbol>& targets,
              err->msg.c_str());
   }
 
-  if (g_flags.dump_include_json != nullptr) {
-    ev->DumpIncludeJSON(std::string(g_flags.dump_include_json));
+  if (g_flags.dump_include_graph != nullptr) {
+    ev->DumpIncludeJSON(std::string(g_flags.dump_include_graph));
   }
 
   vector<NamedDepNode> nodes;
