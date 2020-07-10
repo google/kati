@@ -48,8 +48,8 @@ const char* GetOriginStr(VarOrigin origin) {
 Var::Var() : Var(VarOrigin::UNDEFINED, nullptr) {}
 
 Var::Var(VarOrigin origin, Frame* definition)
-    : origin_(origin),
-      definition_(definition),
+    : definition_(definition),
+      origin_(origin),
       readonly_(false),
       deprecated_(false),
       obsolete_(false) {}

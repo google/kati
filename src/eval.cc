@@ -250,6 +250,9 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     origin = VarOrigin::DEFAULT;
   } else if (is_commandline_) {
     origin = VarOrigin::COMMAND_LINE;
+  } else if (is_override) {
+    origin = VarOrigin::OVERRIDE;
+    current_frame = stack_.back();
   } else {
     origin = VarOrigin::FILE;
     current_frame = stack_.back();
