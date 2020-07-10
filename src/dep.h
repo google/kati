@@ -54,7 +54,6 @@ struct DepNode {
   Var* ninja_pool_var;
   Symbol output_pattern;
   Loc loc;
-  Frame* frmae;
 };
 
 void InitDepNodePool();

@@ -39,8 +39,9 @@ class IncludeGraph;
 enum FrameType {
   ROOT,        // Root node. Exactly one of this exists.
   PHASE,       // Markers for various phases of the execution.
-  EVAL,        // Initial evaluation pass: include, := variables, etc.
-  CALL,        // $(call)
+  PARSE,       // Initial evaluation pass: include, := variables, etc.
+  CALL,        // Evaluating the result of a function call
+  FUNCALL,     // Evaluating a function call (not its result)
   STATEMENT,   // Denotes individual statements for better location reporting
   DEPENDENCY,  // Dependency analysis. += requires variable expansion here.
   EXEC,        // Execution phase. Expansoin of = and rule-specific variables.

@@ -150,8 +150,10 @@ class Parser {
     return ::FindEndOfLine(buf_, l_, lf_cnt);
   }
 
-  Value* ParseExpr(StringPiece s, ParseExprOpt opt = ParseExprOpt::NORMAL) {
-    return ::ParseExpr(loc_, s, opt);
+  Value* ParseExpr(Loc* loc,
+                   StringPiece s,
+                   ParseExprOpt opt = ParseExprOpt::NORMAL) {
+    return ::ParseExpr(loc, s, opt);
   }
 
   void ParseLine(StringPiece line) {
@@ -168,7 +170,9 @@ class Parser {
     if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
       CommandStmt* stmt = new CommandStmt();
       stmt->set_loc(loc_);
-      stmt->expr = ParseExpr(line.substr(1), ParseExprOpt::COMMAND);
+      Loc mutable_loc(loc_);
+      stmt->expr =
+          ParseExpr(&mutable_loc, line.substr(1), ParseExprOpt::COMMAND);
       stmt->orig = line;
       out_stmts_->push_back(stmt);
       return;
@@ -225,9 +229,11 @@ class Parser {
     rule_stmt->set_loc(loc_);
 
     size_t found = FindTwoOutsideParen(line.substr(sep + 1), '=', ';');
+    Loc mutable_loc(loc_);
     if (found != string::npos) {
       found += sep + 1;
-      rule_stmt->lhs = ParseExpr(TrimSpace(line.substr(0, found)));
+      rule_stmt->lhs =
+          ParseExpr(&mutable_loc, TrimSpace(line.substr(0, found)));
       if (line[found] == ';') {
         rule_stmt->sep = RuleStmt::SEP_SEMICOLON;
       } else if (line[found] == '=') {
@@ -242,9 +248,10 @@ class Parser {
       ParseExprOpt opt = rule_stmt->sep == RuleStmt::SEP_SEMICOLON
                              ? ParseExprOpt::COMMAND
                              : ParseExprOpt::NORMAL;
-      rule_stmt->rhs = ParseExpr(TrimLeftSpace(line.substr(found + 1)), opt);
+      rule_stmt->rhs =
+          ParseExpr(&mutable_loc, TrimLeftSpace(line.substr(found + 1)), opt);
     } else {
-      rule_stmt->lhs = ParseExpr(line);
+      rule_stmt->lhs = ParseExpr(&mutable_loc, line);
       rule_stmt->sep = RuleStmt::SEP_NULL;
       rule_stmt->rhs = NULL;
     }
@@ -273,9 +280,10 @@ class Parser {
     }
 
     AssignStmt* stmt = new AssignStmt();
+    Loc mutable_loc(loc_);
     stmt->set_loc(loc_);
-    stmt->lhs = ParseExpr(lhs);
-    stmt->rhs = ParseExpr(rhs);
+    stmt->lhs = ParseExpr(&mutable_loc, lhs);
+    stmt->rhs = ParseExpr(&mutable_loc, rhs);
     stmt->orig_rhs = rhs;
     stmt->op = op;
     stmt->directive = current_directive_;
@@ -287,7 +295,8 @@ class Parser {
   void ParseInclude(StringPiece line, StringPiece directive) {
     IncludeStmt* stmt = new IncludeStmt();
     stmt->set_loc(loc_);
-    stmt->expr = ParseExpr(line);
+    Loc mutable_loc(loc_);
+    stmt->expr = ParseExpr(&mutable_loc, line);
     stmt->should_exist = directive[0] == 'i';
     out_stmts_->push_back(stmt);
     state_ = ParserState::NOT_AFTER_RULE;
@@ -326,11 +335,13 @@ class Parser {
 
     AssignStmt* stmt = new AssignStmt();
     stmt->set_loc(Loc(loc_.filename, define_start_line_));
-    stmt->lhs = ParseExpr(define_name_);
+    Loc mutable_loc(stmt->loc());
+    stmt->lhs = ParseExpr(&mutable_loc, define_name_);
+    mutable_loc.lineno++;
     StringPiece rhs;
     if (define_start_)
       rhs = buf_.substr(define_start_, l_ - define_start_ - 1);
-    stmt->rhs = ParseExpr(rhs, ParseExprOpt::DEFINE);
+    stmt->rhs = ParseExpr(&mutable_loc, rhs, ParseExprOpt::DEFINE);
     stmt->orig_rhs = rhs;
     stmt->op = AssignOp::EQ;
     stmt->directive = current_directive_;
@@ -351,7 +362,8 @@ class Parser {
     IfStmt* stmt = new IfStmt();
     stmt->set_loc(loc_);
     stmt->op = directive[2] == 'n' ? CondOp::IFNDEF : CondOp::IFDEF;
-    stmt->lhs = ParseExpr(line);
+    Loc mutable_loc(loc_);
+    stmt->lhs = ParseExpr(&mutable_loc, line);
     stmt->rhs = NULL;
     out_stmts_->push_back(stmt);
     EnterIf(stmt);
@@ -362,15 +374,18 @@ class Parser {
       return false;
     }
 
+    Loc mutable_loc(loc_);
     if (s[0] == '(' && s[s.size() - 1] == ')') {
       s = s.substr(1, s.size() - 2);
       char terms[] = {',', '\0'};
       size_t n;
-      stmt->lhs = ParseExprImpl(loc_, s, terms, ParseExprOpt::NORMAL, &n, true);
+      stmt->lhs =
+          ParseExprImpl(&mutable_loc, s, terms, ParseExprOpt::NORMAL, &n, true);
       if (s[n] != ',')
         return false;
       s = TrimLeftSpace(s.substr(n + 1));
-      stmt->rhs = ParseExprImpl(loc_, s, NULL, ParseExprOpt::NORMAL, &n);
+      stmt->rhs =
+          ParseExprImpl(&mutable_loc, s, NULL, ParseExprOpt::NORMAL, &n);
       s = TrimLeftSpace(s.substr(n));
     } else {
       for (int i = 0; i < 2; i++) {
@@ -382,7 +397,8 @@ class Parser {
         size_t end = s.find(quote, 1);
         if (end == string::npos)
           return false;
-        Value* v = ParseExpr(s.substr(1, end - 1), ParseExprOpt::NORMAL);
+        Value* v =
+            ParseExpr(&mutable_loc, s.substr(1, end - 1), ParseExprOpt::NORMAL);
         if (i == 0)
           stmt->lhs = v;
         else
@@ -464,7 +480,8 @@ class Parser {
   void CreateExport(StringPiece line, bool is_export) {
     ExportStmt* stmt = new ExportStmt;
     stmt->set_loc(loc_);
-    stmt->expr = ParseExpr(line);
+    Loc mutable_loc(loc_);
+    stmt->expr = ParseExpr(&mutable_loc, line);
     stmt->is_export = is_export;
     out_stmts_->push_back(stmt);
   }

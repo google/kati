@@ -54,7 +54,6 @@ class Var : public Evaluable {
 
   VarOrigin Origin() const { return origin_; }
   Frame* Definition() const { return definition_; }
-  const Loc& Location() const { return location_; }
 
   virtual bool IsDefined() const { return true; }
 
@@ -94,7 +93,6 @@ class Var : public Evaluable {
 
  private:
   const VarOrigin origin_;
-  const Loc location_;
 
   AssignOp assign_op_;
   bool readonly_ : 1;

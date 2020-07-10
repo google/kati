@@ -48,9 +48,9 @@ const char* GetOriginStr(VarOrigin origin) {
 Var::Var() : Var(VarOrigin::UNDEFINED, nullptr, Loc()) {}
 
 Var::Var(VarOrigin origin, Frame* definition, Loc loc)
-    : definition_(definition),
+    : Evaluable(loc),
+      definition_(definition),
       origin_(origin),
-      location_(loc),
       readonly_(false),
       deprecated_(false),
       obsolete_(false),
@@ -156,7 +156,7 @@ void RecursiveVar::Eval(Evaluator* ev, string* s) const {
 
 void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
   ev->CheckStack();
-  v_ = Value::NewExpr(v_, Value::NewLiteral(" "), v);
+  v_ = Value::NewExpr(v->Location(), v_, Value::NewLiteral(" "), v);
   definition_ = ev->CurrentFrame();
 }
 
