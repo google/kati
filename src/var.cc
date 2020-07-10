@@ -102,16 +102,16 @@ Var* Var::Undefined() {
 }
 
 SimpleVar::SimpleVar(VarOrigin origin, Frame* definition)
-    : Var(origin, definition), dep_(nullptr) {}
+    : Var(origin, definition) {}
 
 SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition)
-    : Var(origin, definition), v_(v), dep_(nullptr) {}
+    : Var(origin, definition), v_(v) {}
 
 SimpleVar::SimpleVar(VarOrigin origin,
                      Frame* definition,
                      Evaluator* ev,
                      Value* v)
-    : Var(origin, definition), dep_(nullptr) {
+    : Var(origin, definition) {
   v->Eval(ev, &v_);
 }
 
@@ -125,6 +125,7 @@ void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
   v->Eval(ev, &buf);
   v_.push_back(' ');
   v_ += buf;
+  definition_ = ev->CurrentFrame();
 }
 
 StringPiece SimpleVar::String() const {
@@ -139,7 +140,7 @@ RecursiveVar::RecursiveVar(Value* v,
                            VarOrigin origin,
                            Frame* definition,
                            StringPiece orig)
-    : Var(origin, definition), v_(v), dep_(nullptr), orig_(orig) {}
+    : Var(origin, definition), v_(v), orig_(orig) {}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
@@ -149,6 +150,7 @@ void RecursiveVar::Eval(Evaluator* ev, string* s) const {
 void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
   ev->CheckStack();
   v_ = Value::NewExpr(v_, Value::NewLiteral(" "), v);
+  definition_ = ev->CurrentFrame();
 }
 
 StringPiece RecursiveVar::String() const {

@@ -85,9 +85,10 @@ class Var : public Evaluable {
   Var();
   Var(VarOrigin origin, Frame* definition);
 
+  Frame* definition_;
+
  private:
   const VarOrigin origin_;
-  Frame* definition_;
   AssignOp assign_op_;
   bool readonly_ : 1;
   bool deprecated_ : 1;
@@ -115,7 +116,6 @@ class SimpleVar : public Var {
   virtual string DebugString() const override;
 
   string v_;
-  Frame* dep_;
 };
 
 class RecursiveVar : public Var {
@@ -133,7 +133,6 @@ class RecursiveVar : public Var {
   virtual string DebugString() const override;
 
   Value* v_;
-  Frame* dep_;
   StringPiece orig_;
 };
 
