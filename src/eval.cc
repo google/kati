@@ -693,7 +693,7 @@ void Evaluator::TraceVariableLookup(const char* operation,
   fprintf(assignment_tracefile_, "      \"name\": \"%s\",\n", name.c_str());
   fprintf(assignment_tracefile_, "      \"operation\": \"%s\",\n", operation);
   fprintf(assignment_tracefile_, "      \"defined\": %s,\n",
-      var->IsDefined() ? "true" : "false");
+          var->IsDefined() ? "true" : "false");
   fprintf(assignment_tracefile_, "      \"reference_stack\": [\n");
   CurrentFrame()->PrintJSONTrace(assignment_tracefile_, 8);
   fprintf(assignment_tracefile_, "      ]%s\n",
