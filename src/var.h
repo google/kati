@@ -51,7 +51,9 @@ class Var : public Evaluable {
 
   virtual const char* Flavor() const = 0;
 
-  VarOrigin Origin() { return origin_; }
+  VarOrigin Origin() const { return origin_; }
+  Frame* Definition() const { return definition_; }
+
   virtual bool IsDefined() const { return true; }
 
   virtual void AppendVar(Evaluator* ev, Value* v);
@@ -81,7 +83,9 @@ class Var : public Evaluable {
 
  protected:
   Var();
-  explicit Var(VarOrigin origin);
+  Var(VarOrigin origin, Frame* definition);
+
+  Frame* definition_;
 
  private:
   const VarOrigin origin_;
@@ -97,9 +101,9 @@ class Var : public Evaluable {
 
 class SimpleVar : public Var {
  public:
-  explicit SimpleVar(VarOrigin origin);
-  SimpleVar(const string& v, VarOrigin origin);
-  SimpleVar(VarOrigin, Evaluator* ev, Value* v);
+  explicit SimpleVar(VarOrigin origin, Frame* definition);
+  SimpleVar(const string& v, VarOrigin origin, Frame* definition);
+  SimpleVar(VarOrigin origin, Frame* definition, Evaluator* ev, Value* v);
 
   virtual const char* Flavor() const override { return "simple"; }
 
@@ -111,13 +115,12 @@ class SimpleVar : public Var {
 
   virtual string DebugString() const override;
 
- private:
   string v_;
 };
 
 class RecursiveVar : public Var {
  public:
-  RecursiveVar(Value* v, VarOrigin origin, StringPiece orig);
+  RecursiveVar(Value* v, VarOrigin origin, Frame* definition, StringPiece orig);
 
   virtual const char* Flavor() const override { return "recursive"; }
 
@@ -129,7 +132,6 @@ class RecursiveVar : public Var {
 
   virtual string DebugString() const override;
 
- private:
   Value* v_;
   StringPiece orig_;
 };

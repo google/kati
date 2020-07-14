@@ -28,6 +28,7 @@ class Rule;
 class Value;
 class Var;
 class Vars;
+class Frame;
 
 typedef pair<Symbol, struct DepNode*> NamedDepNode;
 
@@ -53,6 +54,7 @@ struct DepNode {
   Var* ninja_pool_var;
   Symbol output_pattern;
   Loc loc;
+  Frame* frmae;
 };
 
 void InitDepNodePool();

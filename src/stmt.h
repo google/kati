@@ -55,7 +55,8 @@ struct Stmt {
   void set_loc(Loc loc) { loc_ = loc; }
   StringPiece orig() const { return orig_; }
 
-  virtual void Eval(Evaluator* ev) const = 0;
+  void Eval(Evaluator*) const;
+  virtual void EvalStatement(Evaluator* ev) const = 0;
 
   virtual string DebugString() const = 0;
 
@@ -81,7 +82,7 @@ struct RuleStmt : public Stmt {
 
   virtual ~RuleStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
@@ -97,7 +98,7 @@ struct AssignStmt : public Stmt {
   AssignStmt() : is_final(false) {}
   virtual ~AssignStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 
@@ -113,7 +114,7 @@ struct CommandStmt : public Stmt {
 
   virtual ~CommandStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
@@ -127,7 +128,7 @@ struct IfStmt : public Stmt {
 
   virtual ~IfStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
@@ -138,7 +139,7 @@ struct IncludeStmt : public Stmt {
 
   virtual ~IncludeStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
@@ -149,7 +150,7 @@ struct ExportStmt : public Stmt {
 
   virtual ~ExportStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };
@@ -159,7 +160,7 @@ struct ParseErrorStmt : public Stmt {
 
   virtual ~ParseErrorStmt();
 
-  virtual void Eval(Evaluator* ev) const;
+  virtual void EvalStatement(Evaluator* ev) const;
 
   virtual string DebugString() const;
 };

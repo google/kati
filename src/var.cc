@@ -45,10 +45,14 @@ const char* GetOriginStr(VarOrigin origin) {
   return "*** broken origin ***";
 }
 
-Var::Var() : Var(VarOrigin::UNDEFINED) {}
+Var::Var() : Var(VarOrigin::UNDEFINED, nullptr) {}
 
-Var::Var(VarOrigin origin)
-    : origin_(origin), readonly_(false), deprecated_(false), obsolete_(false) {}
+Var::Var(VarOrigin origin, Frame* definition)
+    : definition_(definition),
+      origin_(origin),
+      readonly_(false),
+      deprecated_(false),
+      obsolete_(false) {}
 
 Var::~Var() {
   diagnostic_messages_.erase(this);
@@ -97,11 +101,17 @@ Var* Var::Undefined() {
   return undefined_var;
 }
 
-SimpleVar::SimpleVar(VarOrigin origin) : Var(origin) {}
+SimpleVar::SimpleVar(VarOrigin origin, Frame* definition)
+    : Var(origin, definition) {}
 
-SimpleVar::SimpleVar(const string& v, VarOrigin origin) : Var(origin), v_(v) {}
+SimpleVar::SimpleVar(const string& v, VarOrigin origin, Frame* definition)
+    : Var(origin, definition), v_(v) {}
 
-SimpleVar::SimpleVar(VarOrigin origin, Evaluator* ev, Value* v) : Var(origin) {
+SimpleVar::SimpleVar(VarOrigin origin,
+                     Frame* definition,
+                     Evaluator* ev,
+                     Value* v)
+    : Var(origin, definition) {
   v->Eval(ev, &v_);
 }
 
@@ -115,6 +125,7 @@ void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
   v->Eval(ev, &buf);
   v_.push_back(' ');
   v_ += buf;
+  definition_ = ev->CurrentFrame();
 }
 
 StringPiece SimpleVar::String() const {
@@ -125,8 +136,11 @@ string SimpleVar::DebugString() const {
   return v_;
 }
 
-RecursiveVar::RecursiveVar(Value* v, VarOrigin origin, StringPiece orig)
-    : Var(origin), v_(v), orig_(orig) {}
+RecursiveVar::RecursiveVar(Value* v,
+                           VarOrigin origin,
+                           Frame* definition,
+                           StringPiece orig)
+    : Var(origin, definition), v_(v), orig_(orig) {}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
@@ -136,6 +150,7 @@ void RecursiveVar::Eval(Evaluator* ev, string* s) const {
 void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
   ev->CheckStack();
   v_ = Value::NewExpr(v_, Value::NewLiteral(" "), v);
+  definition_ = ev->CurrentFrame();
 }
 
 StringPiece RecursiveVar::String() const {

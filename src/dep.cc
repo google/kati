@@ -615,12 +615,12 @@ class DepBuilder {
 
     StringPiece output_suffix = GetExt(output.str());
     if (output_suffix.get(0) != '.')
-      return rule_merger;
+      return rule_merger != nullptr;
     output_suffix = output_suffix.substr(1);
 
     SuffixRuleMap::const_iterator found = suffix_rules_.find(output_suffix);
     if (found == suffix_rules_.end())
-      return rule_merger;
+      return rule_merger != nullptr;
 
     for (const shared_ptr<Rule>& irule : found->second) {
       CHECK(irule->inputs.size() == 1);
@@ -629,7 +629,7 @@ class DepBuilder {
         continue;
 
       *pattern_rule = irule;
-      if (rule_merger)
+      if (rule_merger != nullptr)
         return true;
       if (vars) {
         CHECK(irule->outputs.size() == 1);
@@ -639,7 +639,7 @@ class DepBuilder {
       return true;
     }
 
-    return rule_merger;
+    return rule_merger != nullptr;
   }
 
   DepNode* BuildPlan(Symbol output, Symbol needed_by UNUSED) {
@@ -668,12 +668,15 @@ class DepBuilder {
         return n;
       }
     }
+
     if (rule_merger)
       rule_merger->FillDepNode(output, pattern_rule.get(), n);
     else
       RuleMerger().FillDepNode(output, pattern_rule.get(), n);
 
     vector<unique_ptr<ScopedVar>> sv;
+    ScopedFrame frame(ev_->Enter(FrameType::DEPENDENCY, output.str(), n->loc));
+
     if (vars) {
       for (const auto& p : *vars) {
         Symbol name = p.first;
@@ -689,7 +692,7 @@ class DepBuilder {
             if (!s->empty())
               *s += ' ';
             new_var->Eval(ev_, s.get());
-            new_var = new SimpleVar(*s, old_var->Origin());
+            new_var = new SimpleVar(*s, old_var->Origin(), frame.Current());
           }
         } else if (var->op() == AssignOp::QUESTION_EQ) {
           Var* old_var = ev_->LookupVar(name);

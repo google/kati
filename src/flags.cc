@@ -146,6 +146,11 @@ void Flags::Parse(int argc, char** argv) {
     } else if (!strcmp(arg, "--werror_real_no_cmds")) {
       warn_real_no_cmds = true;
       werror_real_no_cmds = true;
+    } else if (ParseCommandLineOptionWithArg("--dump_include_graph", argv, &i,
+                                             &dump_include_graph)) {
+    } else if (ParseCommandLineOptionWithArg("--dump_variable_assignment_trace",
+                                             argv, &i,
+                                             &dump_variable_assignment_trace)) {
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {

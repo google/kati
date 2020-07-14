@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "expr.h"
@@ -31,6 +32,127 @@
 #include "strutil.h"
 #include "symtab.h"
 #include "var.h"
+
+Frame::Frame(FrameType type, Frame* parent, Loc loc, const std::string& name)
+    : type_(type), parent_(parent), name_(name), location_(loc) {
+  CHECK((parent == nullptr) == (type == FrameType::ROOT));
+}
+
+Frame::~Frame() {}
+
+void Frame::Add(std::unique_ptr<Frame> child) {
+  children_.push_back(std::move(child));
+}
+
+void Frame::PrintJSONTrace(FILE* f, int indent) const {
+  if (type_ == FrameType::ROOT) {
+    return;
+  }
+
+  std::string indent_string = std::string(indent, ' ');
+  std::string desc = name_;
+  if (location_.filename != nullptr) {
+    desc += StringPrintf(" @ %s", location_.filename);
+    if (location_.lineno > 0) {
+      desc += StringPrintf(":%d", location_.lineno);
+    }
+  }
+
+  const char* comma = parent_->type_ == FrameType::ROOT ? "" : ",";
+  fprintf(f, "%s\"%s\"%s\n", indent_string.c_str(), desc.c_str(), comma);
+  parent_->PrintJSONTrace(f, indent);
+}
+
+ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) : ev_(ev), frame_(frame) {
+  if (!ev->trace_) {
+    return;
+  }
+
+  ev_->stack_.back()->Add(std::unique_ptr<Frame>(frame));
+  ev_->stack_.push_back(frame);
+}
+
+ScopedFrame::ScopedFrame(ScopedFrame&& other)
+    : ev_(other.ev_), frame_(other.frame_) {}
+
+ScopedFrame::~ScopedFrame() {
+  if (!ev_->trace_) {
+    return;
+  }
+
+  CHECK(frame_ == ev_->stack_.back());
+  ev_->stack_.pop_back();
+}
+
+IncludeGraphNode::IncludeGraphNode(const Frame* frame)
+    : filename_(frame->Name()) {}
+
+IncludeGraphNode::~IncludeGraphNode() {}
+
+IncludeGraph::IncludeGraph() {}
+
+IncludeGraph::~IncludeGraph() {}
+
+void IncludeGraph::DumpJSON(FILE* output) {
+  fprintf(output, "{\n");
+  fprintf(output, "  \"include_graph\": [");
+  bool first_node = true;
+
+  for (const auto& node : nodes_) {
+    if (first_node) {
+      first_node = false;
+      fprintf(output, "\n");
+    } else {
+      fprintf(output, ",\n");
+    }
+
+    fprintf(output, "    {\n");
+    // TODO(lberki): Quote all these strings properly
+    fprintf(output, "      \"file\": \"%s\",\n", node.first.c_str());
+    fprintf(output, "      \"includes\": [");
+    bool first_include = true;
+    for (const auto& include : node.second->includes_) {
+      if (first_include) {
+        first_include = false;
+        fprintf(output, "\n");
+      } else {
+        fprintf(output, ",\n");
+      }
+
+      fprintf(output, "        \"%s\"", include.c_str());
+    }
+    fprintf(output, "\n      ]\n");
+    fprintf(output, "    }");
+  }
+
+  fprintf(output, "\n");
+  fprintf(output, "  ]\n");
+  fprintf(output, "}\n");
+}
+
+void IncludeGraph::MergeTreeNode(const Frame* frame) {
+  if (frame->Type() == FrameType::EVAL) {
+    std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[frame->Name()];
+    if (graph_node.get() == nullptr) {
+      graph_node.reset(new IncludeGraphNode(frame));
+    }
+
+    if (!include_stack_.empty()) {
+      IncludeGraphNode* parent_node =
+          nodes_[include_stack_.back()->Name()].get();
+      parent_node->includes_.insert(frame->Name());
+    }
+    include_stack_.push_back(frame);
+  }
+
+  for (const auto& child : frame->Children()) {
+    MergeTreeNode(child.get());
+  }
+
+  if (frame->Type() == FrameType::EVAL) {
+    include_stack_.pop_back();
+  }
+}
 
 Evaluator::Evaluator()
     : last_rule_(NULL),
@@ -52,13 +174,67 @@ Evaluator::Evaluator()
 
   lowest_stack_ = (char*)stack_addr_ + stack_size_;
   LOG_STAT("Stack size: %zd bytes", stack_size_);
+
+  stack_.push_back(new Frame(FrameType::ROOT, nullptr, Loc(), "*root*"));
+
+  trace_ = g_flags.dump_variable_assignment_trace || g_flags.dump_include_graph;
+  assignment_tracefile_ = nullptr;
+  assignment_count_ = 0;
 }
 
 Evaluator::~Evaluator() {
+  if (assignment_tracefile_ != nullptr && assignment_tracefile_ != stderr) {
+    fclose(assignment_tracefile_);
+  }
+
   // delete vars_;
   // for (auto p : rule_vars) {
   //   delete p.second;
   // }
+}
+
+bool Evaluator::Start() {
+  const char* fn = g_flags.dump_variable_assignment_trace;
+  if (!fn) {
+    return true;
+  }
+
+  if (!strcmp(fn, "-")) {
+    assignment_tracefile_ = stderr;
+  } else {
+    assignment_tracefile_ = fopen(fn, "w");
+    if (assignment_tracefile_ == nullptr) {
+      // TODO(lberki): What about error checking for fwrite()?
+      fprintf(stderr, "fopen(%s): %s", fn, strerror(errno));
+      return false;
+    }
+  }
+
+  fprintf(assignment_tracefile_, "{\n");
+  fprintf(assignment_tracefile_, "  \"assignments\": [");
+  return true;
+}
+
+void Evaluator::Finish() {
+  if (assignment_tracefile_ == nullptr) {
+    return;
+  }
+
+  fprintf(assignment_tracefile_, " \n ]\n");
+  fprintf(assignment_tracefile_, "}\n");
+}
+void Evaluator::in_bootstrap() {
+  is_bootstrap_ = true;
+  is_commandline_ = false;
+}
+void Evaluator::in_command_line() {
+  is_bootstrap_ = false;
+  is_commandline_ = true;
+}
+
+void Evaluator::in_toplevel_makefile() {
+  is_commandline_ = false;
+  is_commandline_ = false;
 }
 
 Var* Evaluator::EvalRHS(Symbol lhs,
@@ -67,11 +243,20 @@ Var* Evaluator::EvalRHS(Symbol lhs,
                         AssignOp op,
                         bool is_override,
                         bool* needs_assign) {
-  VarOrigin origin =
-      ((is_bootstrap_ ? VarOrigin::DEFAULT
-                      : is_commandline_ ? VarOrigin::COMMAND_LINE
-                                        : is_override ? VarOrigin::OVERRIDE
-                                                      : VarOrigin::FILE));
+  VarOrigin origin;
+  Frame* current_frame = nullptr;
+
+  if (is_bootstrap_) {
+    origin = VarOrigin::DEFAULT;
+  } else if (is_commandline_) {
+    origin = VarOrigin::COMMAND_LINE;
+  } else if (is_override) {
+    origin = VarOrigin::OVERRIDE;
+    current_frame = stack_.back();
+  } else {
+    origin = VarOrigin::FILE;
+    current_frame = stack_.back();
+  }
 
   Var* result = NULL;
   Var* prev = NULL;
@@ -80,17 +265,17 @@ Var* Evaluator::EvalRHS(Symbol lhs,
   switch (op) {
     case AssignOp::COLON_EQ: {
       prev = PeekVarInCurrentScope(lhs);
-      result = new SimpleVar(origin, this, rhs_v);
+      result = new SimpleVar(origin, current_frame, this, rhs_v);
       break;
     }
     case AssignOp::EQ:
       prev = PeekVarInCurrentScope(lhs);
-      result = new RecursiveVar(rhs_v, origin, orig_rhs);
+      result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        result = new RecursiveVar(rhs_v, origin, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
       } else if (prev->ReadOnly()) {
         Error(StringPrintf("*** cannot assign to readonly variable: %s",
                            lhs.c_str()));
@@ -104,7 +289,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     case AssignOp::QUESTION_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        result = new RecursiveVar(rhs_v, origin, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
       } else {
         result = prev;
         *needs_assign = false;
@@ -429,12 +614,17 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
     }
 
     include_stack_.push_back(stmt->loc());
+
     for (const string& fname : *files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
         continue;
       }
-      DoInclude(fname);
+
+      {
+        ScopedFrame frame(Enter(FrameType::EVAL, fname, stmt->loc()));
+        DoInclude(fname);
+      }
     }
     include_stack_.pop_back();
   }
@@ -488,40 +678,101 @@ Var* Evaluator::LookupVarGlobal(Symbol name) {
   return v;
 }
 
-Var* Evaluator::LookupVar(Symbol name) {
-  if (current_scope_) {
-    Var* v = current_scope_->Lookup(name);
-    if (v->IsDefined())
-      return v;
+void Evaluator::TraceVariableLookup(const char* operation,
+                                    Symbol name,
+                                    Var* var) {
+  if (assignment_tracefile_ == nullptr) {
+    return;
   }
-  return LookupVarGlobal(name);
+
+  if (assignment_count_++ == 0) {
+    fprintf(assignment_tracefile_, "\n");
+  } else {
+    fprintf(assignment_tracefile_, ",\n");
+  }
+
+  bool has_definition_trace = var->Definition() != nullptr;
+  fprintf(assignment_tracefile_, "    {\n");
+  fprintf(assignment_tracefile_, "      \"name\": \"%s\",\n", name.c_str());
+  fprintf(assignment_tracefile_, "      \"operation\": \"%s\",\n", operation);
+  fprintf(assignment_tracefile_, "      \"defined\": %s,\n",
+          var->IsDefined() ? "true" : "false");
+  fprintf(assignment_tracefile_, "      \"reference_stack\": [\n");
+  CurrentFrame()->PrintJSONTrace(assignment_tracefile_, 8);
+  fprintf(assignment_tracefile_, "      ]%s\n",
+          has_definition_trace ? "," : "");
+  if (has_definition_trace) {
+    fprintf(assignment_tracefile_, "      \"value_stack\": [\n");
+    var->Definition()->PrintJSONTrace(assignment_tracefile_, 8);
+    fprintf(assignment_tracefile_, "      ]\n");
+  }
+  fprintf(assignment_tracefile_, "    }");
+}
+
+Var* Evaluator::LookupVar(Symbol name) {
+  Var* result = nullptr;
+  if (current_scope_) {
+    result = current_scope_->Lookup(name);
+  }
+
+  if (result == nullptr || !result->IsDefined()) {
+    result = LookupVarGlobal(name);
+  }
+
+  TraceVariableLookup("lookup", name, result);
+  return result;
 }
 
 Var* Evaluator::PeekVar(Symbol name) {
+  Var* result = nullptr;
+
   if (current_scope_) {
-    Var* v = current_scope_->Peek(name);
-    if (v->IsDefined())
-      return v;
+    result = current_scope_->Peek(name);
   }
-  return name.PeekGlobalVar();
+
+  if (result == nullptr || !result->IsDefined()) {
+    result = name.PeekGlobalVar();
+  }
+
+  return result;
 }
 
 Var* Evaluator::LookupVarInCurrentScope(Symbol name) {
+  Var* result;
   if (current_scope_) {
-    return current_scope_->Lookup(name);
+    result = current_scope_->Lookup(name);
+  } else {
+    result = LookupVarGlobal(name);
   }
-  return LookupVarGlobal(name);
+
+  TraceVariableLookup("scope lookup", name, result);
+  return result;
 }
 
 Var* Evaluator::PeekVarInCurrentScope(Symbol name) {
+  Var* result;
   if (current_scope_) {
-    return current_scope_->Peek(name);
+    result = current_scope_->Peek(name);
+  } else {
+    result = name.PeekGlobalVar();
   }
-  return name.PeekGlobalVar();
+
+  return result;
 }
 
 string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
+}
+
+ScopedFrame Evaluator::Enter(FrameType frame_type,
+                             const string& name,
+                             Loc loc) {
+  if (!trace_) {
+    return ScopedFrame(this, nullptr);
+  }
+
+  Frame* frame = new Frame(frame_type, stack_.back(), loc, name);
+  return ScopedFrame(this, frame);
 }
 
 string Evaluator::GetShell() {
@@ -551,6 +802,24 @@ void Evaluator::DumpStackStats() const {
   LOG_STAT("Max stack use: %zd bytes at %s:%d",
            ((char*)stack_addr_ - (char*)lowest_stack_) + stack_size_,
            LOCF(lowest_loc_));
+}
+
+void Evaluator::DumpIncludeJSON(const string& filename) const {
+  IncludeGraph graph;
+  graph.MergeTreeNode(stack_.front());
+  FILE* jsonfile;
+  if (filename == "-") {
+    jsonfile = stdout;
+  } else {
+    jsonfile = fopen(filename.c_str(), "w");
+    if (jsonfile == NULL) {
+      fprintf(stderr, "cannot open JSON dump file: %s\n", strerror(errno));
+      return;
+    }
+  }
+
+  graph.DumpJSON(jsonfile);
+  fclose(jsonfile);
 }
 
 SymbolSet Evaluator::used_undefined_vars_;

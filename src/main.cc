@@ -115,13 +115,13 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
   Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), stmts);
 }
 
-static void SetVar(StringPiece l, VarOrigin origin) {
+static void SetVar(StringPiece l, VarOrigin origin, Frame* definition) {
   size_t found = l.find('=');
   CHECK(found != string::npos);
   Symbol lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
-  lhs.SetGlobalVar(
-      new RecursiveVar(Value::NewLiteral(rhs.data()), origin, rhs.data()));
+  lhs.SetGlobalVar(new RecursiveVar(Value::NewLiteral(rhs.data()), origin,
+                                    definition, rhs.data()));
 }
 
 extern "C" char** environ;
@@ -238,36 +238,47 @@ static int Run(const vector<Symbol>& targets,
   SetAffinityForSingleThread();
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
-
+  unique_ptr<Evaluator> ev(new Evaluator());
+  if (!ev->Start()) {
+    return 1;
+  }
   Intern("MAKEFILE_LIST")
       .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                                  VarOrigin::FILE));
+                                  VarOrigin::FILE, ev->CurrentFrame()));
   for (char** p = environ; *p; p++) {
-    SetVar(*p, VarOrigin::ENVIRONMENT);
+    SetVar(*p, VarOrigin::ENVIRONMENT, nullptr);
   }
-  unique_ptr<Evaluator> ev(new Evaluator());
   SegfaultHandler segfault(ev.get());
 
   vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
-  ev->set_is_bootstrap(true);
-  for (Stmt* stmt : bootstrap_asts) {
-    LOG("%s", stmt->DebugString().c_str());
-    stmt->Eval(ev.get());
-  }
-  ev->set_is_bootstrap(false);
-
-  ev->set_is_commandline(true);
-  for (StringPiece l : cl_vars) {
-    vector<Stmt*> asts;
-    Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
-    CHECK(asts.size() == 1);
-    asts[0]->Eval(ev.get());
-  }
-  ev->set_is_commandline(false);
 
   {
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*bootstrap*", Loc()));
+    ev->in_bootstrap();
+    for (Stmt* stmt : bootstrap_asts) {
+      LOG("%s", stmt->DebugString().c_str());
+      stmt->Eval(ev.get());
+    }
+  }
+
+  {
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*command line*", Loc()));
+    ev->in_command_line();
+    for (StringPiece l : cl_vars) {
+      vector<Stmt*> asts;
+      Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
+      CHECK(asts.size() == 1);
+      asts[0]->Eval(ev.get());
+    }
+  }
+  ev->in_toplevel_makefile();
+
+  {
+    ScopedFrame eval_frame(ev->Enter(FrameType::PHASE, "*eval*", Loc()));
     ScopedTimeReporter tr("eval time");
+
+    ScopedFrame file_frame(ev->Enter(FrameType::EVAL, g_flags.makefile, Loc()));
     Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
     for (Stmt* stmt : mk->stmts()) {
       LOG("%s", stmt->DebugString().c_str());
@@ -280,8 +291,14 @@ static int Run(const vector<Symbol>& targets,
              err->msg.c_str());
   }
 
+  if (g_flags.dump_include_graph != nullptr) {
+    ev->DumpIncludeJSON(std::string(g_flags.dump_include_graph));
+  }
+
   vector<NamedDepNode> nodes;
   {
+    ScopedFrame frame(
+        ev->Enter(FrameType::PHASE, "*dependency analysis*", Loc()));
     ScopedTimeReporter tr("make dep time");
     MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);
   }
@@ -290,9 +307,11 @@ static int Run(const vector<Symbol>& targets,
     return 0;
 
   if (g_flags.generate_ninja) {
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*ninja generation*", Loc()));
     ScopedTimeReporter tr("generate ninja time");
     GenerateNinja(nodes, ev.get(), orig_args, start_time);
     ev->DumpStackStats();
+    ev->Finish();
     return 0;
   }
 
@@ -310,11 +329,13 @@ static int Run(const vector<Symbol>& targets,
   }
 
   {
+    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*execution*", Loc()));
     ScopedTimeReporter tr("exec time");
     Exec(nodes, ev.get());
   }
 
   ev->DumpStackStats();
+  ev->Finish();
 
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;
