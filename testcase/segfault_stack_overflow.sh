@@ -23,11 +23,4 @@ a = \$(a) \$(a) \$(a) \$(a)
 \$(a)
 EOF
 
-if echo "${mk}" | grep -qv "kati"; then
-  # Make detects this differently
-  echo 'Segmentation fault, last evaluated line was Makefile:2'
-else
-  # runtest.rb strips *kati*: lines, so strip that prefix to test
-  # Grab only *kati* lines, since asan may print a backtrace
-  ${mk} 2>&1 | grep "*kati*" | sed "s/^\*kati\*: //"
-fi
+${mk} 2>&1

@@ -265,17 +265,17 @@ Var* Evaluator::EvalRHS(Symbol lhs,
   switch (op) {
     case AssignOp::COLON_EQ: {
       prev = PeekVarInCurrentScope(lhs);
-      result = new SimpleVar(origin, current_frame, this, rhs_v);
+      result = new SimpleVar(origin, current_frame, loc_, this, rhs_v);
       break;
     }
     case AssignOp::EQ:
       prev = PeekVarInCurrentScope(lhs);
-      result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
+      result = new RecursiveVar(rhs_v, origin, current_frame, loc_, orig_rhs);
       break;
     case AssignOp::PLUS_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, current_frame, loc_, orig_rhs);
       } else if (prev->ReadOnly()) {
         Error(StringPrintf("*** cannot assign to readonly variable: %s",
                            lhs.c_str()));
@@ -289,7 +289,7 @@ Var* Evaluator::EvalRHS(Symbol lhs,
     case AssignOp::QUESTION_EQ: {
       prev = LookupVarInCurrentScope(lhs);
       if (!prev->IsDefined()) {
-        result = new RecursiveVar(rhs_v, origin, current_frame, orig_rhs);
+        result = new RecursiveVar(rhs_v, origin, current_frame, loc_, orig_rhs);
       } else {
         result = prev;
         *needs_assign = false;
@@ -707,6 +707,21 @@ void Evaluator::TraceVariableLookup(const char* operation,
     fprintf(assignment_tracefile_, "      ]\n");
   }
   fprintf(assignment_tracefile_, "    }");
+}
+
+Var* Evaluator::LookupVarForEval(Symbol name) {
+  Var* var = LookupVar(name);
+  if (var != nullptr) {
+    if (symbols_for_eval_.find(name) != symbols_for_eval_.end()) {
+      var->SetSelfReferential();
+    }
+    symbols_for_eval_.insert(name);
+  }
+  return var;
+}
+
+void Evaluator::VarEvalComplete(Symbol name) {
+  symbols_for_eval_.erase(name);
 }
 
 Var* Evaluator::LookupVar(Symbol name) {

@@ -32,6 +32,7 @@
 #include "eval.h"
 #include "fileutil.h"
 #include "find.h"
+#include "loc.h"
 #include "log.h"
 #include "parser.h"
 #include "stats.h"
@@ -613,7 +614,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   vector<unique_ptr<SimpleVar>> av;
   for (size_t i = 1; i < args.size(); i++) {
     unique_ptr<SimpleVar> s(
-        new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC, nullptr));
+        new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC, nullptr, Loc()));
     av.push_back(move(s));
   }
   vector<unique_ptr<ScopedGlobalVar>> sv;
@@ -636,7 +637,7 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
       if (v->Origin() != VarOrigin::AUTOMATIC)
         break;
 
-      av.emplace_back(new SimpleVar("", VarOrigin::AUTOMATIC, nullptr));
+      av.emplace_back(new SimpleVar("", VarOrigin::AUTOMATIC, nullptr, Loc()));
       sv.emplace_back(new ScopedGlobalVar(tmpvar_name_sym, av[i - 1].get()));
     }
   }
@@ -658,7 +659,7 @@ void ForeachFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   WordWriter ww(s);
   for (StringPiece tok : WordScanner(list)) {
     unique_ptr<SimpleVar> v(
-        new SimpleVar(tok.as_string(), VarOrigin::AUTOMATIC, nullptr));
+        new SimpleVar(tok.as_string(), VarOrigin::AUTOMATIC, nullptr, Loc()));
     ScopedGlobalVar sv(Intern(varname), v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
@@ -851,7 +852,7 @@ void DeprecatedVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
-      v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame());
+      v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame(), ev->loc());
       sym.SetGlobalVar(v, false, nullptr);
     }
 
@@ -887,7 +888,7 @@ void ObsoleteVarFunc(const vector<Value*>& args, Evaluator* ev, string*) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
-      v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame());
+      v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame(), ev->loc());
       sym.SetGlobalVar(v, false, nullptr);
     }
 
