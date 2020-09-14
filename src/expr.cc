@@ -124,9 +124,10 @@ class SymRef : public Value {
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->CheckStack();
-    Var* v = ev->LookupVar(name_);
+    Var* v = ev->LookupVarForEval(name_);
     v->Used(ev, name_);
     v->Eval(ev, s);
+    ev->VarEvalComplete(name_);
   }
 
   virtual string DebugString_() const override {
@@ -148,9 +149,10 @@ class VarRef : public Value {
     const string&& name = name_->Eval(ev);
     ev->DecrementEvalDepth();
     Symbol sym = Intern(name);
-    Var* v = ev->LookupVar(sym);
+    Var* v = ev->LookupVarForEval(sym);
     v->Used(ev, sym);
     v->Eval(ev, s);
+    ev->VarEvalComplete(sym);
   }
 
   virtual string DebugString_() const override {

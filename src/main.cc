@@ -115,13 +115,16 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
   Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), stmts);
 }
 
-static void SetVar(StringPiece l, VarOrigin origin, Frame* definition) {
+static void SetVar(StringPiece l,
+                   VarOrigin origin,
+                   Frame* definition,
+                   Loc loc) {
   size_t found = l.find('=');
   CHECK(found != string::npos);
   Symbol lhs = Intern(l.substr(0, found));
   StringPiece rhs = l.substr(found + 1);
   lhs.SetGlobalVar(new RecursiveVar(Value::NewLiteral(rhs.data()), origin,
-                                    definition, rhs.data()));
+                                    definition, loc, rhs.data()));
 }
 
 extern "C" char** environ;
@@ -244,9 +247,10 @@ static int Run(const vector<Symbol>& targets,
   }
   Intern("MAKEFILE_LIST")
       .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                                  VarOrigin::FILE, ev->CurrentFrame()));
+                                  VarOrigin::FILE, ev->CurrentFrame(),
+                                  ev->loc()));
   for (char** p = environ; *p; p++) {
-    SetVar(*p, VarOrigin::ENVIRONMENT, nullptr);
+    SetVar(*p, VarOrigin::ENVIRONMENT, nullptr, Loc());
   }
   SegfaultHandler segfault(ev.get());
 
