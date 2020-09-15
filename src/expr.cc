@@ -25,7 +25,7 @@
 #include "strutil.h"
 #include "var.h"
 
-Evaluable::Evaluable() {}
+Evaluable::Evaluable(const Loc& loc) : loc_(loc) {}
 
 Evaluable::~Evaluable() {}
 
@@ -35,7 +35,7 @@ string Evaluable::Eval(Evaluator* ev) const {
   return s;
 }
 
-Value::Value() {}
+Value::Value(const Loc& loc) : Evaluable(loc) {}
 
 Value::~Value() {}
 
@@ -45,7 +45,7 @@ string Value::DebugString(const Value* v) {
 
 class Literal : public Value {
  public:
-  explicit Literal(StringPiece s) : s_(s) {}
+  explicit Literal(StringPiece s) : Value(Loc()), s_(s) {}
 
   StringPiece val() const { return s_; }
 
@@ -65,22 +65,22 @@ class Literal : public Value {
 
 class ValueList : public Value {
  public:
-  ValueList() {}
+  ValueList(const Loc& loc) : Value(loc) {}
 
-  ValueList(Value* v1, Value* v2, Value* v3) : ValueList() {
+  ValueList(const Loc& loc, Value* v1, Value* v2, Value* v3) : ValueList(loc) {
     vals_.reserve(3);
     vals_.push_back(v1);
     vals_.push_back(v2);
     vals_.push_back(v3);
   }
 
-  ValueList(Value* v1, Value* v2) : ValueList() {
+  ValueList(const Loc& loc, Value* v1, Value* v2) : ValueList(loc) {
     vals_.reserve(2);
     vals_.push_back(v1);
     vals_.push_back(v2);
   }
 
-  ValueList(vector<Value*>* values) : ValueList() {
+  ValueList(const Loc& loc, vector<Value*>* values) : ValueList(loc) {
     values->shrink_to_fit();
     values->swap(vals_);
   }
@@ -119,7 +119,7 @@ class ValueList : public Value {
 
 class SymRef : public Value {
  public:
-  explicit SymRef(Symbol n) : name_(n) {}
+  explicit SymRef(const Loc& loc, Symbol n) : Value(loc), name_(n) {}
   virtual ~SymRef() {}
 
   virtual void Eval(Evaluator* ev, string* s) const override {
@@ -140,7 +140,7 @@ class SymRef : public Value {
 
 class VarRef : public Value {
  public:
-  explicit VarRef(Value* n) : name_(n) {}
+  explicit VarRef(const Loc& loc, Value* n) : Value(loc), name_(n) {}
   virtual ~VarRef() { delete name_; }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
@@ -165,8 +165,8 @@ class VarRef : public Value {
 
 class VarSubst : public Value {
  public:
-  explicit VarSubst(Value* n, Value* p, Value* s)
-      : name_(n), pat_(p), subst_(s) {}
+  VarSubst(const Loc& loc, Value* n, Value* p, Value* s)
+      : Value(loc), name_(n), pat_(p), subst_(s) {}
   virtual ~VarSubst() {
     delete name_;
     delete pat_;
@@ -206,7 +206,7 @@ class VarSubst : public Value {
 
 class Func : public Value {
  public:
-  explicit Func(FuncInfo* fi) : fi_(fi) {}
+  Func(const Loc& loc, FuncInfo* fi) : Value(loc), fi_(fi) {}
 
   ~Func() {
     for (Value* a : args_)
@@ -214,6 +214,7 @@ class Func : public Value {
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
+    ScopedFrame frame(ev->Enter(FrameType::FUNCALL, fi_->name, Location()));
     ev->CheckStack();
     LOG("Invoke func %s(%s)", name(), JoinValues(args_, ",").c_str());
     ev->IncrementEvalDepth();
@@ -249,37 +250,44 @@ static char CloseParen(char c) {
   return 0;
 }
 
-static size_t SkipSpaces(StringPiece s, const char* terms) {
+static size_t SkipSpaces(Loc* loc, StringPiece s, const char* terms) {
   for (size_t i = 0; i < s.size(); i++) {
     char c = s[i];
-    if (strchr(terms, c))
+    if (strchr(terms, c)) {
       return i;
+    }
+
     if (!isspace(c)) {
-      if (c != '\\')
+      if (c != '\\') {
         return i;
+      }
+
       char n = s.get(i + 1);
-      if (n != '\r' && n != '\n')
+      if (n != '\r' && n != '\n') {
         return i;
+      }
+
+      loc->lineno++;  // This is a backspace continuation
     }
   }
   return s.size();
 }
 
-Value* Value::NewExpr(Value* v1, Value* v2) {
-  return new ValueList(v1, v2);
+Value* Value::NewExpr(const Loc& loc, Value* v1, Value* v2) {
+  return new ValueList(loc, v1, v2);
 }
 
-Value* Value::NewExpr(Value* v1, Value* v2, Value* v3) {
-  return new ValueList(v1, v2, v3);
+Value* Value::NewExpr(const Loc& loc, Value* v1, Value* v2, Value* v3) {
+  return new ValueList(loc, v1, v2, v3);
 }
 
-Value* Value::NewExpr(vector<Value*>* values) {
+Value* Value::NewExpr(const Loc& loc, vector<Value*>* values) {
   if (values->size() == 1) {
     Value* v = (*values)[0];
     values->clear();
     return v;
   }
-  return new ValueList(values);
+  return new ValueList(loc, values);
 }
 
 Value* Value::NewLiteral(StringPiece s) {
@@ -290,15 +298,16 @@ bool ShouldHandleComments(ParseExprOpt opt) {
   return opt != ParseExprOpt::DEFINE && opt != ParseExprOpt::COMMAND;
 }
 
-void ParseFunc(const Loc& loc,
+void ParseFunc(Loc* loc,
                Func* f,
                StringPiece s,
                size_t i,
                char* terms,
                size_t* index_out) {
+  Loc start_loc = *loc;
   terms[1] = ',';
   terms[2] = '\0';
-  i += SkipSpaces(s.substr(i), terms);
+  i += SkipSpaces(loc, s.substr(i), terms);
   if (i == s.size()) {
     *index_out = i;
     return;
@@ -312,16 +321,22 @@ void ParseFunc(const Loc& loc,
 
     if (f->trim_space()) {
       for (; i < s.size(); i++) {
-        if (isspace(s[i]))
+        if (isspace(s[i])) {
           continue;
+        }
+
         if (s[i] == '\\') {
           char c = s.get(i + 1);
-          if (c == '\r' || c == '\n')
+          if (c == '\r' || c == '\n') {
+            loc->lineno++;
             continue;
+          }
         }
+
         break;
       }
     }
+
     const bool trim_right_space =
         (f->trim_space() || (nargs == 1 && f->trim_right_space_1st()));
     size_t n;
@@ -331,7 +346,7 @@ void ParseFunc(const Loc& loc,
     f->AddArg(v);
     i += n;
     if (i == s.size()) {
-      ERROR_LOC(loc,
+      ERROR_LOC(start_loc,
                 "*** unterminated call to function '%s': "
                 "missing '%c'.",
                 f->name(), terms[0]);
@@ -347,7 +362,7 @@ void ParseFunc(const Loc& loc,
   }
 
   if (nargs <= f->min_arity()) {
-    ERROR_LOC(loc,
+    ERROR_LOC(start_loc,
               "*** insufficient number of arguments (%d) to function `%s'.",
               nargs - 1, f->name());
   }
@@ -356,15 +371,17 @@ void ParseFunc(const Loc& loc,
   return;
 }
 
-Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
+Value* ParseDollar(Loc* loc, StringPiece s, size_t* index_out) {
   CHECK(s.size() >= 2);
   CHECK(s[0] == '$');
   CHECK(s[1] != '$');
 
+  Loc start_loc = *loc;
+
   char cp = CloseParen(s[1]);
   if (cp == 0) {
     *index_out = 2;
-    return new SymRef(Intern(s.substr(1, 1)));
+    return new SymRef(start_loc, Intern(s.substr(1, 1)));
   }
 
   char terms[] = {cp, ':', ' ', 0};
@@ -381,15 +398,16 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
         if (g_flags.enable_kati_warnings) {
           size_t found = sym.str().find_first_of(" ({");
           if (found != string::npos) {
-            KATI_WARN_LOC(loc, "*warning*: variable lookup with '%c': %.*s",
+            KATI_WARN_LOC(start_loc,
+                          "*warning*: variable lookup with '%c': %.*s",
                           sym.str()[found], SPF(s));
           }
         }
-        Value* r = new SymRef(sym);
+        Value* r = new SymRef(start_loc, sym);
         delete lit;
         return r;
       }
-      return new VarRef(vname);
+      return new VarRef(start_loc, vname);
     }
 
     if (s[i] == ' ' || s[i] == '\\') {
@@ -398,11 +416,12 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
         Literal* lit = static_cast<Literal*>(vname);
         if (FuncInfo* fi = GetFuncInfo(lit->val())) {
           delete lit;
-          Func* func = new Func(fi);
+          Func* func = new Func(start_loc, fi);
           ParseFunc(loc, func, s, i + 1, terms, index_out);
           return func;
         } else {
-          KATI_WARN_LOC(loc, "*warning*: unknown make function '%.*s': %.*s",
+          KATI_WARN_LOC(start_loc,
+                        "*warning*: unknown make function '%.*s': %.*s",
                         SPF(lit->val()), SPF(s));
         }
       }
@@ -425,7 +444,8 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
       i += 1 + n;
       if (s[i] == cp) {
         *index_out = i + 1;
-        return new VarRef(Value::NewExpr(vname, new Literal(":"), pat));
+        return new VarRef(
+            start_loc, Value::NewExpr(start_loc, vname, new Literal(":"), pat));
       }
 
       terms[1] = '\0';
@@ -433,27 +453,30 @@ Value* ParseDollar(const Loc& loc, StringPiece s, size_t* index_out) {
           ParseExprImpl(loc, s.substr(i + 1), terms, ParseExprOpt::NORMAL, &n);
       i += 1 + n;
       *index_out = i + 1;
-      return new VarSubst(vname, pat, subst);
+      return new VarSubst(start_loc, vname, pat, subst);
     }
 
     // GNU make accepts expressions like $((). See unmatched_paren*.mk
     // for detail.
     size_t found = s.find(cp);
     if (found != string::npos) {
-      KATI_WARN_LOC(loc, "*warning*: unmatched parentheses: %.*s", SPF(s));
+      KATI_WARN_LOC(start_loc, "*warning*: unmatched parentheses: %.*s",
+                    SPF(s));
       *index_out = s.size();
-      return new SymRef(Intern(s.substr(2, found - 2)));
+      return new SymRef(start_loc, Intern(s.substr(2, found - 2)));
     }
-    ERROR_LOC(loc, "*** unterminated variable reference.");
+    ERROR_LOC(start_loc, "*** unterminated variable reference.");
   }
 }
 
-Value* ParseExprImpl(const Loc& loc,
+Value* ParseExprImpl(Loc* loc,
                      StringPiece s,
                      const char* terms,
                      ParseExprOpt opt,
                      size_t* index_out,
                      bool trim_right_space) {
+  Loc list_loc = *loc;
+
   if (s.get(s.size() - 1) == '\r')
     s.remove_suffix(1);
 
@@ -463,6 +486,8 @@ Value* ParseExprImpl(const Loc& loc,
   size_t i;
   vector<Value*> list;
   for (i = 0; i < s.size(); i++) {
+    Loc item_loc = *loc;
+
     char c = s[i];
     if (terms && strchr(terms, c) && !save_paren) {
       break;
@@ -477,7 +502,7 @@ Value* ParseExprImpl(const Loc& loc,
         was_backslash = !was_backslash && s[i] == '\\';
       }
       *index_out = i;
-      return Value::NewExpr(&list);
+      return Value::NewExpr(item_loc, &list);
     }
 
     if (c == '$') {
@@ -497,7 +522,7 @@ Value* ParseExprImpl(const Loc& loc,
 
       if (terms && strchr(terms, s[i + 1])) {
         *index_out = i + 1;
-        return Value::NewExpr(&list);
+        return Value::NewExpr(item_loc, &list);
       }
 
       size_t n;
@@ -541,6 +566,7 @@ Value* ParseExprImpl(const Loc& loc,
         continue;
       }
       if (n == '\r' || n == '\n') {
+        loc->lineno++;
         if (terms && strchr(terms, ' ')) {
           break;
         }
@@ -550,11 +576,13 @@ Value* ParseExprImpl(const Loc& loc,
         list.push_back(new Literal(StringPiece(" ")));
         // Skip the current escaped newline
         i += 2;
-        if (n == '\r' && s.get(i) == '\n')
+        if (n == '\r' && s.get(i) == '\n') {
           i++;
+        }
         // Then continue skipping escaped newlines, spaces, and tabs
         for (; i < s.size(); i++) {
           if (s[i] == '\\' && (s.get(i + 1) == '\r' || s.get(i + 1) == '\n')) {
+            loc->lineno++;
             i++;
             continue;
           }
@@ -576,10 +604,10 @@ Value* ParseExprImpl(const Loc& loc,
       list.push_back(new Literal(rest));
   }
   *index_out = i;
-  return Value::NewExpr(&list);
+  return Value::NewExpr(list_loc, &list);
 }
 
-Value* ParseExpr(const Loc& loc, StringPiece s, ParseExprOpt opt) {
+Value* ParseExpr(Loc* loc, StringPiece s, ParseExprOpt opt) {
   size_t n;
   return ParseExprImpl(loc, s, NULL, opt, &n);
 }

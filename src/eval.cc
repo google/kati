@@ -131,7 +131,7 @@ void IncludeGraph::DumpJSON(FILE* output) {
 }
 
 void IncludeGraph::MergeTreeNode(const Frame* frame) {
-  if (frame->Type() == FrameType::EVAL) {
+  if (frame->Type() == FrameType::PARSE) {
     std::unique_ptr<IncludeGraphNode>& graph_node = nodes_[frame->Name()];
     if (graph_node.get() == nullptr) {
       graph_node.reset(new IncludeGraphNode(frame));
@@ -149,7 +149,7 @@ void IncludeGraph::MergeTreeNode(const Frame* frame) {
     MergeTreeNode(child.get());
   }
 
-  if (frame->Type() == FrameType::EVAL) {
+  if (frame->Type() == FrameType::PARSE) {
     include_stack_.pop_back();
   }
 }
@@ -412,7 +412,7 @@ void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
       rhs = stmt->rhs;
     } else if (stmt->rhs) {
       StringPiece sep(stmt->sep == RuleStmt::SEP_SEMICOLON ? " ; " : " = ");
-      rhs = Value::NewExpr(Value::NewLiteral(rhs_string),
+      rhs = Value::NewExpr(loc_, Value::NewLiteral(rhs_string),
                            Value::NewLiteral(sep), stmt->rhs);
     } else {
       rhs = Value::NewLiteral(rhs_string);
@@ -622,7 +622,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
       }
 
       {
-        ScopedFrame frame(Enter(FrameType::EVAL, fname, stmt->loc()));
+        ScopedFrame frame(Enter(FrameType::PARSE, fname, stmt->loc()));
         DoInclude(fname);
       }
     }

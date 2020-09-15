@@ -18,29 +18,33 @@
 #include <string>
 #include <vector>
 
+#include "loc.h"
 #include "string_piece.h"
 
 using namespace std;
 
 class Evaluator;
-struct Loc;
 
 class Evaluable {
  public:
   virtual void Eval(Evaluator* ev, string* s) const = 0;
   string Eval(Evaluator*) const;
+  const Loc& Location() const { return loc_; }
 
  protected:
-  Evaluable();
+  Evaluable(const Loc& loc);
   virtual ~Evaluable();
+
+ private:
+  const Loc loc_;
 };
 
 class Value : public Evaluable {
  public:
   // All NewExpr calls take ownership of the Value instances.
-  static Value* NewExpr(Value* v1, Value* v2);
-  static Value* NewExpr(Value* v1, Value* v2, Value* v3);
-  static Value* NewExpr(vector<Value*>* values);
+  static Value* NewExpr(const Loc& loc, Value* v1, Value* v2);
+  static Value* NewExpr(const Loc& loc, Value* v1, Value* v2, Value* v3);
+  static Value* NewExpr(const Loc& loc, vector<Value*>* values);
 
   static Value* NewLiteral(StringPiece s);
   virtual ~Value();
@@ -51,7 +55,7 @@ class Value : public Evaluable {
   static string DebugString(const Value*);
 
  protected:
-  Value();
+  Value(const Loc& loc);
   virtual string DebugString_() const = 0;
 };
 
@@ -62,13 +66,13 @@ enum struct ParseExprOpt {
   FUNC,
 };
 
-Value* ParseExprImpl(const Loc& loc,
+Value* ParseExprImpl(Loc* loc,
                      StringPiece s,
                      const char* terms,
                      ParseExprOpt opt,
                      size_t* index_out,
                      bool trim_right_space = false);
-Value* ParseExpr(const Loc& loc,
+Value* ParseExpr(Loc* loc,
                  StringPiece s,
                  ParseExprOpt opt = ParseExprOpt::NORMAL);
 
