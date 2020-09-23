@@ -72,9 +72,6 @@ class Var : public Evaluable {
   bool Obsolete() const { return obsolete_; }
   void SetObsolete(const StringPiece& msg);
 
-  bool SelfReferential() const { return self_referential_; }
-  void SetSelfReferential() { self_referential_ = true; }
-
   const string& DeprecatedMessage() const;
 
   // This variable was used (either written or read from)
@@ -98,7 +95,6 @@ class Var : public Evaluable {
   bool readonly_ : 1;
   bool deprecated_ : 1;
   bool obsolete_ : 1;
-  bool self_referential_ : 1;
 
   const char* diagnostic_message_text() const;
 
