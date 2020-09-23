@@ -133,11 +133,12 @@ class Evaluator {
   void EvalInclude(const IncludeStmt* stmt);
   void EvalExport(const ExportStmt* stmt);
 
-  Var* LookupVarForEval(Symbol name);
+  void AddVarToEvalStack(const Var* var);
+  void RemoveVarFromEvalStack(const Var* var);
+  bool SelfReferential(const Var* var);
   Var* LookupVar(Symbol name);
   // For target specific variables.
   Var* LookupVarInCurrentScope(Symbol name);
-  void VarEvalComplete(Symbol name);
 
   // Equivalent to LookupVar, but doesn't mark as used.
   Var* PeekVar(Symbol name);
@@ -235,7 +236,8 @@ class Evaluator {
   unordered_map<Symbol, Vars*> rule_vars_;
   vector<const Rule*> rules_;
   unordered_map<Symbol, bool> exports_;
-  std::set<Symbol> symbols_for_eval_;
+  std::set<const Var*> vars_for_eval_;
+  std::set<const Var*> self_referential_;
 
   Rule* last_rule_;
   Vars* current_scope_;
