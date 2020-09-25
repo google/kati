@@ -583,6 +583,14 @@ class NinjaGenerator {
 
     *o << "\n";
 
+    if (!node->symlink_outputs.empty()) {
+      *o << " symlink_outputs =";
+      for (auto const& s : node->symlink_outputs) {
+        *o << " " << EscapeBuildTarget(s);
+      }
+      *o << "\n";
+    }
+
     string pool;
     if (node->ninja_pool_var) {
       node->ninja_pool_var->Eval(ev_, &pool);

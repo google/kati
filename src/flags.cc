@@ -108,6 +108,8 @@ void Flags::Parse(int argc, char** argv) {
       no_ninja_prelude = true;
     } else if (!strcmp(arg, "--use_ninja_phony_output")) {
       use_ninja_phony_output = true;
+    } else if (!strcmp(arg, "--use_ninja_symlink_outputs")) {
+      use_ninja_symlink_outputs = true;
     } else if (!strcmp(arg, "--use_ninja_validations")) {
       use_ninja_validations = true;
     } else if (!strcmp(arg, "--werror_find_emulator")) {
