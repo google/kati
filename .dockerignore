@@ -1,0 +1,5 @@
+out/
+
+# As much as .git should not be a dependency of the build, Makefile.ckati reads
+# from git to generate a version.cc file.
+# .git 

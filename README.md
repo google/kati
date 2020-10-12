@@ -31,6 +31,13 @@ $ go test --ckati --ninja --all
 
 The above commands run all cKati and Ninja tests in the `testcases/` directory.
 
+Alternatively, you can also run the tests in a Docker container in a prepared
+test enviroment:
+
+```
+$ docker build -t kati-test . && docker run kati-test
+```
+
 How to use for Android
 ----------------------
 
