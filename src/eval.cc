@@ -709,19 +709,19 @@ void Evaluator::TraceVariableLookup(const char* operation,
   fprintf(assignment_tracefile_, "    }");
 }
 
-void Evaluator::AddVarToEvalStack(const Var* var) {
-  if (vars_for_eval_.find(var) != vars_for_eval_.end()) {
-    self_referential_.insert(var);
+Var* Evaluator::LookupVarForEval(Symbol name) {
+  Var* var = LookupVar(name);
+  if (var != nullptr) {
+    if (symbols_for_eval_.find(name) != symbols_for_eval_.end()) {
+      var->SetSelfReferential();
+    }
+    symbols_for_eval_.insert(name);
   }
-  vars_for_eval_.insert(var);
+  return var;
 }
 
-void Evaluator::RemoveVarFromEvalStack(const Var* var) {
-  vars_for_eval_.erase(var);
-}
-
-bool Evaluator::SelfReferential(const Var* var) {
-  return self_referential_.find(var) != self_referential_.end();
+void Evaluator::VarEvalComplete(Symbol name) {
+  symbols_for_eval_.erase(name);
 }
 
 Var* Evaluator::LookupVar(Symbol name) {

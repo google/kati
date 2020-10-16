@@ -53,7 +53,8 @@ Var::Var(VarOrigin origin, Frame* definition, Loc loc)
       origin_(origin),
       readonly_(false),
       deprecated_(false),
-      obsolete_(false) {}
+      obsolete_(false),
+      self_referential_(false) {}
 
 Var::~Var() {
   diagnostic_messages_.erase(this);
@@ -150,9 +151,7 @@ RecursiveVar::RecursiveVar(Value* v,
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
-  ev->AddVarToEvalStack(this);
   v_->Eval(ev, s);
-  ev->RemoveVarFromEvalStack(this);
 }
 
 void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
@@ -162,7 +161,7 @@ void RecursiveVar::AppendVar(Evaluator* ev, Value* v) {
 }
 
 void RecursiveVar::Used(Evaluator* ev, const Symbol& sym) const {
-  if (ev->SelfReferential(this)) {
+  if (SelfReferential()) {
     ERROR_LOC(
         Location(),
         StringPrintf(
