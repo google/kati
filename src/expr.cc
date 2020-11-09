@@ -49,6 +49,8 @@ class Literal : public Value {
 
   StringPiece val() const { return s_; }
 
+  virtual bool IsFunc(Evaluator*) const override { return false; }
+
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->CheckStack();
     s->append(s_.begin(), s_.end());
@@ -91,6 +93,15 @@ class ValueList : public Value {
     }
   }
 
+  virtual bool IsFunc(Evaluator* ev) const override {
+    for (Value* v : vals_) {
+      if (v->IsFunc(ev)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->CheckStack();
     for (Value* v : vals_) {
@@ -122,6 +133,14 @@ class SymRef : public Value {
   explicit SymRef(const Loc& loc, Symbol n) : Value(loc), name_(n) {}
   virtual ~SymRef() {}
 
+  virtual bool IsFunc(Evaluator*) const override {
+    // This is a heuristic, where say that if a variable has positional
+    // parameters, we think it is likely to be a function. Callers can use
+    // .KATI_SYMBOLS to extract variables and their values, without evaluating
+    // macros that are likely to have side effects.
+    return IsInteger(name_.str());
+  }
+
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->CheckStack();
     Var* v = ev->LookupVarForEval(name_);
@@ -142,6 +161,11 @@ class VarRef : public Value {
  public:
   explicit VarRef(const Loc& loc, Value* n) : Value(loc), name_(n) {}
   virtual ~VarRef() { delete name_; }
+
+  virtual bool IsFunc(Evaluator*) const override {
+    // This is the unhandled edge case as described in expr.h.
+    return true;
+  }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     ev->CheckStack();
@@ -171,6 +195,10 @@ class VarSubst : public Value {
     delete name_;
     delete pat_;
     delete subst_;
+  }
+
+  virtual bool IsFunc(Evaluator* ev) const override {
+    return name_->IsFunc(ev) || pat_->IsFunc(ev) || subst_->IsFunc(ev);
   }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
@@ -212,6 +240,8 @@ class Func : public Value {
     for (Value* a : args_)
       delete a;
   }
+
+  virtual bool IsFunc(Evaluator*) const override { return true; }
 
   virtual void Eval(Evaluator* ev, string* s) const override {
     ScopedFrame frame(ev->Enter(FrameType::FUNCALL, fi_->name, Location()));

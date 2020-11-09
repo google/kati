@@ -210,6 +210,16 @@ void TestConcatDir() {
   ASSERT_EQ(ConcatDir("a", "../../b"), "../b");
 }
 
+void TestIsInteger() {
+  ASSERT_BOOL(IsInteger("0"), true);
+  ASSERT_BOOL(IsInteger("9"), true);
+  ASSERT_BOOL(IsInteger("1234"), true);
+  ASSERT_BOOL(IsInteger(""), false);
+  ASSERT_BOOL(IsInteger("a234"), false);
+  ASSERT_BOOL(IsInteger("123a"), false);
+  ASSERT_BOOL(IsInteger("12a4"), false);
+}
+
 }  // namespace
 
 int main() {
@@ -227,5 +237,6 @@ int main() {
   TestWordScannerInvalidAccess();
   TestFindEndOfLineInvalidAccess();
   TestConcatDir();
+  TestIsInteger();
   assert(!g_failed);
 }

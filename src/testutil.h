@@ -18,6 +18,16 @@
 
 bool g_failed;
 
+#define ASSERT_BOOL(a, b)                                                     \
+  do {                                                                        \
+    bool A = (a);                                                             \
+    if ((A) != (b)) {                                                         \
+      fprintf(stderr, "Assertion failure at %s:%d: %s (which is %s) vs %s\n", \
+              __FILE__, __LINE__, #a, (A ? "true" : "false"), #b);            \
+      g_failed = true;                                                        \
+    }                                                                         \
+  } while (0)
+
 #define ASSERT_EQ(a, b)                                                     \
   do {                                                                      \
     if ((a) != (b)) {                                                       \

@@ -44,6 +44,8 @@ class AutoVar : public Var {
     return string("AutoVar(") + sym_ + ")";
   }
 
+  virtual bool IsFunc(Evaluator*) const override { return true; }
+
  protected:
   AutoVar(CommandEvaluator* ce, const char* sym) : ce_(ce), sym_(sym) {}
   virtual ~AutoVar() = default;
