@@ -19,6 +19,7 @@
 #include "eval.h"
 #include "expr.h"
 #include "log.h"
+#include "strutil.h"
 
 unordered_map<const Var*, string> Var::diagnostic_messages_;
 
@@ -121,6 +122,10 @@ SimpleVar::SimpleVar(VarOrigin origin,
   v->Eval(ev, &v_);
 }
 
+bool SimpleVar::IsFunc(Evaluator*) const {
+  return false;
+}
+
 void SimpleVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
   *s += v_;
@@ -148,6 +153,10 @@ RecursiveVar::RecursiveVar(Value* v,
                            Loc loc,
                            StringPiece orig)
     : Var(origin, definition, loc), v_(v), orig_(orig) {}
+
+bool RecursiveVar::IsFunc(Evaluator* ev) const {
+  return v_->IsFunc(ev);
+}
 
 void RecursiveVar::Eval(Evaluator* ev, string* s) const {
   ev->CheckStack();
@@ -183,6 +192,10 @@ string RecursiveVar::DebugString() const {
 
 UndefinedVar::UndefinedVar() {}
 
+bool UndefinedVar::IsFunc(Evaluator*) const {
+  return false;
+}
+
 void UndefinedVar::Eval(Evaluator*, string*) const {
   // Nothing to do.
 }
@@ -193,6 +206,46 @@ StringPiece UndefinedVar::String() const {
 
 string UndefinedVar::DebugString() const {
   return "*undefined*";
+}
+
+VariableNamesVar::VariableNamesVar(StringPiece name, bool all)
+    : name_(name), all_(all) {
+  SetReadOnly();
+  SetAssignOp(AssignOp::COLON_EQ);
+}
+
+bool VariableNamesVar::IsFunc(Evaluator*) const {
+  return false;
+}
+
+void VariableNamesVar::Eval(Evaluator* ev, string* s) const {
+  ConcatVariableNames(ev, s);
+}
+
+StringPiece VariableNamesVar::String() const {
+  return name_;
+}
+
+void VariableNamesVar::ConcatVariableNames(Evaluator* ev, string* s) const {
+  WordWriter ww(s);
+  vector<StringPiece>&& symbols = GetSymbolNames([=](Var* var) -> bool {
+    if (var->Obsolete()) {
+      return false;
+    }
+    if (!all_) {
+      if (var->IsFunc(ev)) {
+        return false;
+      }
+    }
+    return true;
+  });
+  for (auto entry : symbols) {
+    ww.Write(entry);
+  }
+}
+
+string VariableNamesVar::DebugString() const {
+  return "*VariableNamesVar*";
 }
 
 Vars::~Vars() {

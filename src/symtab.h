@@ -16,6 +16,7 @@
 #define SYMTAB_H_
 
 #include <bitset>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -224,5 +225,8 @@ void QuitSymtab();
 Symbol Intern(StringPiece s);
 
 string JoinSymbols(const vector<Symbol>& syms, const char* sep);
+
+// Get all symbol names for which filter returns true.
+vector<StringPiece> GetSymbolNames(std::function<bool(Var*)> const& filter);
 
 #endif  // SYMTAB_H_

@@ -117,6 +117,8 @@ class SimpleVar : public Var {
 
   virtual const char* Flavor() const override { return "simple"; }
 
+  virtual bool IsFunc(Evaluator* ev) const override;
+
   virtual void Eval(Evaluator* ev, string* s) const override;
 
   virtual void AppendVar(Evaluator* ev, Value* v) override;
@@ -137,6 +139,8 @@ class RecursiveVar : public Var {
                StringPiece orig);
 
   virtual const char* Flavor() const override { return "recursive"; }
+
+  virtual bool IsFunc(Evaluator* ev) const override;
 
   virtual void Eval(Evaluator* ev, string* s) const override;
 
@@ -159,11 +163,36 @@ class UndefinedVar : public Var {
   virtual const char* Flavor() const override { return "undefined"; }
   virtual bool IsDefined() const override { return false; }
 
+  virtual bool IsFunc(Evaluator* ev) const override;
+
   virtual void Eval(Evaluator* ev, string* s) const override;
 
   virtual StringPiece String() const override;
 
   virtual string DebugString() const override;
+};
+
+// The built-in VARIABLES and KATI_SYMBOLS variables
+class VariableNamesVar : public Var {
+ public:
+  VariableNamesVar(StringPiece name, bool all);
+
+  virtual const char* Flavor() const override { return "kati_variable_names"; }
+  virtual bool IsDefined() const override { return true; }
+
+  virtual bool IsFunc(Evaluator* ev) const override;
+
+  virtual void Eval(Evaluator* ev, string* s) const override;
+
+  virtual StringPiece String() const override;
+
+  virtual string DebugString() const override;
+
+ private:
+  StringPiece name_;
+  bool all_;
+
+  void ConcatVariableNames(Evaluator* ev, string* s) const;
 };
 
 class Vars : public unordered_map<Symbol, Var*> {

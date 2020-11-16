@@ -30,6 +30,17 @@ class Evaluable {
   virtual void Eval(Evaluator* ev, string* s) const = 0;
   string Eval(Evaluator*) const;
   const Loc& Location() const { return loc_; }
+  // Whether this Evaluable is either knowably a function (e.g. one of the
+  // built-ins) or likely to be a function-type macro (i.e. one that has
+  // positional $(1) arguments to be expanded inside it. However, this is
+  // only a heuristic guess. In order to not actually evaluate the expression,
+  // because doing so could have side effects like calling $(error ...) or
+  // doing a nested eval that assigns variables, we don't handle the case where
+  // the variable name is itself a variable expansion inside a deferred
+  // expansion variable, and return true in that case. Implementations of this
+  // function must also not mark variables as used, as that can trigger unwanted
+  // warnings. They should use ev->PeekVar().
+  virtual bool IsFunc(Evaluator* ev) const = 0;
 
  protected:
   Evaluable(const Loc& loc);

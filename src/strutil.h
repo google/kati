@@ -146,4 +146,6 @@ string EchoEscape(const string& str);
 
 void EscapeShell(string* s);
 
+bool IsInteger(StringPiece s);
+
 #endif  // STRUTIL_H_
