@@ -946,6 +946,20 @@ void ProfileFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   }
 }
 
+void VariableLocationFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+  string arg = args[0]->Eval(ev);
+  WordWriter ww(s);
+  for (StringPiece var : WordScanner(arg)) {
+    Symbol sym = Intern(var);
+    Var* v = ev->PeekVar(sym);
+    const Loc& loc = v->Location();
+    ww.Write(loc.filename ? loc.filename : "<unknown>");
+    AppendString(":", s);
+    AppendString(std::to_string(loc.lineno > 0 ? loc.lineno : 0), s);
+  }
+}
+
+
 FuncInfo g_func_infos[] = {
     {"patsubst", &PatsubstFunc, 3, 3, false, false},
     {"strip", &StripFunc, 1, 1, false, false},
@@ -997,6 +1011,7 @@ FuncInfo g_func_infos[] = {
     {"KATI_obsolete_export", &ObsoleteExportFunc, 1, 1, false, false},
 
     {"KATI_profile_makefile", &ProfileFunc, 0, 0, false, false},
+    {"KATI_variable_location", &VariableLocationFunc, 1, 1, false, false},
 };
 
 unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
