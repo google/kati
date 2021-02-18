@@ -36,6 +36,12 @@ class Vars;
 
 class IncludeGraph;
 
+enum RulesAllowed {
+  RULES_ALLOWED = 0,
+  RULES_WARNING = 1,
+  RULES_ERROR = 2
+};
+
 enum FrameType {
   ROOT,        // Root node. Exactly one of this exists.
   PHASE,       // Markers for various phases of the execution.
@@ -151,6 +157,7 @@ class Evaluator {
   const unordered_map<Symbol, Vars*>& rule_vars() const { return rule_vars_; }
   const unordered_map<Symbol, bool>& exports() const { return exports_; }
 
+  void PrintIncludeStack();
   void Error(const string& msg);
 
   void in_bootstrap();
@@ -184,6 +191,9 @@ class Evaluator {
   string GetShell();
   string GetShellFlag();
   string GetShellAndFlag();
+
+  // Parse the current value of .KATI_ALLOW_RULES
+  RulesAllowed GetAllowRules();
 
   void CheckStack() {
     void* addr = __builtin_frame_address(0);

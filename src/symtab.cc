@@ -40,6 +40,7 @@ static vector<SymbolData> g_symbol_data;
 
 Symbol kEmptySym;
 Symbol kShellSym;
+Symbol kAllowRulesSym;
 Symbol kKatiReadonlySym;
 Symbol kVariablesSym;
 Symbol kKatiSymbolsSym;
@@ -128,6 +129,7 @@ class Symtab {
 
     kEmptySym = Intern("");
     kShellSym = Intern("SHELL");
+    kAllowRulesSym = Intern(".KATI_ALLOW_RULES");
     kKatiReadonlySym = Intern(".KATI_READONLY");
     kVariablesSym = Intern(".VARIABLES");
     kVariablesSym.SetGlobalVar(new VariableNamesVar(".VARIABLES", true), false,
