@@ -378,6 +378,24 @@ static StringPiece ParseRuleTargets(const Loc& loc,
   return before_term.substr(pos + 1);
 }
 
+// Strip leading spaces and trailing spaces and colons.
+static string FormatRuleError(const string& before_term) {
+  if (before_term.size() == 0) {
+    return before_term;
+  }
+  size_t size = before_term.size();
+  size_t start = 0;
+  while (start < size && isspace(before_term[start])) {
+    start++;
+  }
+  size_t end = size; // we already handled length == 0
+  while (end > start
+      && (isspace(before_term[end - 1]) || before_term[end - 1] == ':')) {
+    end--;
+  }
+  return before_term.substr(start, end-start);
+}
+
 void Evaluator::MarkVarsReadonly(Value* vars_list) {
   string vars_list_string;
   vars_list->Eval(this, &vars_list_string);
@@ -511,6 +529,20 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   }
 
   LOG("Rule: %s", rule->DebugString().c_str());
+  switch (GetAllowRules()) {
+    case RULES_WARNING:
+      WARN_LOC(loc_, "warning: Rule not allowed here for target: %s",
+          FormatRuleError(before_term).c_str());
+      break;
+    case RULES_ERROR:
+      PrintIncludeStack();
+      ERROR_LOC(loc_, "*** Rule not allowed here for target: %s",
+          FormatRuleError(before_term).c_str());
+      break;
+    default: // RULES_ALLOWED
+      break;
+  }
+
   rules_.push_back(rule);
   last_rule_ = rule;
 }
@@ -806,10 +838,25 @@ string Evaluator::GetShellAndFlag() {
   return shell;
 }
 
-void Evaluator::Error(const string& msg) {
+RulesAllowed Evaluator::GetAllowRules() {
+  string val = EvalVar(kAllowRulesSym);
+  if (val == "warning") {
+    return RULES_WARNING;
+  } else if (val == "error") {
+    return RULES_ERROR;
+  } else {
+    return RULES_ALLOWED;
+  }
+}
+
+void Evaluator::PrintIncludeStack() {
   for (auto& inc : include_stack_) {
     fprintf(stderr, "In file included from %s:%d:\n", LOCF(inc));
   }
+}
+
+void Evaluator::Error(const string& msg) {
+  PrintIncludeStack();
   ERROR_LOC(loc_, "%s", msg.c_str());
 }
 

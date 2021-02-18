@@ -218,6 +218,7 @@ struct hash<Symbol> {
 
 extern Symbol kEmptySym;
 extern Symbol kShellSym;
+extern Symbol kAllowRulesSym;
 extern Symbol kKatiReadonlySym;
 
 void InitSymtab();
