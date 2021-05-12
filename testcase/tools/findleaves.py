@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (C) 2009 The Android Open Source Project
 #
@@ -25,7 +25,7 @@ import sys
 
 def perform_find(mindepth, prune, dirlist, filenames):
   result = []
-  pruneleaves = set(map(lambda x: os.path.split(x)[1], prune))
+  pruneleaves = set([os.path.split(x)[1] for x in prune])
   for rootdir in dirlist:
     rootdepth = rootdir.count("/")
     for root, dirs, files in os.walk(rootdir, followlinks=True):
@@ -108,7 +108,7 @@ def main(argv):
   results = list(set(perform_find(mindepth, prune, dirlist, filenames)))
   results.sort()
   for r in results:
-    print r
+    print(r)
 
 if __name__ == "__main__":
   main(sys.argv)
