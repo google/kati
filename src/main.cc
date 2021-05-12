@@ -384,6 +384,11 @@ int main(int argc, char* argv[]) {
     orig_args += argv[i];
   }
   g_flags.Parse(argc, argv);
+  if (g_flags.working_dir) {
+    int ret = chdir(g_flags.working_dir);
+    if (ret != 0)
+      ERROR("*** %s: %s", g_flags.working_dir, strerror(errno));
+  }
   FindFirstMakefie();
   if (g_flags.makefile == NULL)
     ERROR("*** No targets specified and no makefile found.");

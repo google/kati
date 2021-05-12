@@ -72,6 +72,7 @@ struct Flags {
   const char* makefile;
   const char* ninja_dir;
   const char* ninja_suffix;
+  const char* working_dir;  // -C <dir>
   int num_cpus;
   int num_jobs;
   int remote_num_jobs;

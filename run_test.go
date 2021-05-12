@@ -55,7 +55,7 @@ var normalizeQuotes = normalization{
 
 var normalizeMakeLog = []normalization{
 	normalizeQuotes,
-	{regexp.MustCompile(`make(?:\[\d+\])?: (Entering|Leaving) directory[^\n]*`), ""},
+	{regexp.MustCompile(`make(?:\[\d+\])?: (Entering|Leaving) directory[^\n]*\n`), ""},
 	{regexp.MustCompile(`make(?:\[\d+\])?: `), ""},
 
 	// Normalizations for old/new GNU make.
