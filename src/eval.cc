@@ -466,7 +466,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
 
   const string&& before_term = stmt->lhs->Eval(this);
   // See semicolon.mk.
-  if (before_term.find_first_not_of(" \t;") == string::npos) {
+  if (before_term.find_first_not_of(" \t\n;") == string::npos) {
     if (stmt->sep == RuleStmt::SEP_SEMICOLON)
       Error("*** missing rule before commands.");
     return;
