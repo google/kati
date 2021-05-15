@@ -23,7 +23,7 @@ jobs:
         wget https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip
         unzip ninja-linux.zip
         rm ninja-linux.zip
-        echo "::add-path::${GITHUB_WORKSPACE}/ninja-bin"
+        echo "${GITHUB_WORKSPACE}/ninja-bin" >> "$GITHUB_PATH"
     - name: make
       run: make -j4 ckati ckati_tests
     - name: clang format
