@@ -946,7 +946,9 @@ void ProfileFunc(const vector<Value*>& args, Evaluator* ev, string*) {
   }
 }
 
-void VariableLocationFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
+void VariableLocationFunc(const vector<Value*>& args,
+                          Evaluator* ev,
+                          string* s) {
   string arg = args[0]->Eval(ev);
   WordWriter ww(s);
   for (StringPiece var : WordScanner(arg)) {
@@ -958,7 +960,6 @@ void VariableLocationFunc(const vector<Value*>& args, Evaluator* ev, string* s) 
     AppendString(std::to_string(loc.lineno > 0 ? loc.lineno : 0), s);
   }
 }
-
 
 FuncInfo g_func_infos[] = {
     {"patsubst", &PatsubstFunc, 3, 3, false, false},
