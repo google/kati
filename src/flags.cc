@@ -148,6 +148,7 @@ void Flags::Parse(int argc, char** argv) {
     } else if (!strcmp(arg, "--werror_real_no_cmds")) {
       warn_real_no_cmds = true;
       werror_real_no_cmds = true;
+    } else if (ParseCommandLineOptionWithArg("-C", argv, &i, &working_dir)) {
     } else if (ParseCommandLineOptionWithArg("--dump_include_graph", argv, &i,
                                              &dump_include_graph)) {
     } else if (ParseCommandLineOptionWithArg("--dump_variable_assignment_trace",
