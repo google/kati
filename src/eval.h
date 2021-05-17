@@ -36,11 +36,7 @@ class Vars;
 
 class IncludeGraph;
 
-enum RulesAllowed {
-  RULES_ALLOWED = 0,
-  RULES_WARNING = 1,
-  RULES_ERROR = 2
-};
+enum RulesAllowed { RULES_ALLOWED = 0, RULES_WARNING = 1, RULES_ERROR = 2 };
 
 enum FrameType {
   ROOT,        // Root node. Exactly one of this exists.

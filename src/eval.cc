@@ -388,12 +388,12 @@ static string FormatRuleError(const string& before_term) {
   while (start < size && isspace(before_term[start])) {
     start++;
   }
-  size_t end = size; // we already handled length == 0
-  while (end > start
-      && (isspace(before_term[end - 1]) || before_term[end - 1] == ':')) {
+  size_t end = size;  // we already handled length == 0
+  while (end > start &&
+         (isspace(before_term[end - 1]) || before_term[end - 1] == ':')) {
     end--;
   }
-  return before_term.substr(start, end-start);
+  return before_term.substr(start, end - start);
 }
 
 void Evaluator::MarkVarsReadonly(Value* vars_list) {
@@ -532,14 +532,14 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   switch (GetAllowRules()) {
     case RULES_WARNING:
       WARN_LOC(loc_, "warning: Rule not allowed here for target: %s",
-          FormatRuleError(before_term).c_str());
+               FormatRuleError(before_term).c_str());
       break;
     case RULES_ERROR:
       PrintIncludeStack();
       ERROR_LOC(loc_, "*** Rule not allowed here for target: %s",
-          FormatRuleError(before_term).c_str());
+                FormatRuleError(before_term).c_str());
       break;
-    default: // RULES_ALLOWED
+    default:  // RULES_ALLOWED
       break;
   }
 
