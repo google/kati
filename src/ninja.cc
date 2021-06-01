@@ -535,9 +535,7 @@ class NinjaGenerator {
         case ':':
         case ' ':
           r += '$';
-#if defined(__has_cpp_attribute) && __has_cpp_attribute(clang::fallthrough)
-          [[clang::fallthrough]];
-#endif
+          [[fallthrough]];
         default:
           r += c;
       }
