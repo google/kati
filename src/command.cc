@@ -190,6 +190,7 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
   ev_->set_current_scope(n->rule_vars);
   current_dep_node_ = n;
   for (Value* v : n->cmds) {
+    ev_->set_loc(v->Location());
     const string&& cmds_buf = v->Eval(ev_);
     StringPiece cmds = cmds_buf;
     bool global_echo = !g_flags.is_silent_mode;
