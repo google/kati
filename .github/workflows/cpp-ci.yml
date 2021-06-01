@@ -12,15 +12,15 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CXX: clang++-9
-      CLANG_FORMAT: clang-format-9
+      CXX: clang++-12
+      CLANG_FORMAT: clang-format-12
 
     steps:
-    - uses: actions/checkout@v2.2.0
+    - uses: actions/checkout@v2
     - name: install ninja
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/ninja-bin; cd ${GITHUB_WORKSPACE}/ninja-bin
-        wget https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip
+        wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
         unzip ninja-linux.zip
         rm ninja-linux.zip
         echo "${GITHUB_WORKSPACE}/ninja-bin" >> "$GITHUB_PATH"
