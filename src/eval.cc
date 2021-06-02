@@ -16,6 +16,7 @@
 
 #include "eval.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -574,8 +575,10 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
       string var_name;
       stmt->lhs->Eval(this, &var_name);
       Symbol lhs = Intern(TrimRightSpace(var_name));
-      if (lhs.str().find_first_of(" \t") != string::npos)
+      if (const auto& s = lhs.str();
+          std::find_if(s.begin(), s.end(), ::isspace) != s.end()) {
         Error("*** invalid syntax in conditional.");
+      }
       Var* v = LookupVarInCurrentScope(lhs);
       v->Used(this, lhs);
       is_true = (v->String().empty() == (stmt->op == CondOp::IFNDEF));
