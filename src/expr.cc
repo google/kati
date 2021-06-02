@@ -551,6 +551,7 @@ Value* ParseExprImpl(Loc* loc,
       }
 
       if (terms && strchr(terms, s[i + 1])) {
+        list.push_back(new Literal(StringPiece("$")));
         *index_out = i + 1;
         return Value::NewExpr(item_loc, &list);
       }
