@@ -24,6 +24,8 @@ jobs:
         unzip ninja-linux.zip
         rm ninja-linux.zip
         echo "${GITHUB_WORKSPACE}/ninja-bin" >> "$GITHUB_PATH"
+    - name: make info
+      run: make info
     - name: make
       run: make -j4 ckati ckati_tests
     - name: clang format
