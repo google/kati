@@ -17,6 +17,21 @@ all: ckati ckati_tests
 include Makefile.kati
 include Makefile.ckati
 
+info: ckati
+	@echo GNU MAKE VERSION
+	make --version
+	make -f Makefile version --no-print-directory
+	@echo
+	@echo CKATI VERSION
+	./ckati -f Makefile version
+	@echo
+	@echo SHELL VERSION
+	@echo $(SHELL)
+	$(SHELL) --version | head -n 1
+
+version:
+	@echo $(MAKE_VERSION)
+
 test: all ckati_tests
 	go test --ckati --ninja
 
