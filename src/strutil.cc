@@ -25,48 +25,18 @@
 #include <stack>
 #include <utility>
 
-#ifdef __SSE4_2__
-#include <smmintrin.h>
-#endif
-
 #include "log.h"
 
 static bool isSpace(char c) {
   return (9 <= c && c <= 13) || c == 32;
 }
 
-#ifdef __SSE4_2__
-static int SkipUntilSSE42(const char* s,
-                          int len,
-                          const char* ranges,
-                          int ranges_size) {
-  __m128i ranges16 = _mm_loadu_si128((const __m128i*)ranges);
-  len &= ~15;
-  int i = 0;
-  while (i < len) {
-    __m128i b16 = _mm_loadu_si128((const __m128i*)(s + i));
-    int r = _mm_cmpestri(
-        ranges16, ranges_size, b16, len - i,
-        _SIDD_LEAST_SIGNIFICANT | _SIDD_CMP_RANGES | _SIDD_UBYTE_OPS);
-    if (r != 16) {
-      return i + r;
-    }
-    i += 16;
-  }
-  return len;
-}
-#endif
-
 template <typename Cond>
-static int SkipUntil(const char* s,
-                     int len,
-                     const char* ranges UNUSED,
-                     int ranges_size UNUSED,
-                     Cond cond) {
+static int SkipUntil(const char* s, int len, const char* ranges, Cond cond) {
   int i = 0;
-#ifdef __SSE4_2__
-  i += SkipUntilSSE42(s, len, ranges, ranges_size);
-#endif
+  const char* off = strpbrk(s, ranges);
+  if (off)
+    i += (off - s);
   for (; i < len; i++) {
     if (cond(s[i]))
       break;
@@ -90,7 +60,7 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
   static const char ranges[] = "\x09\x0d  ";
   // It's intentional we are not using isSpace here. It seems with
   // lambda the compiler generates better code.
-  i = s + SkipUntil(in->data() + s, len - s, ranges, 4,
+  i = s + SkipUntil(in->data() + s, len - s, ranges,
                     [](char c) { return (9 <= c && c <= 13) || c == 32; });
   return *this;
 }
@@ -439,7 +409,7 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   static const char ranges[] = "\0\0\n\n\\\\";
   while (e < s.size()) {
-    e += SkipUntil(s.data() + e, s.size() - e, ranges, 6,
+    e += SkipUntil(s.data() + e, s.size() - e, ranges,
                    [](char c) { return c == 0 || c == '\n' || c == '\\'; });
     if (e >= s.size()) {
       CHECK(s.size() == e);
@@ -531,7 +501,7 @@ static bool NeedsShellEscape(char c) {
 void EscapeShell(string* s) {
   static const char ranges[] = "\0\0\"\"$$\\\\``";
   size_t prev = 0;
-  size_t i = SkipUntil(s->c_str(), s->size(), ranges, 10, NeedsShellEscape);
+  size_t i = SkipUntil(s->c_str(), s->size(), ranges, NeedsShellEscape);
   if (i == s->size())
     return;
 
@@ -549,7 +519,7 @@ void EscapeShell(string* s) {
     r += c;
     i++;
     prev = i;
-    i += SkipUntil(s->c_str() + i, s->size() - i, ranges, 10, NeedsShellEscape);
+    i += SkipUntil(s->c_str() + i, s->size() - i, ranges, NeedsShellEscape);
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
