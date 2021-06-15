@@ -24,6 +24,16 @@ jobs:
         unzip ninja-linux.zip
         rm ninja-linux.zip
         echo "${GITHUB_WORKSPACE}/ninja-bin" >> "$GITHUB_PATH"
+    - name: install GNU Make
+      run: |
+        mkdir -p ${GITHUB_WORKSPACE}/make-bin/tmp; cd ${GITHUB_WORKSPACE}/make-bin/tmp
+        wget http://mirrors.kernel.org/ubuntu/pool/main/m/make-dfsg/make_4.2.1-1.2_amd64.deb
+        ar xv make_4.2.1-1.2_amd64.deb
+        tar xf data.tar.xz
+        mv usr/bin/make ../
+        cd ..
+        rm -rf tmp/
+        echo "${GITHUB_WORKSPACE}/make-bin" >> "$GITHUB_PATH"
     - name: make info
       run: make info
     - name: make
