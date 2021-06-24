@@ -76,8 +76,8 @@ static void ReadBootstrapMakefile(const vector<Symbol>& targets,
        "CXX?=g++\n"
 #endif
        "AR?=ar\n"
-       // Pretend to be GNU make 3.81, for compatibility.
-       "MAKE_VERSION?=3.81\n"
+       // Pretend to be GNU make 4.2.1, for compatibility.
+       "MAKE_VERSION?=4.2.1\n"
        "KATI?=ckati\n"
        // Overwrite $SHELL environment variable.
        "SHELL=/bin/sh\n"
