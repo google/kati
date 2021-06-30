@@ -31,22 +31,6 @@ static bool isSpace(char c) {
   return (9 <= c && c <= 13) || c == 32;
 }
 
-template <typename Cond>
-static int SkipUntil(const char* s,
-                     int len,
-                     const char* delimiters,
-                     Cond cond) {
-  int i = 0;
-  const char* off = strpbrk(s, delimiters);
-  if (off)
-    i += (off - s);
-  for (; i < len; i++) {
-    if (cond(s[i]))
-      break;
-  }
-  return i;
-}
-
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
   for (s = i + 1; s < len; s++) {
@@ -60,11 +44,8 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     return *this;
   }
 
-  static const char delimiters[] = "\x09\x0a\x0b\x0c\x0d ";
-  // It's intentional we are not using isSpace here. It seems with
-  // lambda the compiler generates better code.
-  i = s + SkipUntil(in->data() + s, len - s, delimiters,
-                    [](char c) { return (9 <= c && c <= 13) || c == 32; });
+  // skip until the next whitespace character
+  i = s + strcspn(in->data() + s, "\x09\x0a\x0b\x0c\x0d ");
   return *this;
 }
 
@@ -410,10 +391,8 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 }
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
-  static const char delimiters[] = "\0\n\\";
   while (e < s.size()) {
-    e += SkipUntil(s.data() + e, s.size() - e, delimiters,
-                   [](char c) { return c == 0 || c == '\n' || c == '\\'; });
+    e += strcspn(s.data() + e, "\n\\");  // skip to line end
     if (e >= s.size()) {
       CHECK(s.size() == e);
       break;
@@ -497,14 +476,10 @@ string EchoEscape(const string& str) {
   return buf;
 }
 
-static bool NeedsShellEscape(char c) {
-  return c == 0 || c == '"' || c == '$' || c == '\\' || c == '`';
-}
-
 void EscapeShell(string* s) {
-  static const char delimiters[] = "\0\"$\\`";
+  static const char delimiters[] = "\"$\\`";
   size_t prev = 0;
-  size_t i = SkipUntil(s->c_str(), s->size(), delimiters, NeedsShellEscape);
+  size_t i = strcspn(s->c_str(), delimiters);
   if (i == s->size())
     return;
 
@@ -522,7 +497,7 @@ void EscapeShell(string* s) {
     r += c;
     i++;
     prev = i;
-    i += SkipUntil(s->c_str() + i, s->size() - i, delimiters, NeedsShellEscape);
+    i += strcspn(s->c_str() + i, delimiters);
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
