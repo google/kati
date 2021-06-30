@@ -410,7 +410,7 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 }
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
-  static const char delimiters[] = "\0\0\n\n\\\\";
+  static const char delimiters[] = "\0\n\\";
   while (e < s.size()) {
     e += SkipUntil(s.data() + e, s.size() - e, delimiters,
                    [](char c) { return c == 0 || c == '\n' || c == '\\'; });
@@ -502,7 +502,7 @@ static bool NeedsShellEscape(char c) {
 }
 
 void EscapeShell(string* s) {
-  static const char delimiters[] = "\0\0\"\"$$\\\\``";
+  static const char delimiters[] = "\0\"$\\`";
   size_t prev = 0;
   size_t i = SkipUntil(s->c_str(), s->size(), delimiters, NeedsShellEscape);
   if (i == s->size())
