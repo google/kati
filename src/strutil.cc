@@ -32,9 +32,12 @@ static bool isSpace(char c) {
 }
 
 template <typename Cond>
-static int SkipUntil(const char* s, int len, const char* ranges, Cond cond) {
+static int SkipUntil(const char* s,
+                     int len,
+                     const char* delimiters,
+                     Cond cond) {
   int i = 0;
-  const char* off = strpbrk(s, ranges);
+  const char* off = strpbrk(s, delimiters);
   if (off)
     i += (off - s);
   for (; i < len; i++) {
@@ -57,10 +60,10 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     return *this;
   }
 
-  static const char ranges[] = "\x09\x0d  ";
+  static const char delimiters[] = "\x09\x0d  ";
   // It's intentional we are not using isSpace here. It seems with
   // lambda the compiler generates better code.
-  i = s + SkipUntil(in->data() + s, len - s, ranges,
+  i = s + SkipUntil(in->data() + s, len - s, delimiters,
                     [](char c) { return (9 <= c && c <= 13) || c == 32; });
   return *this;
 }
@@ -407,9 +410,9 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 }
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
-  static const char ranges[] = "\0\0\n\n\\\\";
+  static const char delimiters[] = "\0\0\n\n\\\\";
   while (e < s.size()) {
-    e += SkipUntil(s.data() + e, s.size() - e, ranges,
+    e += SkipUntil(s.data() + e, s.size() - e, delimiters,
                    [](char c) { return c == 0 || c == '\n' || c == '\\'; });
     if (e >= s.size()) {
       CHECK(s.size() == e);
@@ -499,9 +502,9 @@ static bool NeedsShellEscape(char c) {
 }
 
 void EscapeShell(string* s) {
-  static const char ranges[] = "\0\0\"\"$$\\\\``";
+  static const char delimiters[] = "\0\0\"\"$$\\\\``";
   size_t prev = 0;
-  size_t i = SkipUntil(s->c_str(), s->size(), ranges, NeedsShellEscape);
+  size_t i = SkipUntil(s->c_str(), s->size(), delimiters, NeedsShellEscape);
   if (i == s->size())
     return;
 
@@ -519,7 +522,7 @@ void EscapeShell(string* s) {
     r += c;
     i++;
     prev = i;
-    i += SkipUntil(s->c_str() + i, s->size() - i, ranges, NeedsShellEscape);
+    i += SkipUntil(s->c_str() + i, s->size() - i, delimiters, NeedsShellEscape);
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
