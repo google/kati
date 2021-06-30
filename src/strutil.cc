@@ -60,7 +60,7 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
     return *this;
   }
 
-  static const char delimiters[] = "\x09\x0d  ";
+  static const char delimiters[] = "\x09\x0a\x0b\x0c\x0d ";
   // It's intentional we are not using isSpace here. It seems with
   // lambda the compiler generates better code.
   i = s + SkipUntil(in->data() + s, len - s, delimiters,
