@@ -31,6 +31,10 @@ static bool isSpace(char c) {
   return (9 <= c && c <= 13) || c == 32;
 }
 
+static int SkipUntil(const char* s, size_t len, const char* delimiters) {
+  return std::min(len, strcspn(s, delimiters));
+}
+
 WordScanner::Iterator& WordScanner::Iterator::operator++() {
   int len = static_cast<int>(in->size());
   for (s = i + 1; s < len; s++) {
@@ -45,7 +49,7 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
   }
 
   // skip until the next whitespace character
-  i = s + strcspn(in->data() + s, "\x09\x0a\x0b\x0c\x0d ");
+  i = s + SkipUntil(in->data() + s, len - s, "\x09\x0a\x0b\x0c\x0d ");
   return *this;
 }
 
@@ -392,7 +396,7 @@ size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
 
 size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   while (e < s.size()) {
-    e += strcspn(s.data() + e, "\n\\");  // skip to line end
+    e += SkipUntil(s.data() + e, s.size() - e, "\n\\");  // skip to line end
     if (e >= s.size()) {
       CHECK(s.size() == e);
       break;
@@ -479,7 +483,7 @@ string EchoEscape(const string& str) {
 void EscapeShell(string* s) {
   static const char delimiters[] = "\"$\\`";
   size_t prev = 0;
-  size_t i = strcspn(s->c_str(), delimiters);
+  size_t i = SkipUntil(s->c_str(), s->size(), delimiters);
   if (i == s->size())
     return;
 
@@ -497,7 +501,7 @@ void EscapeShell(string* s) {
     r += c;
     i++;
     prev = i;
-    i += strcspn(s->c_str() + i, delimiters);
+    i += SkipUntil(s->c_str() + i, s->size() - i, delimiters);
   }
   StringPiece(*s).substr(prev).AppendToString(&r);
   s->swap(r);
