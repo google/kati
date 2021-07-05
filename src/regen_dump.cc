@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
   {
     auto files = LoadVecString(fp);
     if (dump_files) {
-      for (auto f : files) {
+      for (const auto& f : files) {
         printf("%s\n", f.c_str());
       }
     }
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
   {
     auto undefined = LoadVecString(fp);
     if (dump_env) {
-      for (auto s : undefined) {
+      for (const auto& s : undefined) {
         printf("undefined: %s\n", s.c_str());
       }
     }
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
     if (dump_globs) {
       printf("%s\n", pat.c_str());
 
-      for (auto s : files) {
+      for (const auto& s : files) {
         printf("  %s\n", s.c_str());
       }
     }
@@ -181,15 +181,15 @@ int main(int argc, char* argv[]) {
           printf("  output: <%zu bytes>\n", result.length());
         }
         printf("  missing dirs:\n");
-        for (auto d : missing_dirs) {
+        for (const auto& d : missing_dirs) {
           printf("    %s\n", d.c_str());
         }
         printf("  files:\n");
-        for (auto f : files) {
+        for (const auto& f : files) {
           printf("    %s\n", f.c_str());
         }
         printf("  read dirs:\n");
-        for (auto d : read_dirs) {
+        for (const auto& d : read_dirs) {
           printf("    %s\n", d.c_str());
         }
         printf("\n");
