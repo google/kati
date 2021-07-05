@@ -241,53 +241,52 @@ static int Run(const vector<Symbol>& targets,
   SetAffinityForSingleThread();
 
   MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
-  unique_ptr<Evaluator> ev(new Evaluator());
-  if (!ev->Start()) {
+  Evaluator ev;
+  if (!ev.Start()) {
     return 1;
   }
   Intern("MAKEFILE_LIST")
       .SetGlobalVar(new SimpleVar(StringPrintf(" %s", g_flags.makefile),
-                                  VarOrigin::FILE, ev->CurrentFrame(),
-                                  ev->loc()));
+                                  VarOrigin::FILE, ev.CurrentFrame(),
+                                  ev.loc()));
   for (char** p = environ; *p; p++) {
     SetVar(*p, VarOrigin::ENVIRONMENT, nullptr, Loc());
   }
-  SegfaultHandler segfault(ev.get());
+  SegfaultHandler segfault(&ev);
 
   vector<Stmt*> bootstrap_asts;
   ReadBootstrapMakefile(targets, &bootstrap_asts);
 
   {
-    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*bootstrap*", Loc()));
-    ev->in_bootstrap();
+    ScopedFrame frame(ev.Enter(FrameType::PHASE, "*bootstrap*", Loc()));
+    ev.in_bootstrap();
     for (Stmt* stmt : bootstrap_asts) {
       LOG("%s", stmt->DebugString().c_str());
-      stmt->Eval(ev.get());
+      stmt->Eval(&ev);
     }
   }
 
   {
-    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*command line*", Loc()));
-    ev->in_command_line();
+    ScopedFrame frame(ev.Enter(FrameType::PHASE, "*command line*", Loc()));
+    ev.in_command_line();
     for (StringPiece l : cl_vars) {
       vector<Stmt*> asts;
       Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
       CHECK(asts.size() == 1);
-      asts[0]->Eval(ev.get());
+      asts[0]->Eval(&ev);
     }
   }
-  ev->in_toplevel_makefile();
+  ev.in_toplevel_makefile();
 
   {
-    ScopedFrame eval_frame(ev->Enter(FrameType::PHASE, "*parse*", Loc()));
+    ScopedFrame eval_frame(ev.Enter(FrameType::PHASE, "*parse*", Loc()));
     ScopedTimeReporter tr("eval time");
 
-    ScopedFrame file_frame(
-        ev->Enter(FrameType::PARSE, g_flags.makefile, Loc()));
+    ScopedFrame file_frame(ev.Enter(FrameType::PARSE, g_flags.makefile, Loc()));
     Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
     for (Stmt* stmt : mk->stmts()) {
       LOG("%s", stmt->DebugString().c_str());
-      stmt->Eval(ev.get());
+      stmt->Eval(&ev);
     }
   }
 
@@ -297,34 +296,34 @@ static int Run(const vector<Symbol>& targets,
   }
 
   if (g_flags.dump_include_graph != nullptr) {
-    ev->DumpIncludeJSON(std::string(g_flags.dump_include_graph));
+    ev.DumpIncludeJSON(std::string(g_flags.dump_include_graph));
   }
 
   vector<NamedDepNode> nodes;
   {
     ScopedFrame frame(
-        ev->Enter(FrameType::PHASE, "*dependency analysis*", Loc()));
+        ev.Enter(FrameType::PHASE, "*dependency analysis*", Loc()));
     ScopedTimeReporter tr("make dep time");
-    MakeDep(ev.get(), ev->rules(), ev->rule_vars(), targets, &nodes);
+    MakeDep(&ev, ev.rules(), ev.rule_vars(), targets, &nodes);
   }
 
   if (g_flags.is_syntax_check_only)
     return 0;
 
   if (g_flags.generate_ninja) {
-    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*ninja generation*", Loc()));
+    ScopedFrame frame(ev.Enter(FrameType::PHASE, "*ninja generation*", Loc()));
     ScopedTimeReporter tr("generate ninja time");
-    GenerateNinja(nodes, ev.get(), orig_args, start_time);
-    ev->DumpStackStats();
-    ev->Finish();
+    GenerateNinja(nodes, &ev, orig_args, start_time);
+    ev.DumpStackStats();
+    ev.Finish();
     return 0;
   }
 
-  for (const auto& p : ev->exports()) {
+  for (const auto& p : ev.exports()) {
     const Symbol name = p.first;
     if (p.second) {
-      Var* v = ev->LookupVar(name);
-      const string&& value = v->Eval(ev.get());
+      Var* v = ev.LookupVar(name);
+      const string&& value = v->Eval(&ev);
       LOG("setenv(%s, %s)", name.c_str(), value.c_str());
       setenv(name.c_str(), value.c_str(), 1);
     } else {
@@ -334,13 +333,13 @@ static int Run(const vector<Symbol>& targets,
   }
 
   {
-    ScopedFrame frame(ev->Enter(FrameType::PHASE, "*execution*", Loc()));
+    ScopedFrame frame(ev.Enter(FrameType::PHASE, "*execution*", Loc()));
     ScopedTimeReporter tr("exec time");
-    Exec(nodes, ev.get());
+    Exec(nodes, &ev);
   }
 
-  ev->DumpStackStats();
-  ev->Finish();
+  ev.DumpStackStats();
+  ev.Finish();
 
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;
