@@ -283,8 +283,8 @@ static int Run(const vector<Symbol>& targets,
     ScopedTimeReporter tr("eval time");
 
     ScopedFrame file_frame(ev.Enter(FrameType::PARSE, g_flags.makefile, Loc()));
-    Makefile* mk = cache_mgr->ReadMakefile(g_flags.makefile);
-    for (Stmt* stmt : mk->stmts()) {
+    const Makefile& mk = cache_mgr->ReadMakefile(g_flags.makefile);
+    for (Stmt* stmt : mk.stmts()) {
       LOG("%s", stmt->DebugString().c_str());
       stmt->Eval(&ev);
     }
