@@ -209,6 +209,7 @@ Symbol Intern(StringPiece s) {
 
 string JoinSymbols(const vector<Symbol>& syms, const char* sep) {
   vector<string> strs;
+  strs.reserve(syms.size());
   for (Symbol s : syms) {
     strs.push_back(s.str());
   }
