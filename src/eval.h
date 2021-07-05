@@ -80,10 +80,10 @@ class Frame {
 class ScopedFrame {
  public:
   ScopedFrame(Evaluator* ev, Frame* frame);
-  // We only allow moving; copying would double stack frames
+  // We disallow any copies or moves of this object.
   ScopedFrame(const ScopedFrame& other) = delete;
   ScopedFrame& operator=(const ScopedFrame&) = delete;
-  ScopedFrame(ScopedFrame&& other);
+  ScopedFrame(ScopedFrame&& other) = delete;
   ~ScopedFrame();
 
   Frame* Current() const { return frame_; }

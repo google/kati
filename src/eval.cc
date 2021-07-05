@@ -73,9 +73,6 @@ ScopedFrame::ScopedFrame(Evaluator* ev, Frame* frame) : ev_(ev), frame_(frame) {
   ev_->stack_.push_back(frame);
 }
 
-ScopedFrame::ScopedFrame(ScopedFrame&& other)
-    : ev_(other.ev_), frame_(other.frame_) {}
-
 ScopedFrame::~ScopedFrame() {
   if (!ev_->trace_) {
     return;
