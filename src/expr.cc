@@ -645,6 +645,7 @@ Value* ParseExpr(Loc* loc, StringPiece s, ParseExprOpt opt) {
 
 string JoinValues(const vector<Value*>& vals, const char* sep) {
   vector<string> val_strs;
+  val_strs.reserve(vals.size());
   for (Value* v : vals) {
     val_strs.push_back(Value::DebugString(v));
   }
