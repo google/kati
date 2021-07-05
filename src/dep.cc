@@ -742,7 +742,7 @@ class DepBuilder {
     }
 
     if (g_flags.warn_phony_looks_real && n->is_phony &&
-        output.str().find("/") != string::npos) {
+        output.str().find('/') != string::npos) {
       if (g_flags.werror_phony_looks_real) {
         ERROR_LOC(
             n->loc,
@@ -779,7 +779,7 @@ class DepBuilder {
       done_[output] = n;
 
       if (g_flags.warn_phony_looks_real && n->is_phony &&
-          output.str().find("/") != string::npos) {
+          output.str().find('/') != string::npos) {
         if (g_flags.werror_phony_looks_real) {
           ERROR_LOC(n->loc,
                     "*** PHONY target \"%s\" looks like a real file (contains "
@@ -819,7 +819,7 @@ class DepBuilder {
 
       bool is_phony = c->is_phony;
       if (!is_phony && !c->has_rule && g_flags.top_level_phony) {
-        is_phony = input.str().find("/") == string::npos;
+        is_phony = input.str().find('/') == string::npos;
       }
       if (!n->is_phony && is_phony) {
         if (g_flags.werror_real_to_phony) {
