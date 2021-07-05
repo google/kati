@@ -612,15 +612,15 @@ void Evaluator::DoInclude(const string& fname) {
   CheckStack();
   COLLECT_STATS_WITH_SLOW_REPORT("included makefiles", fname.c_str());
 
-  Makefile* mk = MakefileCacheManager::Get()->ReadMakefile(fname);
-  if (!mk->Exists()) {
+  const Makefile& mk = MakefileCacheManager::Get()->ReadMakefile(fname);
+  if (!mk.Exists()) {
     Error(StringPrintf("%s does not exist", fname.c_str()));
   }
 
   Var* var_list = LookupVar(Intern("MAKEFILE_LIST"));
   var_list->AppendVar(
       this, Value::NewLiteral(Intern(TrimLeadingCurdir(fname)).str()));
-  for (Stmt* stmt : mk->stmts()) {
+  for (Stmt* stmt : mk.stmts()) {
     LOG("%s", stmt->DebugString().c_str());
     stmt->Eval(this);
   }

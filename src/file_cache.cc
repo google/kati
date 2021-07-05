@@ -34,21 +34,12 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
  public:
   MakefileCacheManagerImpl() { g_instance = this; }
 
-  virtual ~MakefileCacheManagerImpl() {
-    for (auto p : cache_) {
-      delete p.second;
+  virtual const Makefile& ReadMakefile(const string& filename) override {
+    auto iter = cache_.find(filename);
+    if (iter != cache_.end()) {
+      return iter->second;
     }
-  }
-
-  virtual Makefile* ReadMakefile(const string& filename) override {
-    Makefile* result = NULL;
-    auto p = cache_.emplace(filename, result);
-    if (p.second) {
-      p.first->second = result = new Makefile(filename);
-    } else {
-      result = p.first->second;
-    }
-    return result;
+    return (cache_.emplace(filename, filename).first)->second;
   }
 
   virtual void GetAllFilenames(unordered_set<string>* out) override {
@@ -57,7 +48,7 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
   }
 
  private:
-  unordered_map<string, Makefile*> cache_;
+  unordered_map<string, Makefile> cache_;
 };
 
 MakefileCacheManager* NewMakefileCacheManager() {
