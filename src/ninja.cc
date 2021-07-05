@@ -745,7 +745,7 @@ class NinjaGenerator {
     CHECK(r == 1);
 
     unordered_set<string> makefiles;
-    MakefileCacheManager::Get()->GetAllFilenames(&makefiles);
+    MakefileCacheManager::Get().GetAllFilenames(&makefiles);
     DumpInt(fp, makefiles.size() + 1);
     DumpString(fp, kati_binary_);
     for (const string& makefile : makefiles) {

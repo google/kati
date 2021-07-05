@@ -612,7 +612,7 @@ void Evaluator::DoInclude(const string& fname) {
   CheckStack();
   COLLECT_STATS_WITH_SLOW_REPORT("included makefiles", fname.c_str());
 
-  const Makefile& mk = MakefileCacheManager::Get()->ReadMakefile(fname);
+  const Makefile& mk = MakefileCacheManager::Get().ReadMakefile(fname);
   if (!mk.Exists()) {
     Error(StringPrintf("%s does not exist", fname.c_str()));
   }

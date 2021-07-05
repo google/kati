@@ -240,7 +240,6 @@ static int Run(const vector<Symbol>& targets,
 
   SetAffinityForSingleThread();
 
-  MakefileCacheManager* cache_mgr = NewMakefileCacheManager();
   Evaluator ev;
   if (!ev.Start()) {
     return 1;
@@ -283,7 +282,8 @@ static int Run(const vector<Symbol>& targets,
     ScopedTimeReporter tr("eval time");
 
     ScopedFrame file_frame(ev.Enter(FrameType::PARSE, g_flags.makefile, Loc()));
-    const Makefile& mk = cache_mgr->ReadMakefile(g_flags.makefile);
+    const Makefile& mk =
+        MakefileCacheManager::Get().ReadMakefile(g_flags.makefile);
     for (Stmt* stmt : mk.stmts()) {
       LOG("%s", stmt->DebugString().c_str());
       stmt->Eval(&ev);
@@ -343,7 +343,6 @@ static int Run(const vector<Symbol>& targets,
 
   for (Stmt* stmt : bootstrap_asts)
     delete stmt;
-  delete cache_mgr;
 
   return 0;
 }

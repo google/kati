@@ -20,20 +20,12 @@
 
 #include "file.h"
 
-static MakefileCacheManager* g_instance;
+MakefileCacheManager::MakefileCacheManager() = default;
 
-MakefileCacheManager::MakefileCacheManager() {}
-
-MakefileCacheManager::~MakefileCacheManager() {}
-
-MakefileCacheManager* MakefileCacheManager::Get() {
-  return g_instance;
-}
+MakefileCacheManager::~MakefileCacheManager() = default;
 
 class MakefileCacheManagerImpl : public MakefileCacheManager {
  public:
-  MakefileCacheManagerImpl() { g_instance = this; }
-
   virtual const Makefile& ReadMakefile(const string& filename) override {
     auto iter = cache_.find(filename);
     if (iter != cache_.end()) {
@@ -51,6 +43,7 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
   unordered_map<string, Makefile> cache_;
 };
 
-MakefileCacheManager* NewMakefileCacheManager() {
-  return new MakefileCacheManagerImpl();
+MakefileCacheManager& MakefileCacheManager::Get() {
+  static MakefileCacheManagerImpl instance;
+  return instance;
 }
