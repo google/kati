@@ -21,7 +21,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <fstream>
 #include <map>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -41,7 +43,6 @@
 #include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
-#include "thread_pool.h"
 #include "timeutil.h"
 #include "var.h"
 #include "version.h"
@@ -179,7 +180,6 @@ class NinjaGenerator {
   NinjaGenerator(Evaluator* ev, double start_time)
       : ce_(ev),
         ev_(ev),
-        fp_(NULL),
         rule_id_(0),
         start_time_(start_time),
         default_target_(NULL) {
@@ -473,16 +473,16 @@ class NinjaGenerator {
     return result;
   }
 
-  void EmitDepfile(NinjaNode* nn, string* cmd_buf, ostringstream* o) {
+  void EmitDepfile(NinjaNode* nn, string* cmd_buf, std::ostream& out) {
     const DepNode* node = nn->node;
     string depfile;
     if (!GetDepfile(node, cmd_buf, &depfile))
       return;
-    *o << " depfile = " << depfile << "\n";
-    *o << " deps = gcc\n";
+    out << " depfile = " << depfile << "\n";
+    out << " deps = gcc\n";
   }
 
-  void EmitNode(NinjaNode* nn, ostringstream* o) {
+  void EmitNode(NinjaNode* nn, std::ostream& out) {
     const DepNode* node = nn->node;
     const vector<Command*>& commands = nn->commands;
 
@@ -492,37 +492,37 @@ class NinjaGenerator {
       return;
     }
     if (g_flags.enable_debug) {
-      *o << "# " << (node->loc.filename ? node->loc.filename : "(null)") << ':'
-         << node->loc.lineno << "\n";
+      out << "# " << (node->loc.filename ? node->loc.filename : "(null)") << ':'
+          << node->loc.lineno << "\n";
     }
     if (!commands.empty()) {
       rule_name = StringPrintf("rule%d", nn->rule_id);
-      *o << "rule " << rule_name << "\n";
+      out << "rule " << rule_name << "\n";
 
       string description = "build $out";
       string cmd_buf;
       use_local_pool |= GenShellScript(node->output.c_str(), commands, &cmd_buf,
                                        &description);
-      *o << " description = " << description << "\n";
-      EmitDepfile(nn, &cmd_buf, o);
+      out << " description = " << description << "\n";
+      EmitDepfile(nn, &cmd_buf, out);
 
       // It seems Linux is OK with ~130kB and Mac's limit is ~250kB.
       // TODO: Find this number automatically.
       if (cmd_buf.size() > 100 * 1000) {
-        *o << " rspfile = $out.rsp\n";
-        *o << " rspfile_content = " << cmd_buf << "\n";
-        *o << " command = " << shell_ << " $out.rsp\n";
+        out << " rspfile = $out.rsp\n";
+        out << " rspfile_content = " << cmd_buf << "\n";
+        out << " command = " << shell_ << " $out.rsp\n";
       } else {
         EscapeShell(&cmd_buf);
-        *o << " command = " << shell_ << ' ' << shell_flags_ << " \"" << cmd_buf
-           << "\"\n";
+        out << " command = " << shell_ << ' ' << shell_flags_ << " \""
+            << cmd_buf << "\"\n";
       }
       if (node->is_restat) {
-        *o << " restat = 1\n";
+        out << " restat = 1\n";
       }
     }
 
-    EmitBuild(nn, rule_name, use_local_pool, o);
+    EmitBuild(nn, rule_name, use_local_pool, out);
   }
 
   string EscapeNinja(const string& s) const {
@@ -548,45 +548,45 @@ class NinjaGenerator {
   void EmitBuild(NinjaNode* nn,
                  const string& rule_name,
                  bool use_local_pool,
-                 ostringstream* o) {
+                 std::ostream& out) {
     const DepNode* node = nn->node;
     string target = EscapeBuildTarget(node->output);
-    *o << "build " << target;
+    out << "build " << target;
     if (!node->implicit_outputs.empty()) {
-      *o << " |";
+      out << " |";
       for (Symbol output : node->implicit_outputs) {
-        *o << " " << EscapeBuildTarget(output);
+        out << " " << EscapeBuildTarget(output);
       }
     }
-    *o << ": " << rule_name;
+    out << ": " << rule_name;
     vector<Symbol> order_onlys;
     if (node->is_phony && !g_flags.use_ninja_phony_output) {
-      *o << " _kati_always_build_";
+      out << " _kati_always_build_";
     }
     for (auto const& d : node->deps) {
-      *o << " " << EscapeBuildTarget(d.first).c_str();
+      out << " " << EscapeBuildTarget(d.first).c_str();
     }
     if (!node->order_onlys.empty()) {
-      *o << " ||";
+      out << " ||";
       for (auto const& d : node->order_onlys) {
-        *o << " " << EscapeBuildTarget(d.first).c_str();
+        out << " " << EscapeBuildTarget(d.first).c_str();
       }
     }
     if (!node->validations.empty()) {
-      *o << " |@";
+      out << " |@";
       for (auto const& d : node->validations) {
-        *o << " " << EscapeBuildTarget(d.first).c_str();
+        out << " " << EscapeBuildTarget(d.first).c_str();
       }
     }
 
-    *o << "\n";
+    out << "\n";
 
     if (!node->symlink_outputs.empty()) {
-      *o << " symlink_outputs =";
+      out << " symlink_outputs =";
       for (auto const& s : node->symlink_outputs) {
-        *o << " " << EscapeBuildTarget(s);
+        out << " " << EscapeBuildTarget(s);
       }
-      *o << "\n";
+      out << "\n";
     }
 
     string pool;
@@ -596,15 +596,15 @@ class NinjaGenerator {
 
     if (pool != "") {
       if (pool != "none") {
-        *o << " pool = " << pool << "\n";
+        out << " pool = " << pool << "\n";
       }
     } else if (g_flags.default_pool && rule_name != "phony") {
-      *o << " pool = " << g_flags.default_pool << "\n";
+      out << " pool = " << g_flags.default_pool << "\n";
     } else if (use_local_pool) {
-      *o << " pool = local_pool\n";
+      out << " pool = local_pool\n";
     }
     if (node->is_phony && g_flags.use_ninja_phony_output) {
-      *o << " phony_output = true\n";
+      out << " phony_output = true\n";
     }
     if (node->is_default_target) {
       unique_lock<mutex> lock(mu_);
@@ -616,53 +616,36 @@ class NinjaGenerator {
 
   void GenerateNinja() {
     ScopedTimeReporter tr("ninja gen (emit)");
-    fp_ = fopen(GetNinjaFilename().c_str(), "wb");
-    if (fp_ == NULL)
+    std::ofstream out(GetNinjaFilename(), std::ios::binary);
+    if (!out)
       PERROR("fopen(build.ninja) failed");
 
-    fprintf(fp_, "# Generated by kati %s\n", kGitVersion);
-    fprintf(fp_, "\n");
+    out << "# Generated by kati " << kGitVersion << "\n\n";
 
     if (!used_envs_.empty()) {
-      fprintf(fp_, "# Environment variables used:\n");
+      out << "# Environment variables used:\n";
       for (const auto& p : used_envs_) {
-        fprintf(fp_, "# %s=%s\n", p.first.c_str(), p.second.c_str());
+        out << "# " << p.first << "=" << p.second << '\n';
       }
-      fprintf(fp_, "\n");
+      out << '\n';
     }
 
     if (!g_flags.no_ninja_prelude) {
       if (g_flags.ninja_dir) {
-        fprintf(fp_, "builddir = %s\n\n", g_flags.ninja_dir);
+        out << "builddir = " << g_flags.ninja_dir << "\n\n";
       }
 
-      fprintf(fp_, "pool local_pool\n");
-      fprintf(fp_, " depth = %d\n\n", g_flags.num_jobs);
+      out << "pool local_pool\n"
+          << " depth = " << g_flags.num_jobs << "\n\n";
 
       if (!g_flags.use_ninja_phony_output) {
-        fprintf(fp_, "build _kati_always_build_: phony\n\n");
+        out << "build _kati_always_build_: phony\n\n";
       }
     }
 
-    unique_ptr<ThreadPool> tp(NewThreadPool(g_flags.num_jobs));
-    CHECK(g_flags.num_jobs);
-    int num_nodes_per_task = nodes_.size() / (g_flags.num_jobs * 10) + 1;
-    int num_tasks = nodes_.size() / num_nodes_per_task + 1;
-    vector<ostringstream> bufs(num_tasks);
-    for (int i = 0; i < num_tasks; i++) {
-      tp->Submit([this, i, num_nodes_per_task, &bufs]() {
-        int l =
-            min(num_nodes_per_task * (i + 1), static_cast<int>(nodes_.size()));
-        for (int j = num_nodes_per_task * i; j < l; j++) {
-          EmitNode(nodes_[j], &bufs[i]);
-        }
-      });
-    }
-    tp->Wait();
-
     if (!g_flags.generate_empty_ninja) {
-      for (const ostringstream& buf : bufs) {
-        fprintf(fp_, "%s", buf.str().c_str());
+      for (const auto& node : nodes_) {
+        EmitNode(node, out);
       }
     }
 
@@ -686,11 +669,9 @@ class NinjaGenerator {
       }
     }
     if (!g_flags.generate_empty_ninja) {
-      fprintf(fp_, "\n");
-      fprintf(fp_, "default %s\n", default_targets.c_str());
+      out << "\n"
+          << "default " << default_targets << '\n';
     }
-
-    fclose(fp_);
   }
 
   void GenerateShell() {
@@ -825,7 +806,6 @@ class NinjaGenerator {
 
   CommandEvaluator ce_;
   Evaluator* ev_;
-  FILE* fp_;
   SymbolSet done_;
   int rule_id_;
   bool use_goma_;
