@@ -65,8 +65,6 @@ class Parser {
         loc_(loc),
         fixed_lineno_(true) {}
 
-  ~Parser() {}
-
   void Parse() {
     l_ = 0;
 
@@ -94,44 +92,6 @@ class Parser {
       ERROR_LOC(Loc(loc_.filename, define_start_line_),
                 "*** missing `endef', unterminated `define'.");
   }
-
-  static void Init() {
-    make_directives_ = new DirectiveMap;
-    (*make_directives_)["include"] = &Parser::ParseInclude;
-    (*make_directives_)["-include"] = &Parser::ParseInclude;
-    (*make_directives_)["sinclude"] = &Parser::ParseInclude;
-    (*make_directives_)["define"] = &Parser::ParseDefine;
-    (*make_directives_)["ifdef"] = &Parser::ParseIfdef;
-    (*make_directives_)["ifndef"] = &Parser::ParseIfdef;
-    (*make_directives_)["ifeq"] = &Parser::ParseIfeq;
-    (*make_directives_)["ifneq"] = &Parser::ParseIfeq;
-    (*make_directives_)["else"] = &Parser::ParseElse;
-    (*make_directives_)["endif"] = &Parser::ParseEndif;
-    (*make_directives_)["override"] = &Parser::ParseOverride;
-    (*make_directives_)["export"] = &Parser::ParseExport;
-    (*make_directives_)["unexport"] = &Parser::ParseUnexport;
-
-    else_if_directives_ = new DirectiveMap;
-    (*else_if_directives_)["ifdef"] = &Parser::ParseIfdef;
-    (*else_if_directives_)["ifndef"] = &Parser::ParseIfdef;
-    (*else_if_directives_)["ifeq"] = &Parser::ParseIfeq;
-    (*else_if_directives_)["ifneq"] = &Parser::ParseIfeq;
-
-    assign_directives_ = new DirectiveMap;
-    (*assign_directives_)["define"] = &Parser::ParseDefine;
-    (*assign_directives_)["export"] = &Parser::ParseExport;
-    (*assign_directives_)["override"] = &Parser::ParseOverride;
-
-    shortest_directive_len_ = 9999;
-    longest_directive_len_ = 0;
-    for (auto p : *make_directives_) {
-      size_t len = p.first.size();
-      shortest_directive_len_ = min(len, shortest_directive_len_);
-      longest_directive_len_ = max(len, longest_directive_len_);
-    }
-  }
-
-  static void Quit() { delete make_directives_; }
 
   void set_state(ParserState st) { state_ = st; }
 
@@ -511,7 +471,6 @@ class Parser {
   void ParseUnexport(StringPiece line, StringPiece) {
     CreateExport(line, false);
   }
-
   bool CheckIfStack(const char* keyword) {
     if (if_stack_.empty()) {
       Error(StringPrintf("*** extraneous `%s'.", keyword));
@@ -535,10 +494,10 @@ class Parser {
     return prefix.substr(0, space_index);
   }
 
-  bool HandleDirective(StringPiece line, const DirectiveMap* directive_map) {
+  bool HandleDirective(StringPiece line, const DirectiveMap& directive_map) {
     StringPiece directive = GetDirective(line);
-    auto found = directive_map->find(directive);
-    if (found == directive_map->end())
+    auto found = directive_map.find(directive);
+    if (found == directive_map.end())
       return false;
 
     StringPiece rest = TrimRightSpace(
@@ -568,11 +527,11 @@ class Parser {
   Loc loc_;
   bool fixed_lineno_;
 
-  static DirectiveMap* make_directives_;
-  static DirectiveMap* else_if_directives_;
-  static DirectiveMap* assign_directives_;
-  static size_t shortest_directive_len_;
-  static size_t longest_directive_len_;
+  const static DirectiveMap make_directives_;
+  const static DirectiveMap else_if_directives_;
+  const static DirectiveMap assign_directives_;
+  const static size_t shortest_directive_len_;
+  const static size_t longest_directive_len_;
 };
 
 void Parse(Makefile* mk) {
@@ -596,19 +555,46 @@ void ParseNotAfterRule(StringPiece buf,
   parser.Parse();
 }
 
-void InitParser() {
-  Parser::Init();
-}
+const Parser::DirectiveMap Parser::make_directives_ = {
+    {"include", &Parser::ParseInclude},   {"-include", &Parser::ParseInclude},
+    {"sinclude", &Parser::ParseInclude},  {"define", &Parser::ParseDefine},
+    {"ifdef", &Parser::ParseIfdef},       {"ifndef", &Parser::ParseIfdef},
+    {"ifeq", &Parser::ParseIfeq},         {"ifneq", &Parser::ParseIfeq},
+    {"else", &Parser::ParseElse},         {"endif", &Parser::ParseEndif},
+    {"override", &Parser::ParseOverride}, {"export", &Parser::ParseExport},
+    {"unexport", &Parser::ParseUnexport}};
 
-void QuitParser() {
-  Parser::Quit();
-}
+const Parser::DirectiveMap Parser::else_if_directives_ = {
+    {"ifdef", &Parser::ParseIfdef},
+    {"ifndef", &Parser::ParseIfdef},
+    {"ifeq", &Parser::ParseIfeq},
+    {"ifneq", &Parser::ParseIfeq},
+};
 
-Parser::DirectiveMap* Parser::make_directives_;
-Parser::DirectiveMap* Parser::else_if_directives_;
-Parser::DirectiveMap* Parser::assign_directives_;
-size_t Parser::shortest_directive_len_;
-size_t Parser::longest_directive_len_;
+const Parser::DirectiveMap Parser::assign_directives_ = {
+    {"define", &Parser::ParseDefine},
+    {"export", &Parser::ParseExport},
+    {"override", &Parser::ParseOverride},
+};
+
+const size_t Parser::shortest_directive_len_ = []() {
+  size_t result = 9999;
+  for (auto p : Parser::make_directives_) {
+    size_t len = p.first.size();
+    result = std::min(len, result);
+  }
+  return result;
+}();
+
+const size_t Parser::longest_directive_len_ = []() {
+  size_t result = 0;
+  for (auto p : Parser::make_directives_) {
+    size_t len = p.first.size();
+    result = std::max(len, result);
+  }
+  return result;
+}();
+
 vector<ParseErrorStmt*> Parser::parse_errors;
 
 void ParseAssignStatement(StringPiece line,
