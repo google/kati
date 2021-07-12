@@ -50,7 +50,6 @@ extern "C" const char* __asan_default_options() {
 }
 
 static void Init() {
-  InitSymtab();
   InitParser();
 }
 
@@ -58,7 +57,6 @@ static void Quit() {
   ReportAllStats();
 
   QuitParser();
-  QuitSymtab();
 }
 
 static void ReadBootstrapMakefile(const vector<Symbol>& targets,
