@@ -221,8 +221,6 @@ extern Symbol kShellSym;
 extern Symbol kAllowRulesSym;
 extern Symbol kKatiReadonlySym;
 
-void InitSymtab();
-void QuitSymtab();
 Symbol Intern(StringPiece s);
 
 string JoinSymbols(const vector<Symbol>& syms, const char* sep);
