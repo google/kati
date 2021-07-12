@@ -51,7 +51,6 @@ extern "C" const char* __asan_default_options() {
 
 static void Init() {
   InitSymtab();
-  InitFuncTable();
   InitParser();
 }
 
@@ -59,7 +58,6 @@ static void Quit() {
   ReportAllStats();
 
   QuitParser();
-  QuitFuncTable();
   QuitSymtab();
 }
 

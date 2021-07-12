@@ -959,82 +959,73 @@ void VariableLocationFunc(const vector<Value*>& args,
   }
 }
 
-FuncInfo g_func_infos[] = {
-    {"patsubst", &PatsubstFunc, 3, 3, false, false},
-    {"strip", &StripFunc, 1, 1, false, false},
-    {"subst", &SubstFunc, 3, 3, false, false},
-    {"findstring", &FindstringFunc, 2, 2, false, false},
-    {"filter", &FilterFunc, 2, 2, false, false},
-    {"filter-out", &FilterOutFunc, 2, 2, false, false},
-    {"sort", &SortFunc, 1, 1, false, false},
-    {"word", &WordFunc, 2, 2, false, false},
-    {"wordlist", &WordlistFunc, 3, 3, false, false},
-    {"words", &WordsFunc, 1, 1, false, false},
-    {"firstword", &FirstwordFunc, 1, 1, false, false},
-    {"lastword", &LastwordFunc, 1, 1, false, false},
+#define ENTRY(name, args...) \
+  {                          \
+    name, { name, args }     \
+  }
 
-    {"join", &JoinFunc, 2, 2, false, false},
-    {"wildcard", &WildcardFunc, 1, 1, false, false},
-    {"dir", &DirFunc, 1, 1, false, false},
-    {"notdir", &NotdirFunc, 1, 1, false, false},
-    {"suffix", &SuffixFunc, 1, 1, false, false},
-    {"basename", &BasenameFunc, 1, 1, false, false},
-    {"addsuffix", &AddsuffixFunc, 2, 2, false, false},
-    {"addprefix", &AddprefixFunc, 2, 2, false, false},
-    {"realpath", &RealpathFunc, 1, 1, false, false},
-    {"abspath", &AbspathFunc, 1, 1, false, false},
+static const std::unordered_map<StringPiece, FuncInfo> g_func_info_map = {
 
-    {"if", &IfFunc, 3, 2, false, true},
-    {"and", &AndFunc, 0, 0, true, false},
-    {"or", &OrFunc, 0, 0, true, false},
+    ENTRY("patsubst", &PatsubstFunc, 3, 3, false, false),
+    ENTRY("strip", &StripFunc, 1, 1, false, false),
+    ENTRY("subst", &SubstFunc, 3, 3, false, false),
+    ENTRY("findstring", &FindstringFunc, 2, 2, false, false),
+    ENTRY("filter", &FilterFunc, 2, 2, false, false),
+    ENTRY("filter-out", &FilterOutFunc, 2, 2, false, false),
+    ENTRY("sort", &SortFunc, 1, 1, false, false),
+    ENTRY("word", &WordFunc, 2, 2, false, false),
+    ENTRY("wordlist", &WordlistFunc, 3, 3, false, false),
+    ENTRY("words", &WordsFunc, 1, 1, false, false),
+    ENTRY("firstword", &FirstwordFunc, 1, 1, false, false),
+    ENTRY("lastword", &LastwordFunc, 1, 1, false, false),
 
-    {"value", &ValueFunc, 1, 1, false, false},
-    {"eval", &EvalFunc, 1, 1, false, false},
-    {"shell", &ShellFunc, 1, 1, false, false},
-    {"call", &CallFunc, 0, 0, false, false},
-    {"foreach", &ForeachFunc, 3, 3, false, false},
+    ENTRY("join", &JoinFunc, 2, 2, false, false),
+    ENTRY("wildcard", &WildcardFunc, 1, 1, false, false),
+    ENTRY("dir", &DirFunc, 1, 1, false, false),
+    ENTRY("notdir", &NotdirFunc, 1, 1, false, false),
+    ENTRY("suffix", &SuffixFunc, 1, 1, false, false),
+    ENTRY("basename", &BasenameFunc, 1, 1, false, false),
+    ENTRY("addsuffix", &AddsuffixFunc, 2, 2, false, false),
+    ENTRY("addprefix", &AddprefixFunc, 2, 2, false, false),
+    ENTRY("realpath", &RealpathFunc, 1, 1, false, false),
+    ENTRY("abspath", &AbspathFunc, 1, 1, false, false),
 
-    {"origin", &OriginFunc, 1, 1, false, false},
-    {"flavor", &FlavorFunc, 1, 1, false, false},
+    ENTRY("if", &IfFunc, 3, 2, false, true),
+    ENTRY("and", &AndFunc, 0, 0, true, false),
+    ENTRY("or", &OrFunc, 0, 0, true, false),
 
-    {"info", &InfoFunc, 1, 1, false, false},
-    {"warning", &WarningFunc, 1, 1, false, false},
-    {"error", &ErrorFunc, 1, 1, false, false},
+    ENTRY("value", &ValueFunc, 1, 1, false, false),
+    ENTRY("eval", &EvalFunc, 1, 1, false, false),
+    ENTRY("shell", &ShellFunc, 1, 1, false, false),
+    ENTRY("call", &CallFunc, 0, 0, false, false),
+    ENTRY("foreach", &ForeachFunc, 3, 3, false, false),
 
-    {"file", &FileFunc, 2, 1, false, false},
+    ENTRY("origin", &OriginFunc, 1, 1, false, false),
+    ENTRY("flavor", &FlavorFunc, 1, 1, false, false),
+
+    ENTRY("info", &InfoFunc, 1, 1, false, false),
+    ENTRY("warning", &WarningFunc, 1, 1, false, false),
+    ENTRY("error", &ErrorFunc, 1, 1, false, false),
+
+    ENTRY("file", &FileFunc, 2, 1, false, false),
 
     /* Kati custom extension functions */
-    {"KATI_deprecated_var", &DeprecatedVarFunc, 2, 1, false, false},
-    {"KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false},
-    {"KATI_deprecate_export", &DeprecateExportFunc, 1, 1, false, false},
-    {"KATI_obsolete_export", &ObsoleteExportFunc, 1, 1, false, false},
+    ENTRY("KATI_deprecated_var", &DeprecatedVarFunc, 2, 1, false, false),
+    ENTRY("KATI_obsolete_var", &ObsoleteVarFunc, 2, 1, false, false),
+    ENTRY("KATI_deprecate_export", &DeprecateExportFunc, 1, 1, false, false),
+    ENTRY("KATI_obsolete_export", &ObsoleteExportFunc, 1, 1, false, false),
 
-    {"KATI_profile_makefile", &ProfileFunc, 0, 0, false, false},
-    {"KATI_variable_location", &VariableLocationFunc, 1, 1, false, false},
+    ENTRY("KATI_profile_makefile", &ProfileFunc, 0, 0, false, false),
+    ENTRY("KATI_variable_location", &VariableLocationFunc, 1, 1, false, false),
 };
-
-unordered_map<StringPiece, FuncInfo*>* g_func_info_map;
 
 }  // namespace
 
-void InitFuncTable() {
-  g_func_info_map = new unordered_map<StringPiece, FuncInfo*>;
-  for (size_t i = 0; i < sizeof(g_func_infos) / sizeof(g_func_infos[0]); i++) {
-    FuncInfo* fi = &g_func_infos[i];
-    bool ok = g_func_info_map->emplace(fi->name, fi).second;
-    CHECK(ok);
-  }
-}
-
-void QuitFuncTable() {
-  delete g_func_info_map;
-}
-
-FuncInfo* GetFuncInfo(StringPiece name) {
-  auto found = g_func_info_map->find(name);
-  if (found == g_func_info_map->end())
-    return NULL;
-  return found->second;
+const FuncInfo* GetFuncInfo(StringPiece name) {
+  auto found = g_func_info_map.find(name);
+  if (found == g_func_info_map.end())
+    return nullptr;
+  return &found->second;
 }
 
 const vector<CommandResult*>& GetShellCommandResults() {
