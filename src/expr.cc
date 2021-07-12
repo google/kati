@@ -234,7 +234,7 @@ class VarSubst : public Value {
 
 class Func : public Value {
  public:
-  Func(const Loc& loc, FuncInfo* fi) : Value(loc), fi_(fi) {}
+  Func(const Loc& loc, const FuncInfo* fi) : Value(loc), fi_(fi) {}
 
   ~Func() {
     for (Value* a : args_)
@@ -266,7 +266,7 @@ class Func : public Value {
   bool trim_right_space_1st() const { return fi_->trim_right_space_1st; }
 
  private:
-  FuncInfo* fi_;
+  const FuncInfo* fi_;
   vector<Value*> args_;
 };
 
@@ -444,7 +444,7 @@ Value* ParseDollar(Loc* loc, StringPiece s, size_t* index_out) {
       // ${func ...}
       if (vname->IsLiteral()) {
         Literal* lit = static_cast<Literal*>(vname);
-        if (FuncInfo* fi = GetFuncInfo(lit->val())) {
+        if (const FuncInfo* fi = GetFuncInfo(lit->val())) {
           delete lit;
           Func* func = new Func(start_loc, fi);
           ParseFunc(loc, func, s, i + 1, terms, index_out);

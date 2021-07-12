@@ -35,10 +35,7 @@ struct FuncInfo {
   bool trim_right_space_1st;
 };
 
-void InitFuncTable();
-void QuitFuncTable();
-
-FuncInfo* GetFuncInfo(StringPiece name);
+const FuncInfo* GetFuncInfo(StringPiece name);
 
 struct FindCommand;
 
