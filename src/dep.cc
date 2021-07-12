@@ -36,7 +36,7 @@
 
 namespace {
 
-static vector<DepNode*>* g_dep_node_pool;
+static std::vector<std::unique_ptr<DepNode>> g_dep_node_pool;
 
 static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
   string r;
@@ -287,9 +287,7 @@ DepNode::DepNode(Symbol o, bool p, bool r)
       is_restat(r),
       rule_vars(NULL),
       depfile_var(NULL),
-      ninja_pool_var(NULL) {
-  g_dep_node_pool->push_back(this);
-}
+      ninja_pool_var(NULL) {}
 
 class DepBuilder {
  public:
@@ -677,8 +675,11 @@ class DepBuilder {
       return found->second;
     }
 
-    DepNode* n =
-        new DepNode(output, phony_.exists(output), restat_.exists(output));
+    DepNode* n = g_dep_node_pool
+                     .emplace_back(std::make_unique<DepNode>(
+                         output, phony_.exists(output), restat_.exists(output)))
+                     .get();
+
     done_[output] = n;
 
     const RuleMerger* rule_merger = nullptr;
@@ -944,16 +945,6 @@ void MakeDep(Evaluator* ev,
   DepBuilder db(ev, rules, rule_vars);
   ScopedTimeReporter tr("make dep (build)");
   db.Build(targets, nodes);
-}
-
-void InitDepNodePool() {
-  g_dep_node_pool = new vector<DepNode*>;
-}
-
-void QuitDepNodePool() {
-  for (DepNode* n : *g_dep_node_pool)
-    delete n;
-  delete g_dep_node_pool;
 }
 
 bool IsSpecialTarget(Symbol output) {

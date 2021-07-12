@@ -23,7 +23,6 @@
 #include <unistd.h>
 
 #include "affinity.h"
-#include "dep.h"
 #include "eval.h"
 #include "exec.h"
 #include "file.h"
@@ -53,7 +52,6 @@ extern "C" const char* __asan_default_options() {
 static void Init() {
   InitSymtab();
   InitFuncTable();
-  InitDepNodePool();
   InitParser();
 }
 
@@ -61,7 +59,6 @@ static void Quit() {
   ReportAllStats();
 
   QuitParser();
-  QuitDepNodePool();
   QuitFuncTable();
   QuitSymtab();
 }
