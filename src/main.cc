@@ -49,16 +49,6 @@ extern "C" const char* __asan_default_options() {
   return "detect_leaks=0:allow_user_segv_handler=1";
 }
 
-static void Init() {
-  InitParser();
-}
-
-static void Quit() {
-  ReportAllStats();
-
-  QuitParser();
-}
-
 static void ReadBootstrapMakefile(const vector<Symbol>& targets,
                                   vector<Stmt*>* stmts) {
   string bootstrap =
@@ -367,7 +357,6 @@ int main(int argc, char* argv[]) {
     HandleRealpath(argc - 2, argv + 2);
     return 0;
   }
-  Init();
   string orig_args;
   for (int i = 0; i < argc; i++) {
     if (i)
@@ -387,6 +376,6 @@ int main(int argc, char* argv[]) {
   if (g_flags.use_find_emulator)
     InitFindEmulator();
   int r = Run(g_flags.targets, g_flags.cl_vars, orig_args);
-  Quit();
+  ReportAllStats();
   return r;
 }
