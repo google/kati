@@ -57,9 +57,6 @@ struct DepNode {
   Loc loc;
 };
 
-void InitDepNodePool();
-void QuitDepNodePool();
-
 void MakeDep(Evaluator* ev,
              const vector<const Rule*>& rules,
              const unordered_map<Symbol, Vars*>& rule_vars,
