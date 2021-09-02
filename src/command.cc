@@ -185,12 +185,12 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev) : ev_(ev) {
   INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
 }
 
-std::vector<Command> CommandEvaluator::Eval(DepNode* n) {
+std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
   std::vector<Command> result;
-  ev_->set_loc(n->loc);
-  ev_->set_current_scope(n->rule_vars);
-  current_dep_node_ = n;
-  for (Value* v : n->cmds) {
+  ev_->set_loc(n.loc);
+  ev_->set_current_scope(n.rule_vars);
+  current_dep_node_ = &n;
+  for (Value* v : n.cmds) {
     ev_->set_loc(v->Location());
     const string&& cmds_buf = v->Eval(ev_);
     StringPiece cmds = cmds_buf;
@@ -212,7 +212,7 @@ std::vector<Command> CommandEvaluator::Eval(DepNode* n) {
       ParseCommandPrefixes(&cmd, &echo, &ignore_error);
 
       if (!cmd.empty()) {
-        Command& command = result.emplace_back(n->output);
+        Command& command = result.emplace_back(n.output);
         command.cmd = cmd.as_string();
         command.echo = echo;
         command.ignore_error = ignore_error;
@@ -226,7 +226,7 @@ std::vector<Command> CommandEvaluator::Eval(DepNode* n) {
   if (!ev_->delayed_output_commands().empty()) {
     std::vector<Command> output_commands;
     for (const string& cmd : ev_->delayed_output_commands()) {
-      Command& c = output_commands.emplace_back(n->output);
+      Command& c = output_commands.emplace_back(n.output);
       c.cmd = cmd;
       c.echo = false;
       c.ignore_error = false;

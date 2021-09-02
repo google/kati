@@ -35,13 +35,13 @@ struct Command {
 class CommandEvaluator {
  public:
   explicit CommandEvaluator(Evaluator* ev);
-  std::vector<Command> Eval(DepNode* n);
+  std::vector<Command> Eval(const DepNode& n);
   const DepNode* current_dep_node() const { return current_dep_node_; }
   Evaluator* evaluator() const { return ev_; }
 
  private:
   Evaluator* ev_;
-  DepNode* current_dep_node_;
+  const DepNode* current_dep_node_;
 };
 
 #endif  // COMMAND_H_
