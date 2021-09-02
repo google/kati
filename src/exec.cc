@@ -98,31 +98,29 @@ class Executor {
       return output_ts;
     }
 
-    vector<Command*> commands;
-    ce_.Eval(n, &commands);
-    for (Command* command : commands) {
+    auto commands = ce_.Eval(n);
+    for (const Command& command : commands) {
       num_commands_ += 1;
-      if (command->echo) {
-        printf("%s\n", command->cmd.c_str());
+      if (command.echo) {
+        printf("%s\n", command.cmd.c_str());
         fflush(stdout);
       }
       if (!g_flags.is_dry_run) {
         string out;
-        int result = RunCommand(shell_, shellflag_, command->cmd.c_str(),
+        int result = RunCommand(shell_, shellflag_, command.cmd.c_str(),
                                 RedirectStderr::STDOUT, &out);
         printf("%s", out.c_str());
         if (result != 0) {
-          if (command->ignore_error) {
-            fprintf(stderr, "[%s] Error %d (ignored)\n",
-                    command->output.c_str(), WEXITSTATUS(result));
+          if (command.ignore_error) {
+            fprintf(stderr, "[%s] Error %d (ignored)\n", command.output.c_str(),
+                    WEXITSTATUS(result));
           } else {
-            fprintf(stderr, "*** [%s] Error %d\n", command->output.c_str(),
+            fprintf(stderr, "*** [%s] Error %d\n", command.output.c_str(),
                     WEXITSTATUS(result));
             exit(1);
           }
         }
       }
-      delete command;
     }
 
     done_[n->output] = output_ts;

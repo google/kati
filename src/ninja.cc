@@ -171,7 +171,7 @@ bool GetDepfileFromCommand(string* cmd, string* out) {
 
 struct NinjaNode {
   const DepNode* node;
-  vector<Command*> commands;
+  vector<Command> commands;
   int rule_id;
 };
 
@@ -245,7 +245,7 @@ class NinjaGenerator {
 
     NinjaNode& nn = nodes_.emplace_back();
     nn.node = node;
-    ce_.Eval(node, &nn.commands);
+    nn.commands = ce_.Eval(node);
     nn.rule_id = nn.commands.empty() ? -1 : rule_id_++;
 
     for (auto const& d : node->deps) {
@@ -399,36 +399,35 @@ class NinjaGenerator {
   }
 
   bool GenShellScript(const char* name,
-                      const vector<Command*>& commands,
+                      const vector<Command>& commands,
                       string* cmd_buf,
                       string* description) {
     bool got_descritpion = false;
     bool use_gomacc = false;
     auto command_count = commands.size();
-    for (const Command* c : commands) {
+    for (const Command& c : commands) {
       size_t cmd_begin = cmd_buf->size();
 
       if (!cmd_buf->empty()) {
         *cmd_buf += " && ";
       }
 
-      const char* in = c->cmd.c_str();
+      const char* in = c.cmd.c_str();
       while (isspace(*in))
         in++;
 
-      bool needs_subshell = (command_count > 1 || c->ignore_error);
+      bool needs_subshell = (command_count > 1 || c.ignore_error);
 
       if (needs_subshell)
         *cmd_buf += '(';
 
       size_t cmd_start = cmd_buf->size();
       StringPiece translated = TranslateCommand(in, cmd_buf);
-      if (g_flags.detect_android_echo && !got_descritpion && !c->echo &&
+      if (g_flags.detect_android_echo && !got_descritpion && !c.echo &&
           GetDescriptionFromCommand(translated, description)) {
         got_descritpion = true;
         translated.clear();
-      } else if (IsOutputMkdir(name, translated) && !c->echo &&
-                 cmd_begin == 0) {
+      } else if (IsOutputMkdir(name, translated) && !c.echo && cmd_begin == 0) {
         translated.clear();
       }
       if (translated.empty()) {
@@ -445,7 +444,7 @@ class NinjaGenerator {
         use_gomacc = true;
       }
 
-      if (c->ignore_error) {
+      if (c.ignore_error) {
         *cmd_buf += " ; true";
       }
 
@@ -481,7 +480,7 @@ class NinjaGenerator {
 
   void EmitNode(const NinjaNode& nn, std::ostream& out) {
     const DepNode* node = nn.node;
-    const vector<Command*>& commands = nn.commands;
+    const vector<Command>& commands = nn.commands;
 
     string rule_name = "phony";
     bool use_local_pool = false;
