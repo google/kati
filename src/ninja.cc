@@ -221,41 +221,41 @@ class NinjaGenerator {
   void PopulateNinjaNodes(const vector<NamedDepNode>& nodes) {
     ScopedTimeReporter tr("ninja gen (eval)");
     for (auto const& node : nodes) {
-      PopulateNinjaNode(node.second);
+      PopulateNinjaNode(*node.second);
     }
   }
 
-  void PopulateNinjaNode(DepNode* node) {
-    if (done_.exists(node->output)) {
+  void PopulateNinjaNode(const DepNode& node) {
+    if (done_.exists(node.output)) {
       return;
     }
-    done_.insert(node->output);
-    ScopedFrame frame(ce_.evaluator()->Enter(FrameType::NINJA,
-                                             node->output.str(), node->loc));
+    done_.insert(node.output);
+    ScopedFrame frame(
+        ce_.evaluator()->Enter(FrameType::NINJA, node.output.str(), node.loc));
 
     // A hack to exclude out phony target in Android. If this exists,
     // "ninja -t clean" tries to remove this directory and fails.
-    if (g_flags.detect_android_echo && node->output.str() == "out")
+    if (g_flags.detect_android_echo && node.output.str() == "out")
       return;
 
     // This node is a leaf node
-    if (!node->has_rule && !node->is_phony) {
+    if (!node.has_rule && !node.is_phony) {
       return;
     }
 
     NinjaNode& nn = nodes_.emplace_back();
-    nn.node = node;
+    nn.node = &node;
     nn.commands = ce_.Eval(node);
     nn.rule_id = nn.commands.empty() ? -1 : rule_id_++;
 
-    for (auto const& d : node->deps) {
-      PopulateNinjaNode(d.second);
+    for (auto const& d : node.deps) {
+      PopulateNinjaNode(*d.second);
     }
-    for (auto const& d : node->order_onlys) {
-      PopulateNinjaNode(d.second);
+    for (auto const& d : node.order_onlys) {
+      PopulateNinjaNode(*d.second);
     }
-    for (auto const& d : node->validations) {
-      PopulateNinjaNode(d.second);
+    for (auto const& d : node.validations) {
+      PopulateNinjaNode(*d.second);
     }
   }
 

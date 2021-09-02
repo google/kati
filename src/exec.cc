@@ -49,52 +49,51 @@ class Executor {
     shellflag_ = ev->GetShellFlag();
   }
 
-  double ExecNode(DepNode* n, DepNode* needed_by) {
-    auto found = done_.find(n->output);
+  double ExecNode(const DepNode& n, const char* needed_by) {
+    auto found = done_.find(n.output);
     if (found != done_.end()) {
       if (found->second == kProcessing) {
         WARN("Circular %s <- %s dependency dropped.",
-             needed_by ? needed_by->output.c_str() : "(null)",
-             n->output.c_str());
+             needed_by ? needed_by : "(null)", n.output.c_str());
       }
       return found->second;
     }
     ScopedFrame frame(
-        ce_.evaluator()->Enter(FrameType::EXEC, n->output.c_str(), n->loc));
+        ce_.evaluator()->Enter(FrameType::EXEC, n.output.c_str(), n.loc));
 
-    done_[n->output] = kProcessing;
-    double output_ts = GetTimestamp(n->output.c_str());
+    done_[n.output] = kProcessing;
+    double output_ts = GetTimestamp(n.output.c_str());
 
-    LOG("ExecNode: %s for %s", n->output.c_str(),
-        needed_by ? needed_by->output.c_str() : "(null)");
+    LOG("ExecNode: %s for %s", n.output.c_str(),
+        needed_by ? needed_by : "(null)");
 
-    if (!n->has_rule && output_ts == kNotExist && !n->is_phony) {
+    if (!n.has_rule && output_ts == kNotExist && !n.is_phony) {
       if (needed_by) {
         ERROR("*** No rule to make target '%s', needed by '%s'.",
-              n->output.c_str(), needed_by->output.c_str());
+              n.output.c_str(), needed_by);
       } else {
-        ERROR("*** No rule to make target '%s'.", n->output.c_str());
+        ERROR("*** No rule to make target '%s'.", n.output.c_str());
       }
     }
 
     double latest = kProcessing;
-    for (auto const& d : n->order_onlys) {
+    for (auto const& d : n.order_onlys) {
       if (Exists(d.second->output.str())) {
         continue;
       }
-      double ts = ExecNode(d.second, n);
+      double ts = ExecNode(*d.second, n.output.c_str());
       if (latest < ts)
         latest = ts;
     }
 
-    for (auto const& d : n->deps) {
-      double ts = ExecNode(d.second, n);
+    for (auto const& d : n.deps) {
+      double ts = ExecNode(*d.second, n.output.c_str());
       if (latest < ts)
         latest = ts;
     }
 
-    if (output_ts >= latest && !n->is_phony) {
-      done_[n->output] = output_ts;
+    if (output_ts >= latest && !n.is_phony) {
+      done_[n.output] = output_ts;
       return output_ts;
     }
 
@@ -123,7 +122,7 @@ class Executor {
       }
     }
 
-    done_[n->output] = output_ts;
+    done_[n.output] = output_ts;
     return output_ts;
   }
 
@@ -142,7 +141,7 @@ class Executor {
 void Exec(const vector<NamedDepNode>& roots, Evaluator* ev) {
   Executor executor(ev);
   for (auto const& root : roots) {
-    executor.ExecNode(root.second, NULL);
+    executor.ExecNode(*root.second, nullptr);
   }
   if (executor.Count() == 0) {
     for (auto const& root : roots) {
