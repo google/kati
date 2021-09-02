@@ -196,8 +196,6 @@ class NinjaGenerator {
 
   ~NinjaGenerator() {
     ev_->set_avoid_io(false);
-    for (NinjaNode* nn : nodes_)
-      delete nn;
   }
 
   void Generate(const vector<NamedDepNode>& nodes, const string& orig_args) {
@@ -245,11 +243,10 @@ class NinjaGenerator {
       return;
     }
 
-    NinjaNode* nn = new NinjaNode;
-    nn->node = node;
-    ce_.Eval(node, &nn->commands);
-    nn->rule_id = nn->commands.empty() ? -1 : rule_id_++;
-    nodes_.push_back(nn);
+    NinjaNode& nn = nodes_.emplace_back();
+    nn.node = node;
+    ce_.Eval(node, &nn.commands);
+    nn.rule_id = nn.commands.empty() ? -1 : rule_id_++;
 
     for (auto const& d : node->deps) {
       PopulateNinjaNode(d.second);
@@ -473,8 +470,8 @@ class NinjaGenerator {
     return result;
   }
 
-  void EmitDepfile(NinjaNode* nn, string* cmd_buf, std::ostream& out) {
-    const DepNode* node = nn->node;
+  void EmitDepfile(const NinjaNode& nn, string* cmd_buf, std::ostream& out) {
+    const DepNode* node = nn.node;
     string depfile;
     if (!GetDepfile(node, cmd_buf, &depfile))
       return;
@@ -482,9 +479,9 @@ class NinjaGenerator {
     out << " deps = gcc\n";
   }
 
-  void EmitNode(NinjaNode* nn, std::ostream& out) {
-    const DepNode* node = nn->node;
-    const vector<Command*>& commands = nn->commands;
+  void EmitNode(const NinjaNode& nn, std::ostream& out) {
+    const DepNode* node = nn.node;
+    const vector<Command*>& commands = nn.commands;
 
     string rule_name = "phony";
     bool use_local_pool = false;
@@ -496,7 +493,7 @@ class NinjaGenerator {
           << node->loc.lineno << "\n";
     }
     if (!commands.empty()) {
-      rule_name = StringPrintf("rule%d", nn->rule_id);
+      rule_name = StringPrintf("rule%d", nn.rule_id);
       out << "rule " << rule_name << "\n";
 
       string description = "build $out";
@@ -545,11 +542,11 @@ class NinjaGenerator {
 
   string EscapeBuildTarget(Symbol s) const { return EscapeNinja(s.str()); }
 
-  void EmitBuild(NinjaNode* nn,
+  void EmitBuild(const NinjaNode& nn,
                  const string& rule_name,
                  bool use_local_pool,
                  std::ostream& out) {
-    const DepNode* node = nn->node;
+    const DepNode* node = nn.node;
     string target = EscapeBuildTarget(node->output);
     out << "build " << target;
     if (!node->implicit_outputs.empty()) {
@@ -815,7 +812,7 @@ class NinjaGenerator {
   map<string, string> used_envs_;
   string kati_binary_;
   const double start_time_;
-  vector<NinjaNode*> nodes_;
+  std::vector<NinjaNode> nodes_;
 
   mutex mu_;
   const DepNode* default_target_;
