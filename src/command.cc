@@ -185,7 +185,8 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev) : ev_(ev) {
   INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
 }
 
-void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
+std::vector<Command> CommandEvaluator::Eval(DepNode* n) {
+  std::vector<Command> result;
   ev_->set_loc(n->loc);
   ev_->set_current_scope(n->rule_vars);
   current_dep_node_ = n;
@@ -211,11 +212,10 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
       ParseCommandPrefixes(&cmd, &echo, &ignore_error);
 
       if (!cmd.empty()) {
-        Command* command = new Command(n->output);
-        command->cmd = cmd.as_string();
-        command->echo = echo;
-        command->ignore_error = ignore_error;
-        commands->push_back(command);
+        Command& command = result.emplace_back(n->output);
+        command.cmd = cmd.as_string();
+        command.echo = echo;
+        command.ignore_error = ignore_error;
       }
       if (index == string::npos)
         break;
@@ -224,20 +224,20 @@ void CommandEvaluator::Eval(DepNode* n, vector<Command*>* commands) {
   }
 
   if (!ev_->delayed_output_commands().empty()) {
-    vector<Command*> output_commands;
+    std::vector<Command> output_commands;
     for (const string& cmd : ev_->delayed_output_commands()) {
-      Command* c = new Command(n->output);
-      c->cmd = cmd;
-      c->echo = false;
-      c->ignore_error = false;
-      output_commands.push_back(c);
+      Command& c = output_commands.emplace_back(n->output);
+      c.cmd = cmd;
+      c.echo = false;
+      c.ignore_error = false;
     }
     // Prepend |output_commands|.
-    commands->swap(output_commands);
-    copy(output_commands.begin(), output_commands.end(),
-         back_inserter(*commands));
+    result.swap(output_commands);
+    copy(output_commands.begin(), output_commands.end(), back_inserter(result));
     ev_->clear_delayed_output_commands();
   }
 
   ev_->set_current_scope(NULL);
+
+  return result;
 }
