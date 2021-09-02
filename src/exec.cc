@@ -140,11 +140,11 @@ class Executor {
 }  // namespace
 
 void Exec(const vector<NamedDepNode>& roots, Evaluator* ev) {
-  unique_ptr<Executor> executor(new Executor(ev));
+  Executor executor(ev);
   for (auto const& root : roots) {
-    executor->ExecNode(root.second, NULL);
+    executor.ExecNode(root.second, NULL);
   }
-  if (executor->Count() == 0) {
+  if (executor.Count() == 0) {
     for (auto const& root : roots) {
       printf("kati: Nothing to be done for `%s'.\n", root.first.c_str());
     }
