@@ -396,9 +396,7 @@ void RealpathFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   const string&& text = args[0]->Eval(ev);
   if (ev->avoid_io()) {
     *s += "$(";
-    string kati_binary;
-    GetExecutablePath(&kati_binary);
-    *s += kati_binary;
+    *s += GetExecutablePath();
     *s += " --realpath ";
     *s += text;
     *s += " 2> /dev/null)";

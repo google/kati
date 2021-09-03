@@ -42,7 +42,7 @@ int RunCommand(const string& shell,
                RedirectStderr redirect_stderr,
                string* out);
 
-void GetExecutablePath(string* path);
+std::string GetExecutablePath();
 
 void Glob(const char* pat, vector<string>** files);
 
