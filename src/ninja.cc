@@ -181,21 +181,19 @@ class NinjaGenerator {
       : ce_(ev),
         ev_(ev),
         rule_id_(0),
+        shell_(EscapeNinja(ev->GetShell())),
+        shell_flags_(EscapeNinja(ev->GetShellFlag())),
         kati_binary_(GetExecutablePath()),
         start_time_(start_time),
         default_target_(NULL) {
     ev_->set_avoid_io(true);
-    shell_ = EscapeNinja(ev->GetShell());
-    shell_flags_ = EscapeNinja(ev->GetShellFlag());
     const std::string use_goma_str = ev->EvalVar(Intern("USE_GOMA"));
     use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
     if (g_flags.goma_dir)
       gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
   }
 
-  ~NinjaGenerator() {
-    ev_->set_avoid_io(false);
-  }
+  ~NinjaGenerator() { ev_->set_avoid_io(false); }
 
   void Generate(const std::vector<NamedDepNode>& nodes,
                 const std::string& orig_args) {
@@ -811,8 +809,8 @@ class NinjaGenerator {
   int rule_id_;
   bool use_goma_;
   std::string gomacc_;
-  std::string shell_;
-  std::string shell_flags_;
+  const std::string shell_;
+  const std::string shell_flags_;
   std::map<std::string, std::string> used_envs_;
   const std::string kati_binary_;
   const double start_time_;
