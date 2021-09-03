@@ -23,13 +23,11 @@
 #include "dep.h"
 #include "string_piece.h"
 
-using namespace std;
-
 class Evaluator;
 
-void GenerateNinja(const vector<NamedDepNode>& nodes,
+void GenerateNinja(const std::vector<NamedDepNode>& nodes,
                    Evaluator* ev,
-                   const string& orig_args,
+                   const std::string& orig_args,
                    double start_time);
 
 string GetNinjaFilename();
@@ -37,7 +35,7 @@ string GetNinjaShellScriptFilename();
 string GetNinjaStampFilename();
 
 // Exposed only for test.
-bool GetDepfileFromCommand(string* cmd, string* out);
+bool GetDepfileFromCommand(std::string* cmd, std::string* out);
 size_t GetGomaccPosForAndroidCompileCommand(StringPiece cmdline);
 
 #endif  // NINJA_H_
