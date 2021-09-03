@@ -162,9 +162,7 @@ class StampChecker {
       double ts = GetTimestamp(s);
       if (gen_time < ts) {
         if (g_flags.regen_ignoring_kati_binary) {
-          string kati_binary;
-          GetExecutablePath(&kati_binary);
-          if (s == kati_binary) {
+          if (s == GetExecutablePath()) {
             fprintf(stderr, "%s was modified, ignored.\n", s.c_str());
             continue;
           }

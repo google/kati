@@ -132,7 +132,7 @@ int RunCommand(const string& shell,
   }
 }
 
-void GetExecutablePath(string* path) {
+std::string GetExecutablePath() {
 #if defined(__linux__)
   char mypath[PATH_MAX + 1];
   ssize_t l = readlink("/proc/self/exe", mypath, PATH_MAX);
@@ -140,7 +140,7 @@ void GetExecutablePath(string* path) {
     PERROR("readlink for /proc/self/exe");
   }
   mypath[l] = '\0';
-  *path = mypath;
+  return {mypath};
 #elif defined(__APPLE__)
   char mypath[PATH_MAX + 1];
   uint32_t size = PATH_MAX;
@@ -148,7 +148,7 @@ void GetExecutablePath(string* path) {
     ERROR("_NSGetExecutablePath failed");
   }
   mypath[size] = 0;
-  *path = mypath;
+  return {mypath};
 #else
 #error "Unsupported OS"
 #endif

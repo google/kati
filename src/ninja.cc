@@ -181,6 +181,7 @@ class NinjaGenerator {
       : ce_(ev),
         ev_(ev),
         rule_id_(0),
+        kati_binary_(GetExecutablePath()),
         start_time_(start_time),
         default_target_(NULL) {
     ev_->set_avoid_io(true);
@@ -190,8 +191,6 @@ class NinjaGenerator {
     use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
     if (g_flags.goma_dir)
       gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
-
-    GetExecutablePath(&kati_binary_);
   }
 
   ~NinjaGenerator() {
@@ -815,7 +814,7 @@ class NinjaGenerator {
   std::string shell_;
   std::string shell_flags_;
   std::map<std::string, std::string> used_envs_;
-  std::string kati_binary_;
+  const std::string kati_binary_;
   const double start_time_;
   std::vector<NinjaNode> nodes_;
 
