@@ -278,12 +278,11 @@ class StampChecker {
 
   bool CheckGlobResult(const GlobResult* gr, string* err) {
     COLLECT_STATS("glob time (regen)");
-    vector<string>* files;
-    Glob(gr->pat.c_str(), &files);
-    bool needs_regen = files->size() != gr->result.size();
+    const auto& files = Glob(gr->pat.c_str());
+    bool needs_regen = files.size() != gr->result.size();
     for (size_t i = 0; i < gr->result.size(); i++) {
       if (!needs_regen) {
-        if ((*files)[i] != gr->result[i]) {
+        if (files[i] != gr->result[i]) {
           needs_regen = true;
           break;
         }

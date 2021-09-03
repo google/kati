@@ -323,11 +323,10 @@ void WildcardFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   // Note GNU make does not delay the execution of $(wildcard) so we
   // do not need to check avoid_io here.
   WordWriter ww(s);
-  vector<string>* files;
   for (StringPiece tok : WordScanner(pat)) {
     ScopedTerminator st(tok);
-    Glob(tok.data(), &files);
-    for (const string& file : *files) {
+    const auto& files = Glob(tok.data());
+    for (const string& file : files) {
       ww.Write(file);
     }
   }
