@@ -741,12 +741,10 @@ class NinjaGenerator {
       DumpString(fp, value);
     }
 
-    const std::unordered_map<std::string, std::vector<std::string>*>& globs =
-        GetAllGlobCache();
+    auto& globs = GetAllGlobCache();
     DumpInt(fp, globs.size());
-    for (const auto& [key, values] : globs) {
+    for (const auto& [key, files] : globs) {
       DumpString(fp, key);
-      const std::vector<std::string>& files = *values;
 #if 0
       std::unordered_set<std::string> dirs;
       GetReadDirs(p.first, files, &dirs);

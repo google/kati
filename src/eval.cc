@@ -635,11 +635,10 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
   const string&& pats = stmt->expr->Eval(this);
   for (StringPiece pat : WordScanner(pats)) {
     ScopedTerminator st(pat);
-    vector<string>* files;
-    Glob(pat.data(), &files);
+    const auto& files = Glob(pat.data());
 
     if (stmt->should_exist) {
-      if (files->empty()) {
+      if (files.empty()) {
         // TODO: Kati does not support building a missing include file.
         Error(StringPrintf("%s: %s", pat.data(), strerror(errno)));
       }
@@ -647,7 +646,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
 
     include_stack_.push_back(stmt->loc());
 
-    for (const string& fname : *files) {
+    for (const string& fname : files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
         continue;
