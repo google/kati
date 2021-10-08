@@ -494,12 +494,12 @@ static bool HasNoIoInShellScript(const string& cmd) {
   return false;
 }
 
-static void ShellFuncImpl(const string& shell,
-                          const string& shellflag,
-                          const string& cmd,
-                          const Loc& loc,
-                          string* s,
-                          FindCommand** fc) {
+static int ShellFuncImpl(const string& shell,
+                         const string& shellflag,
+                         const string& cmd,
+                         const Loc& loc,
+                         string* s,
+                         FindCommand** fc) {
   LOG("ShellFunc: %s", cmd.c_str());
 
 #ifdef TEST_FIND_EMULATOR
@@ -515,7 +515,7 @@ static void ShellFuncImpl(const string& shell,
       }
 #else
       if (FindEmulator::Get()->HandleFind(cmd, **fc, loc, s)) {
-        return;
+        return 0;
       }
 #endif
     }
@@ -524,7 +524,7 @@ static void ShellFuncImpl(const string& shell,
   }
 
   COLLECT_STATS_WITH_SLOW_REPORT("func shell time", cmd.c_str());
-  RunCommand(shell, shellflag, cmd, RedirectStderr::NONE, s);
+  int status = RunCommand(shell, shellflag, cmd, RedirectStderr::NONE, s);
   FormatForCommandSubstitution(s);
 
 #ifdef TEST_FIND_EMULATOR
@@ -535,6 +535,11 @@ static void ShellFuncImpl(const string& shell,
     }
   }
 #endif
+
+  if (WIFEXITED(status)) {
+    return WEXITSTATUS(status);
+  }
+  return 1;
 }
 
 static vector<CommandResult*> g_command_results;
@@ -577,7 +582,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
 
   string out;
   FindCommand* fc = NULL;
-  ShellFuncImpl(shell, shellflag, cmd, ev->loc(), &out, &fc);
+  int returnCode = ShellFuncImpl(shell, shellflag, cmd, ev->loc(), &out, &fc);
   if (ShouldStoreCommandResult(cmd)) {
     CommandResult* cr = new CommandResult();
     cr->op = (fc == NULL) ? CommandOp::SHELL : CommandOp::FIND,
@@ -590,6 +595,7 @@ void ShellFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
     g_command_results.push_back(cr);
   }
   *s += out;
+  ShellStatusVar::SetValue(returnCode);
 }
 
 void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {

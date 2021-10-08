@@ -189,6 +189,7 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
   std::vector<Command> result;
   ev_->set_loc(n.loc);
   ev_->set_current_scope(n.rule_vars);
+  ev_->SetEvaluatingCommand(true);
   current_dep_node_ = &n;
   for (Value* v : n.cmds) {
     ev_->set_loc(v->Location());
@@ -238,6 +239,7 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
   }
 
   ev_->set_current_scope(NULL);
+  ev_->SetEvaluatingCommand(false);
 
   return result;
 }

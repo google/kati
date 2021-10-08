@@ -46,7 +46,7 @@ enum FrameType {
   FUNCALL,     // Evaluating a function call (not its result)
   STATEMENT,   // Denotes individual statements for better location reporting
   DEPENDENCY,  // Dependency analysis. += requires variable expansion here.
-  EXEC,        // Execution phase. Expansoin of = and rule-specific variables.
+  EXEC,        // Execution phase. Expansion of = and rule-specific variables.
   NINJA,       // Ninja file generation
 };
 
@@ -216,6 +216,9 @@ class Evaluator {
     profiled_files_.emplace_back(mk.as_string());
   }
 
+  bool IsEvaluatingCommand() const;
+  void SetEvaluatingCommand(bool evaluating_command);
+
  private:
   Var* EvalRHS(Symbol lhs,
                Value* rhs,
@@ -280,6 +283,8 @@ class Evaluator {
   vector<string> profiled_files_;
 
   static SymbolSet used_undefined_vars_;
+
+  bool is_evaluating_command_ = false;
 };
 
 #endif  // EVAL_H_
