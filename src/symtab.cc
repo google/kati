@@ -129,6 +129,8 @@ class Symtab {
 
     kEmptySym = Intern("");
     kShellSym = Intern("SHELL");
+    Symbol shellStatusSym = Intern(".SHELLSTATUS");
+    shellStatusSym.SetGlobalVar(new ShellStatusVar(), false, nullptr);
     kAllowRulesSym = Intern(".KATI_ALLOW_RULES");
     kKatiReadonlySym = Intern(".KATI_READONLY");
     kVariablesSym = Intern(".VARIABLES");

@@ -883,4 +883,12 @@ void Evaluator::DumpIncludeJSON(const string& filename) const {
   fclose(jsonfile);
 }
 
+bool Evaluator::IsEvaluatingCommand() const {
+  return is_evaluating_command_;
+}
+
+void Evaluator::SetEvaluatingCommand(bool evaluating_command) {
+  is_evaluating_command_ = evaluating_command;
+}
+
 SymbolSet Evaluator::used_undefined_vars_;

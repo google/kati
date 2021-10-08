@@ -195,6 +195,29 @@ class VariableNamesVar : public Var {
   void ConcatVariableNames(Evaluator* ev, string* s) const;
 };
 
+// The built-in .SHELLSTATUS variable
+class ShellStatusVar : public Var {
+ public:
+  ShellStatusVar();
+
+  static void SetValue(int newShellStatus);
+
+  virtual const char* Flavor() const override { return "simple"; }
+  virtual bool IsDefined() const override;
+
+  virtual bool IsFunc(Evaluator* ev) const override;
+
+  virtual void Eval(Evaluator* ev, string* s) const override;
+
+  virtual StringPiece String() const override;
+
+  virtual string DebugString() const override;
+
+ private:
+  static bool is_set_;
+  static int shell_status_;
+};
+
 class Vars : public unordered_map<Symbol, Var*> {
  public:
   ~Vars();

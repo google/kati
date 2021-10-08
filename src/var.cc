@@ -248,6 +248,51 @@ string VariableNamesVar::DebugString() const {
   return "*VariableNamesVar*";
 }
 
+bool ShellStatusVar::is_set_ = false;
+int ShellStatusVar::shell_status_ = 0;
+
+ShellStatusVar::ShellStatusVar() {
+  SetReadOnly();
+  SetAssignOp(AssignOp::COLON_EQ);
+}
+
+void ShellStatusVar::SetValue(int newShellStatus) {
+  shell_status_ = newShellStatus;
+  is_set_ = true;
+}
+
+bool ShellStatusVar::IsDefined() const {
+  return is_set_;
+}
+
+bool ShellStatusVar::IsFunc(Evaluator*) const {
+  return false;
+}
+
+void ShellStatusVar::Eval(Evaluator* ev, string* s) const {
+  if (ev->IsEvaluatingCommand()) {
+    ev->Error("Kati does not support using .SHELLSTATUS inside of a rule");
+  }
+
+  if (!is_set_) {
+    return;
+  }
+
+  *s += std::to_string(shell_status_);
+}
+
+StringPiece ShellStatusVar::String() const {
+  if (!is_set_) {
+    return "";
+  }
+
+  return std::to_string(shell_status_);
+}
+
+string ShellStatusVar::DebugString() const {
+  return "*ShellStatusVar*";
+}
+
 Vars::~Vars() {
   for (auto p : *this) {
     delete p.second;
