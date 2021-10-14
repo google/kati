@@ -1,6 +1,6 @@
 srcdir := .
 
-test: foo.o bar.o
+test: foo.o xbar.o
 	echo linking $@ from $<
 
 %.o: $(srcdir)/%.c
@@ -9,5 +9,5 @@ test: foo.o bar.o
 $(srcdir)/foo.c:
 	echo source $@
 
-bar.c:
+xbar.c:
 	echo source $@

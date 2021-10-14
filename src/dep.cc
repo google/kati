@@ -918,7 +918,12 @@ class DepBuilder {
   }
 
   Evaluator* ev_;
-  map<Symbol, RuleMerger> rules_;
+  struct TargetComp {
+    bool operator()(const Symbol& lhs, const Symbol& rhs) const {
+      return lhs.str() < rhs.str();
+    }
+  };
+  map<Symbol, RuleMerger, TargetComp> rules_;
   const unordered_map<Symbol, Vars*>& rule_vars_;
   unique_ptr<Vars> cur_rule_vars_;
 

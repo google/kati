@@ -1,7 +1,13 @@
 # expect protoc compile/link only once.
+
+# Caveat: this test relies on Make and Ninja updating 
+# the targets in the same order. Make's target update
+# order is depth first, Ninja's is the first lexically
+# updatable target. Caution should be taken as Kati reorders
+# targets.
 test: foo
 
-foo: foo.o bar.o
+foo: foo.o xbar.o
 	echo link $@ from $<
 
 %.o: %.c FORCE_DO_CMD
@@ -17,12 +23,12 @@ foo.c: foo.proto
 
 foo.proto:
 
-bar.c: | protoc
+xbar.c: | protoc
 
-bar.c: bar.proto
+xbar.c: xbar.proto
 	echo protoc $@ from $<
 
-bar.proto:
+xbar.proto:
 
 protoc: proto.o
 	echo link $@ from $<
