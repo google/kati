@@ -645,6 +645,20 @@ class NinjaGenerator {
       for (const auto& node : nodes_) {
         EmitNode(node, out);
       }
+
+      std::string default_targets;
+      if (g_flags.targets.empty() || g_flags.gen_all_targets) {
+        CHECK(default_target_);
+        default_targets = EscapeBuildTarget(default_target_->output);
+      } else {
+        for (Symbol s : g_flags.targets) {
+          if (!default_targets.empty())
+            default_targets += ' ';
+          default_targets += EscapeBuildTarget(s);
+        }
+      }
+      out << "\n"
+          << "default " << default_targets << '\n';
     }
 
     SymbolSet used_env_vars(Vars::used_env_vars());
@@ -653,22 +667,6 @@ class NinjaGenerator {
     for (Symbol e : used_env_vars) {
       StringPiece val(getenv(e.c_str()));
       used_envs_.emplace(e.str(), val.as_string());
-    }
-
-    std::string default_targets;
-    if (g_flags.targets.empty() || g_flags.gen_all_targets) {
-      CHECK(default_target_);
-      default_targets = EscapeBuildTarget(default_target_->output);
-    } else {
-      for (Symbol s : g_flags.targets) {
-        if (!default_targets.empty())
-          default_targets += ' ';
-        default_targets += EscapeBuildTarget(s);
-      }
-    }
-    if (!g_flags.generate_empty_ninja) {
-      out << "\n"
-          << "default " << default_targets << '\n';
     }
   }
 
