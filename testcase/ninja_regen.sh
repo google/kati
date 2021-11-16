@@ -16,7 +16,7 @@
 
 set -e
 
-log=/tmp/log
+log=stderr_log
 mk="$@"
 
 export VAR=hoge

@@ -16,7 +16,7 @@
 
 set -e
 
-log=/tmp/log
+log=stderr_log
 mk="$@"
 
 touch xe.mk yc.mk xa.mk yb.mk xd.mk
