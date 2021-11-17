@@ -1,6 +1,6 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-RUN apt-get update && apt-get install -y make git-core build-essential curl ninja-build python
+RUN apt-get update && apt-get install -y make git-core build-essential curl ninja-build python python3
 
 # Install Go
 RUN \
@@ -13,6 +13,7 @@ ENV GOPATH /gopath
 ENV PATH $GOROOT/bin:$GOPATH/bin:$PATH
 
 # Copy project code.
-COPY . /
+COPY . /src
+WORKDIR /src
 
-ENTRYPOINT make test
+CMD make test -j8

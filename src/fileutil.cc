@@ -21,6 +21,7 @@
 #include <glob.h>
 #include <limits.h>
 #include <signal.h>
+#include <spawn.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -33,6 +34,8 @@
 
 #include "log.h"
 #include "strutil.h"
+
+extern char** environ;
 
 bool Exists(StringPiece filename) {
   CHECK(filename.size() < PATH_MAX);
@@ -84,52 +87,95 @@ int RunCommand(const string& shell,
   int pipefd[2];
   if (pipe(pipefd) != 0)
     PERROR("pipe failed");
-  int pid;
-  if ((pid = vfork())) {
-    int status;
-    close(pipefd[1]);
-    while (true) {
-      int result = waitpid(pid, &status, WNOHANG);
-      if (result < 0)
-        PERROR("waitpid failed");
 
-      while (true) {
-        char buf[4096];
-        ssize_t r = HANDLE_EINTR(read(pipefd[0], buf, 4096));
-        if (r < 0)
-          PERROR("read failed");
-        if (r == 0)
-          break;
-        s->append(buf, buf + r);
-      }
-
-      if (result != 0) {
-        break;
-      }
-    }
-    close(pipefd[0]);
-
-    return status;
-  } else {
-    close(pipefd[0]);
-    if (redirect_stderr == RedirectStderr::STDOUT) {
-      if (dup2(pipefd[1], 2) < 0)
-        PERROR("dup2 failed");
-    } else if (redirect_stderr == RedirectStderr::DEV_NULL) {
-      int fd = open("/dev/null", O_WRONLY);
-      if (dup2(fd, 2) < 0)
-        PERROR("dup2 failed");
-      close(fd);
-    }
-    if (dup2(pipefd[1], 1) < 0)
-      PERROR("dup2 failed");
-    close(pipefd[1]);
-
-    execvp(argv[0], const_cast<char**>(argv));
-    PLOG("execvp for %s failed", argv[0]);
-    kill(getppid(), SIGTERM);
-    _exit(1);
+  posix_spawn_file_actions_t action;
+  int err = posix_spawn_file_actions_init(&action);
+  if (err != 0) {
+    ERROR("posix_spawn_file_actions_init: %s", strerror(err));
   }
+
+  err = posix_spawn_file_actions_addclose(&action, pipefd[0]);
+  if (err != 0) {
+    ERROR("posix_spawn_file_actions_addclose: %s", strerror(err));
+  }
+
+  if (redirect_stderr == RedirectStderr::STDOUT) {
+    err = posix_spawn_file_actions_adddup2(&action, pipefd[1], 2);
+    if (err != 0) {
+      ERROR("posix_spawn_file_actions_adddup2: %s", strerror(err));
+    }
+  } else if (redirect_stderr == RedirectStderr::DEV_NULL) {
+    err =
+        posix_spawn_file_actions_addopen(&action, 2, "/dev/null", O_WRONLY, 0);
+    if (err != 0) {
+      ERROR("posix_spawn_file_actions_addopen: %s", strerror(err));
+    }
+  }
+  err = posix_spawn_file_actions_adddup2(&action, pipefd[1], 1);
+  if (err != 0) {
+    ERROR("posix_spawn_file_actions_adddup2: %s", strerror(err));
+  }
+  err = posix_spawn_file_actions_addclose(&action, pipefd[1]);
+  if (err != 0) {
+    ERROR("posix_spawn_file_actions_addclose: %s", strerror(err));
+  }
+
+  posix_spawnattr_t attr;
+  err = posix_spawnattr_init(&attr);
+  if (err != 0) {
+    ERROR("posix_spawnattr_init: %s", strerror(err));
+  }
+
+  short flags = 0;
+#ifdef POSIX_SPAWN_USEVFORK
+  flags |= POSIX_SPAWN_USEVFORK;
+#endif
+
+  err = posix_spawnattr_setflags(&attr, flags);
+  if (err != 0) {
+    ERROR("posix_spawnattr_setflags: %s", strerror(err));
+  }
+
+  pid_t pid;
+  err = posix_spawn(&pid, argv[0], &action, &attr, const_cast<char**>(argv),
+                    environ);
+  if (err != 0) {
+    ERROR("posix_spawn: %s", strerror(err));
+  }
+
+  err = posix_spawnattr_destroy(&attr);
+  if (err != 0) {
+    ERROR("posix_spawnattr_destroy: %s", strerror(err));
+  }
+  err = posix_spawn_file_actions_destroy(&action);
+  if (err != 0) {
+    ERROR("posix_spawn_file_actions_destroy: %s", strerror(err));
+  }
+
+  int status;
+  close(pipefd[1]);
+  while (true) {
+    int result = waitpid(pid, &status, WNOHANG);
+    if (result < 0)
+      PERROR("waitpid failed");
+
+    while (true) {
+      char buf[4096];
+      ssize_t r = HANDLE_EINTR(read(pipefd[0], buf, 4096));
+      if (r < 0)
+        PERROR("read failed");
+      if (r == 0)
+        break;
+      s->append(buf, buf + r);
+    }
+
+    if (result != 0) {
+      break;
+    }
+  }
+  close(pipefd[0]);
+
+  return status;
 }
 
 std::string GetExecutablePath() {
