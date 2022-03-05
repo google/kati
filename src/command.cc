@@ -193,7 +193,11 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev) : ev_(ev) {
   INSERT_AUTO_VAR(AutoHatVar, "^");
   INSERT_AUTO_VAR(AutoPlusVar, "+");
   INSERT_AUTO_VAR(AutoStarVar, "*");
-  INSERT_AUTO_VAR(AutoQuestionVar, "?");
+  if (!g_flags.generate_ninja) {
+    INSERT_AUTO_VAR(AutoQuestionVar, "?");
+  } else {
+    INSERT_AUTO_VAR(AutoNotImplementedVar, "?");
+  }
   // TODO: Implement them.
   INSERT_AUTO_VAR(AutoNotImplementedVar, "%");
   INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
