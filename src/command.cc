@@ -21,6 +21,7 @@
 
 #include "dep.h"
 #include "eval.h"
+#include "fileutil.h"
 #include "flags.h"
 #include "log.h"
 #include "strutil.h"
@@ -67,6 +68,7 @@ DECLARE_AUTO_VAR_CLASS(AutoLessVar);
 DECLARE_AUTO_VAR_CLASS(AutoHatVar);
 DECLARE_AUTO_VAR_CLASS(AutoPlusVar);
 DECLARE_AUTO_VAR_CLASS(AutoStarVar);
+DECLARE_AUTO_VAR_CLASS(AutoQuestionVar);
 DECLARE_AUTO_VAR_CLASS(AutoNotImplementedVar);
 
 class AutoSuffixDVar : public AutoVar {
@@ -125,6 +127,18 @@ void AutoStarVar::Eval(Evaluator*, string* s) const {
   pat.Stem(n->output.str()).AppendToString(s);
 }
 
+void AutoQuestionVar::Eval(Evaluator*, string* s) const {
+  unordered_set<StringPiece> seen;
+  WordWriter ww(s);
+  double target_age = GetTimestamp(ce_->current_dep_node()->output.str());
+  for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
+    if (seen.insert(ai.str()).second
+      && GetTimestamp(ai.str()) > target_age) {
+        ww.Write(ai.str());
+    }
+  }
+}
+
 void AutoNotImplementedVar::Eval(Evaluator* ev, string*) const {
   ev->Error(StringPrintf("Automatic variable `$%s' isn't supported yet", sym_));
 }
@@ -179,9 +193,9 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev) : ev_(ev) {
   INSERT_AUTO_VAR(AutoHatVar, "^");
   INSERT_AUTO_VAR(AutoPlusVar, "+");
   INSERT_AUTO_VAR(AutoStarVar, "*");
+  INSERT_AUTO_VAR(AutoQuestionVar, "?");
   // TODO: Implement them.
   INSERT_AUTO_VAR(AutoNotImplementedVar, "%");
-  INSERT_AUTO_VAR(AutoNotImplementedVar, "?");
   INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
 }
 
