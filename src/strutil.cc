@@ -161,7 +161,7 @@ StringPiece Pattern::Stem(StringPiece str) const {
   if (!Match(str))
     return "";
   return str.substr(percent_index_,
-                    str.size() - (pat_.size() - percent_index_ - 1));
+                    str.size() - pat_.size() + 1);
 }
 
 void Pattern::AppendSubst(StringPiece str,
