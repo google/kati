@@ -25,11 +25,12 @@ struct DepNode;
 class Evaluator;
 
 struct Command {
-  explicit Command(Symbol o) : output(o), echo(true), ignore_error(false) {}
+  explicit Command(Symbol o) : output(o), echo(true), ignore_error(false), updates_environment(false) {}
   Symbol output;
   string cmd;
   bool echo;
   bool ignore_error;
+  bool updates_environment;
 };
 
 class CommandEvaluator {
