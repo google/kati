@@ -414,7 +414,7 @@ class NinjaGenerator {
       while (isspace(*in))
         in++;
 
-      bool needs_subshell = (command_count > 1 || c.ignore_error);
+      bool needs_subshell = (command_count > 1 || c.ignore_error) && !c.updates_environment;
 
       if (needs_subshell)
         *cmd_buf += '(';

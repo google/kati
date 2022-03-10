@@ -127,14 +127,34 @@ void AutoStarVar::Eval(Evaluator*, string* s) const {
   pat.Stem(n->output.str()).AppendToString(s);
 }
 
-void AutoQuestionVar::Eval(Evaluator*, string* s) const {
+void AutoQuestionVar::Eval(Evaluator* ev, string* s) const {
   unordered_set<StringPiece> seen;
-  WordWriter ww(s);
-  double target_age = GetTimestamp(ce_->current_dep_node()->output.str());
-  for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
-    if (seen.insert(ai.str()).second
-      && GetTimestamp(ai.str()) > target_age) {
+
+  if (ev->avoid_io()) {
+    // Postpone checking timestamps to the start of rule execution using
+    // the helper application `ckati-newer'.
+    *s += "$KATI_NEW_INPUTS";
+    if (ev->env_vars().find("KATI_NEW_INPUTS") == ev->env_vars().end()) {
+      string def;
+
+      WordWriter ww(&def);
+      ww.Write("$(ckati-newer");
+      ww.Write(ce_->current_dep_node()->output.str());
+      for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
+        if (seen.insert(ai.str()).second) {
+          ww.Write(ai.str());
+        }
+      }
+      def += ")";
+      ev->set_env_var("KATI_NEW_INPUTS", def);
+    }
+  } else {
+    WordWriter ww(s);
+    double target_age = GetTimestamp(ce_->current_dep_node()->output.str());
+    for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
+      if (seen.insert(ai.str()).second && GetTimestamp(ai.str()) > target_age) {
         ww.Write(ai.str());
+      }
     }
   }
 }
@@ -193,11 +213,7 @@ CommandEvaluator::CommandEvaluator(Evaluator* ev) : ev_(ev) {
   INSERT_AUTO_VAR(AutoHatVar, "^");
   INSERT_AUTO_VAR(AutoPlusVar, "+");
   INSERT_AUTO_VAR(AutoStarVar, "*");
-  if (!g_flags.generate_ninja) {
-    INSERT_AUTO_VAR(AutoQuestionVar, "?");
-  } else {
-    INSERT_AUTO_VAR(AutoNotImplementedVar, "?");
-  }
+  INSERT_AUTO_VAR(AutoQuestionVar, "?");
   // TODO: Implement them.
   INSERT_AUTO_VAR(AutoNotImplementedVar, "%");
   INSERT_AUTO_VAR(AutoNotImplementedVar, "|");
@@ -242,8 +258,15 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
     continue;
   }
 
-  if (!ev_->delayed_output_commands().empty()) {
+  if (!ev_->delayed_output_commands().empty() || !ev_->env_vars().empty()) {
     std::vector<Command> output_commands;
+    for (auto& var : ev_->env_vars()) {
+      Command& c = output_commands.emplace_back(n.output);
+      c.cmd = var.first + "=" + var.second + " && export " + var.first;
+      c.echo = false;
+      c.ignore_error = false;
+      c.updates_environment = true;
+    }
     for (const string& cmd : ev_->delayed_output_commands()) {
       Command& c = output_commands.emplace_back(n.output);
       c.cmd = cmd;
@@ -254,6 +277,7 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
     result.swap(output_commands);
     copy(output_commands.begin(), output_commands.end(), back_inserter(result));
     ev_->clear_delayed_output_commands();
+    ev_->clear_env_vars();
   }
 
   ev_->set_current_scope(NULL);
