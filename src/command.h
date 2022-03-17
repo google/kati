@@ -25,12 +25,12 @@ struct DepNode;
 class Evaluator;
 
 struct Command {
-  explicit Command(Symbol o) : output(o), echo(true), ignore_error(false), updates_environment(false) {}
+  explicit Command(Symbol o) : output(o), echo(true), ignore_error(false), force_no_subshell(false) {}
   Symbol output;
   string cmd;
   bool echo;
   bool ignore_error;
-  bool updates_environment;
+  bool force_no_subshell;
 };
 
 class CommandEvaluator {
@@ -39,10 +39,13 @@ class CommandEvaluator {
   std::vector<Command> Eval(const DepNode& n);
   const DepNode* current_dep_node() const { return current_dep_node_; }
   Evaluator* evaluator() const { return ev_; }
+  bool found_new_inputs() const { return found_new_inputs_; }
+  void set_found_new_inputs(bool val) { found_new_inputs_ = val; }
 
  private:
   Evaluator* ev_;
   const DepNode* current_dep_node_;
+  bool found_new_inputs_;
 };
 
 #endif  // COMMAND_H_

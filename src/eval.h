@@ -173,14 +173,6 @@ class Evaluator {
   }
   void clear_delayed_output_commands() { delayed_output_commands_.clear(); }
 
-  const unordered_map<string, string>& env_vars() const {
-    return env_vars_;
-  }
-  void set_env_var(const string& name, const string& value) {
-    env_vars_.insert_or_assign(name, value);
-  }
-  void clear_env_vars() { env_vars_.clear(); }
-
   static const SymbolSet& used_undefined_vars() { return used_undefined_vars_; }
 
   int eval_depth() const { return eval_depth_; }
@@ -276,7 +268,6 @@ class Evaluator {
   // Commands which should run at ninja-time (i.e., info, warning, and
   // error).
   vector<string> delayed_output_commands_;
-  unordered_map<string, string> env_vars_;
 
   Symbol posix_sym_;
   bool is_posix_;
