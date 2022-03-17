@@ -25,7 +25,8 @@ struct DepNode;
 class Evaluator;
 
 struct Command {
-  explicit Command(Symbol o) : output(o), echo(true), ignore_error(false), force_no_subshell(false) {}
+  explicit Command(Symbol o)
+      : output(o), echo(true), ignore_error(false), force_no_subshell(false) {}
   Symbol output;
   string cmd;
   bool echo;
