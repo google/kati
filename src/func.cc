@@ -614,9 +614,8 @@ void CallFunc(const vector<Value*>& args, Evaluator* ev, string* s) {
   }
   vector<unique_ptr<SimpleVar>> av;
   for (size_t i = 1; i < args.size(); i++) {
-    unique_ptr<SimpleVar> s(
-        new SimpleVar(args[i]->Eval(ev), VarOrigin::AUTOMATIC, nullptr, Loc()));
-    av.push_back(move(s));
+    av.emplace_back(std::make_unique<SimpleVar>(
+        args[i]->Eval(ev), VarOrigin::AUTOMATIC, nullptr, Loc()));
   }
   vector<unique_ptr<ScopedGlobalVar>> sv;
   for (size_t i = 1;; i++) {
