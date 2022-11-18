@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "string_piece.h"
+#include "strutil.h"
 #include "symtab.h"
 
 using namespace std;
@@ -80,6 +81,7 @@ struct Flags {
   vector<Symbol> targets;
   vector<StringPiece> cl_vars;
   vector<string> writable;
+  vector<Pattern> traced_variables_pattern;
 
   void Parse(int argc, char** argv);
 };
