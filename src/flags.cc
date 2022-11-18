@@ -53,6 +53,7 @@ void Flags::Parse(int argc, char** argv) {
   num_jobs = num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
   const char* num_jobs_str;
   const char* writable_str;
+  const char* variable_assignment_trace_filter;
 
   if (const char* makeflags = getenv("MAKEFLAGS")) {
     for (StringPiece tok : WordScanner(makeflags)) {
@@ -154,6 +155,12 @@ void Flags::Parse(int argc, char** argv) {
     } else if (ParseCommandLineOptionWithArg("--dump_variable_assignment_trace",
                                              argv, &i,
                                              &dump_variable_assignment_trace)) {
+    } else if (ParseCommandLineOptionWithArg(
+                   "--variable_assignment_trace_filter", argv, &i,
+                   &variable_assignment_trace_filter)) {
+      for (StringPiece pat : WordScanner(variable_assignment_trace_filter)) {
+        traced_variables_pattern.push_back(Pattern(pat));
+      }
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {
       num_jobs = strtol(num_jobs_str, NULL, 10);
       if (num_jobs <= 0) {
@@ -201,5 +208,12 @@ void Flags::Parse(int argc, char** argv) {
         subkati_args.push_back(argv[pi]);
       }
     }
+  }
+
+  if (traced_variables_pattern.size() &&
+      dump_variable_assignment_trace == nullptr) {
+    ERROR(
+        "--variable_assignment_trace_filter is valid only together with "
+        "--dump_variable_assignment_trace");
   }
 }

@@ -177,7 +177,7 @@ Evaluator::Evaluator()
 
   trace_ = g_flags.dump_variable_assignment_trace || g_flags.dump_include_graph;
   assignment_tracefile_ = nullptr;
-  assignment_count_ = 0;
+  assignment_sep_ = "\n";
 }
 
 Evaluator::~Evaluator() {
@@ -345,6 +345,7 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
   if (stmt->is_final) {
     var->SetReadOnly();
   }
+  TraceVariableAssign(lhs, var);
 }
 
 // With rule broken into
@@ -709,35 +710,70 @@ Var* Evaluator::LookupVarGlobal(Symbol name) {
   return v;
 }
 
-void Evaluator::TraceVariableLookup(const char* operation,
-                                    Symbol name,
-                                    Var* var) {
+bool Evaluator::IsTraced(Symbol& name) const {
   if (assignment_tracefile_ == nullptr) {
+    return false;
+  }
+
+  bool trace_var = g_flags.traced_variables_pattern.size() == 0;
+  // trace every variable unless filtered
+  if (trace_var) {
+    return true;
+  }
+
+  for (const auto& pat : g_flags.traced_variables_pattern) {
+    if (pat.Match(name.c_str())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void Evaluator::TraceVariableLookup(const char* operation,
+                                    Symbol& name,
+                                    Var* var) {
+  if (!IsTraced(name)) {
     return;
   }
 
-  if (assignment_count_++ == 0) {
-    fprintf(assignment_tracefile_, "\n");
-  } else {
-    fprintf(assignment_tracefile_, ",\n");
-  }
-
-  bool has_definition_trace = var->Definition() != nullptr;
-  fprintf(assignment_tracefile_, "    {\n");
-  fprintf(assignment_tracefile_, "      \"name\": \"%s\",\n", name.c_str());
-  fprintf(assignment_tracefile_, "      \"operation\": \"%s\",\n", operation);
-  fprintf(assignment_tracefile_, "      \"defined\": %s,\n",
-          var->IsDefined() ? "true" : "false");
+  fputs(assignment_sep_, assignment_tracefile_);
+  assignment_sep_ = ",\n";
+  fprintf(assignment_tracefile_,
+          "    {\n"
+          "      \"name\": \"%s\",\n"
+          "      \"operation\": \"%s\",\n"
+          "      \"defined\": %s,\n",
+          name.c_str(), operation, var->IsDefined() ? "true" : "false");
   fprintf(assignment_tracefile_, "      \"reference_stack\": [\n");
   CurrentFrame()->PrintJSONTrace(assignment_tracefile_, 8);
-  fprintf(assignment_tracefile_, "      ]%s\n",
-          has_definition_trace ? "," : "");
-  if (has_definition_trace) {
-    fprintf(assignment_tracefile_, "      \"value_stack\": [\n");
-    var->Definition()->PrintJSONTrace(assignment_tracefile_, 8);
-    fprintf(assignment_tracefile_, "      ]\n");
+  fprintf(assignment_tracefile_,
+          "      ]\n"
+          "    }");
+}
+
+void Evaluator::TraceVariableAssign(Symbol& name, Var* var) {
+  if (!IsTraced(name)) {
+    return;
   }
-  fprintf(assignment_tracefile_, "    }");
+  fputs(assignment_sep_, assignment_tracefile_);
+  assignment_sep_ = ",\n";
+  fprintf(assignment_tracefile_,
+          "    {\n"
+          "      \"name\": \"%s\",\n"
+          "      \"operation\": \"assign\",\n"
+          "      \"value\": \"%s\"",
+          name.c_str(), var->DebugString().c_str());
+  Frame* definition = var->Definition();
+  if (definition != nullptr) {
+    fprintf(assignment_tracefile_,
+            ",\n"
+            "      \"value_stack\": [\n");
+    definition->PrintJSONTrace(assignment_tracefile_, 8);
+    fprintf(assignment_tracefile_, "      ]");
+  }
+  fprintf(assignment_tracefile_,
+          "\n"
+          "    }");
 }
 
 Var* Evaluator::LookupVarForEval(Symbol name) {

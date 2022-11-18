@@ -228,7 +228,9 @@ class Evaluator {
                bool* needs_assign);
   void DoInclude(const string& fname);
 
-  void TraceVariableLookup(const char* operation, Symbol name, Var* var);
+  bool IsTraced(Symbol& name) const;
+  void TraceVariableLookup(const char* operation, Symbol& name, Var* var);
+  void TraceVariableAssign(Symbol& name, Var* var);
   Var* LookupVarGlobal(Symbol name);
 
   // Equivalent to LookupVarInCurrentScope, but doesn't mark as used.
@@ -256,7 +258,7 @@ class Evaluator {
   bool trace_;
   std::vector<Frame*> stack_;
   FILE* assignment_tracefile_;
-  long int assignment_count_;
+  const char* assignment_sep_;
 
   std::vector<Loc> include_stack_;
 
