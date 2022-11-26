@@ -69,7 +69,7 @@ var normalizeMakeLog = []normalization{
 	// GNU make 4.0 has this output.
 	{regexp.MustCompile(`Makefile:\d+: commands for target ".*?" failed\n`), ""},
 	// We treat some warnings as errors.
-	{regexp.MustCompile(`/bin/(ba)?sh: line 0: `), ""},
+	{regexp.MustCompile(`/bin/(ba)?sh: line 1: `), ""},
 	// Normalization for "include foo" with C++ kati
 	{regexp.MustCompile(`(: \S+: No such file or directory)\n\*\*\* No rule to make target "[^"]+".`), "$1"},
 	// GNU make 4.0 prints the file:line as part of the error message, e.g.:
@@ -89,7 +89,7 @@ var normalizeKati = []normalization{
 	// kati specific log messages
 	{regexp.MustCompile(`\*kati\*[^\n]*`), ""},
 	{regexp.MustCompile(`c?kati: `), ""},
-	{regexp.MustCompile(`/bin/sh: line 0: `), ""},
+	{regexp.MustCompile(`/bin/(ba)?sh: line 1: `), ""},
 	{regexp.MustCompile(`/bin/sh: `), ""},
 	{regexp.MustCompile(`.*: warning for parse error in an unevaluated line: [^\n]*`), ""},
 	{regexp.MustCompile(`([^\n ]+: )?FindEmulator: `), ""},
