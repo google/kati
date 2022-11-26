@@ -18,7 +18,7 @@ $ make ckati
 
 The above command produces a `ckati` binary in the project root.
 
-Testing (best ran in a Ubuntu 20.04 environment):
+Testing (best ran in a Ubuntu 22.04 environment):
 
 ```
 $ make test

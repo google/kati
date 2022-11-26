@@ -25,6 +25,9 @@ info: ckati
 	@echo CKATI VERSION
 	./ckati -f Makefile version
 	@echo
+	@echo BASH VERSION
+	-/bin/bash --version | head -n 1
+	@echo
 	@echo SHELL VERSION
 	@echo $(SHELL)
 	$(SHELL) --version | head -n 1
@@ -33,6 +36,7 @@ version:
 	@echo $(MAKE_VERSION)
 
 test: all ckati_tests
+	go test --ckati
 	go test --ckati --ninja
 
 clean: ckati_clean
