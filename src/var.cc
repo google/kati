@@ -21,7 +21,7 @@
 #include "log.h"
 #include "strutil.h"
 
-unordered_map<const Var*, string> Var::diagnostic_messages_;
+std::unordered_map<const Var*, std::string> Var::diagnostic_messages_;
 
 const char* GetOriginStr(VarOrigin origin) {
   switch (origin) {
@@ -90,8 +90,8 @@ const char* Var::diagnostic_message_text() const {
   return it == diagnostic_messages_.end() ? "" : it->second.c_str();
 }
 
-const string& Var::DeprecatedMessage() const {
-  static const string empty_string;
+const std::string& Var::DeprecatedMessage() const {
+  static const std::string empty_string;
   auto it = diagnostic_messages_.find(this);
   return it == diagnostic_messages_.end() ? empty_string : it->second;
 }
@@ -107,7 +107,7 @@ Var* Var::Undefined() {
 SimpleVar::SimpleVar(VarOrigin origin, Frame* definition, Loc loc)
     : Var(origin, definition, loc) {}
 
-SimpleVar::SimpleVar(const string& v,
+SimpleVar::SimpleVar(const std::string& v,
                      VarOrigin origin,
                      Frame* definition,
                      Loc loc)
@@ -126,13 +126,13 @@ bool SimpleVar::IsFunc(Evaluator*) const {
   return false;
 }
 
-void SimpleVar::Eval(Evaluator* ev, string* s) const {
+void SimpleVar::Eval(Evaluator* ev, std::string* s) const {
   ev->CheckStack();
   *s += v_;
 }
 
 void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
-  string buf;
+  std::string buf;
   v->Eval(ev, &buf);
   v_.push_back(' ');
   v_ += buf;
@@ -143,7 +143,7 @@ StringPiece SimpleVar::String() const {
   return v_;
 }
 
-string SimpleVar::DebugString() const {
+std::string SimpleVar::DebugString() const {
   return v_;
 }
 
@@ -158,7 +158,7 @@ bool RecursiveVar::IsFunc(Evaluator* ev) const {
   return v_->IsFunc(ev);
 }
 
-void RecursiveVar::Eval(Evaluator* ev, string* s) const {
+void RecursiveVar::Eval(Evaluator* ev, std::string* s) const {
   ev->CheckStack();
   v_->Eval(ev, s);
 }
@@ -186,7 +186,7 @@ StringPiece RecursiveVar::String() const {
   return orig_;
 }
 
-string RecursiveVar::DebugString() const {
+std::string RecursiveVar::DebugString() const {
   return Value::DebugString(v_);
 }
 
@@ -196,7 +196,7 @@ bool UndefinedVar::IsFunc(Evaluator*) const {
   return false;
 }
 
-void UndefinedVar::Eval(Evaluator*, string*) const {
+void UndefinedVar::Eval(Evaluator*, std::string*) const {
   // Nothing to do.
 }
 
@@ -204,7 +204,7 @@ StringPiece UndefinedVar::String() const {
   return StringPiece("");
 }
 
-string UndefinedVar::DebugString() const {
+std::string UndefinedVar::DebugString() const {
   return "*undefined*";
 }
 
@@ -218,7 +218,7 @@ bool VariableNamesVar::IsFunc(Evaluator*) const {
   return false;
 }
 
-void VariableNamesVar::Eval(Evaluator* ev, string* s) const {
+void VariableNamesVar::Eval(Evaluator* ev, std::string* s) const {
   ConcatVariableNames(ev, s);
 }
 
@@ -226,9 +226,10 @@ StringPiece VariableNamesVar::String() const {
   return name_;
 }
 
-void VariableNamesVar::ConcatVariableNames(Evaluator* ev, string* s) const {
+void VariableNamesVar::ConcatVariableNames(Evaluator* ev,
+                                           std::string* s) const {
   WordWriter ww(s);
-  vector<StringPiece>&& symbols = GetSymbolNames([=](Var* var) -> bool {
+  std::vector<StringPiece>&& symbols = GetSymbolNames([=](Var* var) -> bool {
     if (var->Obsolete()) {
       return false;
     }
@@ -244,7 +245,7 @@ void VariableNamesVar::ConcatVariableNames(Evaluator* ev, string* s) const {
   }
 }
 
-string VariableNamesVar::DebugString() const {
+std::string VariableNamesVar::DebugString() const {
   return "*VariableNamesVar*";
 }
 
@@ -269,7 +270,7 @@ bool ShellStatusVar::IsFunc(Evaluator*) const {
   return false;
 }
 
-void ShellStatusVar::Eval(Evaluator* ev, string* s) const {
+void ShellStatusVar::Eval(Evaluator* ev, std::string* s) const {
   if (ev->IsEvaluatingCommand()) {
     ev->Error("Kati does not support using .SHELLSTATUS inside of a rule");
   }
@@ -289,7 +290,7 @@ StringPiece ShellStatusVar::String() const {
   return std::to_string(shell_status_);
 }
 
-string ShellStatusVar::DebugString() const {
+std::string ShellStatusVar::DebugString() const {
   return "*ShellStatusVar*";
 }
 

@@ -14,11 +14,10 @@
 
 // +build ignore
 
-#include "file_cache.h"
-
 #include <unordered_map>
 
 #include "file.h"
+#include "file_cache.h"
 
 MakefileCacheManager::MakefileCacheManager() = default;
 
@@ -26,7 +25,7 @@ MakefileCacheManager::~MakefileCacheManager() = default;
 
 class MakefileCacheManagerImpl : public MakefileCacheManager {
  public:
-  virtual const Makefile& ReadMakefile(const string& filename) override {
+  virtual const Makefile& ReadMakefile(const std::string& filename) override {
     auto iter = cache_.find(filename);
     if (iter != cache_.end()) {
       return iter->second;
@@ -34,13 +33,13 @@ class MakefileCacheManagerImpl : public MakefileCacheManager {
     return (cache_.emplace(filename, filename).first)->second;
   }
 
-  virtual void GetAllFilenames(unordered_set<string>* out) override {
+  virtual void GetAllFilenames(std::unordered_set<std::string>* out) override {
     for (const auto& p : cache_)
       out->insert(p.first);
   }
 
  private:
-  unordered_map<string, Makefile> cache_;
+  std::unordered_map<std::string, Makefile> cache_;
 };
 
 MakefileCacheManager& MakefileCacheManager::Get() {

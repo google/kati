@@ -20,28 +20,26 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 struct Stmt;
 
 class Makefile {
  public:
-  explicit Makefile(const string& filename);
+  explicit Makefile(const std::string& filename);
   ~Makefile();
 
-  const string& buf() const { return buf_; }
-  const string& filename() const { return filename_; }
+  const std::string& buf() const { return buf_; }
+  const std::string& filename() const { return filename_; }
 
-  const vector<Stmt*>& stmts() const { return stmts_; }
-  vector<Stmt*>* mutable_stmts() { return &stmts_; }
+  const std::vector<Stmt*>& stmts() const { return stmts_; }
+  std::vector<Stmt*>* mutable_stmts() { return &stmts_; }
 
   bool Exists() const { return exists_; }
 
  private:
-  string buf_;
+  std::string buf_;
   uint64_t mtime_;
-  string filename_;
-  vector<Stmt*> stmts_;
+  std::string filename_;
+  std::vector<Stmt*> stmts_;
   bool exists_;
 };
 

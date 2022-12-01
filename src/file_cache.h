@@ -18,16 +18,14 @@
 #include <string>
 #include <unordered_set>
 
-using namespace std;
-
 class Makefile;
 
 class MakefileCacheManager {
  public:
   virtual ~MakefileCacheManager();
 
-  virtual const Makefile& ReadMakefile(const string& filename) = 0;
-  virtual void GetAllFilenames(unordered_set<string>* out) = 0;
+  virtual const Makefile& ReadMakefile(const std::string& filename) = 0;
+  virtual void GetAllFilenames(std::unordered_set<std::string>* out) = 0;
 
   static MakefileCacheManager& Get();
 

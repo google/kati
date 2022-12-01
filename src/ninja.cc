@@ -817,15 +817,15 @@ class NinjaGenerator {
   const DepNode* default_target_;
 };
 
-string GetNinjaFilename() {
+std::string GetNinjaFilename() {
   return NinjaGenerator::GetFilename("build%s.ninja");
 }
 
-string GetNinjaShellScriptFilename() {
+std::string GetNinjaShellScriptFilename() {
   return NinjaGenerator::GetFilename("ninja%s.sh");
 }
 
-string GetNinjaStampFilename() {
+std::string GetNinjaStampFilename() {
   return NinjaGenerator::GetFilename(".kati_stamp%s");
 }
 

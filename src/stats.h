@@ -20,8 +20,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-using namespace std;
-
 struct StatsDetails {
   int cnt_ = 0;
   double elapsed_ = 0;
@@ -32,9 +30,9 @@ class Stats {
   explicit Stats(const char* name);
 
   void DumpTop() const;
-  string String() const;
+  std::string String() const;
 
-  void MarkInteresting(const string& msg);
+  void MarkInteresting(const std::string& msg);
 
  private:
   double Start();
@@ -45,9 +43,9 @@ class Stats {
   const char* name_;
   double elapsed_;
   int cnt_;
-  mutable mutex mu_;
-  unordered_map<string, StatsDetails> detailed_;
-  unordered_set<string> interesting_;
+  mutable std::mutex mu_;
+  std::unordered_map<std::string, StatsDetails> detailed_;
+  std::unordered_set<std::string> interesting_;
 };
 
 class ScopedStatsRecorder {

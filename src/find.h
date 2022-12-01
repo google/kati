@@ -23,8 +23,6 @@
 #include "loc.h"
 #include "string_piece.h"
 
-using namespace std;
-
 class FindCond;
 
 enum struct FindCommandType {
@@ -37,21 +35,21 @@ struct FindCommand {
   FindCommand();
   ~FindCommand();
 
-  bool Parse(const string& cmd);
+  bool Parse(const std::string& cmd);
 
   FindCommandType type;
-  string chdir;
-  string testdir;
-  vector<string> finddirs;
+  std::string chdir;
+  std::string testdir;
+  std::vector<std::string> finddirs;
   bool follows_symlinks;
-  unique_ptr<FindCond> print_cond;
-  unique_ptr<FindCond> prune_cond;
+  std::unique_ptr<FindCond> print_cond;
+  std::unique_ptr<FindCond> prune_cond;
   int depth;
   int mindepth;
   bool redirect_to_devnull;
 
-  unique_ptr<vector<string>> found_files;
-  unique_ptr<unordered_set<string>> read_dirs;
+  std::unique_ptr<std::vector<std::string>> found_files;
+  std::unique_ptr<std::unordered_set<std::string>> read_dirs;
 
  private:
   FindCommand(const FindCommand&) = delete;
@@ -62,10 +60,10 @@ class FindEmulator {
  public:
   virtual ~FindEmulator() = default;
 
-  virtual bool HandleFind(const string& cmd,
+  virtual bool HandleFind(const std::string& cmd,
                           const FindCommand& fc,
                           const Loc& loc,
-                          string* out) = 0;
+                          std::string* out) = 0;
 
   static FindEmulator* Get();
   static unsigned int GetNodeCount();

@@ -22,11 +22,9 @@
 #include "expr.h"
 #include "loc.h"
 
-using namespace std;
-
 struct FuncInfo {
   const char* name;
-  void (*func)(const vector<Value*>& args, Evaluator* ev, string* s);
+  void (*func)(const std::vector<Value*>& args, Evaluator* ev, std::string* s);
   int arity;
   int min_arity;
   // For all parameters.
@@ -50,14 +48,14 @@ enum struct CommandOp {
 
 struct CommandResult {
   CommandOp op;
-  string shell;
-  string shellflag;
-  string cmd;
-  unique_ptr<FindCommand> find;
-  string result;
+  std::string shell;
+  std::string shellflag;
+  std::string cmd;
+  std::unique_ptr<FindCommand> find;
+  std::string result;
   Loc loc;
 };
 
-const vector<CommandResult*>& GetShellCommandResults();
+const std::vector<CommandResult*>& GetShellCommandResults();
 
 #endif  // FUNC_H_

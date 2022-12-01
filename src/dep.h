@@ -30,26 +30,26 @@ class Var;
 class Vars;
 class Frame;
 
-typedef pair<Symbol, struct DepNode*> NamedDepNode;
+typedef std::pair<Symbol, struct DepNode*> NamedDepNode;
 
 struct DepNode {
   DepNode(Symbol output, bool is_phony, bool is_restat);
-  string DebugString();
+  std::string DebugString();
 
   Symbol output;
-  vector<Value*> cmds;
-  vector<NamedDepNode> deps;
-  vector<NamedDepNode> order_onlys;
-  vector<NamedDepNode> validations;
+  std::vector<Value*> cmds;
+  std::vector<NamedDepNode> deps;
+  std::vector<NamedDepNode> order_onlys;
+  std::vector<NamedDepNode> validations;
   bool has_rule;
   bool is_default_target;
   bool is_phony;
   bool is_restat;
-  vector<Symbol> implicit_outputs;
-  vector<Symbol> symlink_outputs;
-  vector<Symbol> actual_inputs;
-  vector<Symbol> actual_order_only_inputs;
-  vector<Symbol> actual_validations;
+  std::vector<Symbol> implicit_outputs;
+  std::vector<Symbol> symlink_outputs;
+  std::vector<Symbol> actual_inputs;
+  std::vector<Symbol> actual_order_only_inputs;
+  std::vector<Symbol> actual_validations;
   Vars* rule_vars;
   Var* depfile_var;
   Var* ninja_pool_var;
@@ -58,10 +58,10 @@ struct DepNode {
 };
 
 void MakeDep(Evaluator* ev,
-             const vector<const Rule*>& rules,
-             const unordered_map<Symbol, Vars*>& rule_vars,
-             const vector<Symbol>& targets,
-             vector<NamedDepNode>* nodes);
+             const std::vector<const Rule*>& rules,
+             const std::unordered_map<Symbol, Vars*>& rule_vars,
+             const std::vector<Symbol>& targets,
+             std::vector<NamedDepNode>* nodes);
 
 bool IsSpecialTarget(Symbol output);
 

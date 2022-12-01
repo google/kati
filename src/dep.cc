@@ -39,7 +39,7 @@ namespace {
 static std::vector<std::unique_ptr<DepNode>> g_dep_node_pool;
 
 static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
-  string r;
+  std::string r;
   AppendString(StripExt(s.str()), &r);
   r += '.';
   AppendString(newsuf.str(), &r);
@@ -48,8 +48,8 @@ static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
 
 void ApplyOutputPattern(const Rule& r,
                         Symbol output,
-                        const vector<Symbol>& inputs,
-                        vector<Symbol>* out_inputs) {
+                        const std::vector<Symbol>& inputs,
+                        std::vector<Symbol>* out_inputs) {
   if (inputs.empty())
     return;
   if (r.is_suffix_rule) {
@@ -65,7 +65,7 @@ void ApplyOutputPattern(const Rule& r,
   CHECK(r.output_patterns.size() == 1);
   Pattern pat(r.output_patterns[0].str());
   for (Symbol input : inputs) {
-    string buf;
+    std::string buf;
     pat.AppendSubst(output.str(), input.str(), &buf);
     out_inputs->push_back(Intern(buf));
   }
@@ -98,7 +98,7 @@ class RuleTrie {
     p.first->second->Add(name.substr(1), rule);
   }
 
-  void Get(StringPiece name, vector<const Rule*>* rules) const {
+  void Get(StringPiece name, std::vector<const Rule*>* rules) const {
     for (const Entry& ent : rules_) {
       if ((ent.suffix.empty() && name.empty()) ||
           HasSuffix(name, ent.suffix.substr(1))) {
@@ -121,8 +121,8 @@ class RuleTrie {
   }
 
  private:
-  vector<Entry> rules_;
-  unordered_map<char, RuleTrie*> children_;
+  std::vector<Entry> rules_;
+  std::unordered_map<char, RuleTrie*> children_;
 };
 
 bool IsSuffixRule(Symbol output) {
@@ -132,18 +132,18 @@ bool IsSuffixRule(Symbol output) {
   size_t dot_index = rest.find('.');
   // If there is only a single dot or the third dot, this is not a
   // suffix rule.
-  if (dot_index == string::npos ||
-      rest.substr(dot_index + 1).find('.') != string::npos) {
+  if (dot_index == std::string::npos ||
+      rest.substr(dot_index + 1).find('.') != std::string::npos) {
     return false;
   }
   return true;
 }
 
 struct RuleMerger {
-  vector<const Rule*> rules;
-  vector<pair<Symbol, RuleMerger*>> implicit_outputs;
-  vector<Symbol> symlink_outputs;
-  vector<Symbol> validations;
+  std::vector<const Rule*> rules;
+  std::vector<std::pair<Symbol, RuleMerger*>> implicit_outputs;
+  std::vector<Symbol> symlink_outputs;
+  std::vector<Symbol> validations;
   const Rule* primary_rule;
   const RuleMerger* parent;
   Symbol parent_sym;
@@ -153,7 +153,7 @@ struct RuleMerger {
       : primary_rule(nullptr), parent(nullptr), is_double_colon(false) {}
 
   void AddImplicitOutput(Symbol output, RuleMerger* merger) {
-    implicit_outputs.push_back(make_pair(output, merger));
+    implicit_outputs.push_back(std::make_pair(output, merger));
   }
 
   void AddSymlinkOutput(Symbol output) { symlink_outputs.push_back(output); }
@@ -292,8 +292,8 @@ DepNode::DepNode(Symbol o, bool p, bool r)
 class DepBuilder {
  public:
   DepBuilder(Evaluator* ev,
-             const vector<const Rule*>& rules,
-             const unordered_map<Symbol, Vars*>& rule_vars)
+             const std::vector<const Rule*>& rules,
+             const std::unordered_map<Symbol, Vars*>& rule_vars)
       : ev_(ev),
         rule_vars_(rule_vars),
         implicit_rules_(new RuleTrie()),
@@ -315,7 +315,7 @@ class DepBuilder {
 
   void HandleSpecialTargets() {
     Loc loc;
-    vector<Symbol> targets;
+    std::vector<Symbol> targets;
 
     if (GetRuleInputs(Intern(".PHONY"), &targets, &loc)) {
       for (Symbol t : targets)
@@ -355,7 +355,7 @@ class DepBuilder {
 
   ~DepBuilder() {}
 
-  void Build(vector<Symbol> targets, vector<NamedDepNode>* nodes) {
+  void Build(std::vector<Symbol> targets, std::vector<NamedDepNode>* nodes) {
     if (!first_rule_.IsValid()) {
       ERROR("*** No targets.");
     }
@@ -402,7 +402,7 @@ class DepBuilder {
            ::Exists(target.str());
   }
 
-  bool GetRuleInputs(Symbol s, vector<Symbol>* o, Loc* l) {
+  bool GetRuleInputs(Symbol s, std::vector<Symbol>* o, Loc* l) {
     auto found = rules_.find(s);
     if (found == rules_.end())
       return false;
@@ -417,7 +417,7 @@ class DepBuilder {
     return true;
   }
 
-  void PopulateRules(const vector<const Rule*>& rules) {
+  void PopulateRules(const std::vector<const Rule*>& rules) {
     for (const Rule* rule : rules) {
       if (rule->outputs.empty()) {
         PopulateImplicitRule(rule);
@@ -435,7 +435,7 @@ class DepBuilder {
       }
       auto var = vars->Lookup(implicit_outputs_var_name_);
       if (var->IsDefined()) {
-        string implicit_outputs;
+        std::string implicit_outputs;
         var->Eval(ev_, &implicit_outputs);
 
         for (StringPiece output : WordScanner(implicit_outputs)) {
@@ -447,7 +447,7 @@ class DepBuilder {
 
       var = vars->Lookup(validations_var_name_);
       if (var->IsDefined()) {
-        string validations;
+        std::string validations;
         var->Eval(ev_, &validations);
 
         for (StringPiece validation : WordScanner(validations)) {
@@ -458,7 +458,7 @@ class DepBuilder {
 
       var = vars->Lookup(symlink_outputs_var_name_);
       if (var->IsDefined()) {
-        string symlink_outputs;
+        std::string symlink_outputs;
         var->Eval(ev_, &symlink_outputs);
 
         for (StringPiece output : WordScanner(symlink_outputs)) {
@@ -485,7 +485,7 @@ class DepBuilder {
 
     StringPiece input_suffix = rest.substr(0, dot_index);
     StringPiece output_suffix = rest.substr(dot_index + 1);
-    shared_ptr<Rule> r = make_shared<Rule>(*rule);
+    std::shared_ptr<Rule> r = std::make_shared<Rule>(*rule);
     r->inputs.clear();
     r->inputs.push_back(Intern(input_suffix));
     r->is_suffix_rule = true;
@@ -512,7 +512,7 @@ class DepBuilder {
       return false;
     if (!rule->cmds.empty())
       return false;
-    const string& i = rule->inputs[0].str();
+    const std::string& i = rule->inputs[0].str();
     return (i == "RCS/%,v" || i == "RCS/%" || i == "%,v" || i == "s.%" ||
             i == "SCCS/s.%");
   }
@@ -551,14 +551,14 @@ class DepBuilder {
   bool CanPickImplicitRule(const Rule* rule,
                            Symbol output,
                            DepNode* n,
-                           shared_ptr<Rule>* out_rule) {
+                           std::shared_ptr<Rule>* out_rule) {
     Symbol matched;
     for (Symbol output_pattern : rule->output_patterns) {
       Pattern pat(output_pattern.str());
       if (pat.Match(output.str())) {
         bool ok = true;
         for (Symbol input : rule->inputs) {
-          string buf;
+          std::string buf;
           pat.AppendSubst(output.str(), input.str(), &buf);
           if (!Exists(Intern(buf))) {
             ok = false;
@@ -575,14 +575,14 @@ class DepBuilder {
     if (!matched.IsValid())
       return false;
 
-    *out_rule = make_shared<Rule>(*rule);
+    *out_rule = std::make_shared<Rule>(*rule);
     if ((*out_rule)->output_patterns.size() > 1) {
       // We should mark all other output patterns as used.
       Pattern pat(matched.str());
       for (Symbol output_pattern : rule->output_patterns) {
         if (output_pattern == matched)
           continue;
-        string buf;
+        std::string buf;
         pat.AppendSubst(output.str(), output_pattern.str(), &buf);
         done_[Intern(buf)] = n;
       }
@@ -610,7 +610,7 @@ class DepBuilder {
   bool PickRule(Symbol output,
                 DepNode* n,
                 const RuleMerger** out_rule_merger,
-                shared_ptr<Rule>* pattern_rule,
+                std::shared_ptr<Rule>* pattern_rule,
                 Vars** out_var) {
     const RuleMerger* rule_merger = LookupRuleMerger(output);
     Vars* vars = LookupRuleVars(output);
@@ -624,7 +624,7 @@ class DepBuilder {
       return true;
     }
 
-    vector<const Rule*> irules;
+    std::vector<const Rule*> irules;
     implicit_rules_->Get(output.str(), &irules);
     for (auto iter = irules.rbegin(); iter != irules.rend(); ++iter) {
       if (!CanPickImplicitRule(*iter, output, n, pattern_rule))
@@ -647,7 +647,7 @@ class DepBuilder {
     if (found == suffix_rules_.end())
       return rule_merger != nullptr;
 
-    for (const shared_ptr<Rule>& irule : found->second) {
+    for (const std::shared_ptr<Rule>& irule : found->second) {
       CHECK(irule->inputs.size() == 1);
       Symbol input = ReplaceSuffix(output, irule->inputs[0]);
       if (!Exists(input))
@@ -683,7 +683,7 @@ class DepBuilder {
     done_[output] = n;
 
     const RuleMerger* rule_merger = nullptr;
-    shared_ptr<Rule> pattern_rule;
+    std::shared_ptr<Rule> pattern_rule;
     Vars* vars;
     if (!PickRule(output, n, &rule_merger, &pattern_rule, &vars)) {
       return n;
@@ -702,7 +702,7 @@ class DepBuilder {
     else
       RuleMerger().FillDepNode(output, pattern_rule.get(), n);
 
-    vector<unique_ptr<ScopedVar>> sv;
+    std::vector<std::unique_ptr<ScopedVar>> sv;
     ScopedFrame frame(ev_->Enter(FrameType::DEPENDENCY, output.str(), n->loc));
 
     if (vars) {
@@ -715,7 +715,7 @@ class DepBuilder {
           Var* old_var = ev_->LookupVar(name);
           if (old_var->IsDefined()) {
             // TODO: This would be incorrect and has a leak.
-            shared_ptr<string> s = make_shared<string>();
+            std::shared_ptr<std::string> s = std::make_shared<std::string>();
             old_var->Eval(ev_, s.get());
             if (!s->empty())
               *s += ' ';
@@ -743,7 +743,7 @@ class DepBuilder {
     }
 
     if (g_flags.warn_phony_looks_real && n->is_phony &&
-        output.str().find('/') != string::npos) {
+        output.str().find('/') != std::string::npos) {
       if (g_flags.werror_phony_looks_real) {
         ERROR_LOC(
             n->loc,
@@ -780,7 +780,7 @@ class DepBuilder {
       done_[output] = n;
 
       if (g_flags.warn_phony_looks_real && n->is_phony &&
-          output.str().find('/') != string::npos) {
+          output.str().find('/') != std::string::npos) {
         if (g_flags.werror_phony_looks_real) {
           ERROR_LOC(n->loc,
                     "*** PHONY target \"%s\" looks like a real file (contains "
@@ -820,7 +820,7 @@ class DepBuilder {
 
       bool is_phony = c->is_phony;
       if (!is_phony && !c->has_rule && g_flags.top_level_phony) {
-        is_phony = input.str().find('/') == string::npos;
+        is_phony = input.str().find('/') == std::string::npos;
       }
       if (!n->is_phony && is_phony) {
         if (g_flags.werror_real_to_phony) {
@@ -923,16 +923,17 @@ class DepBuilder {
       return lhs.str() < rhs.str();
     }
   };
-  map<Symbol, RuleMerger, TargetComp> rules_;
-  const unordered_map<Symbol, Vars*>& rule_vars_;
-  unique_ptr<Vars> cur_rule_vars_;
+  std::map<Symbol, RuleMerger, TargetComp> rules_;
+  const std::unordered_map<Symbol, Vars*>& rule_vars_;
+  std::unique_ptr<Vars> cur_rule_vars_;
 
-  unique_ptr<RuleTrie> implicit_rules_;
-  typedef unordered_map<StringPiece, vector<shared_ptr<Rule>>> SuffixRuleMap;
+  std::unique_ptr<RuleTrie> implicit_rules_;
+  typedef std::unordered_map<StringPiece, std::vector<std::shared_ptr<Rule>>>
+      SuffixRuleMap;
   SuffixRuleMap suffix_rules_;
 
   Symbol first_rule_;
-  unordered_map<Symbol, DepNode*> done_;
+  std::unordered_map<Symbol, DepNode*> done_;
   SymbolSet phony_;
   SymbolSet restat_;
   Symbol depfile_var_name_;
@@ -943,10 +944,10 @@ class DepBuilder {
 };
 
 void MakeDep(Evaluator* ev,
-             const vector<const Rule*>& rules,
-             const unordered_map<Symbol, Vars*>& rule_vars,
-             const vector<Symbol>& targets,
-             vector<NamedDepNode>* nodes) {
+             const std::vector<const Rule*>& rules,
+             const std::unordered_map<Symbol, Vars*>& rule_vars,
+             const std::vector<Symbol>& targets,
+             std::vector<NamedDepNode>* nodes) {
   DepBuilder db(ev, rules, rule_vars);
   ScopedTimeReporter tr("make dep (build)");
   db.Build(targets, nodes);

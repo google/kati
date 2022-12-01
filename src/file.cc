@@ -26,7 +26,7 @@
 #include "parser.h"
 #include "stmt.h"
 
-Makefile::Makefile(const string& filename)
+Makefile::Makefile(const std::string& filename)
     : mtime_(0), filename_(filename), exists_(false) {
   int fd = open(filename.c_str(), O_RDONLY);
   if (fd < 0) {

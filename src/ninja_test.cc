@@ -23,9 +23,9 @@
 
 namespace {
 
-string GetDepfile(string cmd, string* new_cmd) {
+std::string GetDepfile(std::string cmd, std::string* new_cmd) {
   new_cmd->clear();
-  string r;
+  std::string r;
   if (GetDepfileFromCommand(&cmd, &r)) {
     *new_cmd = cmd;
     return r;
@@ -34,7 +34,7 @@ string GetDepfile(string cmd, string* new_cmd) {
 }
 
 void TestGetDepfile() {
-  string new_cmd;
+  std::string new_cmd;
   ASSERT_EQ(GetDepfile("g++ -c fat.cc -MD ", &new_cmd), "");
   assert(g_last_error);
   delete g_last_error;
@@ -74,7 +74,8 @@ static void TestGetGomaccPosForAndroidCompileCommand() {
                 "prebuilts/misc/linux-x86/ccache/ccache "
                 "prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c"),
             39);
-  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand("echo foo"), string::npos);
+  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand("echo foo"),
+            std::string::npos);
 }
 
 }  // namespace

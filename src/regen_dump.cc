@@ -29,12 +29,12 @@
 #include "log.h"
 #include "strutil.h"
 
-vector<string> LoadVecString(FILE* fp) {
+vector<std::string> LoadVecString(FILE* fp) {
   int count = LoadInt(fp);
   if (count < 0) {
     ERROR("Incomplete stamp file");
   }
-  vector<string> ret(count);
+  std::vector<std::string> ret(count);
   for (int i = 0; i < count; i++) {
     if (!LoadString(fp, &ret[i])) {
       ERROR("Incomplete stamp file");

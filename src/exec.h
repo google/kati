@@ -17,10 +17,9 @@
 
 #include <vector>
 
-using namespace std;
 #include "dep.h"
 class Evaluator;
 
-void Exec(const vector<NamedDepNode>& roots, Evaluator* ev);
+void Exec(const std::vector<NamedDepNode>& roots, Evaluator* ev);
 
 #endif  // EXEC_H_

@@ -29,8 +29,8 @@ Evaluable::Evaluable(const Loc& loc) : loc_(loc) {}
 
 Evaluable::~Evaluable() {}
 
-string Evaluable::Eval(Evaluator* ev) const {
-  string s;
+std::string Evaluable::Eval(Evaluator* ev) const {
+  std::string s;
   Eval(ev, &s);
   return s;
 }
@@ -39,7 +39,7 @@ Value::Value(const Loc& loc) : Evaluable(loc) {}
 
 Value::~Value() {}
 
-string Value::DebugString(const Value* v) {
+std::string Value::DebugString(const Value* v) {
   return v ? NoLineBreak(v->DebugString_()) : "(null)";
 }
 
@@ -51,7 +51,7 @@ class Literal : public Value {
 
   virtual bool IsFunc(Evaluator*) const override { return false; }
 
-  virtual void Eval(Evaluator* ev, string* s) const override {
+  virtual void Eval(Evaluator* ev, std::string* s) const override {
     ev->CheckStack();
     s->append(s_.begin(), s_.end());
   }
@@ -59,7 +59,7 @@ class Literal : public Value {
   virtual bool IsLiteral() const override { return true; }
   virtual StringPiece GetLiteralValueUnsafe() const override { return s_; }
 
-  virtual string DebugString_() const override { return s_.as_string(); }
+  virtual std::string DebugString_() const override { return s_.as_string(); }
 
  private:
   StringPiece s_;
@@ -82,7 +82,7 @@ class ValueList : public Value {
     vals_.push_back(v2);
   }
 
-  ValueList(const Loc& loc, vector<Value*>* values) : ValueList(loc) {
+  ValueList(const Loc& loc, std::vector<Value*>* values) : ValueList(loc) {
     values->shrink_to_fit();
     values->swap(vals_);
   }
@@ -102,15 +102,15 @@ class ValueList : public Value {
     return false;
   }
 
-  virtual void Eval(Evaluator* ev, string* s) const override {
+  virtual void Eval(Evaluator* ev, std::string* s) const override {
     ev->CheckStack();
     for (Value* v : vals_) {
       v->Eval(ev, s);
     }
   }
 
-  virtual string DebugString_() const override {
-    string r;
+  virtual std::string DebugString_() const override {
+    std::string r;
     for (Value* v : vals_) {
       if (r.empty()) {
         r += "ValueList(";
@@ -125,7 +125,7 @@ class ValueList : public Value {
   }
 
  private:
-  vector<Value*> vals_;
+  std::vector<Value*> vals_;
 };
 
 class SymRef : public Value {
@@ -141,7 +141,7 @@ class SymRef : public Value {
     return IsInteger(name_.str());
   }
 
-  virtual void Eval(Evaluator* ev, string* s) const override {
+  virtual void Eval(Evaluator* ev, std::string* s) const override {
     ev->CheckStack();
     Var* v = ev->LookupVarForEval(name_);
     v->Used(ev, name_);
@@ -149,7 +149,7 @@ class SymRef : public Value {
     ev->VarEvalComplete(name_);
   }
 
-  virtual string DebugString_() const override {
+  virtual std::string DebugString_() const override {
     return StringPrintf("SymRef(%s)", name_.c_str());
   }
 
@@ -167,10 +167,10 @@ class VarRef : public Value {
     return true;
   }
 
-  virtual void Eval(Evaluator* ev, string* s) const override {
+  virtual void Eval(Evaluator* ev, std::string* s) const override {
     ev->CheckStack();
     ev->IncrementEvalDepth();
-    const string&& name = name_->Eval(ev);
+    const std::string&& name = name_->Eval(ev);
     ev->DecrementEvalDepth();
     Symbol sym = Intern(name);
     Var* v = ev->LookupVarForEval(sym);
@@ -179,7 +179,7 @@ class VarRef : public Value {
     ev->VarEvalComplete(sym);
   }
 
-  virtual string DebugString_() const override {
+  virtual std::string DebugString_() const override {
     return StringPrintf("VarRef(%s)", Value::DebugString(name_).c_str());
   }
 
@@ -201,17 +201,17 @@ class VarSubst : public Value {
     return name_->IsFunc(ev) || pat_->IsFunc(ev) || subst_->IsFunc(ev);
   }
 
-  virtual void Eval(Evaluator* ev, string* s) const override {
+  virtual void Eval(Evaluator* ev, std::string* s) const override {
     ev->CheckStack();
     ev->IncrementEvalDepth();
-    const string&& name = name_->Eval(ev);
+    const std::string&& name = name_->Eval(ev);
     Symbol sym = Intern(name);
     Var* v = ev->LookupVar(sym);
-    const string&& pat_str = pat_->Eval(ev);
-    const string&& subst = subst_->Eval(ev);
+    const std::string&& pat_str = pat_->Eval(ev);
+    const std::string&& subst = subst_->Eval(ev);
     ev->DecrementEvalDepth();
     v->Used(ev, sym);
-    const string&& value = v->Eval(ev);
+    const std::string&& value = v->Eval(ev);
     WordWriter ww(s);
     Pattern pat(pat_str);
     for (StringPiece tok : WordScanner(value)) {
@@ -220,7 +220,7 @@ class VarSubst : public Value {
     }
   }
 
-  virtual string DebugString_() const override {
+  virtual std::string DebugString_() const override {
     return StringPrintf("VarSubst(%s:%s=%s)", Value::DebugString(name_).c_str(),
                         Value::DebugString(pat_).c_str(),
                         Value::DebugString(subst_).c_str());
@@ -243,7 +243,7 @@ class Func : public Value {
 
   virtual bool IsFunc(Evaluator*) const override { return true; }
 
-  virtual void Eval(Evaluator* ev, string* s) const override {
+  virtual void Eval(Evaluator* ev, std::string* s) const override {
     ScopedFrame frame(ev->Enter(FrameType::FUNCALL, fi_->name, Location()));
     ev->CheckStack();
     LOG("Invoke func %s(%s)", name(), JoinValues(args_, ",").c_str());
@@ -252,7 +252,7 @@ class Func : public Value {
     ev->DecrementEvalDepth();
   }
 
-  virtual string DebugString_() const override {
+  virtual std::string DebugString_() const override {
     return StringPrintf("Func(%s %s)", fi_->name,
                         JoinValues(args_, ",").c_str());
   }
@@ -267,7 +267,7 @@ class Func : public Value {
 
  private:
   const FuncInfo* fi_;
-  vector<Value*> args_;
+  std::vector<Value*> args_;
 };
 
 static char CloseParen(char c) {
@@ -311,7 +311,7 @@ Value* Value::NewExpr(const Loc& loc, Value* v1, Value* v2, Value* v3) {
   return new ValueList(loc, v1, v2, v3);
 }
 
-Value* Value::NewExpr(const Loc& loc, vector<Value*>* values) {
+Value* Value::NewExpr(const Loc& loc, std::vector<Value*>* values) {
   if (values->size() == 1) {
     Value* v = (*values)[0];
     values->clear();
@@ -427,7 +427,7 @@ Value* ParseDollar(Loc* loc, StringPiece s, size_t* index_out) {
         Symbol sym = Intern(lit->val());
         if (g_flags.enable_kati_warnings) {
           size_t found = sym.str().find_first_of(" ({");
-          if (found != string::npos) {
+          if (found != std::string::npos) {
             KATI_WARN_LOC(start_loc,
                           "*warning*: variable lookup with '%c': %.*s",
                           sym.str()[found], SPF(s));
@@ -489,7 +489,7 @@ Value* ParseDollar(Loc* loc, StringPiece s, size_t* index_out) {
     // GNU make accepts expressions like $((). See unmatched_paren*.mk
     // for detail.
     size_t found = s.find(cp);
-    if (found != string::npos) {
+    if (found != std::string::npos) {
       KATI_WARN_LOC(start_loc, "*warning*: unmatched parentheses: %.*s",
                     SPF(s));
       *index_out = s.size();
@@ -514,7 +514,7 @@ Value* ParseExprImpl(Loc* loc,
   char save_paren = 0;
   int paren_depth = 0;
   size_t i;
-  vector<Value*> list;
+  std::vector<Value*> list;
   for (i = 0; i < s.size(); i++) {
     Loc item_loc = *loc;
 
@@ -643,8 +643,8 @@ Value* ParseExpr(Loc* loc, StringPiece s, ParseExprOpt opt) {
   return ParseExprImpl(loc, s, NULL, opt, &n);
 }
 
-string JoinValues(const vector<Value*>& vals, const char* sep) {
-  vector<string> val_strs;
+std::string JoinValues(const std::vector<Value*>& vals, const char* sep) {
+  std::vector<std::string> val_strs;
   val_strs.reserve(vals.size());
   for (Value* v : vals) {
     val_strs.push_back(Value::DebugString(v));

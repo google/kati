@@ -37,7 +37,7 @@ int LoadInt(FILE* fp) {
   return v;
 }
 
-bool LoadString(FILE* fp, string* s) {
+bool LoadString(FILE* fp, std::string* s) {
   int len = LoadInt(fp);
   if (len < 0)
     return false;

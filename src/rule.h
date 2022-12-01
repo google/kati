@@ -25,8 +25,6 @@
 #include "string_piece.h"
 #include "symtab.h"
 
-using namespace std;
-
 class Value;
 
 class Rule {
@@ -35,7 +33,7 @@ class Rule {
 
   Loc cmd_loc() const { return Loc(loc.filename, cmd_lineno); }
 
-  string DebugString() const;
+  std::string DebugString() const;
 
   void ParseInputs(const StringPiece& inputs_string);
 
@@ -44,22 +42,22 @@ class Rule {
                           const RuleStmt* rule_stmt);
 
   static bool IsPatternRule(const StringPiece& target_string) {
-    return target_string.find('%') != string::npos;
+    return target_string.find('%') != std::string::npos;
   }
 
-  vector<Symbol> outputs;
-  vector<Symbol> inputs;
-  vector<Symbol> order_only_inputs;
-  vector<Symbol> output_patterns;
-  vector<Symbol> validations;
+  std::vector<Symbol> outputs;
+  std::vector<Symbol> inputs;
+  std::vector<Symbol> order_only_inputs;
+  std::vector<Symbol> output_patterns;
+  std::vector<Symbol> validations;
   bool is_double_colon;
   bool is_suffix_rule;
-  vector<Value*> cmds;
+  std::vector<Value*> cmds;
   Loc loc;
   int cmd_lineno;
 
  private:
-  void Error(const string& msg) { ERROR_LOC(loc, "%s", msg.c_str()); }
+  void Error(const std::string& msg) { ERROR_LOC(loc, "%s", msg.c_str()); }
 };
 
 #endif  // RULE_H_

@@ -17,8 +17,6 @@
 
 #include <string>
 
-using namespace std;
-
-string StringPrintf(const char* fmt, ...);
+std::string StringPrintf(const char* fmt, ...);
 
 #endif  // STRINGPRINTF_H_

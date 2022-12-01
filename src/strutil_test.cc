@@ -26,12 +26,10 @@
 #include "string_piece.h"
 #include "testutil.h"
 
-using namespace std;
-
 namespace {
 
 void TestWordScanner() {
-  vector<StringPiece> ss;
+  std::vector<StringPiece> ss;
   for (StringPiece tok : WordScanner("foo bar baz hogeeeeeeeeeeeeeeee")) {
     ss.push_back(tok);
   }
@@ -70,8 +68,8 @@ void TestTrimSuffix() {
   ASSERT_EQ(TrimSuffix("bar", "bbar"), "bar");
 }
 
-string SubstPattern(StringPiece str, StringPiece pat, StringPiece subst) {
-  string r;
+std::string SubstPattern(StringPiece str, StringPiece pat, StringPiece subst) {
+  std::string r;
   Pattern(pat).AppendSubst(str, subst, &r);
   return r;
 }
@@ -104,7 +102,7 @@ void TestHasWord() {
   assert(!HasWord("foo bar baz", "fo"));
 }
 
-static string NormalizePath(string s) {
+static std::string NormalizePath(std::string s) {
   ::NormalizePath(&s);
   return s;
 }
@@ -132,7 +130,7 @@ void TestNormalizePath() {
   ASSERT_EQ(NormalizePath("./../../a/b"), "../../a/b");
 }
 
-string EscapeShell(string s) {
+std::string EscapeShell(std::string s) {
   ::EscapeShell(&s);
   return s;
 }
@@ -184,7 +182,7 @@ const char* CreateProtectedString(const char* str) {
 }
 
 void TestWordScannerInvalidAccess() {
-  vector<StringPiece> ss;
+  std::vector<StringPiece> ss;
   for (StringPiece tok : WordScanner(CreateProtectedString("0123 456789"))) {
     ss.push_back(tok);
   }
