@@ -24,8 +24,6 @@
 
 #include "string_piece.h"
 
-using namespace std;
-
 bool Exists(StringPiece f);
 double GetTimestampFromStat(const struct stat& st);
 double GetTimestamp(StringPiece f);
@@ -36,11 +34,11 @@ enum struct RedirectStderr {
   DEV_NULL,
 };
 
-int RunCommand(const string& shell,
-               const string& shellflag,
-               const string& cmd,
+int RunCommand(const std::string& shell,
+               const std::string& shellflag,
+               const std::string& cmd,
                RedirectStderr redirect_stderr,
-               string* out);
+               std::string* out);
 
 std::string GetExecutablePath();
 

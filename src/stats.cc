@@ -28,31 +28,31 @@
 
 namespace {
 
-mutex g_mu;
-vector<Stats*>* g_stats;
+std::mutex g_mu;
+std::vector<Stats*>* g_stats;
 
 }  // namespace
 
 Stats::Stats(const char* name) : name_(name), elapsed_(0), cnt_(0) {
-  unique_lock<mutex> lock(g_mu);
+  std::unique_lock<std::mutex> lock(g_mu);
   if (g_stats == NULL)
-    g_stats = new vector<Stats*>;
+    g_stats = new std::vector<Stats*>;
   g_stats->push_back(this);
 }
 
 void Stats::DumpTop() const {
-  unique_lock<mutex> lock(mu_);
+  std::unique_lock<std::mutex> lock(mu_);
   if (detailed_.size() > 0) {
-    vector<pair<string, StatsDetails>> details(detailed_.begin(),
-                                               detailed_.end());
+    std::vector<std::pair<std::string, StatsDetails>> details(detailed_.begin(),
+                                                              detailed_.end());
     sort(details.begin(), details.end(),
-         [](const pair<string, StatsDetails> a,
-            const pair<string, StatsDetails> b) -> bool {
+         [](const std::pair<std::string, StatsDetails> a,
+            const std::pair<std::string, StatsDetails> b) -> bool {
            return a.second.elapsed_ > b.second.elapsed_;
          });
 
     // Only print the top 10
-    details.resize(min(details.size(), static_cast<size_t>(10)));
+    details.resize(std::min(details.size(), static_cast<size_t>(10)));
 
     if (!interesting_.empty()) {
       // No need to print anything out twice
@@ -73,8 +73,8 @@ void Stats::DumpTop() const {
 
     int max_cnt_len = 1;
     for (auto& [name, detail] : details) {
-      max_cnt_len =
-          max(max_cnt_len, static_cast<int>(to_string(detail.cnt_).length()));
+      max_cnt_len = std::max(
+          max_cnt_len, static_cast<int>(std::to_string(detail.cnt_).length()));
     }
 
     for (auto& [name, detail] : details) {
@@ -84,8 +84,8 @@ void Stats::DumpTop() const {
   }
 }
 
-string Stats::String() const {
-  unique_lock<mutex> lock(mu_);
+std::string Stats::String() const {
+  std::unique_lock<std::mutex> lock(mu_);
   if (!detailed_.empty())
     return StringPrintf("%s: %f / %d (%d unique)", name_, elapsed_, cnt_,
                         detailed_.size());
@@ -94,25 +94,25 @@ string Stats::String() const {
 
 double Stats::Start() {
   double start = GetTime();
-  unique_lock<mutex> lock(mu_);
+  std::unique_lock<std::mutex> lock(mu_);
   cnt_++;
   return start;
 }
 
 double Stats::End(double start, const char* msg) {
   double e = GetTime() - start;
-  unique_lock<mutex> lock(mu_);
+  std::unique_lock<std::mutex> lock(mu_);
   elapsed_ += e;
   if (msg != 0) {
-    StatsDetails& details = detailed_[string(msg)];
+    StatsDetails& details = detailed_[std::string(msg)];
     details.elapsed_ += e;
     details.cnt_++;
   }
   return e;
 }
 
-void Stats::MarkInteresting(const string& msg) {
-  unique_lock<mutex> lock(mu_);
+void Stats::MarkInteresting(const std::string& msg) {
+  std::unique_lock<std::mutex> lock(mu_);
   interesting_.emplace(msg);
 }
 

@@ -21,13 +21,11 @@
 
 #include "string_piece.h"
 
-using namespace std;
-
 void DumpInt(FILE* fp, int v);
 void DumpString(FILE* fp, StringPiece s);
 
 int LoadInt(FILE* fp);
-bool LoadString(FILE* fp, string* s);
+bool LoadString(FILE* fp, std::string* s);
 
 struct ScopedFile {
  public:

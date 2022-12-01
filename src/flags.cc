@@ -57,7 +57,7 @@ void Flags::Parse(int argc, char** argv) {
 
   if (const char* makeflags = getenv("MAKEFLAGS")) {
     for (StringPiece tok : WordScanner(makeflags)) {
-      if (!HasPrefix(tok, "-") && tok.find('=') != string::npos)
+      if (!HasPrefix(tok, "-") && tok.find('=') != std::string::npos)
         cl_vars.push_back(tok);
     }
   }

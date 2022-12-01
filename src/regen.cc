@@ -52,19 +52,19 @@ bool ShouldIgnoreDirty(StringPiece s) {
 
 class StampChecker {
   struct GlobResult {
-    string pat;
-    vector<string> result;
+    std::string pat;
+    std::vector<std::string> result;
   };
 
   struct ShellResult {
     CommandOp op;
-    string shell;
-    string shellflag;
-    string cmd;
-    string result;
-    vector<string> missing_dirs;
-    vector<string> files;
-    vector<string> read_dirs;
+    std::string shell;
+    std::string shellflag;
+    std::string cmd;
+    std::string result;
+    std::vector<std::string> missing_dirs;
+    std::vector<std::string> files;
+    std::vector<std::string> read_dirs;
   };
 
  public:
@@ -79,7 +79,7 @@ class StampChecker {
     }
   }
 
-  bool NeedsRegen(double start_time, const string& orig_args) {
+  bool NeedsRegen(double start_time, const std::string& orig_args) {
     if (IsMissingOutputs())
       RETURN_TRUE;
 
@@ -117,7 +117,7 @@ class StampChecker {
     return false;
   }
 
-  bool CheckStep1(const string& orig_args) {
+  bool CheckStep1(const std::string& orig_args) {
 #define LOAD_INT(fp)                                               \
   ({                                                               \
     int v = LoadInt(fp);                                           \
@@ -136,7 +136,7 @@ class StampChecker {
     }                                                              \
   })
 
-    const string& stamp_filename = GetNinjaStampFilename();
+    const std::string& stamp_filename = GetNinjaStampFilename();
     FILE* fp = fopen(stamp_filename.c_str(), "rb");
     if (!fp) {
       if (g_flags.regen_debug)
@@ -155,7 +155,7 @@ class StampChecker {
     if (g_flags.regen_debug)
       printf("Generated time: %f\n", gen_time);
 
-    string s, s2;
+    std::string s, s2;
     int num_files = LOAD_INT(fp);
     for (int i = 0; i < num_files; i++) {
       LOAD_STRING(fp, &s);
@@ -220,7 +220,7 @@ class StampChecker {
     }
 
     int num_globs = LOAD_INT(fp);
-    string pat;
+    std::string pat;
     for (int i = 0; i < num_globs; i++) {
       GlobResult* gr = new GlobResult;
       globs_.push_back(gr);
@@ -243,7 +243,7 @@ class StampChecker {
       LOAD_STRING(fp, &sr->cmd);
       LOAD_STRING(fp, &sr->result);
 
-      string file;
+      std::string file;
       // Ignore debug info
       LOAD_STRING(fp, &file);
       LOAD_INT(fp);
@@ -276,7 +276,7 @@ class StampChecker {
     return needs_regen_;
   }
 
-  bool CheckGlobResult(const GlobResult* gr, string* err) {
+  bool CheckGlobResult(const GlobResult* gr, std::string* err) {
     COLLECT_STATS("glob time (regen)");
     const auto& files = Glob(gr->pat.c_str());
     bool needs_regen = files.size() != gr->result.size();
@@ -312,15 +312,15 @@ class StampChecker {
       return true;
 
     COLLECT_STATS("stat time (regen)");
-    for (const string& dir : sr->missing_dirs) {
+    for (const std::string& dir : sr->missing_dirs) {
       if (Exists(dir))
         return true;
     }
-    for (const string& file : sr->files) {
+    for (const std::string& file : sr->files) {
       if (!Exists(file))
         return true;
     }
-    for (const string& dir : sr->read_dirs) {
+    for (const std::string& dir : sr->read_dirs) {
       // We assume we rarely do a significant change for the top
       // directory which affects the results of find command.
       if (dir == "" || dir == "." || ShouldIgnoreDirty(dir))
@@ -343,7 +343,7 @@ class StampChecker {
     return false;
   }
 
-  bool CheckShellResult(const ShellResult* sr, string* err) {
+  bool CheckShellResult(const ShellResult* sr, std::string* err) {
     if (sr->op == CommandOp::READ_MISSING) {
       if (Exists(sr->cmd)) {
         if (g_flags.dump_kati_stamp)
@@ -407,7 +407,7 @@ class StampChecker {
     }
 
     COLLECT_STATS_WITH_SLOW_REPORT("shell time (regen)", sr->cmd.c_str());
-    string result;
+    std::string result;
     RunCommand(sr->shell, sr->shellflag, sr->cmd, RedirectStderr::DEV_NULL,
                &result);
     FormatForCommandSubstitution(&result);
@@ -428,12 +428,12 @@ class StampChecker {
 
   bool CheckStep2() {
     auto glob_future = std::async([this]() {
-      string err;
+      std::string err;
       // TODO: Make glob cache thread safe and create a task for each glob.
       SetAffinityForSingleThread();
       for (GlobResult* gr : globs_) {
         if (CheckGlobResult(gr, &err)) {
-          unique_lock<mutex> lock(mu_);
+          std::unique_lock<std::mutex> lock(mu_);
           if (!needs_regen_) {
             needs_regen_ = true;
             msg_ = err;
@@ -446,9 +446,9 @@ class StampChecker {
     auto shell_future = std::async([this]() {
       SetAffinityForSingleThread();
       for (ShellResult* sr : commands_) {
-        string err;
+        std::string err;
         if (CheckShellResult(sr, &err)) {
-          unique_lock<mutex> lock(mu_);
+          std::unique_lock<std::mutex> lock(mu_);
           if (!needs_regen_) {
             needs_regen_ = true;
             msg_ = err;
@@ -467,15 +467,15 @@ class StampChecker {
 
  private:
   double gen_time_;
-  vector<GlobResult*> globs_;
-  vector<ShellResult*> commands_;
-  mutex mu_;
+  std::vector<GlobResult*> globs_;
+  std::vector<ShellResult*> commands_;
+  std::mutex mu_;
   bool needs_regen_;
-  string msg_;
+  std::string msg_;
 };
 
 }  // namespace
 
-bool NeedsRegen(double start_time, const string& orig_args) {
+bool NeedsRegen(double start_time, const std::string& orig_args) {
   return StampChecker().NeedsRegen(start_time, orig_args);
 }

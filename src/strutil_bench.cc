@@ -22,11 +22,9 @@
 #include "strutil.h"
 #include "timeutil.h"
 
-using namespace std;
-
 int main() {
   g_flags.enable_stat_logs = true;
-  string s;
+  std::string s;
   while (s.size() < 400000) {
     if (!s.empty())
       s += ' ';
@@ -36,7 +34,7 @@ int main() {
   ScopedTimeReporter tr("WordScanner");
   static const int N = 1000;
   for (int i = 0; i < N; i++) {
-    vector<StringPiece> toks;
+    std::vector<StringPiece> toks;
     WordScanner(s).Split(&toks);
   }
 }

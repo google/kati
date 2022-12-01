@@ -22,8 +22,6 @@
 #include "string_piece.h"
 #include "symtab.h"
 
-using namespace std;
-
 class Evaluator;
 class Value;
 
@@ -58,7 +56,7 @@ struct Stmt {
   void Eval(Evaluator*) const;
   virtual void EvalStatement(Evaluator* ev) const = 0;
 
-  virtual string DebugString() const = 0;
+  virtual std::string DebugString() const = 0;
 
  protected:
   Stmt();
@@ -84,7 +82,7 @@ struct RuleStmt : public Stmt {
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 };
 
 struct AssignStmt : public Stmt {
@@ -100,7 +98,7 @@ struct AssignStmt : public Stmt {
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 
   Symbol GetLhsSymbol(Evaluator* ev) const;
 
@@ -116,21 +114,21 @@ struct CommandStmt : public Stmt {
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 };
 
 struct IfStmt : public Stmt {
   CondOp op;
   Value* lhs;
   Value* rhs;
-  vector<Stmt*> true_stmts;
-  vector<Stmt*> false_stmts;
+  std::vector<Stmt*> true_stmts;
+  std::vector<Stmt*> false_stmts;
 
   virtual ~IfStmt();
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 };
 
 struct IncludeStmt : public Stmt {
@@ -141,7 +139,7 @@ struct IncludeStmt : public Stmt {
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 };
 
 struct ExportStmt : public Stmt {
@@ -152,17 +150,17 @@ struct ExportStmt : public Stmt {
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 };
 
 struct ParseErrorStmt : public Stmt {
-  string msg;
+  std::string msg;
 
   virtual ~ParseErrorStmt();
 
   virtual void EvalStatement(Evaluator* ev) const;
 
-  virtual string DebugString() const;
+  virtual std::string DebugString() const;
 };
 
 #endif  // STMT_H_

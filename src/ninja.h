@@ -30,9 +30,9 @@ void GenerateNinja(const std::vector<NamedDepNode>& nodes,
                    const std::string& orig_args,
                    double start_time);
 
-string GetNinjaFilename();
-string GetNinjaShellScriptFilename();
-string GetNinjaStampFilename();
+std::string GetNinjaFilename();
+std::string GetNinjaShellScriptFilename();
+std::string GetNinjaStampFilename();
 
 // Exposed only for test.
 bool GetDepfileFromCommand(std::string* cmd, std::string* out);

@@ -19,8 +19,8 @@
 #include <assert.h>
 #include <stdarg.h>
 
-string StringPrintf(const char* format, ...) {
-  string str;
+std::string StringPrintf(const char* format, ...) {
+  std::string str;
   str.resize(128);
   for (int i = 0; i < 2; i++) {
     va_list args;

@@ -76,12 +76,12 @@ WordScanner::Iterator WordScanner::end() const {
   return iter;
 }
 
-void WordScanner::Split(vector<StringPiece>* o) {
+void WordScanner::Split(std::vector<StringPiece>* o) {
   for (StringPiece t : *this)
     o->push_back(t);
 }
 
-WordWriter::WordWriter(string* o) : out_(o), needs_space_(false) {}
+WordWriter::WordWriter(std::string* o) : out_(o), needs_space_(false) {}
 
 void WordWriter::MaybeAddWhitespace() {
   if (needs_space_) {
@@ -104,7 +104,7 @@ ScopedTerminator::~ScopedTerminator() {
   const_cast<char*>(s_.data())[s_.size()] = c_;
 }
 
-void AppendString(StringPiece str, string* out) {
+void AppendString(StringPiece str, std::string* out) {
   out->append(str.begin(), str.end());
 }
 
@@ -120,7 +120,7 @@ bool HasSuffix(StringPiece str, StringPiece suffix) {
 
 bool HasWord(StringPiece str, StringPiece w) {
   size_t found = str.find(w);
-  if (found == string::npos)
+  if (found == std::string::npos)
     return false;
   if (found != 0 && !isSpace(str[found - 1]))
     return false;
@@ -147,7 +147,7 @@ StringPiece TrimSuffix(StringPiece str, StringPiece suffix) {
 Pattern::Pattern(StringPiece pat) : pat_(pat), percent_index_(pat.find('%')) {}
 
 bool Pattern::Match(StringPiece str) const {
-  if (percent_index_ == string::npos)
+  if (percent_index_ == std::string::npos)
     return str == pat_;
   return MatchImpl(str);
 }
@@ -165,8 +165,8 @@ StringPiece Pattern::Stem(StringPiece str) const {
 
 void Pattern::AppendSubst(StringPiece str,
                           StringPiece subst,
-                          string* out) const {
-  if (percent_index_ == string::npos) {
+                          std::string* out) const {
+  if (percent_index_ == std::string::npos) {
     if (str == pat_) {
       AppendString(subst, out);
       return;
@@ -178,7 +178,7 @@ void Pattern::AppendSubst(StringPiece str,
 
   if (MatchImpl(str)) {
     size_t subst_percent_index = subst.find('%');
-    if (subst_percent_index == string::npos) {
+    if (subst_percent_index == std::string::npos) {
       AppendString(subst, out);
       return;
     } else {
@@ -194,8 +194,9 @@ void Pattern::AppendSubst(StringPiece str,
 
 void Pattern::AppendSubstRef(StringPiece str,
                              StringPiece subst,
-                             string* out) const {
-  if (percent_index_ != string::npos && subst.find('%') != string::npos) {
+                             std::string* out) const {
+  if (percent_index_ != std::string::npos &&
+      subst.find('%') != std::string::npos) {
     AppendSubst(str, subst, out);
     return;
   }
@@ -204,12 +205,12 @@ void Pattern::AppendSubstRef(StringPiece str,
   out->append(subst.begin(), subst.end());
 }
 
-string NoLineBreak(const string& s) {
+std::string NoLineBreak(const std::string& s) {
   size_t index = s.find('\n');
-  if (index == string::npos)
+  if (index == std::string::npos)
     return s;
-  string r = s;
-  while (index != string::npos) {
+  std::string r = s;
+  while (index != std::string::npos) {
     r = r.substr(0, index) + "\\n" + r.substr(index + 1);
     index = r.find('\n', index + 2);
   }
@@ -251,7 +252,7 @@ StringPiece TrimSpace(StringPiece s) {
 
 StringPiece Dirname(StringPiece s) {
   size_t found = s.rfind('/');
-  if (found == string::npos)
+  if (found == std::string::npos)
     return StringPiece(".");
   if (found == 0)
     return StringPiece("");
@@ -260,14 +261,14 @@ StringPiece Dirname(StringPiece s) {
 
 StringPiece Basename(StringPiece s) {
   size_t found = s.rfind('/');
-  if (found == string::npos || found == 0)
+  if (found == std::string::npos || found == 0)
     return s;
   return s.substr(found + 1);
 }
 
 StringPiece GetExt(StringPiece s) {
   size_t found = s.rfind('.');
-  if (found == string::npos)
+  if (found == std::string::npos)
     return StringPiece("");
   return s.substr(found);
 }
@@ -275,13 +276,13 @@ StringPiece GetExt(StringPiece s) {
 StringPiece StripExt(StringPiece s) {
   size_t slash_index = s.rfind('/');
   size_t found = s.rfind('.');
-  if (found == string::npos ||
-      (slash_index != string::npos && found < slash_index))
+  if (found == std::string::npos ||
+      (slash_index != std::string::npos && found < slash_index))
     return s;
   return s.substr(0, found);
 }
 
-void NormalizePath(string* o) {
+void NormalizePath(std::string* o) {
   if (o->empty())
     return;
   size_t start_index = 0;
@@ -308,7 +309,7 @@ void NormalizePath(string* o) {
         size_t orig_j = j;
         j -= 4;
         j = o->rfind('/', j);
-        if (j == string::npos) {
+        if (j == std::string::npos) {
           j = start_index;
         } else {
           j++;
@@ -332,7 +333,7 @@ void NormalizePath(string* o) {
   o->resize(j);
 }
 
-void AbsPath(StringPiece s, string* o) {
+void AbsPath(StringPiece s, std::string* o) {
   if (s.get(0) == '/') {
     o->clear();
   } else {
@@ -353,7 +354,7 @@ void AbsPath(StringPiece s, string* o) {
 template <typename Cond>
 size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
   bool prev_backslash = false;
-  stack<char> paren_stack;
+  std::stack<char> paren_stack;
   for (size_t i = 0; i < s.size(); i++) {
     char c = s[i];
     if (cond(c) && paren_stack.empty() && !prev_backslash) {
@@ -376,7 +377,7 @@ size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
     }
     prev_backslash = c == '\\' && !prev_backslash;
   }
-  return string::npos;
+  return std::string::npos;
 }
 
 size_t FindOutsideParen(StringPiece s, char c) {
@@ -429,7 +430,7 @@ StringPiece TrimLeadingCurdir(StringPiece s) {
   return s;
 }
 
-void FormatForCommandSubstitution(string* s) {
+void FormatForCommandSubstitution(std::string* s) {
   while ((*s)[s->size() - 1] == '\n')
     s->pop_back();
   for (size_t i = 0; i < s->size(); i++) {
@@ -438,8 +439,8 @@ void FormatForCommandSubstitution(string* s) {
   }
 }
 
-string SortWordsInString(StringPiece s) {
-  vector<string> toks;
+std::string SortWordsInString(StringPiece s) {
+  std::vector<std::string> toks;
   for (StringPiece tok : WordScanner(s)) {
     toks.push_back(tok.as_string());
   }
@@ -447,8 +448,8 @@ string SortWordsInString(StringPiece s) {
   return JoinStrings(toks, " ");
 }
 
-string ConcatDir(StringPiece b, StringPiece n) {
-  string r;
+std::string ConcatDir(StringPiece b, StringPiece n) {
+  std::string r;
   if (!b.empty() && (n.empty() || n[0] != '/')) {
     b.AppendToString(&r);
     r += '/';
@@ -458,9 +459,9 @@ string ConcatDir(StringPiece b, StringPiece n) {
   return r;
 }
 
-string EchoEscape(const string& str) {
+std::string EchoEscape(const std::string& str) {
   const char* in = str.c_str();
-  string buf;
+  std::string buf;
   for (; *in; in++) {
     switch (*in) {
       case '\\':
@@ -479,14 +480,14 @@ string EchoEscape(const string& str) {
   return buf;
 }
 
-void EscapeShell(string* s) {
+void EscapeShell(std::string* s) {
   static const char delimiters[] = "\"$\\`";
   size_t prev = 0;
   size_t i = SkipUntil(s->c_str(), s->size(), delimiters);
   if (i == s->size())
     return;
 
-  string r;
+  std::string r;
   for (; i < s->size();) {
     StringPiece(*s).substr(prev, i - prev).AppendToString(&r);
     char c = (*s)[i];

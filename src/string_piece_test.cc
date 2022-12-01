@@ -20,10 +20,8 @@
 
 #include <unordered_set>
 
-using namespace std;
-
 int main() {
-  unordered_set<StringPiece> sps;
+  std::unordered_set<StringPiece> sps;
   sps.insert(StringPiece("foo"));
   sps.insert(StringPiece("foo"));
   sps.insert(StringPiece("bar"));

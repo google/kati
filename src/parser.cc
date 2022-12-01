@@ -43,10 +43,10 @@ class Parser {
 
   typedef void (Parser::*DirectiveHandler)(StringPiece line,
                                            StringPiece directive);
-  typedef unordered_map<StringPiece, DirectiveHandler> DirectiveMap;
+  typedef std::unordered_map<StringPiece, DirectiveHandler> DirectiveMap;
 
  public:
-  Parser(StringPiece buf, const char* filename, vector<Stmt*>* stmts)
+  Parser(StringPiece buf, const char* filename, std::vector<Stmt*>* stmts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
@@ -56,7 +56,7 @@ class Parser {
         loc_(filename, 0),
         fixed_lineno_(false) {}
 
-  Parser(StringPiece buf, const Loc& loc, vector<Stmt*>* stmts)
+  Parser(StringPiece buf, const Loc& loc, std::vector<Stmt*>* stmts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
@@ -95,10 +95,10 @@ class Parser {
 
   void set_state(ParserState st) { state_ = st; }
 
-  static vector<ParseErrorStmt*> parse_errors;
+  static std::vector<ParseErrorStmt*> parse_errors;
 
  private:
-  void Error(const string& msg) {
+  void Error(const std::string& msg) {
     ParseErrorStmt* stmt = new ParseErrorStmt();
     stmt->set_loc(loc_);
     stmt->msg = msg;
@@ -152,8 +152,8 @@ class Parser {
 
   void ParseRuleOrAssign(StringPiece line) {
     size_t sep = FindThreeOutsideParen(line, ':', '=', ';');
-    if (sep == string::npos || line[sep] == ';') {
-      ParseRule(line, string::npos);
+    if (sep == std::string::npos || line[sep] == ';') {
+      ParseRule(line, std::string::npos);
     } else if (line[sep] == '=') {
       ParseAssign(line, sep);
     } else if (line.get(sep + 1) == '=') {
@@ -169,7 +169,7 @@ class Parser {
     if (current_directive_ != AssignDirective::NONE) {
       if (IsInExport())
         return;
-      if (sep != string::npos) {
+      if (sep != std::string::npos) {
         sep += orig_line_with_directives_.size() - line.size();
       }
       line = orig_line_with_directives_;
@@ -184,13 +184,13 @@ class Parser {
       return;
     }
 
-    const bool is_rule = sep != string::npos && line[sep] == ':';
+    const bool is_rule = sep != std::string::npos && line[sep] == ':';
     RuleStmt* rule_stmt = new RuleStmt();
     rule_stmt->set_loc(loc_);
 
     size_t found = FindTwoOutsideParen(line.substr(sep + 1), '=', ';');
     Loc mutable_loc(loc_);
-    if (found != string::npos) {
+    if (found != std::string::npos) {
       found += sep + 1;
       rule_stmt->lhs =
           ParseExpr(&mutable_loc, TrimSpace(line.substr(0, found)));
@@ -355,7 +355,7 @@ class Parser {
         if (quote != '\'' && quote != '"')
           return false;
         size_t end = s.find(quote, 1);
-        if (end == string::npos)
+        if (end == std::string::npos)
           return false;
         Value* v =
             ParseExpr(&mutable_loc, s.substr(1, end - 1), ParseExprOpt::NORMAL);
@@ -481,7 +481,7 @@ class Parser {
 
   StringPiece RemoveComment(StringPiece line) {
     size_t i = FindOutsideParen(line, '#');
-    if (i == string::npos)
+    if (i == std::string::npos)
       return line;
     return line.substr(0, i);
   }
@@ -510,8 +510,8 @@ class Parser {
   size_t l_;
   ParserState state_;
 
-  vector<Stmt*>* stmts_;
-  vector<Stmt*>* out_stmts_;
+  std::vector<Stmt*>* stmts_;
+  std::vector<Stmt*>* out_stmts_;
 
   StringPiece define_name_;
   int num_define_nest_;
@@ -522,7 +522,7 @@ class Parser {
   AssignDirective current_directive_;
 
   int num_if_nest_;
-  stack<IfState*> if_stack_;
+  std::stack<IfState*> if_stack_;
 
   Loc loc_;
   bool fixed_lineno_;
@@ -541,7 +541,7 @@ void Parse(Makefile* mk) {
   parser.Parse();
 }
 
-void Parse(StringPiece buf, const Loc& loc, vector<Stmt*>* out_stmts) {
+void Parse(StringPiece buf, const Loc& loc, std::vector<Stmt*>* out_stmts) {
   COLLECT_STATS("parse eval time");
   Parser parser(buf, loc, out_stmts);
   parser.Parse();
@@ -549,7 +549,7 @@ void Parse(StringPiece buf, const Loc& loc, vector<Stmt*>* out_stmts) {
 
 void ParseNotAfterRule(StringPiece buf,
                        const Loc& loc,
-                       vector<Stmt*>* out_stmts) {
+                       std::vector<Stmt*>* out_stmts) {
   Parser parser(buf, loc, out_stmts);
   parser.set_state(ParserState::NOT_AFTER_RULE);
   parser.Parse();
@@ -595,7 +595,7 @@ const size_t Parser::longest_directive_len_ = []() {
   return result;
 }();
 
-vector<ParseErrorStmt*> Parser::parse_errors;
+std::vector<ParseErrorStmt*> Parser::parse_errors;
 
 void ParseAssignStatement(StringPiece line,
                           size_t sep,
@@ -623,6 +623,6 @@ void ParseAssignStatement(StringPiece line,
   *rhs = TrimLeftSpace(line.substr(sep + 1));
 }
 
-const vector<ParseErrorStmt*>& GetParseErrors() {
+const std::vector<ParseErrorStmt*>& GetParseErrors() {
   return Parser::parse_errors;
 }

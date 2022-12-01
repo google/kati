@@ -28,8 +28,6 @@
 #include "string_piece.h"
 #include "symtab.h"
 
-using namespace std;
-
 class Evaluator;
 class Value;
 
@@ -61,7 +59,7 @@ class Var : public Evaluable {
 
   virtual StringPiece String() const = 0;
 
-  virtual string DebugString() const = 0;
+  virtual std::string DebugString() const = 0;
 
   bool ReadOnly() const { return readonly_; }
   void SetReadOnly() { readonly_ = true; }
@@ -75,7 +73,7 @@ class Var : public Evaluable {
   bool SelfReferential() const { return self_referential_; }
   void SetSelfReferential() { self_referential_ = true; }
 
-  const string& DeprecatedMessage() const;
+  const std::string& DeprecatedMessage() const;
 
   // This variable was used (either written or read from)
   virtual void Used(Evaluator* ev, const Symbol& sym) const;
@@ -102,13 +100,13 @@ class Var : public Evaluable {
 
   const char* diagnostic_message_text() const;
 
-  static unordered_map<const Var*, string> diagnostic_messages_;
+  static std::unordered_map<const Var*, std::string> diagnostic_messages_;
 };
 
 class SimpleVar : public Var {
  public:
   explicit SimpleVar(VarOrigin origin, Frame* definition, Loc loc);
-  SimpleVar(const string& v, VarOrigin origin, Frame* definition, Loc loc);
+  SimpleVar(const std::string& v, VarOrigin origin, Frame* definition, Loc loc);
   SimpleVar(VarOrigin origin,
             Frame* definition,
             Loc loc,
@@ -119,15 +117,15 @@ class SimpleVar : public Var {
 
   virtual bool IsFunc(Evaluator* ev) const override;
 
-  virtual void Eval(Evaluator* ev, string* s) const override;
+  virtual void Eval(Evaluator* ev, std::string* s) const override;
 
   virtual void AppendVar(Evaluator* ev, Value* v) override;
 
   virtual StringPiece String() const override;
 
-  virtual string DebugString() const override;
+  virtual std::string DebugString() const override;
 
-  string v_;
+  std::string v_;
 };
 
 class RecursiveVar : public Var {
@@ -142,13 +140,13 @@ class RecursiveVar : public Var {
 
   virtual bool IsFunc(Evaluator* ev) const override;
 
-  virtual void Eval(Evaluator* ev, string* s) const override;
+  virtual void Eval(Evaluator* ev, std::string* s) const override;
 
   virtual void AppendVar(Evaluator* ev, Value* v) override;
 
   virtual StringPiece String() const override;
 
-  virtual string DebugString() const override;
+  virtual std::string DebugString() const override;
 
   virtual void Used(Evaluator* ev, const Symbol& sym) const override;
 
@@ -165,11 +163,11 @@ class UndefinedVar : public Var {
 
   virtual bool IsFunc(Evaluator* ev) const override;
 
-  virtual void Eval(Evaluator* ev, string* s) const override;
+  virtual void Eval(Evaluator* ev, std::string* s) const override;
 
   virtual StringPiece String() const override;
 
-  virtual string DebugString() const override;
+  virtual std::string DebugString() const override;
 };
 
 // The built-in VARIABLES and KATI_SYMBOLS variables
@@ -182,17 +180,17 @@ class VariableNamesVar : public Var {
 
   virtual bool IsFunc(Evaluator* ev) const override;
 
-  virtual void Eval(Evaluator* ev, string* s) const override;
+  virtual void Eval(Evaluator* ev, std::string* s) const override;
 
   virtual StringPiece String() const override;
 
-  virtual string DebugString() const override;
+  virtual std::string DebugString() const override;
 
  private:
   StringPiece name_;
   bool all_;
 
-  void ConcatVariableNames(Evaluator* ev, string* s) const;
+  void ConcatVariableNames(Evaluator* ev, std::string* s) const;
 };
 
 // The built-in .SHELLSTATUS variable
@@ -207,18 +205,18 @@ class ShellStatusVar : public Var {
 
   virtual bool IsFunc(Evaluator* ev) const override;
 
-  virtual void Eval(Evaluator* ev, string* s) const override;
+  virtual void Eval(Evaluator* ev, std::string* s) const override;
 
   virtual StringPiece String() const override;
 
-  virtual string DebugString() const override;
+  virtual std::string DebugString() const override;
 
  private:
   static bool is_set_;
   static int shell_status_;
 };
 
-class Vars : public unordered_map<Symbol, Var*> {
+class Vars : public std::unordered_map<Symbol, Var*> {
  public:
   ~Vars();
 

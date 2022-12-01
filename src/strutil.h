@@ -20,8 +20,6 @@
 
 #include "string_piece.h"
 
-using namespace std;
-
 class WordScanner {
  public:
   struct Iterator {
@@ -41,7 +39,7 @@ class WordScanner {
   Iterator begin() const;
   Iterator end() const;
 
-  void Split(vector<StringPiece>* o);
+  void Split(std::vector<StringPiece>* o);
 
  private:
   StringPiece in_;
@@ -49,12 +47,12 @@ class WordScanner {
 
 class WordWriter {
  public:
-  explicit WordWriter(string* o);
+  explicit WordWriter(std::string* o);
   void MaybeAddWhitespace();
   void Write(StringPiece s);
 
  private:
-  string* out_;
+  std::string* out_;
   bool needs_space_;
 };
 
@@ -70,8 +68,8 @@ class ScopedTerminator {
 };
 
 template <class String>
-inline string JoinStrings(vector<String> v, const char* sep) {
-  string r;
+inline std::string JoinStrings(std::vector<String> v, const char* sep) {
+  std::string r;
   for (StringPiece s : v) {
     if (!r.empty()) {
       r += sep;
@@ -81,7 +79,7 @@ inline string JoinStrings(vector<String> v, const char* sep) {
   return r;
 }
 
-void AppendString(StringPiece str, string* out);
+void AppendString(StringPiece str, std::string* out);
 
 bool HasPrefix(StringPiece str, StringPiece prefix);
 
@@ -101,9 +99,11 @@ class Pattern {
 
   StringPiece Stem(StringPiece str) const;
 
-  void AppendSubst(StringPiece str, StringPiece subst, string* out) const;
+  void AppendSubst(StringPiece str, StringPiece subst, std::string* out) const;
 
-  void AppendSubstRef(StringPiece str, StringPiece subst, string* out) const;
+  void AppendSubstRef(StringPiece str,
+                      StringPiece subst,
+                      std::string* out) const;
 
  private:
   bool MatchImpl(StringPiece str) const;
@@ -112,7 +112,7 @@ class Pattern {
   size_t percent_index_;
 };
 
-string NoLineBreak(const string& s);
+std::string NoLineBreak(const std::string& s);
 
 StringPiece TrimLeftSpace(StringPiece s);
 StringPiece TrimRightSpace(StringPiece s);
@@ -122,8 +122,8 @@ StringPiece Dirname(StringPiece s);
 StringPiece Basename(StringPiece s);
 StringPiece GetExt(StringPiece s);
 StringPiece StripExt(StringPiece s);
-void NormalizePath(string* o);
-void AbsPath(StringPiece s, string* o);
+void NormalizePath(std::string* o);
+void AbsPath(StringPiece s, std::string* o);
 
 size_t FindOutsideParen(StringPiece s, char c);
 size_t FindTwoOutsideParen(StringPiece s, char c1, char c2);
@@ -136,15 +136,15 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt);
 // From http://www.gnu.org/software/make/manual/make.html#Features
 StringPiece TrimLeadingCurdir(StringPiece s);
 
-void FormatForCommandSubstitution(string* s);
+void FormatForCommandSubstitution(std::string* s);
 
-string SortWordsInString(StringPiece s);
+std::string SortWordsInString(StringPiece s);
 
-string ConcatDir(StringPiece b, StringPiece n);
+std::string ConcatDir(StringPiece b, StringPiece n);
 
-string EchoEscape(const string& str);
+std::string EchoEscape(const std::string& str);
 
-void EscapeShell(string* s);
+void EscapeShell(std::string* s);
 
 bool IsInteger(StringPiece s);
 

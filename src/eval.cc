@@ -315,7 +315,7 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
     Error("*** empty variable name.");
 
   if (lhs == kKatiReadonlySym) {
-    string rhs;
+    std::string rhs;
     stmt->rhs->Eval(this, &rhs);
     for (auto const& name : WordScanner(rhs)) {
       Var* var = Intern(name).GetGlobalVar();
@@ -354,10 +354,10 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
 // Returns the remainder of <before_term>.
 static StringPiece ParseRuleTargets(const Loc& loc,
                                     const StringPiece& before_term,
-                                    vector<Symbol>* targets,
+                                    std::vector<Symbol>* targets,
                                     bool* is_pattern_rule) {
   size_t pos = before_term.find(':');
-  if (pos == string::npos) {
+  if (pos == std::string::npos) {
     ERROR_LOC(loc, "*** missing separator.");
   }
   StringPiece targets_string = before_term.substr(0, pos);
@@ -378,7 +378,7 @@ static StringPiece ParseRuleTargets(const Loc& loc,
 }
 
 // Strip leading spaces and trailing spaces and colons.
-static string FormatRuleError(const string& before_term) {
+static std::string FormatRuleError(const std::string& before_term) {
   if (before_term.size() == 0) {
     return before_term;
   }
@@ -396,7 +396,7 @@ static string FormatRuleError(const string& before_term) {
 }
 
 void Evaluator::MarkVarsReadonly(Value* vars_list) {
-  string vars_list_string;
+  std::string vars_list_string;
   vars_list->Eval(this, &vars_list_string);
   for (auto const& name : WordScanner(vars_list_string)) {
     Var* var = current_scope_->Lookup(Intern(name));
@@ -407,7 +407,7 @@ void Evaluator::MarkVarsReadonly(Value* vars_list) {
   }
 }
 
-void Evaluator::EvalRuleSpecificAssign(const vector<Symbol>& targets,
+void Evaluator::EvalRuleSpecificAssign(const std::vector<Symbol>& targets,
                                        const RuleStmt* stmt,
                                        const StringPiece& after_targets,
                                        size_t separator_pos) {
@@ -463,15 +463,15 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& before_term = stmt->lhs->Eval(this);
+  const std::string&& before_term = stmt->lhs->Eval(this);
   // See semicolon.mk.
-  if (before_term.find_first_not_of(" \t\n;") == string::npos) {
+  if (before_term.find_first_not_of(" \t\n;") == std::string::npos) {
     if (stmt->sep == RuleStmt::SEP_SEMICOLON)
       Error("*** missing rule before commands.");
     return;
   }
 
-  vector<Symbol> targets;
+  std::vector<Symbol> targets;
   bool is_pattern_rule;
   StringPiece after_targets =
       ParseRuleTargets(loc_, before_term, &targets, &is_pattern_rule);
@@ -486,9 +486,9 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   // first assignment token.
   size_t separator_pos = after_targets.find_first_of("=;");
   char separator = '\0';
-  if (separator_pos != string::npos) {
+  if (separator_pos != std::string::npos) {
     separator = after_targets[separator_pos];
-  } else if (separator_pos == string::npos &&
+  } else if (separator_pos == std::string::npos &&
              (stmt->sep == RuleStmt::SEP_EQ ||
               stmt->sep == RuleStmt::SEP_FINALEQ)) {
     separator_pos = after_targets.size();
@@ -550,7 +550,7 @@ void Evaluator::EvalCommand(const CommandStmt* stmt) {
   loc_ = stmt->loc();
 
   if (!last_rule_) {
-    vector<Stmt*> stmts;
+    std::vector<Stmt*> stmts;
     ParseNotAfterRule(stmt->orig, stmt->loc(), &stmts);
     for (Stmt* a : stmts)
       a->Eval(this);
@@ -570,7 +570,7 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
   switch (stmt->op) {
     case CondOp::IFDEF:
     case CondOp::IFNDEF: {
-      string var_name;
+      std::string var_name;
       stmt->lhs->Eval(this, &var_name);
       Symbol lhs = Intern(TrimRightSpace(var_name));
       if (const auto& s = lhs.str();
@@ -584,8 +584,8 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
     }
     case CondOp::IFEQ:
     case CondOp::IFNEQ: {
-      const string&& lhs = stmt->lhs->Eval(this);
-      const string&& rhs = stmt->rhs->Eval(this);
+      const std::string&& lhs = stmt->lhs->Eval(this);
+      const std::string&& rhs = stmt->rhs->Eval(this);
       is_true = ((lhs == rhs) == (stmt->op == CondOp::IFEQ));
       break;
     }
@@ -594,7 +594,7 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
       abort();
   }
 
-  const vector<Stmt*>* stmts;
+  const std::vector<Stmt*>* stmts;
   if (is_true) {
     stmts = &stmt->true_stmts;
   } else {
@@ -606,7 +606,7 @@ void Evaluator::EvalIf(const IfStmt* stmt) {
   }
 }
 
-void Evaluator::DoInclude(const string& fname) {
+void Evaluator::DoInclude(const std::string& fname) {
   CheckStack();
   COLLECT_STATS_WITH_SLOW_REPORT("included makefiles", fname.c_str());
 
@@ -633,7 +633,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
   loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& pats = stmt->expr->Eval(this);
+  const std::string&& pats = stmt->expr->Eval(this);
   for (StringPiece pat : WordScanner(pats)) {
     ScopedTerminator st(pat);
     const auto& files = Glob(pat.data());
@@ -647,7 +647,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
 
     include_stack_.push_back(stmt->loc());
 
-    for (const string& fname : files) {
+    for (const std::string& fname : files) {
       if (!stmt->should_exist && g_flags.ignore_optional_include_pattern &&
           Pattern(g_flags.ignore_optional_include_pattern).Match(fname)) {
         continue;
@@ -666,11 +666,11 @@ void Evaluator::EvalExport(const ExportStmt* stmt) {
   loc_ = stmt->loc();
   last_rule_ = NULL;
 
-  const string&& exports = stmt->expr->Eval(this);
+  const std::string&& exports = stmt->expr->Eval(this);
   for (StringPiece tok : WordScanner(exports)) {
     size_t equal_index = tok.find('=');
     StringPiece lhs;
-    if (equal_index == string::npos) {
+    if (equal_index == std::string::npos) {
       lhs = tok;
     } else if (equal_index == 0 ||
                (equal_index == 1 &&
@@ -842,12 +842,12 @@ Var* Evaluator::PeekVarInCurrentScope(Symbol name) {
   return result;
 }
 
-string Evaluator::EvalVar(Symbol name) {
+std::string Evaluator::EvalVar(Symbol name) {
   return LookupVar(name)->Eval(this);
 }
 
 ScopedFrame Evaluator::Enter(FrameType frame_type,
-                             const string& name,
+                             const std::string& name,
                              Loc loc) {
   if (!trace_) {
     return ScopedFrame(this, nullptr);
@@ -857,24 +857,24 @@ ScopedFrame Evaluator::Enter(FrameType frame_type,
   return ScopedFrame(this, frame);
 }
 
-string Evaluator::GetShell() {
+std::string Evaluator::GetShell() {
   return EvalVar(kShellSym);
 }
 
-string Evaluator::GetShellFlag() {
+std::string Evaluator::GetShellFlag() {
   // TODO: Handle $(.SHELLFLAGS)
   return is_posix_ ? "-ec" : "-c";
 }
 
-string Evaluator::GetShellAndFlag() {
-  string shell = GetShell();
+std::string Evaluator::GetShellAndFlag() {
+  std::string shell = GetShell();
   shell += ' ';
   shell += GetShellFlag();
   return shell;
 }
 
 RulesAllowed Evaluator::GetAllowRules() {
-  string val = EvalVar(kAllowRulesSym);
+  std::string val = EvalVar(kAllowRulesSym);
   if (val == "warning") {
     return RULES_WARNING;
   } else if (val == "error") {
@@ -890,7 +890,7 @@ void Evaluator::PrintIncludeStack() {
   }
 }
 
-void Evaluator::Error(const string& msg) {
+void Evaluator::Error(const std::string& msg) {
   PrintIncludeStack();
   ERROR_LOC(loc_, "%s", msg.c_str());
 }
@@ -901,7 +901,7 @@ void Evaluator::DumpStackStats() const {
            LOCF(lowest_loc_));
 }
 
-void Evaluator::DumpIncludeJSON(const string& filename) const {
+void Evaluator::DumpIncludeJSON(const std::string& filename) const {
   IncludeGraph graph;
   graph.MergeTreeNode(stack_.front());
   FILE* jsonfile;

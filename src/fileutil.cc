@@ -63,15 +63,15 @@ double GetTimestamp(StringPiece filename) {
   return GetTimestampFromStat(st);
 }
 
-int RunCommand(const string& shell,
-               const string& shellflag,
-               const string& cmd,
+int RunCommand(const std::string& shell,
+               const std::string& shellflag,
+               const std::string& cmd,
                RedirectStderr redirect_stderr,
-               string* s) {
+               std::string* s) {
   const char* argv[] = {NULL, NULL, NULL, NULL};
-  string cmd_with_shell;
-  if (shell[0] != '/' || shell.find_first_of(" $") != string::npos) {
-    string cmd_escaped = cmd;
+  std::string cmd_with_shell;
+  if (shell[0] != '/' || shell.find_first_of(" $") != std::string::npos) {
+    std::string cmd_escaped = cmd;
     EscapeShell(&cmd_escaped);
     cmd_with_shell = shell + " " + shellflag + " \"" + cmd_escaped + "\"";
     argv[0] = "/bin/sh";

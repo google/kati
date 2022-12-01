@@ -27,8 +27,6 @@
 #include "string_piece.h"
 #include "symtab.h"
 
-using namespace std;
-
 class Makefile;
 class Rule;
 class Var;
@@ -59,7 +57,7 @@ class Frame {
 
   FrameType Type() const { return type_; }
   Frame* Parent() const { return parent_; }
-  const string& Name() const { return name_; }
+  const std::string& Name() const { return name_; }
   const Loc& Location() const { return location_; }
   const std::vector<std::unique_ptr<Frame>>& Children() const {
     return children_;
@@ -144,17 +142,19 @@ class Evaluator {
   // Equivalent to LookupVar, but doesn't mark as used.
   Var* PeekVar(Symbol name);
 
-  string EvalVar(Symbol name);
+  std::string EvalVar(Symbol name);
 
   const Loc& loc() const { return loc_; }
   void set_loc(const Loc& loc) { loc_ = loc; }
 
-  const vector<const Rule*>& rules() const { return rules_; }
-  const unordered_map<Symbol, Vars*>& rule_vars() const { return rule_vars_; }
-  const unordered_map<Symbol, bool>& exports() const { return exports_; }
+  const std::vector<const Rule*>& rules() const { return rules_; }
+  const std::unordered_map<Symbol, Vars*>& rule_vars() const {
+    return rule_vars_;
+  }
+  const std::unordered_map<Symbol, bool>& exports() const { return exports_; }
 
   void PrintIncludeStack();
-  void Error(const string& msg);
+  void Error(const std::string& msg);
 
   void in_bootstrap();
   void in_command_line();
@@ -165,10 +165,10 @@ class Evaluator {
   bool avoid_io() const { return avoid_io_; }
   void set_avoid_io(bool a) { avoid_io_ = a; }
 
-  const vector<string>& delayed_output_commands() const {
+  const std::vector<std::string>& delayed_output_commands() const {
     return delayed_output_commands_;
   }
-  void add_delayed_output_command(const string& c) {
+  void add_delayed_output_command(const std::string& c) {
     delayed_output_commands_.push_back(c);
   }
   void clear_delayed_output_commands() { delayed_output_commands_.clear(); }
@@ -179,14 +179,14 @@ class Evaluator {
   void IncrementEvalDepth() { eval_depth_++; }
   void DecrementEvalDepth() { eval_depth_--; }
 
-  ScopedFrame Enter(FrameType frame_type, const string& name, Loc loc);
+  ScopedFrame Enter(FrameType frame_type, const std::string& name, Loc loc);
   Frame* CurrentFrame() const {
     return stack_.empty() ? nullptr : stack_.back();
   };
 
-  string GetShell();
-  string GetShellFlag();
-  string GetShellAndFlag();
+  std::string GetShell();
+  std::string GetShellFlag();
+  std::string GetShellAndFlag();
 
   // Parse the current value of .KATI_ALLOW_RULES
   RulesAllowed GetAllowRules();
@@ -200,15 +200,15 @@ class Evaluator {
   }
 
   void DumpStackStats() const;
-  void DumpIncludeJSON(const string& filename) const;
+  void DumpIncludeJSON(const std::string& filename) const;
 
   bool ExportDeprecated() const { return export_message_ && !export_error_; };
   bool ExportObsolete() const { return export_error_; };
   void SetExportDeprecated(StringPiece msg) {
-    export_message_.reset(new string(msg.as_string()));
+    export_message_.reset(new std::string(msg.as_string()));
   }
   void SetExportObsolete(StringPiece msg) {
-    export_message_.reset(new string(msg.as_string()));
+    export_message_.reset(new std::string(msg.as_string()));
     export_error_ = true;
   }
 
@@ -226,7 +226,7 @@ class Evaluator {
                AssignOp op,
                bool is_override,
                bool* needs_assign);
-  void DoInclude(const string& fname);
+  void DoInclude(const std::string& fname);
 
   bool IsTraced(Symbol& name) const;
   void TraceVariableLookup(const char* operation, Symbol& name, Var* var);
@@ -238,14 +238,14 @@ class Evaluator {
 
   void MarkVarsReadonly(Value* var_list);
 
-  void EvalRuleSpecificAssign(const vector<Symbol>& targets,
+  void EvalRuleSpecificAssign(const std::vector<Symbol>& targets,
                               const RuleStmt* stmt,
                               const StringPiece& lhs_string,
                               size_t separator_pos);
 
-  unordered_map<Symbol, Vars*> rule_vars_;
-  vector<const Rule*> rules_;
-  unordered_map<Symbol, bool> exports_;
+  std::unordered_map<Symbol, Vars*> rule_vars_;
+  std::vector<const Rule*> rules_;
+  std::unordered_map<Symbol, bool> exports_;
   std::set<Symbol> symbols_for_eval_;
 
   Rule* last_rule_;
@@ -269,7 +269,7 @@ class Evaluator {
   int eval_depth_;
   // Commands which should run at ninja-time (i.e., info, warning, and
   // error).
-  vector<string> delayed_output_commands_;
+  std::vector<std::string> delayed_output_commands_;
 
   Symbol posix_sym_;
   bool is_posix_;
@@ -279,10 +279,10 @@ class Evaluator {
   void* lowest_stack_;
   Loc lowest_loc_;
 
-  unique_ptr<string> export_message_;
+  std::unique_ptr<std::string> export_message_;
   bool export_error_;
 
-  vector<string> profiled_files_;
+  std::vector<std::string> profiled_files_;
 
   static SymbolSet used_undefined_vars_;
 

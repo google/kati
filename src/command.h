@@ -19,8 +19,6 @@
 
 #include "symtab.h"
 
-using namespace std;
-
 struct DepNode;
 class Evaluator;
 
@@ -28,7 +26,7 @@ struct Command {
   explicit Command(Symbol o)
       : output(o), echo(true), ignore_error(false), force_no_subshell(false) {}
   Symbol output;
-  string cmd;
+  std::string cmd;
   bool echo;
   bool ignore_error;
   bool force_no_subshell;

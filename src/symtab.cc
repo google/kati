@@ -35,8 +35,8 @@ struct SymbolData {
   Var* gv;
 };
 
-vector<string*>* g_symbols;
-static vector<SymbolData> g_symbol_data;
+std::vector<std::string*>* g_symbols;
+static std::vector<SymbolData> g_symbol_data;
 
 Symbol kEmptySym;
 Symbol kShellSym;
@@ -143,7 +143,7 @@ class Symtab {
 
   ~Symtab() {
     LOG_STAT("%zu symbols", symbols_.size());
-    for (string* s : symbols_)
+    for (std::string* s : symbols_)
       delete s;
   }
 
@@ -152,7 +152,7 @@ class Symtab {
     if (found != symtab_.end()) {
       return found->second;
     }
-    symbols_.push_back(new string(s.data(), s.size()));
+    symbols_.push_back(new std::string(s.data(), s.size()));
     Symbol sym = Symbol(symtab_.size());
     bool ok = symtab_.emplace(*symbols_.back(), sym).second;
     CHECK(ok);
@@ -171,8 +171,9 @@ class Symtab {
     return InternImpl(s);
   }
 
-  vector<StringPiece> GetSymbolNames(std::function<bool(Var*)> const& filter) {
-    vector<StringPiece> result;
+  std::vector<StringPiece> GetSymbolNames(
+      std::function<bool(Var*)> const& filter) {
+    std::vector<StringPiece> result;
     for (auto entry : symtab_) {
       Var* var = entry.second.PeekGlobalVar();
       // The symbol table contains all interned strings, not just variables
@@ -188,8 +189,8 @@ class Symtab {
   }
 
  private:
-  unordered_map<StringPiece, Symbol> symtab_;
-  vector<string*> symbols_;
+  std::unordered_map<StringPiece, Symbol> symtab_;
+  std::vector<std::string*> symbols_;
 #ifdef ENABLE_TID_CHECK
   pthread_t tid_;
 #endif
@@ -201,8 +202,8 @@ Symbol Intern(StringPiece s) {
   return g_symtab.Intern(s);
 }
 
-string JoinSymbols(const vector<Symbol>& syms, const char* sep) {
-  vector<string> strs;
+std::string JoinSymbols(const std::vector<Symbol>& syms, const char* sep) {
+  std::vector<std::string> strs;
   strs.reserve(syms.size());
   for (Symbol s : syms) {
     strs.push_back(s.str());
@@ -210,6 +211,7 @@ string JoinSymbols(const vector<Symbol>& syms, const char* sep) {
   return JoinStrings(strs, sep);
 }
 
-vector<StringPiece> GetSymbolNames(std::function<bool(Var*)> const& filter) {
+std::vector<StringPiece> GetSymbolNames(
+    std::function<bool(Var*)> const& filter) {
   return g_symtab.GetSymbolNames(filter);
 }

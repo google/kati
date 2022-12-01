@@ -50,7 +50,7 @@ static unsigned int find_emulator_node_cnt = 0;
 class FindCond {
  public:
   virtual ~FindCond() = default;
-  virtual bool IsTrue(const string& path, unsigned char type) const = 0;
+  virtual bool IsTrue(const std::string& path, unsigned char type) const = 0;
   virtual bool Countable() const = 0;
   virtual unsigned Count() const = 0;
 
@@ -62,24 +62,24 @@ namespace {
 
 class NameCond : public FindCond {
  public:
-  explicit NameCond(const string& n) : name_(n) {
-    has_wildcard_ = (n.find_first_of("?*[") != string::npos);
+  explicit NameCond(const std::string& n) : name_(n) {
+    has_wildcard_ = (n.find_first_of("?*[") != std::string::npos);
   }
-  virtual bool IsTrue(const string& path, unsigned char) const override {
+  virtual bool IsTrue(const std::string& path, unsigned char) const override {
     return fnmatch(name_.c_str(), Basename(path).data(), 0) == 0;
   }
   virtual bool Countable() const override { return !has_wildcard_; }
   virtual unsigned Count() const override { return 1; }
 
  private:
-  string name_;
+  std::string name_;
   bool has_wildcard_;
 };
 
 class TypeCond : public FindCond {
  public:
   explicit TypeCond(unsigned char t) : type_(t) {}
-  virtual bool IsTrue(const string&, unsigned char type) const override {
+  virtual bool IsTrue(const std::string&, unsigned char type) const override {
     return type == type_;
   }
   virtual bool Countable() const override { return false; }
@@ -92,20 +92,22 @@ class TypeCond : public FindCond {
 class NotCond : public FindCond {
  public:
   NotCond(FindCond* c) : c_(c) {}
-  virtual bool IsTrue(const string& path, unsigned char type) const override {
+  virtual bool IsTrue(const std::string& path,
+                      unsigned char type) const override {
     return !c_->IsTrue(path, type);
   }
   virtual bool Countable() const override { return false; }
   virtual unsigned Count() const override { return 0; }
 
  private:
-  unique_ptr<FindCond> c_;
+  std::unique_ptr<FindCond> c_;
 };
 
 class AndCond : public FindCond {
  public:
   AndCond(FindCond* c1, FindCond* c2) : c1_(c1), c2_(c2) {}
-  virtual bool IsTrue(const string& path, unsigned char type) const override {
+  virtual bool IsTrue(const std::string& path,
+                      unsigned char type) const override {
     if (c1_->IsTrue(path, type))
       return c2_->IsTrue(path, type);
     return false;
@@ -114,13 +116,14 @@ class AndCond : public FindCond {
   virtual unsigned Count() const override { return 0; }
 
  private:
-  unique_ptr<FindCond> c1_, c2_;
+  std::unique_ptr<FindCond> c1_, c2_;
 };
 
 class OrCond : public FindCond {
  public:
   OrCond(FindCond* c1, FindCond* c2) : c1_(c1), c2_(c2) {}
-  virtual bool IsTrue(const string& path, unsigned char type) const override {
+  virtual bool IsTrue(const std::string& path,
+                      unsigned char type) const override {
     if (!c1_->IsTrue(path, type))
       return c2_->IsTrue(path, type);
     return true;
@@ -134,7 +137,7 @@ class OrCond : public FindCond {
   }
 
  private:
-  unique_ptr<FindCond> c1_, c2_;
+  std::unique_ptr<FindCond> c1_, c2_;
 };
 
 class DirentNode {
@@ -142,33 +145,35 @@ class DirentNode {
   virtual ~DirentNode() = default;
 
   virtual const DirentNode* FindDir(StringPiece) const { return NULL; }
-  virtual bool FindNodes(const FindCommand&,
-                         vector<pair<string, const DirentNode*>>&,
-                         string*,
-                         StringPiece) const {
+  virtual bool FindNodes(
+      const FindCommand&,
+      std::vector<std::pair<std::string, const DirentNode*>>&,
+      std::string*,
+      StringPiece) const {
     return true;
   }
-  virtual bool RunFind(const FindCommand& fc,
-                       const Loc& loc,
-                       int d,
-                       string* path,
-                       unordered_map<const DirentNode*, string>* cur_read_dirs,
-                       vector<string>& out) const = 0;
+  virtual bool RunFind(
+      const FindCommand& fc,
+      const Loc& loc,
+      int d,
+      std::string* path,
+      std::unordered_map<const DirentNode*, std::string>* cur_read_dirs,
+      std::vector<std::string>& out) const = 0;
 
   virtual bool IsDirectory() const = 0;
 
-  const string& base() const { return base_; }
+  const std::string& base() const { return base_; }
 
  protected:
-  explicit DirentNode(const string& name) {
+  explicit DirentNode(const std::string& name) {
     base_ = Basename(name).as_string();
   }
 
   void PrintIfNecessary(const FindCommand& fc,
-                        const string& path,
+                        const std::string& path,
                         unsigned char type,
                         int d,
-                        vector<string>& out) const {
+                        std::vector<std::string>& out) const {
     if (fc.print_cond && !fc.print_cond->IsTrue(path, type))
       return;
     if (d < fc.mindepth)
@@ -176,20 +181,20 @@ class DirentNode {
     out.push_back(path);
   }
 
-  string base_;
+  std::string base_;
 };
 
 class DirentFileNode : public DirentNode {
  public:
-  DirentFileNode(const string& name, unsigned char type)
+  DirentFileNode(const std::string& name, unsigned char type)
       : DirentNode(name), type_(type) {}
 
   virtual bool RunFind(const FindCommand& fc,
                        const Loc&,
                        int d,
-                       string* path,
-                       unordered_map<const DirentNode*, string>*,
-                       vector<string>& out) const override {
+                       std::string* path,
+                       std::unordered_map<const DirentNode*, std::string>*,
+                       std::vector<std::string>& out) const override {
     PrintIfNecessary(fc, *path, type_, d, out);
     return true;
   }
@@ -202,9 +207,10 @@ class DirentFileNode : public DirentNode {
 
 struct ScopedReadDirTracker {
  public:
-  ScopedReadDirTracker(const DirentNode* n,
-                       const string& path,
-                       unordered_map<const DirentNode*, string>* cur_read_dirs)
+  ScopedReadDirTracker(
+      const DirentNode* n,
+      const std::string& path,
+      std::unordered_map<const DirentNode*, std::string>* cur_read_dirs)
       : n_(NULL), cur_read_dirs_(cur_read_dirs) {
     const auto& p = cur_read_dirs->emplace(n, path);
     if (p.second) {
@@ -220,17 +226,17 @@ struct ScopedReadDirTracker {
   }
 
   bool ok() const { return conflicted_.empty(); }
-  const string& conflicted() const { return conflicted_; }
+  const std::string& conflicted() const { return conflicted_; }
 
  private:
-  string conflicted_;
+  std::string conflicted_;
   const DirentNode* n_;
-  unordered_map<const DirentNode*, string>* cur_read_dirs_;
+  std::unordered_map<const DirentNode*, std::string>* cur_read_dirs_;
 };
 
 class DirentDirNode : public DirentNode {
  public:
-  explicit DirentDirNode(const DirentDirNode* parent, const string& name)
+  explicit DirentDirNode(const DirentDirNode* parent, const std::string& name)
       : DirentNode(name), parent_(parent), name_(name) {}
 
   ~DirentDirNode() {
@@ -250,7 +256,7 @@ class DirentDirNode : public DirentNode {
       return parent_;
 
     size_t index = d.find('/');
-    const string& p = d.substr(0, index).as_string();
+    const std::string& p = d.substr(0, index).as_string();
     if (p.empty() || p == ".")
       return FindDir(d.substr(index + 1));
     if (p == "..") {
@@ -261,7 +267,7 @@ class DirentDirNode : public DirentNode {
 
     for (auto& child : children_) {
       if (p == child.first) {
-        if (index == string::npos)
+        if (index == std::string::npos)
           return child.second;
         StringPiece nd = d.substr(index + 1);
         return child.second->FindDir(nd);
@@ -270,10 +276,11 @@ class DirentDirNode : public DirentNode {
     return NULL;
   }
 
-  virtual bool FindNodes(const FindCommand& fc,
-                         vector<pair<string, const DirentNode*>>& results,
-                         string* path,
-                         StringPiece d) const override {
+  virtual bool FindNodes(
+      const FindCommand& fc,
+      std::vector<std::pair<std::string, const DirentNode*>>& results,
+      std::string* path,
+      StringPiece d) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -284,11 +291,11 @@ class DirentDirNode : public DirentNode {
     size_t orig_path_size = path->size();
 
     size_t index = d.find('/');
-    const string& p = d.substr(0, index).as_string();
+    const std::string& p = d.substr(0, index).as_string();
 
     if (p.empty() || p == ".") {
       path->append(p);
-      if (index == string::npos) {
+      if (index == std::string::npos) {
         results.emplace_back(*path, this);
         return true;
       }
@@ -301,14 +308,14 @@ class DirentDirNode : public DirentNode {
         return false;
       }
       path->append(p);
-      if (index == string::npos) {
+      if (index == std::string::npos) {
         results.emplace_back(*path, parent_);
         return true;
       }
       return parent_->FindNodes(fc, results, path, d.substr(index + 1));
     }
 
-    bool is_wild = p.find_first_of("?*[") != string::npos;
+    bool is_wild = p.find_first_of("?*[") != std::string::npos;
     if (is_wild) {
       fc.read_dirs->insert(*path);
     }
@@ -322,7 +329,7 @@ class DirentDirNode : public DirentNode {
       }
       if (matches) {
         path->append(child.first);
-        if (index == string::npos) {
+        if (index == std::string::npos) {
           results.emplace_back(*path, child.second);
         } else {
           if (!child.second->FindNodes(fc, results, path,
@@ -337,12 +344,13 @@ class DirentDirNode : public DirentNode {
     return true;
   }
 
-  virtual bool RunFind(const FindCommand& fc,
-                       const Loc& loc,
-                       int d,
-                       string* path,
-                       unordered_map<const DirentNode*, string>* cur_read_dirs,
-                       vector<string>& out) const override {
+  virtual bool RunFind(
+      const FindCommand& fc,
+      const Loc& loc,
+      int d,
+      std::string* path,
+      std::unordered_map<const DirentNode*, std::string>* cur_read_dirs,
+      std::vector<std::string>& out) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -450,7 +458,7 @@ class DirentDirNode : public DirentNode {
     }
   }
 
-  static unsigned char GetDtType(const string& path) {
+  static unsigned char GetDtType(const std::string& path) {
     struct stat st;
     if (lstat(path.c_str(), &st)) {
       PERROR("stat for %s", path.c_str());
@@ -462,14 +470,15 @@ class DirentDirNode : public DirentNode {
 
   const DirentDirNode* parent_;
 
-  mutable vector<pair<string, DirentNode*>> children_;
-  mutable string name_;
+  mutable std::vector<std::pair<std::string, DirentNode*>> children_;
+  mutable std::string name_;
   mutable bool is_initialized_ = false;
 };
 
 class DirentSymlinkNode : public DirentNode {
  public:
-  explicit DirentSymlinkNode(const DirentDirNode* parent, const string& name)
+  explicit DirentSymlinkNode(const DirentDirNode* parent,
+                             const std::string& name)
       : DirentNode(name), name_(name), parent_(parent) {}
 
   virtual const DirentNode* FindDir(StringPiece d) const override {
@@ -481,10 +490,11 @@ class DirentSymlinkNode : public DirentNode {
     return NULL;
   }
 
-  virtual bool FindNodes(const FindCommand& fc,
-                         vector<pair<string, const DirentNode*>>& results,
-                         string* path,
-                         StringPiece d) const override {
+  virtual bool FindNodes(
+      const FindCommand& fc,
+      std::vector<std::pair<std::string, const DirentNode*>>& results,
+      std::string* path,
+      StringPiece d) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -500,12 +510,13 @@ class DirentSymlinkNode : public DirentNode {
     return to_->FindNodes(fc, results, path, d);
   }
 
-  virtual bool RunFind(const FindCommand& fc,
-                       const Loc& loc,
-                       int d,
-                       string* path,
-                       unordered_map<const DirentNode*, string>* cur_read_dirs,
-                       vector<string>& out) const override {
+  virtual bool RunFind(
+      const FindCommand& fc,
+      const Loc& loc,
+      int d,
+      std::string* path,
+      std::unordered_map<const DirentNode*, std::string>* cur_read_dirs,
+      std::vector<std::string>& out) const override {
     unsigned char type = DT_LNK;
     if (fc.follows_symlinks && !is_initialized_) {
       initialize();
@@ -570,7 +581,7 @@ class DirentSymlinkNode : public DirentNode {
     is_initialized_ = true;
   }
 
-  mutable string name_;
+  mutable std::string name_;
   const DirentDirNode* parent_;
 
   mutable const DirentNode* to_ = nullptr;
@@ -598,7 +609,7 @@ void DirentDirNode::initialize() const {
         !strcmp(ent->d_name, ".repo") || !strcmp(ent->d_name, ".git"))
       continue;
 
-    string npath = name_;
+    std::string npath = name_;
     if (!name_.empty())
       npath += '/';
     npath += ent->d_name;
@@ -686,7 +697,7 @@ class FindCommandParser {
       }
       // But if there are any others, we can't support it, as unescaping would
       // require allocation
-      if (tok->find("\\") != string::npos) {
+      if (tok->find("\\") != std::string::npos) {
         return false;
       }
     }
@@ -716,14 +727,14 @@ class FindCommandParser {
     if (tok == "-not" || tok == "!") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
-      unique_ptr<FindCond> c(ParseFact(tok));
+      std::unique_ptr<FindCond> c(ParseFact(tok));
       if (!c.get())
         return NULL;
       return new NotCond(c.release());
     } else if (tok == "(") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
-      unique_ptr<FindCond> c(ParseExpr(tok));
+      std::unique_ptr<FindCond> c(ParseExpr(tok));
       if (!GetNextToken(&tok) || tok != ")") {
         return NULL;
       }
@@ -760,7 +771,7 @@ class FindCommandParser {
   }
 
   FindCond* ParseTerm(StringPiece tok) {
-    unique_ptr<FindCond> c(ParseFact(tok));
+    std::unique_ptr<FindCond> c(ParseFact(tok));
     if (!c.get())
       return NULL;
     while (true) {
@@ -776,7 +787,7 @@ class FindCommandParser {
           return c.release();
         }
       }
-      unique_ptr<FindCond> r(ParseFact(tok));
+      std::unique_ptr<FindCond> r(ParseFact(tok));
       if (!r.get()) {
         return NULL;
       }
@@ -785,7 +796,7 @@ class FindCommandParser {
   }
 
   FindCond* ParseExpr(StringPiece tok) {
-    unique_ptr<FindCond> c(ParseTerm(tok));
+    std::unique_ptr<FindCond> c(ParseTerm(tok));
     if (!c.get())
       return NULL;
     while (true) {
@@ -797,7 +808,7 @@ class FindCommandParser {
       }
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
-      unique_ptr<FindCond> r(ParseTerm(tok));
+      std::unique_ptr<FindCond> r(ParseTerm(tok));
       if (!r.get()) {
         return NULL;
       }
@@ -841,7 +852,7 @@ class FindCommandParser {
       } else if (tok == "-maxdepth") {
         if (!GetNextToken(&tok) || tok.empty())
           return false;
-        const string& depth_str = tok.as_string();
+        const std::string& depth_str = tok.as_string();
         char* endptr;
         long d = strtol(depth_str.c_str(), &endptr, 10);
         if (endptr != depth_str.data() + depth_str.size() || d < 0 ||
@@ -861,7 +872,7 @@ class FindCommandParser {
           return false;
         }
         fc_->redirect_to_devnull = true;
-      } else if (tok.find_first_of("|;&><'\"") != string::npos) {
+      } else if (tok.find_first_of("|;&><'\"") != std::string::npos) {
         return false;
       } else {
         fc_->finddirs.push_back(tok.as_string());
@@ -873,7 +884,7 @@ class FindCommandParser {
     fc_->type = FindCommandType::FINDLEAVES;
     fc_->follows_symlinks = true;
     StringPiece tok;
-    vector<string> findfiles;
+    std::vector<std::string> findfiles;
     while (true) {
       if (!GetNextToken(&tok))
         return false;
@@ -909,7 +920,8 @@ class FindCommandParser {
         CHECK(!fc_->prune_cond.get());
         fc_->prune_cond.reset(cond);
       } else if (HasPrefix(tok, "--mindepth=")) {
-        string mindepth_str = tok.substr(strlen("--mindepth=")).as_string();
+        std::string mindepth_str =
+            tok.substr(strlen("--mindepth=")).as_string();
         char* endptr;
         long d = strtol(mindepth_str.c_str(), &endptr, 10);
         if (endptr != mindepth_str.data() + mindepth_str.size() ||
@@ -945,7 +957,7 @@ class FindCommandParser {
       if (tok == "cd") {
         if (!GetNextToken(&tok) || tok.empty() || !fc_->chdir.empty())
           return false;
-        if (tok.find_first_of("?*[") != string::npos)
+        if (tok.find_first_of("?*[") != std::string::npos)
           return false;
         fc_->chdir = tok.as_string();
         if (!GetNextToken(&tok) || (tok != ";" && tok != "&&"))
@@ -1018,10 +1030,10 @@ class FindEmulatorImpl : public FindEmulator {
     return r;
   }
 
-  virtual bool HandleFind(const string& cmd UNUSED,
+  virtual bool HandleFind(const std::string& cmd UNUSED,
                           const FindCommand& fc,
                           const Loc& loc,
-                          string* out) override {
+                          std::string* out) override {
     if (!CanHandle(fc.chdir)) {
       LOG("FindEmulator: Cannot handle chdir (%.*s): %s", SPF(fc.chdir),
           cmd.c_str());
@@ -1063,17 +1075,17 @@ class FindEmulatorImpl : public FindEmulator {
       }
     }
 
-    vector<string> results;
-    for (const string& finddir : fc.finddirs) {
-      string fullpath = ConcatDir(fc.chdir, finddir);
+    std::vector<std::string> results;
+    for (const std::string& finddir : fc.finddirs) {
+      std::string fullpath = ConcatDir(fc.chdir, finddir);
       if (!CanHandle(fullpath)) {
         LOG("FindEmulator: Cannot handle find dir (%s): %s", fullpath.c_str(),
             cmd.c_str());
         return false;
       }
 
-      string findnodestr;
-      vector<pair<string, const DirentNode*>> bases;
+      std::string findnodestr;
+      std::vector<std::pair<std::string, const DirentNode*>> bases;
       if (!root->FindNodes(fc, bases, &findnodestr, finddir)) {
         return false;
       }
@@ -1093,7 +1105,7 @@ class FindEmulatorImpl : public FindEmulator {
       sort(bases.begin(), bases.end());
 
       for (auto [path, base] : bases) {
-        unordered_map<const DirentNode*, string> cur_read_dirs;
+        std::unordered_map<const DirentNode*, std::string> cur_read_dirs;
         if (!base->RunFind(fc, loc, 0, &path, &cur_read_dirs, results)) {
           LOG("FindEmulator: RunFind failed: %s", cmd.c_str());
           return false;
@@ -1104,7 +1116,7 @@ class FindEmulatorImpl : public FindEmulator {
     if (results.size() > 0) {
       // Calculate and reserve necessary space in out
       size_t new_length = 0;
-      for (const string& result : results) {
+      for (const std::string& result : results) {
         new_length += result.size() + 1;
       }
       out->reserve(out->size() + new_length - 1);
@@ -1114,7 +1126,7 @@ class FindEmulatorImpl : public FindEmulator {
       }
 
       WordWriter writer(out);
-      for (const string& result : results) {
+      for (const std::string& result : results) {
         writer.Write(result);
       }
     }
@@ -1134,12 +1146,12 @@ FindCommand::FindCommand()
       depth(INT_MAX),
       mindepth(INT_MIN),
       redirect_to_devnull(false),
-      found_files(new vector<string>()),
-      read_dirs(new unordered_set<string>()) {}
+      found_files(new std::vector<std::string>()),
+      read_dirs(new std::unordered_set<std::string>()) {}
 
 FindCommand::~FindCommand() {}
 
-bool FindCommand::Parse(const string& cmd) {
+bool FindCommand::Parse(const std::string& cmd) {
   FindCommandParser fcp(cmd, this);
   if (!HasWord(cmd, "find") && !HasWord(cmd, "build/tools/findleaves.py") &&
       !HasWord(cmd, "build/make/tools/findleaves.py"))

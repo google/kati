@@ -47,7 +47,7 @@ void Rule::ParsePrerequisites(const StringPiece& line,
   // First, separate command. At this point separator_pos should point to ';'
   // unless null.
   StringPiece prereq_string = line;
-  if (separator_pos != string::npos &&
+  if (separator_pos != std::string::npos &&
       rule_stmt->sep != RuleStmt::SEP_SEMICOLON) {
     CHECK(line[separator_pos] == ';');
     // TODO: Maybe better to avoid Intern here?
@@ -56,7 +56,7 @@ void Rule::ParsePrerequisites(const StringPiece& line,
     prereq_string = line.substr(0, separator_pos);
   }
 
-  if ((separator_pos = prereq_string.find(':')) == string::npos) {
+  if ((separator_pos = prereq_string.find(':')) == std::string::npos) {
     // Simple prerequisites
     ParseInputs(prereq_string);
     return;
@@ -99,8 +99,8 @@ void Rule::ParsePrerequisites(const StringPiece& line,
   ParseInputs(prereq_patterns);
 }
 
-string Rule::DebugString() const {
-  vector<string> v;
+std::string Rule::DebugString() const {
+  std::vector<std::string> v;
   v.push_back(StringPrintf("outputs=[%s]", JoinSymbols(outputs, ",").c_str()));
   v.push_back(StringPrintf("inputs=[%s]", JoinSymbols(inputs, ",").c_str()));
   if (!order_only_inputs.empty()) {

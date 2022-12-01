@@ -21,15 +21,13 @@
 #include "stmt.h"
 #include "string_piece.h"
 
-using namespace std;
-
 class Makefile;
 
 void Parse(Makefile* mk);
-void Parse(StringPiece buf, const Loc& loc, vector<Stmt*>* out_asts);
+void Parse(StringPiece buf, const Loc& loc, std::vector<Stmt*>* out_asts);
 void ParseNotAfterRule(StringPiece buf,
                        const Loc& loc,
-                       vector<Stmt*>* out_asts);
+                       std::vector<Stmt*>* out_asts);
 
 void ParseAssignStatement(StringPiece line,
                           size_t sep,
@@ -37,6 +35,6 @@ void ParseAssignStatement(StringPiece line,
                           StringPiece* rhs,
                           AssignOp* op);
 
-const vector<ParseErrorStmt*>& GetParseErrors();
+const std::vector<ParseErrorStmt*>& GetParseErrors();
 
 #endif  // PARSER_H_

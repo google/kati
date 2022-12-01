@@ -59,4 +59,4 @@ void ColorWarnLog(const char* file, int line, const char* msg) {
 }
 
 bool g_log_no_exit;
-string* g_last_error;
+std::string* g_last_error;

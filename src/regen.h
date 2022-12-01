@@ -17,8 +17,6 @@
 
 #include <string>
 
-using namespace std;
-
-bool NeedsRegen(double start_time, const string& orig_args);
+bool NeedsRegen(double start_time, const std::string& orig_args);
 
 #endif  // REGEN_H_
