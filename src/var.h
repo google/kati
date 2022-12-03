@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -25,7 +26,6 @@
 #include "loc.h"
 #include "log.h"
 #include "stmt.h"
-#include "string_piece.h"
 #include "symtab.h"
 
 class Evaluator;
@@ -57,7 +57,7 @@ class Var : public Evaluable {
 
   virtual void AppendVar(Evaluator* ev, Value* v);
 
-  virtual StringPiece String() const = 0;
+  virtual std::string_view String() const = 0;
 
   virtual std::string DebugString() const = 0;
 
@@ -65,10 +65,10 @@ class Var : public Evaluable {
   void SetReadOnly() { readonly_ = true; }
 
   bool Deprecated() const { return deprecated_; }
-  void SetDeprecated(const StringPiece& msg);
+  void SetDeprecated(const std::string_view& msg);
 
   bool Obsolete() const { return obsolete_; }
-  void SetObsolete(const StringPiece& msg);
+  void SetObsolete(const std::string_view& msg);
 
   bool SelfReferential() const { return self_referential_; }
   void SetSelfReferential() { self_referential_ = true; }
@@ -121,7 +121,7 @@ class SimpleVar : public Var {
 
   virtual void AppendVar(Evaluator* ev, Value* v) override;
 
-  virtual StringPiece String() const override;
+  virtual std::string_view String() const override;
 
   virtual std::string DebugString() const override;
 
@@ -134,7 +134,7 @@ class RecursiveVar : public Var {
                VarOrigin origin,
                Frame* definition,
                Loc loc,
-               StringPiece orig);
+               std::string_view orig);
 
   virtual const char* Flavor() const override { return "recursive"; }
 
@@ -144,14 +144,14 @@ class RecursiveVar : public Var {
 
   virtual void AppendVar(Evaluator* ev, Value* v) override;
 
-  virtual StringPiece String() const override;
+  virtual std::string_view String() const override;
 
   virtual std::string DebugString() const override;
 
   virtual void Used(Evaluator* ev, const Symbol& sym) const override;
 
   Value* v_;
-  StringPiece orig_;
+  std::string_view orig_;
 };
 
 class UndefinedVar : public Var {
@@ -165,7 +165,7 @@ class UndefinedVar : public Var {
 
   virtual void Eval(Evaluator* ev, std::string* s) const override;
 
-  virtual StringPiece String() const override;
+  virtual std::string_view String() const override;
 
   virtual std::string DebugString() const override;
 };
@@ -173,7 +173,7 @@ class UndefinedVar : public Var {
 // The built-in VARIABLES and KATI_SYMBOLS variables
 class VariableNamesVar : public Var {
  public:
-  VariableNamesVar(StringPiece name, bool all);
+  VariableNamesVar(std::string_view name, bool all);
 
   virtual const char* Flavor() const override { return "kati_variable_names"; }
   virtual bool IsDefined() const override { return true; }
@@ -182,12 +182,12 @@ class VariableNamesVar : public Var {
 
   virtual void Eval(Evaluator* ev, std::string* s) const override;
 
-  virtual StringPiece String() const override;
+  virtual std::string_view String() const override;
 
   virtual std::string DebugString() const override;
 
  private:
-  StringPiece name_;
+  std::string_view name_;
   bool all_;
 
   void ConcatVariableNames(Evaluator* ev, std::string* s) const;
@@ -207,13 +207,14 @@ class ShellStatusVar : public Var {
 
   virtual void Eval(Evaluator* ev, std::string* s) const override;
 
-  virtual StringPiece String() const override;
+  virtual std::string_view String() const override;
 
   virtual std::string DebugString() const override;
 
  private:
   static bool is_set_;
   static int shell_status_;
+  static std::string shell_status_string_;
 };
 
 class Vars : public std::unordered_map<Symbol, Var*> {

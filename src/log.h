@@ -27,6 +27,8 @@
 extern bool g_log_no_exit;
 extern std::string* g_last_error;
 
+#define SPF(s) static_cast<int>((s).size()), (s).data()
+
 // Useful for logging-only arguments.
 #define UNUSED __attribute__((unused))
 

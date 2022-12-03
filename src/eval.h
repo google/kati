@@ -18,13 +18,13 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "loc.h"
 #include "stmt.h"
-#include "string_piece.h"
 #include "symtab.h"
 
 class Makefile;
@@ -204,16 +204,16 @@ class Evaluator {
 
   bool ExportDeprecated() const { return export_message_ && !export_error_; };
   bool ExportObsolete() const { return export_error_; };
-  void SetExportDeprecated(StringPiece msg) {
-    export_message_.reset(new std::string(msg.as_string()));
+  void SetExportDeprecated(std::string_view msg) {
+    export_message_.reset(new std::string(msg));
   }
-  void SetExportObsolete(StringPiece msg) {
-    export_message_.reset(new std::string(msg.as_string()));
+  void SetExportObsolete(std::string_view msg) {
+    export_message_.reset(new std::string(msg));
     export_error_ = true;
   }
 
-  void ProfileMakefile(StringPiece mk) {
-    profiled_files_.emplace_back(mk.as_string());
+  void ProfileMakefile(std::string_view mk) {
+    profiled_files_.emplace_back(std::string(mk));
   }
 
   bool IsEvaluatingCommand() const;
@@ -222,7 +222,7 @@ class Evaluator {
  private:
   Var* EvalRHS(Symbol lhs,
                Value* rhs,
-               StringPiece orig_rhs,
+               std::string_view orig_rhs,
                AssignOp op,
                bool is_override,
                bool* needs_assign);
@@ -240,7 +240,7 @@ class Evaluator {
 
   void EvalRuleSpecificAssign(const std::vector<Symbol>& targets,
                               const RuleStmt* stmt,
-                              const StringPiece& lhs_string,
+                              const std::string_view& lhs_string,
                               size_t separator_pos);
 
   std::unordered_map<Symbol, Vars*> rule_vars_;

@@ -33,7 +33,7 @@ struct FuncInfo {
   bool trim_right_space_1st;
 };
 
-const FuncInfo* GetFuncInfo(StringPiece name);
+const FuncInfo* GetFuncInfo(std::string_view name);
 
 struct FindCommand;
 

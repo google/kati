@@ -21,16 +21,16 @@
 #include <unistd.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "string_piece.h"
 #include "testutil.h"
 
 namespace {
 
 void TestWordScanner() {
-  std::vector<StringPiece> ss;
-  for (StringPiece tok : WordScanner("foo bar baz hogeeeeeeeeeeeeeeee")) {
+  std::vector<std::string_view> ss;
+  for (std::string_view tok : WordScanner("foo bar baz hogeeeeeeeeeeeeeeee")) {
     ss.push_back(tok);
   }
   assert(ss.size() == 4LU);
@@ -68,7 +68,9 @@ void TestTrimSuffix() {
   ASSERT_EQ(TrimSuffix("bar", "bbar"), "bar");
 }
 
-std::string SubstPattern(StringPiece str, StringPiece pat, StringPiece subst) {
+std::string SubstPattern(std::string_view str,
+                         std::string_view pat,
+                         std::string_view subst) {
   std::string r;
   Pattern(pat).AppendSubst(str, subst, &r);
   return r;
@@ -148,8 +150,8 @@ void TestFindEndOfLine() {
   size_t lf_cnt = 0;
   ASSERT_EQ(FindEndOfLine("foo", 0, &lf_cnt), 3);
   char buf[10] = {'f', 'o', '\\', '\0', 'x', 'y'};
-  ASSERT_EQ(FindEndOfLine(StringPiece(buf, 6), 0, &lf_cnt), 3);
-  ASSERT_EQ(FindEndOfLine(StringPiece(buf, 2), 0, &lf_cnt), 2);
+  ASSERT_EQ(FindEndOfLine(std::string_view(buf, 6), 0, &lf_cnt), 3);
+  ASSERT_EQ(FindEndOfLine(std::string_view(buf, 2), 0, &lf_cnt), 2);
 }
 
 // Take a string, and copy it into an allocated buffer where
@@ -182,8 +184,9 @@ const char* CreateProtectedString(const char* str) {
 }
 
 void TestWordScannerInvalidAccess() {
-  std::vector<StringPiece> ss;
-  for (StringPiece tok : WordScanner(CreateProtectedString("0123 456789"))) {
+  std::vector<std::string_view> ss;
+  for (std::string_view tok :
+       WordScanner(CreateProtectedString("0123 456789"))) {
     ss.push_back(tok);
   }
   assert(ss.size() == 2LU);

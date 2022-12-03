@@ -237,7 +237,7 @@ void Evaluator::in_toplevel_makefile() {
 
 Var* Evaluator::EvalRHS(Symbol lhs,
                         Value* rhs_v,
-                        StringPiece orig_rhs,
+                        std::string_view orig_rhs,
                         AssignOp op,
                         bool is_override,
                         bool* needs_assign) {
@@ -320,8 +320,8 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
     for (auto const& name : WordScanner(rhs)) {
       Var* var = Intern(name).GetGlobalVar();
       if (!var->IsDefined()) {
-        Error(
-            StringPrintf("*** unknown variable: %s", name.as_string().c_str()));
+        Error(StringPrintf("*** unknown variable: %s",
+                           std::string(name).c_str()));
       }
       var->SetReadOnly();
     }
@@ -352,18 +352,18 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
 //   <before_term> <term> <after_term>
 // parses <before_term> into Symbol instances until encountering ':'
 // Returns the remainder of <before_term>.
-static StringPiece ParseRuleTargets(const Loc& loc,
-                                    const StringPiece& before_term,
-                                    std::vector<Symbol>* targets,
-                                    bool* is_pattern_rule) {
+static std::string_view ParseRuleTargets(const Loc& loc,
+                                         const std::string_view& before_term,
+                                         std::vector<Symbol>* targets,
+                                         bool* is_pattern_rule) {
   size_t pos = before_term.find(':');
   if (pos == std::string::npos) {
     ERROR_LOC(loc, "*** missing separator.");
   }
-  StringPiece targets_string = before_term.substr(0, pos);
+  std::string_view targets_string = before_term.substr(0, pos);
   size_t pattern_rule_count = 0;
   for (auto const& word : WordScanner(targets_string)) {
-    StringPiece target = TrimLeadingCurdir(word);
+    std::string_view target = TrimLeadingCurdir(word);
     targets->push_back(Intern(target));
     if (Rule::IsPatternRule(target)) {
       ++pattern_rule_count;
@@ -401,7 +401,8 @@ void Evaluator::MarkVarsReadonly(Value* vars_list) {
   for (auto const& name : WordScanner(vars_list_string)) {
     Var* var = current_scope_->Lookup(Intern(name));
     if (!var->IsDefined()) {
-      Error(StringPrintf("*** unknown variable: %s", name.as_string().c_str()));
+      Error(
+          StringPrintf("*** unknown variable: %s", std::string(name).c_str()));
     }
     var->SetReadOnly();
   }
@@ -409,10 +410,10 @@ void Evaluator::MarkVarsReadonly(Value* vars_list) {
 
 void Evaluator::EvalRuleSpecificAssign(const std::vector<Symbol>& targets,
                                        const RuleStmt* stmt,
-                                       const StringPiece& after_targets,
+                                       const std::string_view& after_targets,
                                        size_t separator_pos) {
-  StringPiece var_name;
-  StringPiece rhs_string;
+  std::string_view var_name;
+  std::string_view rhs_string;
   AssignOp assign_op;
   ParseAssignStatement(after_targets, separator_pos, &var_name, &rhs_string,
                        &assign_op);
@@ -428,7 +429,8 @@ void Evaluator::EvalRuleSpecificAssign(const std::vector<Symbol>& targets,
     if (rhs_string.empty()) {
       rhs = stmt->rhs;
     } else if (stmt->rhs) {
-      StringPiece sep(stmt->sep == RuleStmt::SEP_SEMICOLON ? " ; " : " = ");
+      std::string_view sep(stmt->sep == RuleStmt::SEP_SEMICOLON ? " ; "
+                                                                : " = ");
       rhs = Value::NewExpr(loc_, Value::NewLiteral(rhs_string),
                            Value::NewLiteral(sep), stmt->rhs);
     } else {
@@ -440,8 +442,8 @@ void Evaluator::EvalRuleSpecificAssign(const std::vector<Symbol>& targets,
       MarkVarsReadonly(rhs);
     } else {
       bool needs_assign;
-      Var* rhs_var = EvalRHS(var_sym, rhs, StringPiece("*TODO*"), assign_op,
-                             false, &needs_assign);
+      Var* rhs_var = EvalRHS(var_sym, rhs, std::string_view("*TODO*"),
+                             assign_op, false, &needs_assign);
       if (needs_assign) {
         bool readonly;
         rhs_var->SetAssignOp(assign_op);
@@ -473,7 +475,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
 
   std::vector<Symbol> targets;
   bool is_pattern_rule;
-  StringPiece after_targets =
+  std::string_view after_targets =
       ParseRuleTargets(loc_, before_term, &targets, &is_pattern_rule);
   bool is_double_colon = (after_targets[0] == ':');
   if (is_double_colon) {
@@ -634,7 +636,7 @@ void Evaluator::EvalInclude(const IncludeStmt* stmt) {
   last_rule_ = NULL;
 
   const std::string&& pats = stmt->expr->Eval(this);
-  for (StringPiece pat : WordScanner(pats)) {
+  for (std::string_view pat : WordScanner(pats)) {
     ScopedTerminator st(pat);
     const auto& files = Glob(pat.data());
 
@@ -667,9 +669,9 @@ void Evaluator::EvalExport(const ExportStmt* stmt) {
   last_rule_ = NULL;
 
   const std::string&& exports = stmt->expr->Eval(this);
-  for (StringPiece tok : WordScanner(exports)) {
+  for (std::string_view tok : WordScanner(exports)) {
     size_t equal_index = tok.find('=');
-    StringPiece lhs;
+    std::string_view lhs;
     if (equal_index == std::string::npos) {
       lhs = tok;
     } else if (equal_index == 0 ||
@@ -678,7 +680,7 @@ void Evaluator::EvalExport(const ExportStmt* stmt) {
       // Do not export tokens after an assignment.
       break;
     } else {
-      StringPiece rhs;
+      std::string_view rhs;
       AssignOp op;
       ParseAssignStatement(tok, equal_index, &lhs, &rhs, &op);
     }

@@ -16,11 +16,11 @@
 #define DEP_H_
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #include "loc.h"
-#include "string_piece.h"
 #include "symtab.h"
 
 class Evaluator;

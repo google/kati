@@ -16,10 +16,10 @@
 #define STMT_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "loc.h"
-#include "string_piece.h"
 #include "symtab.h"
 
 class Evaluator;
@@ -51,7 +51,7 @@ struct Stmt {
 
   Loc loc() const { return loc_; }
   void set_loc(Loc loc) { loc_ = loc; }
-  StringPiece orig() const { return orig_; }
+  std::string_view orig() const { return orig_; }
 
   void Eval(Evaluator*) const;
   virtual void EvalStatement(Evaluator* ev) const = 0;
@@ -63,7 +63,7 @@ struct Stmt {
 
  private:
   Loc loc_;
-  StringPiece orig_;
+  std::string_view orig_;
 };
 
 /* Parsed "rule statement" before evaluation is kept as
@@ -88,7 +88,7 @@ struct RuleStmt : public Stmt {
 struct AssignStmt : public Stmt {
   Value* lhs;
   Value* rhs;
-  StringPiece orig_rhs;
+  std::string_view orig_rhs;
   AssignOp op;
   AssignDirective directive;
   bool is_final;
@@ -108,7 +108,7 @@ struct AssignStmt : public Stmt {
 
 struct CommandStmt : public Stmt {
   Value* expr;
-  StringPiece orig;
+  std::string_view orig;
 
   virtual ~CommandStmt();
 

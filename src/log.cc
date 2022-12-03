@@ -31,10 +31,10 @@ void ColorErrorLog(const char* file, int line, const char* msg) {
   }
 
   if (g_flags.color_warnings) {
-    StringPiece filtered = TrimPrefix(msg, "*** ");
+    std::string_view filtered = TrimPrefix(msg, "*** ");
 
     ERROR(BOLD "%s:%d: " RED "error: " RESET BOLD "%s" RESET, file, line,
-          filtered.as_string().c_str());
+          std::string(filtered).c_str());
   } else {
     ERROR("%s:%d: %s", file, line, msg);
   }
@@ -47,12 +47,12 @@ void ColorWarnLog(const char* file, int line, const char* msg) {
   }
 
   if (g_flags.color_warnings) {
-    StringPiece filtered = TrimPrefix(msg, "*warning*: ");
+    std::string_view filtered = TrimPrefix(msg, "*warning*: ");
     filtered = TrimPrefix(filtered, "warning: ");
 
     fprintf(stderr,
             BOLD "%s:%d: " MAGENTA "warning: " RESET BOLD "%s" RESET "\n", file,
-            line, filtered.as_string().c_str());
+            line, std::string(filtered).c_str());
   } else {
     fprintf(stderr, "%s:%d: %s\n", file, line, msg);
   }

@@ -147,7 +147,7 @@ class Symtab {
       delete s;
   }
 
-  Symbol InternImpl(StringPiece s) {
+  Symbol InternImpl(std::string_view s) {
     auto found = symtab_.find(s);
     if (found != symtab_.end()) {
       return found->second;
@@ -159,7 +159,7 @@ class Symtab {
     return sym;
   }
 
-  Symbol Intern(StringPiece s) {
+  Symbol Intern(std::string_view s) {
 #ifdef ENABLE_TID_CHECK
     if (tid_ != pthread_self())
       abort();
@@ -171,9 +171,9 @@ class Symtab {
     return InternImpl(s);
   }
 
-  std::vector<StringPiece> GetSymbolNames(
+  std::vector<std::string_view> GetSymbolNames(
       std::function<bool(Var*)> const& filter) {
-    std::vector<StringPiece> result;
+    std::vector<std::string_view> result;
     for (auto entry : symtab_) {
       Var* var = entry.second.PeekGlobalVar();
       // The symbol table contains all interned strings, not just variables
@@ -189,7 +189,7 @@ class Symtab {
   }
 
  private:
-  std::unordered_map<StringPiece, Symbol> symtab_;
+  std::unordered_map<std::string_view, Symbol> symtab_;
   std::vector<std::string*> symbols_;
 #ifdef ENABLE_TID_CHECK
   pthread_t tid_;
@@ -198,7 +198,7 @@ class Symtab {
 
 static Symtab g_symtab;
 
-Symbol Intern(StringPiece s) {
+Symbol Intern(std::string_view s) {
   return g_symtab.Intern(s);
 }
 
@@ -211,7 +211,7 @@ std::string JoinSymbols(const std::vector<Symbol>& syms, const char* sep) {
   return JoinStrings(strs, sep);
 }
 
-std::vector<StringPiece> GetSymbolNames(
+std::vector<std::string_view> GetSymbolNames(
     std::function<bool(Var*)> const& filter) {
   return g_symtab.GetSymbolNames(filter);
 }

@@ -16,10 +16,10 @@
 #define EXPR_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "loc.h"
-#include "string_piece.h"
 
 class Evaluator;
 
@@ -55,11 +55,11 @@ class Value : public Evaluable {
   static Value* NewExpr(const Loc& loc, Value* v1, Value* v2, Value* v3);
   static Value* NewExpr(const Loc& loc, std::vector<Value*>* values);
 
-  static Value* NewLiteral(StringPiece s);
+  static Value* NewLiteral(std::string_view s);
   virtual ~Value();
   virtual bool IsLiteral() const { return false; }
   // Only safe after IsLiteral() returns true.
-  virtual StringPiece GetLiteralValueUnsafe() const { return ""; }
+  virtual std::string_view GetLiteralValueUnsafe() const { return ""; }
 
   static std::string DebugString(const Value*);
 
@@ -76,13 +76,13 @@ enum struct ParseExprOpt {
 };
 
 Value* ParseExprImpl(Loc* loc,
-                     StringPiece s,
+                     std::string_view s,
                      const char* terms,
                      ParseExprOpt opt,
                      size_t* index_out,
                      bool trim_right_space = false);
 Value* ParseExpr(Loc* loc,
-                 StringPiece s,
+                 std::string_view s,
                  ParseExprOpt opt = ParseExprOpt::NORMAL);
 
 std::string JoinValues(const std::vector<Value*>& vals, const char* sep);

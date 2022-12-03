@@ -65,14 +65,14 @@ void Var::AppendVar(Evaluator*, Value*) {
   CHECK(false);
 }
 
-void Var::SetDeprecated(const StringPiece& msg) {
+void Var::SetDeprecated(const std::string_view& msg) {
   deprecated_ = true;
-  diagnostic_messages_[this] = msg.as_string();
+  diagnostic_messages_[this] = std::string(msg);
 }
 
-void Var::SetObsolete(const StringPiece& msg) {
+void Var::SetObsolete(const std::string_view& msg) {
   obsolete_ = true;
-  diagnostic_messages_[this] = msg.as_string();
+  diagnostic_messages_[this] = std::string(msg);
 }
 
 void Var::Used(Evaluator* ev, const Symbol& sym) const {
@@ -139,7 +139,7 @@ void SimpleVar::AppendVar(Evaluator* ev, Value* v) {
   definition_ = ev->CurrentFrame();
 }
 
-StringPiece SimpleVar::String() const {
+std::string_view SimpleVar::String() const {
   return v_;
 }
 
@@ -151,7 +151,7 @@ RecursiveVar::RecursiveVar(Value* v,
                            VarOrigin origin,
                            Frame* definition,
                            Loc loc,
-                           StringPiece orig)
+                           std::string_view orig)
     : Var(origin, definition, loc), v_(v), orig_(orig) {}
 
 bool RecursiveVar::IsFunc(Evaluator* ev) const {
@@ -182,7 +182,7 @@ void RecursiveVar::Used(Evaluator* ev, const Symbol& sym) const {
   Var::Used(ev, sym);
 }
 
-StringPiece RecursiveVar::String() const {
+std::string_view RecursiveVar::String() const {
   return orig_;
 }
 
@@ -200,15 +200,15 @@ void UndefinedVar::Eval(Evaluator*, std::string*) const {
   // Nothing to do.
 }
 
-StringPiece UndefinedVar::String() const {
-  return StringPiece("");
+std::string_view UndefinedVar::String() const {
+  return std::string_view("");
 }
 
 std::string UndefinedVar::DebugString() const {
   return "*undefined*";
 }
 
-VariableNamesVar::VariableNamesVar(StringPiece name, bool all)
+VariableNamesVar::VariableNamesVar(std::string_view name, bool all)
     : name_(name), all_(all) {
   SetReadOnly();
   SetAssignOp(AssignOp::COLON_EQ);
@@ -222,24 +222,25 @@ void VariableNamesVar::Eval(Evaluator* ev, std::string* s) const {
   ConcatVariableNames(ev, s);
 }
 
-StringPiece VariableNamesVar::String() const {
+std::string_view VariableNamesVar::String() const {
   return name_;
 }
 
 void VariableNamesVar::ConcatVariableNames(Evaluator* ev,
                                            std::string* s) const {
   WordWriter ww(s);
-  std::vector<StringPiece>&& symbols = GetSymbolNames([=](Var* var) -> bool {
-    if (var->Obsolete()) {
-      return false;
-    }
-    if (!all_) {
-      if (var->IsFunc(ev)) {
-        return false;
-      }
-    }
-    return true;
-  });
+  std::vector<std::string_view>&& symbols =
+      GetSymbolNames([=](Var* var) -> bool {
+        if (var->Obsolete()) {
+          return false;
+        }
+        if (!all_) {
+          if (var->IsFunc(ev)) {
+            return false;
+          }
+        }
+        return true;
+      });
   for (auto entry : symbols) {
     ww.Write(entry);
   }
@@ -251,6 +252,7 @@ std::string VariableNamesVar::DebugString() const {
 
 bool ShellStatusVar::is_set_ = false;
 int ShellStatusVar::shell_status_ = 0;
+std::string ShellStatusVar::shell_status_string_;
 
 ShellStatusVar::ShellStatusVar() {
   SetReadOnly();
@@ -258,8 +260,11 @@ ShellStatusVar::ShellStatusVar() {
 }
 
 void ShellStatusVar::SetValue(int newShellStatus) {
-  shell_status_ = newShellStatus;
-  is_set_ = true;
+  if (!is_set_ || shell_status_ != newShellStatus) {
+    shell_status_ = newShellStatus;
+    is_set_ = true;
+    shell_status_string_.clear();
+  }
 }
 
 bool ShellStatusVar::IsDefined() const {
@@ -279,15 +284,19 @@ void ShellStatusVar::Eval(Evaluator* ev, std::string* s) const {
     return;
   }
 
-  *s += std::to_string(shell_status_);
+  *s += String();
 }
 
-StringPiece ShellStatusVar::String() const {
+std::string_view ShellStatusVar::String() const {
   if (!is_set_) {
     return "";
   }
 
-  return std::to_string(shell_status_);
+  if (shell_status_string_.empty()) {
+    shell_status_string_ = std::to_string(shell_status_);
+  }
+
+  return shell_status_string_;
 }
 
 std::string ShellStatusVar::DebugString() const {

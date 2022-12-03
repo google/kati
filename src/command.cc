@@ -36,7 +36,7 @@ class AutoVar : public Var {
 
   virtual void AppendVar(Evaluator*, Value*) override { CHECK(false); }
 
-  virtual StringPiece String() const override {
+  virtual std::string_view String() const override {
     ERROR("$(value %s) is not implemented yet", sym_);
     return "";
   }
@@ -104,7 +104,7 @@ void AutoLessVar::Eval(Evaluator*, std::string* s) const {
 }
 
 void AutoHatVar::Eval(Evaluator*, std::string* s) const {
-  std::unordered_set<StringPiece> seen;
+  std::unordered_set<std::string_view> seen;
   WordWriter ww(s);
   for (Symbol ai : ce_->current_dep_node()->actual_inputs) {
     if (seen.insert(ai.str()).second)
@@ -124,11 +124,11 @@ void AutoStarVar::Eval(Evaluator*, std::string* s) const {
   if (!n->output_pattern.IsValid())
     return;
   Pattern pat(n->output_pattern.str());
-  pat.Stem(n->output.str()).AppendToString(s);
+  s->append(pat.Stem(n->output.str()));
 }
 
 void AutoQuestionVar::Eval(Evaluator* ev, std::string* s) const {
-  std::unordered_set<StringPiece> seen;
+  std::unordered_set<std::string_view> seen;
 
   if (ev->avoid_io()) {
     // Check timestamps using the shell at the start of rule execution
@@ -171,7 +171,7 @@ void AutoSuffixDVar::Eval(Evaluator* ev, std::string* s) const {
   std::string buf;
   wrapped_->Eval(ev, &buf);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(buf)) {
+  for (std::string_view tok : WordScanner(buf)) {
     ww.Write(Dirname(tok));
   }
 }
@@ -180,15 +180,15 @@ void AutoSuffixFVar::Eval(Evaluator* ev, std::string* s) const {
   std::string buf;
   wrapped_->Eval(ev, &buf);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(buf)) {
+  for (std::string_view tok : WordScanner(buf)) {
     ww.Write(Basename(tok));
   }
 }
 
-void ParseCommandPrefixes(StringPiece* s, bool* echo, bool* ignore_error) {
+void ParseCommandPrefixes(std::string_view* s, bool* echo, bool* ignore_error) {
   *s = TrimLeftSpace(*s);
   while (true) {
-    char c = s->get(0);
+    char c = s->empty() ? 0 : s->front();
     if (c == '@') {
       *echo = false;
     } else if (c == '-') {
@@ -233,7 +233,7 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
   for (Value* v : n.cmds) {
     ev_->set_loc(v->Location());
     const std::string&& cmds_buf = v->Eval(ev_);
-    StringPiece cmds = cmds_buf;
+    std::string_view cmds = cmds_buf;
     bool global_echo = !g_flags.is_silent_mode;
     bool global_ignore_error = false;
     ParseCommandPrefixes(&cmds, &global_echo, &global_ignore_error);
@@ -244,7 +244,7 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
       size_t index = FindEndOfLine(cmds, 0, &lf_cnt);
       if (index == cmds.size())
         index = std::string::npos;
-      StringPiece cmd = TrimLeftSpace(cmds.substr(0, index));
+      std::string_view cmd = TrimLeftSpace(cmds.substr(0, index));
       cmds = cmds.substr(index + 1);
 
       bool echo = global_echo;
@@ -253,7 +253,7 @@ std::vector<Command> CommandEvaluator::Eval(const DepNode& n) {
 
       if (!cmd.empty()) {
         Command& command = result.emplace_back(n.output);
-        command.cmd = cmd.as_string();
+        command.cmd = std::string(cmd);
         command.echo = echo;
         command.ignore_error = ignore_error;
       }

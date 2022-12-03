@@ -13,8 +13,9 @@
 // limitations under the License.
 
 #include <assert.h>
+#include <string_view>
 
-#include "string_piece.h"
+#include "log.h"
 
 bool g_failed;
 
@@ -38,10 +39,10 @@ bool g_failed;
     }                                                                       \
   } while (0)
 
-StringPiece GetStringPiece(StringPiece s) {
+std::string_view GetStringPiece(std::string_view s) {
   return s;
 }
-StringPiece GetStringPiece(size_t v) {
+std::string_view GetStringPiece(size_t v) {
   static char buf[64];
   sprintf(buf, "%zd", v);
   return buf;

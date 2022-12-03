@@ -19,14 +19,13 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
-#include "string_piece.h"
-
-bool Exists(StringPiece f);
+bool Exists(std::string_view f);
 double GetTimestampFromStat(const struct stat& st);
-double GetTimestamp(StringPiece f);
+double GetTimestamp(std::string_view f);
 
 enum struct RedirectStderr {
   NONE,

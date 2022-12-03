@@ -18,11 +18,10 @@
 #include <stdio.h>
 
 #include <string>
-
-#include "string_piece.h"
+#include <string_view>
 
 void DumpInt(FILE* fp, int v);
-void DumpString(FILE* fp, StringPiece s);
+void DumpString(FILE* fp, std::string_view s);
 
 int LoadInt(FILE* fp);
 bool LoadString(FILE* fp, std::string* s);

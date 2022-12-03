@@ -44,9 +44,10 @@ namespace {
       return true;               \
   } while (0)
 
-bool ShouldIgnoreDirty(StringPiece s) {
-  Pattern pat(g_flags.ignore_dirty_pattern);
-  Pattern nopat(g_flags.no_ignore_dirty_pattern);
+bool ShouldIgnoreDirty(std::string_view s) {
+  Pattern pat(g_flags.ignore_dirty_pattern ? g_flags.ignore_dirty_pattern : "");
+  Pattern nopat(
+      g_flags.no_ignore_dirty_pattern ? g_flags.no_ignore_dirty_pattern : "");
   return pat.Match(s) && !nopat.Match(s);
 }
 
@@ -201,7 +202,7 @@ class StampChecker {
     int num_envs = LOAD_INT(fp);
     for (int i = 0; i < num_envs; i++) {
       LOAD_STRING(fp, &s);
-      StringPiece val(getenv(s.c_str()));
+      std::string_view val(getenv(s.c_str()));
       LOAD_STRING(fp, &s2);
       if (val != s2) {
         if (g_flags.dump_kati_stamp) {

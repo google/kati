@@ -17,11 +17,11 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
 #include "loc.h"
-#include "string_piece.h"
 
 class FindCond;
 

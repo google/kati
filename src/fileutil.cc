@@ -37,10 +37,10 @@
 
 extern char** environ;
 
-bool Exists(StringPiece filename) {
+bool Exists(std::string_view filename) {
   CHECK(filename.size() < PATH_MAX);
   struct stat st;
-  if (stat(filename.as_string().c_str(), &st) < 0) {
+  if (stat(std::string(filename).c_str(), &st) < 0) {
     return false;
   }
   return true;
@@ -54,10 +54,10 @@ double GetTimestampFromStat(const struct stat& st) {
 #endif
 }
 
-double GetTimestamp(StringPiece filename) {
+double GetTimestamp(std::string_view filename) {
   CHECK(filename.size() < PATH_MAX);
   struct stat st;
-  if (stat(filename.as_string().c_str(), &st) < 0) {
+  if (stat(std::string(filename).c_str(), &st) < 0) {
     return -2.0;
   }
   return GetTimestampFromStat(st);

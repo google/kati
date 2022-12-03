@@ -22,6 +22,7 @@
 #include <string>
 
 #include "fileutil.h"
+#include "log.h"
 #include "strutil.h"
 
 int FindUnitTests();
@@ -49,7 +50,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  for (StringPiece tok : WordScanner(out)) {
+  for (std::string_view tok : WordScanner(out)) {
     printf("%.*s\n", SPF(tok));
   }
 }
@@ -82,8 +83,8 @@ void CompareFind(const std::string& cmd) {
     exit(1);
   }
 
-  std::vector<StringPiece> nativeWords;
-  std::vector<StringPiece> emulatedWords;
+  std::vector<std::string_view> nativeWords;
+  std::vector<std::string_view> emulatedWords;
 
   WordScanner(native).Split(&nativeWords);
   WordScanner(emulated).Split(&emulatedWords);
@@ -99,10 +100,10 @@ void CompareFind(const std::string& cmd) {
       fprintf(stderr, " %-20s %-20s\n",
               (nativeIter == nativeWords.end())
                   ? ""
-                  : (*nativeIter++).as_string().c_str(),
+                  : std::string(*nativeIter++).c_str(),
               (emulatedIter == emulatedWords.end())
                   ? ""
-                  : (*emulatedIter++).as_string().c_str());
+                  : std::string(*emulatedIter++).c_str());
     }
     fprintf(stderr, "------------------------------------------\n");
     unit_test_failed = true;
