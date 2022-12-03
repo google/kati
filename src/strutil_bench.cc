@@ -15,10 +15,10 @@
 // +build ignore
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "flags.h"
-#include "string_piece.h"
 #include "strutil.h"
 #include "timeutil.h"
 
@@ -34,7 +34,7 @@ int main() {
   ScopedTimeReporter tr("WordScanner");
   static const int N = 1000;
   for (int i = 0; i < N; i++) {
-    std::vector<StringPiece> toks;
+    std::vector<std::string_view> toks;
     WordScanner(s).Split(&toks);
   }
 }

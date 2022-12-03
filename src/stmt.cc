@@ -68,7 +68,7 @@ std::string AssignStmt::DebugString() const {
       "AssignStmt(lhs=%s rhs=%s (%s) "
       "opstr=%s dir=%s loc=%s:%d)",
       Value::DebugString(lhs).c_str(), Value::DebugString(rhs).c_str(),
-      NoLineBreak(orig_rhs.as_string()).c_str(), opstr, dirstr, LOCF(loc()));
+      NoLineBreak(std::string(orig_rhs)).c_str(), opstr, dirstr, LOCF(loc()));
 }
 
 Symbol AssignStmt::GetLhsSymbol(Evaluator* ev) const {

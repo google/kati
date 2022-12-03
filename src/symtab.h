@@ -18,9 +18,8 @@
 #include <bitset>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
-
-#include "string_piece.h"
 
 extern std::vector<std::string*>* g_symbols;
 
@@ -219,12 +218,12 @@ extern Symbol kShellSym;
 extern Symbol kAllowRulesSym;
 extern Symbol kKatiReadonlySym;
 
-Symbol Intern(StringPiece s);
+Symbol Intern(std::string_view s);
 
 std::string JoinSymbols(const std::vector<Symbol>& syms, const char* sep);
 
 // Get all symbol names for which filter returns true.
-std::vector<StringPiece> GetSymbolNames(
+std::vector<std::string_view> GetSymbolNames(
     std::function<bool(Var*)> const& filter);
 
 #endif  // SYMTAB_H_

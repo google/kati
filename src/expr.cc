@@ -45,9 +45,9 @@ std::string Value::DebugString(const Value* v) {
 
 class Literal : public Value {
  public:
-  explicit Literal(StringPiece s) : Value(Loc()), s_(s) {}
+  explicit Literal(std::string_view s) : Value(Loc()), s_(s) {}
 
-  StringPiece val() const { return s_; }
+  std::string_view val() const { return s_; }
 
   virtual bool IsFunc(Evaluator*) const override { return false; }
 
@@ -57,12 +57,12 @@ class Literal : public Value {
   }
 
   virtual bool IsLiteral() const override { return true; }
-  virtual StringPiece GetLiteralValueUnsafe() const override { return s_; }
+  virtual std::string_view GetLiteralValueUnsafe() const override { return s_; }
 
-  virtual std::string DebugString_() const override { return s_.as_string(); }
+  virtual std::string DebugString_() const override { return std::string(s_); }
 
  private:
-  StringPiece s_;
+  std::string_view s_;
 };
 
 class ValueList : public Value {
@@ -214,7 +214,7 @@ class VarSubst : public Value {
     const std::string&& value = v->Eval(ev);
     WordWriter ww(s);
     Pattern pat(pat_str);
-    for (StringPiece tok : WordScanner(value)) {
+    for (std::string_view tok : WordScanner(value)) {
       ww.MaybeAddWhitespace();
       pat.AppendSubstRef(tok, subst, s);
     }
@@ -280,7 +280,7 @@ static char CloseParen(char c) {
   return 0;
 }
 
-static size_t SkipSpaces(Loc* loc, StringPiece s, const char* terms) {
+static size_t SkipSpaces(Loc* loc, std::string_view s, const char* terms) {
   for (size_t i = 0; i < s.size(); i++) {
     char c = s[i];
     if (strchr(terms, c)) {
@@ -292,7 +292,7 @@ static size_t SkipSpaces(Loc* loc, StringPiece s, const char* terms) {
         return i;
       }
 
-      char n = s.get(i + 1);
+      char n = i + 1 < s.size() ? s[i + 1] : 0;
       if (n != '\r' && n != '\n') {
         return i;
       }
@@ -320,7 +320,7 @@ Value* Value::NewExpr(const Loc& loc, std::vector<Value*>* values) {
   return new ValueList(loc, values);
 }
 
-Value* Value::NewLiteral(StringPiece s) {
+Value* Value::NewLiteral(std::string_view s) {
   return new Literal(s);
 }
 
@@ -330,7 +330,7 @@ bool ShouldHandleComments(ParseExprOpt opt) {
 
 void ParseFunc(Loc* loc,
                Func* f,
-               StringPiece s,
+               std::string_view s,
                size_t i,
                char* terms,
                size_t* index_out) {
@@ -356,7 +356,7 @@ void ParseFunc(Loc* loc,
         }
 
         if (s[i] == '\\') {
-          char c = s.get(i + 1);
+          char c = i + 1 < s.size() ? s[i + 1] : 0;
           if (c == '\r' || c == '\n') {
             loc->lineno++;
             continue;
@@ -401,7 +401,7 @@ void ParseFunc(Loc* loc,
   return;
 }
 
-Value* ParseDollar(Loc* loc, StringPiece s, size_t* index_out) {
+Value* ParseDollar(Loc* loc, std::string_view s, size_t* index_out) {
   CHECK(s.size() >= 2);
   CHECK(s[0] == '$');
   CHECK(s[1] != '$');
@@ -500,14 +500,14 @@ Value* ParseDollar(Loc* loc, StringPiece s, size_t* index_out) {
 }
 
 Value* ParseExprImpl(Loc* loc,
-                     StringPiece s,
+                     std::string_view s,
                      const char* terms,
                      ParseExprOpt opt,
                      size_t* index_out,
                      bool trim_right_space) {
   Loc list_loc = *loc;
 
-  if (s.get(s.size() - 1) == '\r')
+  if (!s.empty() && s.back() == '\r')
     s.remove_suffix(1);
 
   size_t b = 0;
@@ -544,14 +544,14 @@ Value* ParseExprImpl(Loc* loc,
         list.push_back(new Literal(s.substr(b, i - b)));
 
       if (s[i + 1] == '$') {
-        list.push_back(new Literal(StringPiece("$")));
+        list.push_back(new Literal(std::string_view("$")));
         i += 1;
         b = i + 1;
         continue;
       }
 
       if (terms && strchr(terms, s[i + 1])) {
-        list.push_back(new Literal(StringPiece("$")));
+        list.push_back(new Literal(std::string_view("$")));
         *index_out = i + 1;
         return Value::NewExpr(item_loc, &list);
       }
@@ -604,15 +604,16 @@ Value* ParseExprImpl(Loc* loc,
         if (i > b) {
           list.push_back(new Literal(TrimRightSpace(s.substr(b, i - b))));
         }
-        list.push_back(new Literal(StringPiece(" ")));
+        list.push_back(new Literal(std::string_view(" ")));
         // Skip the current escaped newline
         i += 2;
-        if (n == '\r' && s.get(i) == '\n') {
+        if (n == '\r' && i < s.size() && s[i] == '\n') {
           i++;
         }
         // Then continue skipping escaped newlines, spaces, and tabs
         for (; i < s.size(); i++) {
-          if (s[i] == '\\' && (s.get(i + 1) == '\r' || s.get(i + 1) == '\n')) {
+          if (s[i] == '\\' && i + 1 < s.size() &&
+              (s[i + 1] == '\r' || s[i + 1] == '\n')) {
             loc->lineno++;
             i++;
             continue;
@@ -628,7 +629,7 @@ Value* ParseExprImpl(Loc* loc,
   }
 
   if (i > b) {
-    StringPiece rest = s.substr(b, i - b);
+    std::string_view rest = s.substr(b, i - b);
     if (trim_right_space)
       rest = TrimRightSpace(rest);
     if (!rest.empty())
@@ -638,7 +639,7 @@ Value* ParseExprImpl(Loc* loc,
   return Value::NewExpr(list_loc, &list);
 }
 
-Value* ParseExpr(Loc* loc, StringPiece s, ParseExprOpt opt) {
+Value* ParseExpr(Loc* loc, std::string_view s, ParseExprOpt opt) {
   size_t n;
   return ParseExprImpl(loc, s, NULL, opt, &n);
 }

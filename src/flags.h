@@ -16,9 +16,9 @@
 #define FLAGS_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "string_piece.h"
 #include "strutil.h"
 #include "symtab.h"
 
@@ -77,7 +77,7 @@ struct Flags {
   int remote_num_jobs;
   std::vector<const char*> subkati_args;
   std::vector<Symbol> targets;
-  std::vector<StringPiece> cl_vars;
+  std::vector<std::string_view> cl_vars;
   std::vector<std::string> writable;
   std::vector<Pattern> traced_variables_pattern;
 

@@ -73,9 +73,9 @@ void ApplyOutputPattern(const Rule& r,
 
 class RuleTrie {
   struct Entry {
-    Entry(const Rule* r, StringPiece s) : rule(r), suffix(s) {}
+    Entry(const Rule* r, std::string_view s) : rule(r), suffix(s) {}
     const Rule* rule;
-    StringPiece suffix;
+    std::string_view suffix;
   };
 
  public:
@@ -85,7 +85,7 @@ class RuleTrie {
       delete p.second;
   }
 
-  void Add(StringPiece name, const Rule* rule) {
+  void Add(std::string_view name, const Rule* rule) {
     if (name.empty() || name[0] == '%') {
       rules_.push_back(Entry(rule, name));
       return;
@@ -98,7 +98,7 @@ class RuleTrie {
     p.first->second->Add(name.substr(1), rule);
   }
 
-  void Get(StringPiece name, std::vector<const Rule*>* rules) const {
+  void Get(std::string_view name, std::vector<const Rule*>* rules) const {
     for (const Entry& ent : rules_) {
       if ((ent.suffix.empty() && name.empty()) ||
           HasSuffix(name, ent.suffix.substr(1))) {
@@ -128,7 +128,7 @@ class RuleTrie {
 bool IsSuffixRule(Symbol output) {
   if (output.empty() || !IsSpecialTarget(output))
     return false;
-  const StringPiece rest = StringPiece(output.str()).substr(1);
+  const std::string_view rest = std::string_view(output.str()).substr(1);
   size_t dot_index = rest.find('.');
   // If there is only a single dot or the third dot, this is not a
   // suffix rule.
@@ -438,7 +438,7 @@ class DepBuilder {
         std::string implicit_outputs;
         var->Eval(ev_, &implicit_outputs);
 
-        for (StringPiece output : WordScanner(implicit_outputs)) {
+        for (std::string_view output : WordScanner(implicit_outputs)) {
           Symbol sym = Intern(TrimLeadingCurdir(output));
           rules_[sym].SetImplicitOutput(sym, p.first, &p.second);
           p.second.AddImplicitOutput(sym, &rules_[sym]);
@@ -450,7 +450,7 @@ class DepBuilder {
         std::string validations;
         var->Eval(ev_, &validations);
 
-        for (StringPiece validation : WordScanner(validations)) {
+        for (std::string_view validation : WordScanner(validations)) {
           Symbol sym = Intern(TrimLeadingCurdir(validation));
           p.second.AddValidation(sym);
         }
@@ -461,7 +461,7 @@ class DepBuilder {
         std::string symlink_outputs;
         var->Eval(ev_, &symlink_outputs);
 
-        for (StringPiece output : WordScanner(symlink_outputs)) {
+        for (std::string_view output : WordScanner(symlink_outputs)) {
           Symbol sym = Intern(TrimLeadingCurdir(output));
           p.second.AddSymlinkOutput(sym);
         }
@@ -480,11 +480,11 @@ class DepBuilder {
                output.c_str());
     }
 
-    const StringPiece rest = StringPiece(output.str()).substr(1);
+    const std::string_view rest = std::string_view(output.str()).substr(1);
     size_t dot_index = rest.find('.');
 
-    StringPiece input_suffix = rest.substr(0, dot_index);
-    StringPiece output_suffix = rest.substr(dot_index + 1);
+    std::string_view input_suffix = rest.substr(0, dot_index);
+    std::string_view output_suffix = rest.substr(dot_index + 1);
     std::shared_ptr<Rule> r = std::make_shared<Rule>(*rule);
     r->inputs.clear();
     r->inputs.push_back(Intern(input_suffix));
@@ -638,8 +638,8 @@ class DepBuilder {
       return true;
     }
 
-    StringPiece output_suffix = GetExt(output.str());
-    if (output_suffix.get(0) != '.')
+    std::string_view output_suffix = GetExt(output.str());
+    if (output_suffix.empty() || output_suffix.front() != '.')
       return rule_merger != nullptr;
     output_suffix = output_suffix.substr(1);
 
@@ -760,7 +760,7 @@ class DepBuilder {
     if (!g_flags.writable.empty() && !n->is_phony) {
       bool found = false;
       for (const auto& w : g_flags.writable) {
-        if (StringPiece(output.str()).starts_with(w)) {
+        if (HasPrefix(output.str(), w)) {
           found = true;
           break;
         }
@@ -797,7 +797,7 @@ class DepBuilder {
       if (!g_flags.writable.empty() && !n->is_phony) {
         bool found = false;
         for (const auto& w : g_flags.writable) {
-          if (StringPiece(output.str()).starts_with(w)) {
+          if (HasPrefix(output.str(), w)) {
             found = true;
             break;
           }
@@ -928,7 +928,8 @@ class DepBuilder {
   std::unique_ptr<Vars> cur_rule_vars_;
 
   std::unique_ptr<RuleTrie> implicit_rules_;
-  typedef std::unordered_map<StringPiece, std::vector<std::shared_ptr<Rule>>>
+  typedef std::unordered_map<std::string_view,
+                             std::vector<std::shared_ptr<Rule>>>
       SuffixRuleMap;
   SuffixRuleMap suffix_rules_;
 

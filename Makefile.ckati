@@ -43,7 +43,6 @@ KATI_CXX_SRCS := \
 	rule.cc \
 	stats.cc \
 	stmt.cc \
-	string_piece.cc \
 	stringprintf.cc \
 	strutil.cc \
 	symtab.cc \

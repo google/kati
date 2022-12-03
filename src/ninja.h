@@ -18,10 +18,10 @@
 #include <time.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "dep.h"
-#include "string_piece.h"
 
 class Evaluator;
 
@@ -36,6 +36,6 @@ std::string GetNinjaStampFilename();
 
 // Exposed only for test.
 bool GetDepfileFromCommand(std::string* cmd, std::string* out);
-size_t GetGomaccPosForAndroidCompileCommand(StringPiece cmdline);
+size_t GetGomaccPosForAndroidCompileCommand(std::string_view cmdline);
 
 #endif  // NINJA_H_

@@ -17,6 +17,7 @@
 #include "parser.h"
 
 #include <stack>
+#include <string_view>
 #include <unordered_map>
 
 #include "expr.h"
@@ -25,7 +26,6 @@
 #include "log.h"
 #include "stats.h"
 #include "stmt.h"
-#include "string_piece.h"
 #include "strutil.h"
 
 enum struct ParserState {
@@ -41,12 +41,12 @@ class Parser {
     int num_nest;
   };
 
-  typedef void (Parser::*DirectiveHandler)(StringPiece line,
-                                           StringPiece directive);
-  typedef std::unordered_map<StringPiece, DirectiveHandler> DirectiveMap;
+  typedef void (Parser::*DirectiveHandler)(std::string_view line,
+                                           std::string_view directive);
+  typedef std::unordered_map<std::string_view, DirectiveHandler> DirectiveMap;
 
  public:
-  Parser(StringPiece buf, const char* filename, std::vector<Stmt*>* stmts)
+  Parser(std::string_view buf, const char* filename, std::vector<Stmt*>* stmts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
@@ -56,7 +56,7 @@ class Parser {
         loc_(filename, 0),
         fixed_lineno_(false) {}
 
-  Parser(StringPiece buf, const Loc& loc, std::vector<Stmt*>* stmts)
+  Parser(std::string_view buf, const Loc& loc, std::vector<Stmt*>* stmts)
       : buf_(buf),
         state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
@@ -73,8 +73,8 @@ class Parser {
       size_t e = FindEndOfLine(&lf_cnt);
       if (!fixed_lineno_)
         loc_.lineno++;
-      StringPiece line(buf_.data() + l_, e - l_);
-      if (line.get(line.size() - 1) == '\r')
+      std::string_view line(buf_.data() + l_, e - l_);
+      if (!line.empty() && line.back() == '\r')
         line.remove_suffix(1);
       orig_line_with_directives_ = line;
       ParseLine(line);
@@ -111,12 +111,12 @@ class Parser {
   }
 
   Value* ParseExpr(Loc* loc,
-                   StringPiece s,
+                   std::string_view s,
                    ParseExprOpt opt = ParseExprOpt::NORMAL) {
     return ::ParseExpr(loc, s, opt);
   }
 
-  void ParseLine(StringPiece line) {
+  void ParseLine(std::string_view line) {
     if (!define_name_.empty()) {
       ParseInsideDefine(line);
       return;
@@ -150,13 +150,13 @@ class Parser {
     ParseRuleOrAssign(line);
   }
 
-  void ParseRuleOrAssign(StringPiece line) {
+  void ParseRuleOrAssign(std::string_view line) {
     size_t sep = FindThreeOutsideParen(line, ':', '=', ';');
     if (sep == std::string::npos || line[sep] == ';') {
       ParseRule(line, std::string::npos);
     } else if (line[sep] == '=') {
       ParseAssign(line, sep);
-    } else if (line.get(sep + 1) == '=') {
+    } else if (sep + 1 < line.size() && line[sep + 1] == '=') {
       ParseAssign(line, sep + 1);
     } else if (line[sep] == ':') {
       ParseRule(line, sep);
@@ -165,7 +165,7 @@ class Parser {
     }
   }
 
-  void ParseRule(StringPiece line, size_t sep) {
+  void ParseRule(std::string_view line, size_t sep) {
     if (current_directive_ != AssignDirective::NONE) {
       if (IsInExport())
         return;
@@ -219,13 +219,13 @@ class Parser {
     state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
   }
 
-  void ParseAssign(StringPiece line, size_t separator_pos) {
+  void ParseAssign(std::string_view line, size_t separator_pos) {
     if (separator_pos == 0) {
       Error("*** empty variable name ***");
       return;
     }
-    StringPiece lhs;
-    StringPiece rhs;
+    std::string_view lhs;
+    std::string_view rhs;
     AssignOp op;
     ParseAssignStatement(line, separator_pos, &lhs, &rhs, &op);
 
@@ -252,7 +252,7 @@ class Parser {
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
-  void ParseInclude(StringPiece line, StringPiece directive) {
+  void ParseInclude(std::string_view line, std::string_view directive) {
     IncludeStmt* stmt = new IncludeStmt();
     stmt->set_loc(loc_);
     Loc mutable_loc(loc_);
@@ -262,7 +262,7 @@ class Parser {
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
-  void ParseDefine(StringPiece line, StringPiece) {
+  void ParseDefine(std::string_view line, std::string_view) {
     if (line.empty()) {
       Error("*** empty variable name.");
       return;
@@ -274,9 +274,9 @@ class Parser {
     state_ = ParserState::NOT_AFTER_RULE;
   }
 
-  void ParseInsideDefine(StringPiece line) {
+  void ParseInsideDefine(std::string_view line) {
     line = TrimLeftSpace(line);
-    StringPiece directive = GetDirective(line);
+    std::string_view directive = GetDirective(line);
     if (directive == "define")
       num_define_nest_++;
     else if (directive == "endef")
@@ -287,8 +287,8 @@ class Parser {
       return;
     }
 
-    StringPiece rest = TrimRightSpace(
-        RemoveComment(TrimLeftSpace(line.substr(sizeof("endef")))));
+    std::string_view rest = TrimRightSpace(
+        RemoveComment(TrimLeftSpace(line.substr(sizeof("endef") - 1))));
     if (!rest.empty()) {
       WARN_LOC(loc_, "extraneous text after `endef' directive");
     }
@@ -298,7 +298,7 @@ class Parser {
     Loc mutable_loc(stmt->loc());
     stmt->lhs = ParseExpr(&mutable_loc, define_name_);
     mutable_loc.lineno++;
-    StringPiece rhs;
+    std::string_view rhs;
     if (define_start_)
       rhs = buf_.substr(define_start_, l_ - define_start_ - 1);
     stmt->rhs = ParseExpr(&mutable_loc, rhs, ParseExprOpt::DEFINE);
@@ -306,7 +306,7 @@ class Parser {
     stmt->op = AssignOp::EQ;
     stmt->directive = current_directive_;
     out_stmts_->push_back(stmt);
-    define_name_.clear();
+    define_name_ = std::string_view();
   }
 
   void EnterIf(IfStmt* stmt) {
@@ -318,7 +318,7 @@ class Parser {
     out_stmts_ = &stmt->true_stmts;
   }
 
-  void ParseIfdef(StringPiece line, StringPiece directive) {
+  void ParseIfdef(std::string_view line, std::string_view directive) {
     IfStmt* stmt = new IfStmt();
     stmt->set_loc(loc_);
     stmt->op = directive[2] == 'n' ? CondOp::IFNDEF : CondOp::IFDEF;
@@ -329,7 +329,7 @@ class Parser {
     EnterIf(stmt);
   }
 
-  bool ParseIfEqCond(StringPiece s, IfStmt* stmt) {
+  bool ParseIfEqCond(std::string_view s, IfStmt* stmt) {
     if (s.empty()) {
       return false;
     }
@@ -346,7 +346,7 @@ class Parser {
       s = TrimLeftSpace(s.substr(n + 1));
       stmt->rhs =
           ParseExprImpl(&mutable_loc, s, NULL, ParseExprOpt::NORMAL, &n);
-      s = TrimLeftSpace(s.substr(n));
+      s = TrimLeftSpace(s.substr(std::min(n, s.size())));
     } else {
       for (int i = 0; i < 2; i++) {
         if (s.empty())
@@ -373,7 +373,7 @@ class Parser {
     return true;
   }
 
-  void ParseIfeq(StringPiece line, StringPiece directive) {
+  void ParseIfeq(std::string_view line, std::string_view directive) {
     IfStmt* stmt = new IfStmt();
     stmt->set_loc(loc_);
     stmt->op = directive[2] == 'n' ? CondOp::IFNEQ : CondOp::IFEQ;
@@ -387,7 +387,7 @@ class Parser {
     EnterIf(stmt);
   }
 
-  void ParseElse(StringPiece line, StringPiece) {
+  void ParseElse(std::string_view line, std::string_view) {
     if (!CheckIfStack("else"))
       return;
     IfState* st = if_stack_.top();
@@ -398,7 +398,7 @@ class Parser {
     st->is_in_else = true;
     out_stmts_ = &st->stmt->false_stmts;
 
-    StringPiece next_if = TrimLeftSpace(line);
+    std::string_view next_if = TrimLeftSpace(line);
     if (next_if.empty())
       return;
 
@@ -409,7 +409,7 @@ class Parser {
     num_if_nest_ = 0;
   }
 
-  void ParseEndif(StringPiece line, StringPiece) {
+  void ParseEndif(std::string_view line, std::string_view) {
     if (!CheckIfStack("endif"))
       return;
     if (!line.empty()) {
@@ -437,7 +437,7 @@ class Parser {
             static_cast<int>(AssignDirective::EXPORT));
   }
 
-  void CreateExport(StringPiece line, bool is_export) {
+  void CreateExport(std::string_view line, bool is_export) {
     ExportStmt* stmt = new ExportStmt;
     stmt->set_loc(loc_);
     Loc mutable_loc(loc_);
@@ -446,7 +446,7 @@ class Parser {
     out_stmts_->push_back(stmt);
   }
 
-  void ParseOverride(StringPiece line, StringPiece) {
+  void ParseOverride(std::string_view line, std::string_view) {
     current_directive_ = static_cast<AssignDirective>(
         (static_cast<int>(current_directive_) |
          static_cast<int>(AssignDirective::OVERRIDE)));
@@ -458,7 +458,7 @@ class Parser {
     ParseRuleOrAssign(line);
   }
 
-  void ParseExport(StringPiece line, StringPiece) {
+  void ParseExport(std::string_view line, std::string_view) {
     current_directive_ = static_cast<AssignDirective>(
         (static_cast<int>(current_directive_) |
          static_cast<int>(AssignDirective::EXPORT)));
@@ -468,7 +468,7 @@ class Parser {
     ParseRuleOrAssign(line);
   }
 
-  void ParseUnexport(StringPiece line, StringPiece) {
+  void ParseUnexport(std::string_view line, std::string_view) {
     CreateExport(line, false);
   }
   bool CheckIfStack(const char* keyword) {
@@ -479,46 +479,47 @@ class Parser {
     return true;
   }
 
-  StringPiece RemoveComment(StringPiece line) {
+  std::string_view RemoveComment(std::string_view line) {
     size_t i = FindOutsideParen(line, '#');
     if (i == std::string::npos)
       return line;
     return line.substr(0, i);
   }
 
-  StringPiece GetDirective(StringPiece line) {
+  std::string_view GetDirective(std::string_view line) {
     if (line.size() < shortest_directive_len_)
-      return StringPiece();
-    StringPiece prefix = line.substr(0, longest_directive_len_ + 1);
+      return std::string_view();
+    std::string_view prefix = line.substr(0, longest_directive_len_ + 1);
     size_t space_index = prefix.find_first_of(" \t#");
     return prefix.substr(0, space_index);
   }
 
-  bool HandleDirective(StringPiece line, const DirectiveMap& directive_map) {
-    StringPiece directive = GetDirective(line);
+  bool HandleDirective(std::string_view line,
+                       const DirectiveMap& directive_map) {
+    std::string_view directive = GetDirective(line);
     auto found = directive_map.find(directive);
     if (found == directive_map.end())
       return false;
 
-    StringPiece rest = TrimRightSpace(
+    std::string_view rest = TrimRightSpace(
         RemoveComment(TrimLeftSpace(line.substr(directive.size()))));
     (this->*found->second)(rest, directive);
     return true;
   }
 
-  StringPiece buf_;
+  std::string_view buf_;
   size_t l_;
   ParserState state_;
 
   std::vector<Stmt*>* stmts_;
   std::vector<Stmt*>* out_stmts_;
 
-  StringPiece define_name_;
+  std::string_view define_name_;
   int num_define_nest_;
   size_t define_start_;
   int define_start_line_;
 
-  StringPiece orig_line_with_directives_;
+  std::string_view orig_line_with_directives_;
   AssignDirective current_directive_;
 
   int num_if_nest_;
@@ -536,18 +537,20 @@ class Parser {
 
 void Parse(Makefile* mk) {
   COLLECT_STATS("parse file time");
-  Parser parser(StringPiece(mk->buf()), mk->filename().c_str(),
+  Parser parser(std::string_view(mk->buf()), mk->filename().c_str(),
                 mk->mutable_stmts());
   parser.Parse();
 }
 
-void Parse(StringPiece buf, const Loc& loc, std::vector<Stmt*>* out_stmts) {
+void Parse(std::string_view buf,
+           const Loc& loc,
+           std::vector<Stmt*>* out_stmts) {
   COLLECT_STATS("parse eval time");
   Parser parser(buf, loc, out_stmts);
   parser.Parse();
 }
 
-void ParseNotAfterRule(StringPiece buf,
+void ParseNotAfterRule(std::string_view buf,
                        const Loc& loc,
                        std::vector<Stmt*>* out_stmts) {
   Parser parser(buf, loc, out_stmts);
@@ -597,10 +600,10 @@ const size_t Parser::longest_directive_len_ = []() {
 
 std::vector<ParseErrorStmt*> Parser::parse_errors;
 
-void ParseAssignStatement(StringPiece line,
+void ParseAssignStatement(std::string_view line,
                           size_t sep,
-                          StringPiece* lhs,
-                          StringPiece* rhs,
+                          std::string_view* lhs,
+                          std::string_view* rhs,
                           AssignOp* op) {
   CHECK(sep != 0);
   *op = AssignOp::EQ;
@@ -620,7 +623,7 @@ void ParseAssignStatement(StringPiece line,
       break;
   }
   *lhs = TrimSpace(line.substr(0, lhs_end));
-  *rhs = TrimLeftSpace(line.substr(sep + 1));
+  *rhs = TrimLeftSpace(line.substr(std::min(sep + 1, line.size())));
 }
 
 const std::vector<ParseErrorStmt*>& GetParseErrors() {

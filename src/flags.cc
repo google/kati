@@ -24,7 +24,7 @@
 
 Flags g_flags;
 
-static bool ParseCommandLineOptionWithArg(StringPiece option,
+static bool ParseCommandLineOptionWithArg(std::string_view option,
                                           char* argv[],
                                           int* index,
                                           const char** out_arg) {
@@ -56,7 +56,7 @@ void Flags::Parse(int argc, char** argv) {
   const char* variable_assignment_trace_filter;
 
   if (const char* makeflags = getenv("MAKEFLAGS")) {
-    for (StringPiece tok : WordScanner(makeflags)) {
+    for (std::string_view tok : WordScanner(makeflags)) {
       if (!HasPrefix(tok, "-") && tok.find('=') != std::string::npos)
         cl_vars.push_back(tok);
     }
@@ -158,7 +158,8 @@ void Flags::Parse(int argc, char** argv) {
     } else if (ParseCommandLineOptionWithArg(
                    "--variable_assignment_trace_filter", argv, &i,
                    &variable_assignment_trace_filter)) {
-      for (StringPiece pat : WordScanner(variable_assignment_trace_filter)) {
+      for (std::string_view pat :
+           WordScanner(variable_assignment_trace_filter)) {
         traced_variables_pattern.push_back(Pattern(pat));
       }
     } else if (ParseCommandLineOptionWithArg("-j", argv, &i, &num_jobs_str)) {

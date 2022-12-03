@@ -21,6 +21,7 @@
 #include <sys/wait.h>
 
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -32,7 +33,6 @@
 #include "fileutil.h"
 #include "flags.h"
 #include "log.h"
-#include "string_piece.h"
 #include "strutil.h"
 #include "symtab.h"
 #include "var.h"

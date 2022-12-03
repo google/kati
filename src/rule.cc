@@ -25,7 +25,7 @@
 
 Rule::Rule() : is_double_colon(false), is_suffix_rule(false), cmd_lineno(0) {}
 
-void Rule::ParseInputs(const StringPiece& inputs_str) {
+void Rule::ParseInputs(const std::string_view& inputs_str) {
   bool is_order_only = false;
   for (auto const& input : WordScanner(inputs_str)) {
     if (input == "|") {
@@ -37,7 +37,7 @@ void Rule::ParseInputs(const StringPiece& inputs_str) {
   }
 }
 
-void Rule::ParsePrerequisites(const StringPiece& line,
+void Rule::ParsePrerequisites(const std::string_view& line,
                               size_t separator_pos,
                               const RuleStmt* rule_stmt) {
   // line is either
@@ -46,7 +46,7 @@ void Rule::ParsePrerequisites(const StringPiece& line,
   //    target-prerequisites : prereq-patterns [ ; command ]
   // First, separate command. At this point separator_pos should point to ';'
   // unless null.
-  StringPiece prereq_string = line;
+  std::string_view prereq_string = line;
   if (separator_pos != std::string::npos &&
       rule_stmt->sep != RuleStmt::SEP_SEMICOLON) {
     CHECK(line[separator_pos] == ';');
@@ -73,10 +73,10 @@ void Rule::ParsePrerequisites(const StringPiece& line,
     return;
   }
 
-  StringPiece target_prereq = prereq_string.substr(0, separator_pos);
-  StringPiece prereq_patterns = prereq_string.substr(separator_pos + 1);
+  std::string_view target_prereq = prereq_string.substr(0, separator_pos);
+  std::string_view prereq_patterns = prereq_string.substr(separator_pos + 1);
 
-  for (StringPiece target_pattern : WordScanner(target_prereq)) {
+  for (std::string_view target_pattern : WordScanner(target_prereq)) {
     target_pattern = TrimLeadingCurdir(target_pattern);
     for (Symbol target : outputs) {
       if (!Pattern(target_pattern).Match(target.str())) {

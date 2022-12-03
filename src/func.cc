@@ -106,7 +106,7 @@ void PatsubstFunc(const std::vector<Value*>& args,
   const std::string&& str = args[2]->Eval(ev);
   WordWriter ww(s);
   Pattern pat(pat_str);
-  for (StringPiece tok : WordScanner(str)) {
+  for (std::string_view tok : WordScanner(str)) {
     ww.MaybeAddWhitespace();
     pat.AppendSubst(tok, repl, s);
   }
@@ -115,7 +115,7 @@ void PatsubstFunc(const std::vector<Value*>& args,
 void StripFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   const std::string&& str = args[0]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(str)) {
+  for (std::string_view tok : WordScanner(str)) {
     ww.Write(tok);
   }
 }
@@ -134,11 +134,11 @@ void SubstFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
     size_t found = str.find(pat, index);
     if (found == std::string::npos)
       break;
-    AppendString(StringPiece(str).substr(index, found - index), s);
+    AppendString(std::string_view(str).substr(index, found - index), s);
     AppendString(repl, s);
     index = found + pat.size();
   }
-  AppendString(StringPiece(str).substr(index), s);
+  AppendString(std::string_view(str).substr(index), s);
 }
 
 void FindstringFunc(const std::vector<Value*>& args,
@@ -156,11 +156,11 @@ void FilterFunc(const std::vector<Value*>& args,
   const std::string&& pat_buf = args[0]->Eval(ev);
   const std::string&& text = args[1]->Eval(ev);
   std::vector<Pattern> pats;
-  for (StringPiece pat : WordScanner(pat_buf)) {
+  for (std::string_view pat : WordScanner(pat_buf)) {
     pats.push_back(Pattern(pat));
   }
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     for (const Pattern& pat : pats) {
       if (pat.Match(tok)) {
         ww.Write(tok);
@@ -176,11 +176,11 @@ void FilterOutFunc(const std::vector<Value*>& args,
   const std::string&& pat_buf = args[0]->Eval(ev);
   const std::string&& text = args[1]->Eval(ev);
   std::vector<Pattern> pats;
-  for (StringPiece pat : WordScanner(pat_buf)) {
+  for (std::string_view pat : WordScanner(pat_buf)) {
     pats.push_back(Pattern(pat));
   }
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     bool matched = false;
     for (const Pattern& pat : pats) {
       if (pat.Match(tok)) {
@@ -199,12 +199,12 @@ void SortFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   COLLECT_STATS("func sort time");
   // TODO(hamaji): Probably we could use a faster string-specific sort
   // algorithm.
-  std::vector<StringPiece> toks;
+  std::vector<std::string_view> toks;
   WordScanner(list).Split(&toks);
   stable_sort(toks.begin(), toks.end());
   WordWriter ww(s);
-  StringPiece prev;
-  for (StringPiece tok : toks) {
+  std::string_view prev;
+  for (std::string_view tok : toks) {
     if (prev != tok) {
       ww.Write(tok);
       prev = tok;
@@ -213,7 +213,7 @@ void SortFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
 }
 
 static int GetNumericValueForFunc(const std::string& buf) {
-  StringPiece s = TrimLeftSpace(buf);
+  std::string_view s = TrimLeftSpace(buf);
   char* end;
   long n = strtol(s.data(), &end, 10);
   if (n < 0 || n == LONG_MAX || s.data() + s.size() != end) {
@@ -235,7 +235,7 @@ void WordFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   }
 
   const std::string&& text = args[1]->Eval(ev);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     n--;
     if (n == 0) {
       AppendString(tok, s);
@@ -271,7 +271,7 @@ void WordlistFunc(const std::vector<Value*>& args,
   const std::string&& text = args[2]->Eval(ev);
   int i = 0;
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     i++;
     if (si <= i && i <= ei) {
       ww.Write(tok);
@@ -305,8 +305,8 @@ void LastwordFunc(const std::vector<Value*>& args,
                   Evaluator* ev,
                   std::string* s) {
   const std::string&& text = args[0]->Eval(ev);
-  StringPiece last;
-  for (StringPiece tok : WordScanner(text)) {
+  std::string_view last;
+  for (std::string_view tok : WordScanner(text)) {
     last = tok;
   }
   AppendString(last, s);
@@ -339,7 +339,7 @@ void WildcardFunc(const std::vector<Value*>& args,
   // Note GNU make does not delay the execution of $(wildcard) so we
   // do not need to check avoid_io here.
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(pat)) {
+  for (std::string_view tok : WordScanner(pat)) {
     ScopedTerminator st(tok);
     const auto& files = Glob(tok.data());
     for (const std::string& file : files) {
@@ -351,7 +351,7 @@ void WildcardFunc(const std::vector<Value*>& args,
 void DirFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   const std::string&& text = args[0]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     ww.Write(Dirname(tok));
     s->push_back('/');
   }
@@ -362,9 +362,9 @@ void NotdirFunc(const std::vector<Value*>& args,
                 std::string* s) {
   const std::string&& text = args[0]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     if (tok == "/") {
-      ww.Write(StringPiece(""));
+      ww.Write(std::string_view(""));
     } else {
       ww.Write(Basename(tok));
     }
@@ -376,8 +376,8 @@ void SuffixFunc(const std::vector<Value*>& args,
                 std::string* s) {
   const std::string&& text = args[0]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
-    StringPiece suf = GetExt(tok);
+  for (std::string_view tok : WordScanner(text)) {
+    std::string_view suf = GetExt(tok);
     if (!suf.empty())
       ww.Write(suf);
   }
@@ -388,7 +388,7 @@ void BasenameFunc(const std::vector<Value*>& args,
                   std::string* s) {
   const std::string&& text = args[0]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     ww.Write(StripExt(tok));
   }
 }
@@ -399,7 +399,7 @@ void AddsuffixFunc(const std::vector<Value*>& args,
   const std::string&& suf = args[0]->Eval(ev);
   const std::string&& text = args[1]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     ww.Write(tok);
     *s += suf;
   }
@@ -411,7 +411,7 @@ void AddprefixFunc(const std::vector<Value*>& args,
   const std::string&& pre = args[0]->Eval(ev);
   const std::string&& text = args[1]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     ww.Write(pre);
     AppendString(tok, s);
   }
@@ -431,7 +431,7 @@ void RealpathFunc(const std::vector<Value*>& args,
   }
 
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     ScopedTerminator st(tok);
     char buf[PATH_MAX];
     if (realpath(tok.data(), buf))
@@ -445,7 +445,7 @@ void AbspathFunc(const std::vector<Value*>& args,
   const std::string&& text = args[0]->Eval(ev);
   WordWriter ww(s);
   std::string buf;
-  for (StringPiece tok : WordScanner(text)) {
+  for (std::string_view tok : WordScanner(text)) {
     AbsPath(tok, &buf);
     ww.Write(buf);
   }
@@ -486,7 +486,7 @@ void OrFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
 void ValueFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   const std::string&& var_name = args[0]->Eval(ev);
   Var* var = ev->LookupVar(Intern(var_name));
-  AppendString(var->String().as_string(), s);
+  AppendString(std::string(var->String()), s);
 }
 
 void EvalFunc(const std::vector<Value*>& args, Evaluator* ev, std::string*) {
@@ -574,15 +574,16 @@ static int ShellFuncImpl(const std::string& shell,
 
 static std::vector<CommandResult*> g_command_results;
 
-bool ShouldStoreCommandResult(StringPiece cmd) {
+bool ShouldStoreCommandResult(std::string_view cmd) {
   // We really just want to ignore this one, or remove BUILD_DATETIME from
   // Android completely
   if (cmd == "date +%s")
     return false;
 
-  Pattern pat(g_flags.ignore_dirty_pattern);
-  Pattern nopat(g_flags.no_ignore_dirty_pattern);
-  for (StringPiece tok : WordScanner(cmd)) {
+  Pattern pat(g_flags.ignore_dirty_pattern ? g_flags.ignore_dirty_pattern : "");
+  Pattern nopat(
+      g_flags.no_ignore_dirty_pattern ? g_flags.no_ignore_dirty_pattern : "");
+  for (std::string_view tok : WordScanner(cmd)) {
     if (pat.Match(tok) && !nopat.Match(tok)) {
       return false;
     }
@@ -689,9 +690,9 @@ void ForeachFunc(const std::vector<Value*>& args,
   const std::string&& list = args[1]->Eval(ev);
   ev->DecrementEvalDepth();
   WordWriter ww(s);
-  for (StringPiece tok : WordScanner(list)) {
+  for (std::string_view tok : WordScanner(list)) {
     std::unique_ptr<SimpleVar> v(
-        new SimpleVar(tok.as_string(), VarOrigin::AUTOMATIC, nullptr, Loc()));
+        new SimpleVar(std::string(tok), VarOrigin::AUTOMATIC, nullptr, Loc()));
     ScopedGlobalVar sv(Intern(varname), v.get());
     ww.MaybeAddWhitespace();
     args[2]->Eval(ev, s);
@@ -830,7 +831,7 @@ void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   }
 
   std::string arg = args[0]->Eval(ev);
-  StringPiece filename = TrimSpace(arg);
+  std::string_view filename = TrimSpace(arg);
 
   if (filename.size() <= 1) {
     ev->Error("*** Missing filename");
@@ -845,7 +846,7 @@ void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
       ev->Error("*** invalid argument");
     }
 
-    FileReadFunc(ev, filename.as_string(), s);
+    FileReadFunc(ev, std::string(filename), s);
   } else if (filename[0] == '>') {
     bool append = false;
     if (filename[1] == '>') {
@@ -867,10 +868,10 @@ void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
       }
     }
 
-    FileWriteFunc(ev, filename.as_string(), append, text);
+    FileWriteFunc(ev, std::string(filename), append, text);
   } else {
     ev->Error(StringPrintf("*** Invalid file operation: %s.  Stop.",
-                           filename.as_string().c_str()));
+                           std::string(filename).c_str()));
   }
 }
 
@@ -888,7 +889,7 @@ void DeprecatedVarFunc(const std::vector<Value*>& args,
     ev->Error("*** $(KATI_deprecated_var ...) is not supported in rules.");
   }
 
-  for (StringPiece var : WordScanner(vars_str)) {
+  for (std::string_view var : WordScanner(vars_str)) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
@@ -926,7 +927,7 @@ void ObsoleteVarFunc(const std::vector<Value*>& args,
     ev->Error("*** $(KATI_obsolete_var ...) is not supported in rules.");
   }
 
-  for (StringPiece var : WordScanner(vars_str)) {
+  for (std::string_view var : WordScanner(vars_str)) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     if (!v->IsDefined()) {
@@ -986,7 +987,7 @@ void ObsoleteExportFunc(const std::vector<Value*>& args,
 void ProfileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string*) {
   for (auto arg : args) {
     std::string files = arg->Eval(ev);
-    for (StringPiece file : WordScanner(files)) {
+    for (std::string_view file : WordScanner(files)) {
       ev->ProfileMakefile(file);
     }
   }
@@ -997,7 +998,7 @@ void VariableLocationFunc(const std::vector<Value*>& args,
                           std::string* s) {
   std::string arg = args[0]->Eval(ev);
   WordWriter ww(s);
-  for (StringPiece var : WordScanner(arg)) {
+  for (std::string_view var : WordScanner(arg)) {
     Symbol sym = Intern(var);
     Var* v = ev->PeekVar(sym);
     const Loc& loc = v->Location();
@@ -1012,7 +1013,7 @@ void VariableLocationFunc(const std::vector<Value*>& args,
     name, { name, args }     \
   }
 
-static const std::unordered_map<StringPiece, FuncInfo> g_func_info_map = {
+static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {
 
     ENTRY("patsubst", &PatsubstFunc, 3, 3, false, false),
     ENTRY("strip", &StripFunc, 1, 1, false, false),
@@ -1069,7 +1070,7 @@ static const std::unordered_map<StringPiece, FuncInfo> g_func_info_map = {
 
 }  // namespace
 
-const FuncInfo* GetFuncInfo(StringPiece name) {
+const FuncInfo* GetFuncInfo(std::string_view name) {
   auto found = g_func_info_map.find(name);
   if (found == g_func_info_map.end())
     return nullptr;

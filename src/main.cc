@@ -22,6 +22,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <string_view>
+
 #include "affinity.h"
 #include "eval.h"
 #include "exec.h"
@@ -37,7 +39,6 @@
 #include "regen.h"
 #include "stats.h"
 #include "stmt.h"
-#include "string_piece.h"
 #include "stringprintf.h"
 #include "strutil.h"
 #include "symtab.h"
@@ -98,14 +99,14 @@ static void ReadBootstrapMakefile(const std::vector<Symbol>& targets,
   Parse(Intern(bootstrap).str(), Loc("*bootstrap*", 0), stmts);
 }
 
-static void SetVar(StringPiece l,
+static void SetVar(std::string_view l,
                    VarOrigin origin,
                    Frame* definition,
                    Loc loc) {
   size_t found = l.find('=');
   CHECK(found != std::string::npos);
   Symbol lhs = Intern(l.substr(0, found));
-  StringPiece rhs = l.substr(found + 1);
+  std::string_view rhs = l.substr(found + 1);
   lhs.SetGlobalVar(new RecursiveVar(Value::NewLiteral(rhs.data()), origin,
                                     definition, loc, rhs.data()));
 }
@@ -204,7 +205,7 @@ SegfaultHandler::~SegfaultHandler() {
 }
 
 static int Run(const std::vector<Symbol>& targets,
-               const std::vector<StringPiece>& cl_vars,
+               const std::vector<std::string_view>& cl_vars,
                const std::string& orig_args) {
   double start_time = GetTime();
 
@@ -251,7 +252,7 @@ static int Run(const std::vector<Symbol>& targets,
   {
     ScopedFrame frame(ev.Enter(FrameType::PHASE, "*command line*", Loc()));
     ev.in_command_line();
-    for (StringPiece l : cl_vars) {
+    for (std::string_view l : cl_vars) {
       std::vector<Stmt*> asts;
       Parse(Intern(l).str(), Loc("*bootstrap*", 0), &asts);
       CHECK(asts.size() == 1);

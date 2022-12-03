@@ -15,24 +15,24 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
+#include <string_view>
 #include <vector>
 
 #include "loc.h"
 #include "stmt.h"
-#include "string_piece.h"
 
 class Makefile;
 
 void Parse(Makefile* mk);
-void Parse(StringPiece buf, const Loc& loc, std::vector<Stmt*>* out_asts);
-void ParseNotAfterRule(StringPiece buf,
+void Parse(std::string_view buf, const Loc& loc, std::vector<Stmt*>* out_asts);
+void ParseNotAfterRule(std::string_view buf,
                        const Loc& loc,
                        std::vector<Stmt*>* out_asts);
 
-void ParseAssignStatement(StringPiece line,
+void ParseAssignStatement(std::string_view line,
                           size_t sep,
-                          StringPiece* lhs,
-                          StringPiece* rhs,
+                          std::string_view* lhs,
+                          std::string_view* rhs,
                           AssignOp* op);
 
 const std::vector<ParseErrorStmt*>& GetParseErrors();

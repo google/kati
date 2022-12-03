@@ -17,12 +17,12 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "loc.h"
 #include "log.h"
 #include "stmt.h"
-#include "string_piece.h"
 #include "symtab.h"
 
 class Value;
@@ -35,13 +35,13 @@ class Rule {
 
   std::string DebugString() const;
 
-  void ParseInputs(const StringPiece& inputs_string);
+  void ParseInputs(const std::string_view& inputs_string);
 
-  void ParsePrerequisites(const StringPiece& line,
+  void ParsePrerequisites(const std::string_view& line,
                           size_t pos,
                           const RuleStmt* rule_stmt);
 
-  static bool IsPatternRule(const StringPiece& target_string) {
+  static bool IsPatternRule(const std::string_view& target_string) {
     return target_string.find('%') != std::string::npos;
   }
 

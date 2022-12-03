@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 //#undef NOLOG
@@ -32,7 +33,6 @@
 #include "fileutil.h"
 #include "log.h"
 #include "stats.h"
-#include "string_piece.h"
 #include "strutil.h"
 #include "timeutil.h"
 
@@ -144,12 +144,12 @@ class DirentNode {
  public:
   virtual ~DirentNode() = default;
 
-  virtual const DirentNode* FindDir(StringPiece) const { return NULL; }
+  virtual const DirentNode* FindDir(std::string_view) const { return NULL; }
   virtual bool FindNodes(
       const FindCommand&,
       std::vector<std::pair<std::string, const DirentNode*>>&,
       std::string*,
-      StringPiece) const {
+      std::string_view) const {
     return true;
   }
   virtual bool RunFind(
@@ -166,7 +166,7 @@ class DirentNode {
 
  protected:
   explicit DirentNode(const std::string& name) {
-    base_ = Basename(name).as_string();
+    base_ = std::string(Basename(name));
   }
 
   void PrintIfNecessary(const FindCommand& fc,
@@ -245,7 +245,7 @@ class DirentDirNode : public DirentNode {
     }
   }
 
-  virtual const DirentNode* FindDir(StringPiece d) const override {
+  virtual const DirentNode* FindDir(std::string_view d) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -256,7 +256,7 @@ class DirentDirNode : public DirentNode {
       return parent_;
 
     size_t index = d.find('/');
-    const std::string& p = d.substr(0, index).as_string();
+    std::string_view p = d.substr(0, index);
     if (p.empty() || p == ".")
       return FindDir(d.substr(index + 1));
     if (p == "..") {
@@ -269,7 +269,7 @@ class DirentDirNode : public DirentNode {
       if (p == child.first) {
         if (index == std::string::npos)
           return child.second;
-        StringPiece nd = d.substr(index + 1);
+        std::string_view nd = d.substr(index + 1);
         return child.second->FindDir(nd);
       }
     }
@@ -280,7 +280,7 @@ class DirentDirNode : public DirentNode {
       const FindCommand& fc,
       std::vector<std::pair<std::string, const DirentNode*>>& results,
       std::string* path,
-      StringPiece d) const override {
+      std::string_view d) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -291,7 +291,7 @@ class DirentDirNode : public DirentNode {
     size_t orig_path_size = path->size();
 
     size_t index = d.find('/');
-    const std::string& p = d.substr(0, index).as_string();
+    const std::string p{d.substr(0, index)};
 
     if (p.empty() || p == ".") {
       path->append(p);
@@ -481,7 +481,7 @@ class DirentSymlinkNode : public DirentNode {
                              const std::string& name)
       : DirentNode(name), name_(name), parent_(parent) {}
 
-  virtual const DirentNode* FindDir(StringPiece d) const override {
+  virtual const DirentNode* FindDir(std::string_view d) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -494,7 +494,7 @@ class DirentSymlinkNode : public DirentNode {
       const FindCommand& fc,
       std::vector<std::pair<std::string, const DirentNode*>>& results,
       std::string* path,
-      StringPiece d) const override {
+      std::string_view d) const override {
     if (!is_initialized_) {
       initialize();
     }
@@ -638,7 +638,7 @@ void DirentDirNode::initialize() const {
 
 class FindCommandParser {
  public:
-  FindCommandParser(StringPiece cmd, FindCommand* fc)
+  FindCommandParser(std::string_view cmd, FindCommand* fc)
       : cmd_(cmd), fc_(fc), has_if_(false) {}
 
   bool Parse() {
@@ -652,10 +652,10 @@ class FindCommandParser {
   }
 
  private:
-  bool GetNextToken(StringPiece* tok) {
+  bool GetNextToken(std::string_view* tok) {
     if (!unget_tok_.empty()) {
       *tok = unget_tok_;
-      unget_tok_.clear();
+      unget_tok_ = std::string_view();
       return true;
     }
 
@@ -667,7 +667,7 @@ class FindCommandParser {
       return true;
     }
     if (cur_[0] == '&') {
-      if (cur_.get(1) != '&') {
+      if (cur_.size() < 2 || cur_[1] != '&') {
         return false;
       }
       *tok = cur_.substr(0, 2);
@@ -684,9 +684,9 @@ class FindCommandParser {
     *tok = cur_.substr(0, i);
     cur_ = cur_.substr(i);
 
-    const char c = tok->get(0);
+    const char c = tok->empty() ? 0 : tok->front();
     if (c == '\'' || c == '"') {
-      if (tok->size() < 2 || (*tok)[tok->size() - 1] != c)
+      if (tok->size() < 2 || tok->back() != c)
         return false;
       *tok = tok->substr(1, tok->size() - 2);
       return true;
@@ -705,7 +705,7 @@ class FindCommandParser {
     return true;
   }
 
-  void UngetToken(StringPiece tok) {
+  void UngetToken(std::string_view tok) {
     CHECK(unget_tok_.empty());
     if (!tok.empty())
       unget_tok_ = tok;
@@ -714,16 +714,16 @@ class FindCommandParser {
   bool ParseTest() {
     if (has_if_ || !fc_->testdir.empty())
       return false;
-    StringPiece tok;
+    std::string_view tok;
     if (!GetNextToken(&tok) || tok != "-d")
       return false;
     if (!GetNextToken(&tok) || tok.empty())
       return false;
-    fc_->testdir = tok.as_string();
+    fc_->testdir = std::string(tok);
     return true;
   }
 
-  FindCond* ParseFact(StringPiece tok) {
+  FindCond* ParseFact(std::string_view tok) {
     if (tok == "-not" || tok == "!") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
@@ -742,7 +742,7 @@ class FindCommandParser {
     } else if (tok == "-name") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
-      return new NameCond(tok.as_string());
+      return new NameCond(std::string(tok));
     } else if (tok == "-type") {
       if (!GetNextToken(&tok) || tok.empty())
         return NULL;
@@ -770,7 +770,7 @@ class FindCommandParser {
     }
   }
 
-  FindCond* ParseTerm(StringPiece tok) {
+  FindCond* ParseTerm(std::string_view tok) {
     std::unique_ptr<FindCond> c(ParseFact(tok));
     if (!c.get())
       return NULL;
@@ -795,7 +795,7 @@ class FindCommandParser {
     }
   }
 
-  FindCond* ParseExpr(StringPiece tok) {
+  FindCond* ParseExpr(std::string_view tok) {
     std::unique_ptr<FindCond> c(ParseTerm(tok));
     if (!c.get())
       return NULL;
@@ -826,11 +826,11 @@ class FindCommandParser {
   // <name> ::= '-name' NAME
   // <type> ::= '-type' TYPE
   // <maxdepth> ::= '-maxdepth' MAXDEPTH
-  FindCond* ParseFindCond(StringPiece tok) { return ParseExpr(tok); }
+  FindCond* ParseFindCond(std::string_view tok) { return ParseExpr(tok); }
 
   bool ParseFind() {
     fc_->type = FindCommandType::FIND;
-    StringPiece tok;
+    std::string_view tok;
     while (true) {
       if (!GetNextToken(&tok))
         return false;
@@ -852,7 +852,7 @@ class FindCommandParser {
       } else if (tok == "-maxdepth") {
         if (!GetNextToken(&tok) || tok.empty())
           return false;
-        const std::string& depth_str = tok.as_string();
+        const std::string& depth_str = std::string(tok);
         char* endptr;
         long d = strtol(depth_str.c_str(), &endptr, 10);
         if (endptr != depth_str.data() + depth_str.size() || d < 0 ||
@@ -875,7 +875,7 @@ class FindCommandParser {
       } else if (tok.find_first_of("|;&><'\"") != std::string::npos) {
         return false;
       } else {
-        fc_->finddirs.push_back(tok.as_string());
+        fc_->finddirs.push_back(std::string(tok));
       }
     }
   }
@@ -883,7 +883,7 @@ class FindCommandParser {
   bool ParseFindLeaves() {
     fc_->type = FindCommandType::FINDLEAVES;
     fc_->follows_symlinks = true;
-    StringPiece tok;
+    std::string_view tok;
     std::vector<std::string> findfiles;
     while (true) {
       if (!GetNextToken(&tok))
@@ -913,15 +913,14 @@ class FindCommandParser {
 
       if (HasPrefix(tok, "--prune=")) {
         FindCond* cond =
-            new NameCond(tok.substr(strlen("--prune=")).as_string());
+            new NameCond(std::string(tok.substr(strlen("--prune="))));
         if (fc_->prune_cond.get()) {
           cond = new OrCond(fc_->prune_cond.release(), cond);
         }
         CHECK(!fc_->prune_cond.get());
         fc_->prune_cond.reset(cond);
       } else if (HasPrefix(tok, "--mindepth=")) {
-        std::string mindepth_str =
-            tok.substr(strlen("--mindepth=")).as_string();
+        std::string mindepth_str{tok.substr(strlen("--mindepth="))};
         char* endptr;
         long d = strtol(mindepth_str.c_str(), &endptr, 10);
         if (endptr != mindepth_str.data() + mindepth_str.size() ||
@@ -930,8 +929,8 @@ class FindCommandParser {
         }
         fc_->mindepth = d;
       } else if (HasPrefix(tok, "--dir=")) {
-        StringPiece dir = tok.substr(strlen("--dir="));
-        fc_->finddirs.push_back(dir.as_string());
+        std::string_view dir = tok.substr(strlen("--dir="));
+        fc_->finddirs.emplace_back(dir);
       } else if (HasPrefix(tok, "--")) {
         if (g_flags.werror_find_emulator) {
           ERROR("Unknown flag in findleaves.py: %.*s", SPF(tok));
@@ -940,14 +939,14 @@ class FindCommandParser {
         }
         return false;
       } else {
-        findfiles.push_back(tok.as_string());
+        findfiles.push_back(std::string(tok));
       }
     }
   }
 
   bool ParseImpl() {
     while (true) {
-      StringPiece tok;
+      std::string_view tok;
       if (!GetNextToken(&tok))
         return false;
 
@@ -959,7 +958,7 @@ class FindCommandParser {
           return false;
         if (tok.find_first_of("?*[") != std::string::npos)
           return false;
-        fc_->chdir = tok.as_string();
+        fc_->chdir = std::string(tok);
         if (!GetNextToken(&tok) || (tok != ";" && tok != "&&"))
           return false;
       } else if (tok == "if") {
@@ -1002,11 +1001,11 @@ class FindCommandParser {
     }
   }
 
-  StringPiece cmd_;
-  StringPiece cur_;
+  std::string_view cmd_;
+  std::string_view cur_;
   FindCommand* fc_;
   bool has_if_;
-  StringPiece unget_tok_;
+  std::string_view unget_tok_;
 };
 
 static FindEmulator* g_instance;
@@ -1017,12 +1016,12 @@ class FindEmulatorImpl : public FindEmulator {
 
   virtual ~FindEmulatorImpl() = default;
 
-  bool CanHandle(StringPiece s) const {
+  bool CanHandle(std::string_view s) const {
     return (!HasPrefix(s, "/") && !HasPrefix(s, ".repo") &&
             !HasPrefix(s, ".git"));
   }
 
-  const DirentNode* FindDir(StringPiece d, bool* should_fallback) {
+  const DirentNode* FindDir(std::string_view d, bool* should_fallback) {
     const DirentNode* r = root_->FindDir(d);
     if (!r) {
       *should_fallback = Exists(d);

@@ -29,6 +29,8 @@
 #include "log.h"
 #include "strutil.h"
 
+using namespace std;
+
 vector<std::string> LoadVecString(FILE* fp) {
   int count = LoadInt(fp);
   if (count < 0) {

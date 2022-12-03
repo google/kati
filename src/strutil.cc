@@ -53,11 +53,11 @@ WordScanner::Iterator& WordScanner::Iterator::operator++() {
   return *this;
 }
 
-StringPiece WordScanner::Iterator::operator*() const {
+std::string_view WordScanner::Iterator::operator*() const {
   return in->substr(s, i - s);
 }
 
-WordScanner::WordScanner(StringPiece in) : in_(in) {}
+WordScanner::WordScanner(std::string_view in) : in_(in) {}
 
 WordScanner::Iterator WordScanner::begin() const {
   Iterator iter;
@@ -76,8 +76,8 @@ WordScanner::Iterator WordScanner::end() const {
   return iter;
 }
 
-void WordScanner::Split(std::vector<StringPiece>* o) {
-  for (StringPiece t : *this)
+void WordScanner::Split(std::vector<std::string_view>* o) {
+  for (std::string_view t : *this)
     o->push_back(t);
 }
 
@@ -91,12 +91,13 @@ void WordWriter::MaybeAddWhitespace() {
   }
 }
 
-void WordWriter::Write(StringPiece s) {
+void WordWriter::Write(std::string_view s) {
   MaybeAddWhitespace();
   AppendString(s, out_);
 }
 
-ScopedTerminator::ScopedTerminator(StringPiece s) : s_(s), c_(s[s.size()]) {
+ScopedTerminator::ScopedTerminator(std::string_view s)
+    : s_(s), c_(s[s.size()]) {
   const_cast<char*>(s_.data())[s_.size()] = '\0';
 }
 
@@ -104,21 +105,21 @@ ScopedTerminator::~ScopedTerminator() {
   const_cast<char*>(s_.data())[s_.size()] = c_;
 }
 
-void AppendString(StringPiece str, std::string* out) {
+void AppendString(std::string_view str, std::string* out) {
   out->append(str.begin(), str.end());
 }
 
-bool HasPrefix(StringPiece str, StringPiece prefix) {
+bool HasPrefix(std::string_view str, std::string_view prefix) {
   ssize_t size_diff = str.size() - prefix.size();
   return size_diff >= 0 && str.substr(0, prefix.size()) == prefix;
 }
 
-bool HasSuffix(StringPiece str, StringPiece suffix) {
+bool HasSuffix(std::string_view str, std::string_view suffix) {
   ssize_t size_diff = str.size() - suffix.size();
   return size_diff >= 0 && str.substr(size_diff) == suffix;
 }
 
-bool HasWord(StringPiece str, StringPiece w) {
+bool HasWord(std::string_view str, std::string_view w) {
   size_t found = str.find(w);
   if (found == std::string::npos)
     return false;
@@ -130,41 +131,42 @@ bool HasWord(StringPiece str, StringPiece w) {
   return true;
 }
 
-StringPiece TrimPrefix(StringPiece str, StringPiece prefix) {
+std::string_view TrimPrefix(std::string_view str, std::string_view prefix) {
   ssize_t size_diff = str.size() - prefix.size();
   if (size_diff < 0 || str.substr(0, prefix.size()) != prefix)
     return str;
   return str.substr(prefix.size());
 }
 
-StringPiece TrimSuffix(StringPiece str, StringPiece suffix) {
+std::string_view TrimSuffix(std::string_view str, std::string_view suffix) {
   ssize_t size_diff = str.size() - suffix.size();
   if (size_diff < 0 || str.substr(size_diff) != suffix)
     return str;
   return str.substr(0, size_diff);
 }
 
-Pattern::Pattern(StringPiece pat) : pat_(pat), percent_index_(pat.find('%')) {}
+Pattern::Pattern(std::string_view pat)
+    : pat_(pat), percent_index_(pat.find('%')) {}
 
-bool Pattern::Match(StringPiece str) const {
+bool Pattern::Match(std::string_view str) const {
   if (percent_index_ == std::string::npos)
     return str == pat_;
   return MatchImpl(str);
 }
 
-bool Pattern::MatchImpl(StringPiece str) const {
+bool Pattern::MatchImpl(std::string_view str) const {
   return (HasPrefix(str, pat_.substr(0, percent_index_)) &&
           HasSuffix(str, pat_.substr(percent_index_ + 1)));
 }
 
-StringPiece Pattern::Stem(StringPiece str) const {
+std::string_view Pattern::Stem(std::string_view str) const {
   if (!Match(str))
     return "";
   return str.substr(percent_index_, str.size() - pat_.size() + 1);
 }
 
-void Pattern::AppendSubst(StringPiece str,
-                          StringPiece subst,
+void Pattern::AppendSubst(std::string_view str,
+                          std::string_view subst,
                           std::string* out) const {
   if (percent_index_ == std::string::npos) {
     if (str == pat_) {
@@ -192,15 +194,15 @@ void Pattern::AppendSubst(StringPiece str,
   AppendString(str, out);
 }
 
-void Pattern::AppendSubstRef(StringPiece str,
-                             StringPiece subst,
+void Pattern::AppendSubstRef(std::string_view str,
+                             std::string_view subst,
                              std::string* out) const {
   if (percent_index_ != std::string::npos &&
       subst.find('%') != std::string::npos) {
     AppendSubst(str, subst, out);
     return;
   }
-  StringPiece s = TrimSuffix(str, pat_);
+  std::string_view s = TrimSuffix(str, pat_);
   out->append(s.begin(), s.end());
   out->append(subst.begin(), subst.end());
 }
@@ -217,12 +219,12 @@ std::string NoLineBreak(const std::string& s) {
   return r;
 }
 
-StringPiece TrimLeftSpace(StringPiece s) {
+std::string_view TrimLeftSpace(std::string_view s) {
   size_t i = 0;
   for (; i < s.size(); i++) {
     if (isSpace(s[i]))
       continue;
-    char n = s.get(i + 1);
+    char n = i + 1 < s.size() ? s[i + 1] : 0;
     if (s[i] == '\\' && (n == '\r' || n == '\n')) {
       i++;
       continue;
@@ -232,12 +234,13 @@ StringPiece TrimLeftSpace(StringPiece s) {
   return s.substr(i, s.size() - i);
 }
 
-StringPiece TrimRightSpace(StringPiece s) {
+std::string_view TrimRightSpace(std::string_view s) {
   size_t i = 0;
   for (; i < s.size(); i++) {
     char c = s[s.size() - 1 - i];
     if (isSpace(c)) {
-      if ((c == '\r' || c == '\n') && s.get(s.size() - 2 - i) == '\\')
+      if ((c == '\r' || c == '\n') && s.size() >= i + 2 &&
+          s[s.size() - 2 - i] == '\\')
         i++;
       continue;
     }
@@ -246,34 +249,34 @@ StringPiece TrimRightSpace(StringPiece s) {
   return s.substr(0, s.size() - i);
 }
 
-StringPiece TrimSpace(StringPiece s) {
+std::string_view TrimSpace(std::string_view s) {
   return TrimRightSpace(TrimLeftSpace(s));
 }
 
-StringPiece Dirname(StringPiece s) {
+std::string_view Dirname(std::string_view s) {
   size_t found = s.rfind('/');
   if (found == std::string::npos)
-    return StringPiece(".");
+    return std::string_view(".");
   if (found == 0)
-    return StringPiece("");
+    return std::string_view("");
   return s.substr(0, found);
 }
 
-StringPiece Basename(StringPiece s) {
+std::string_view Basename(std::string_view s) {
   size_t found = s.rfind('/');
   if (found == std::string::npos || found == 0)
     return s;
   return s.substr(found + 1);
 }
 
-StringPiece GetExt(StringPiece s) {
+std::string_view GetExt(std::string_view s) {
   size_t found = s.rfind('.');
   if (found == std::string::npos)
-    return StringPiece("");
+    return std::string_view("");
   return s.substr(found);
 }
 
-StringPiece StripExt(StringPiece s) {
+std::string_view StripExt(std::string_view s) {
   size_t slash_index = s.rfind('/');
   size_t found = s.rfind('.');
   if (found == std::string::npos ||
@@ -298,7 +301,8 @@ void NormalizePath(std::string* o) {
       continue;
     }
 
-    StringPiece prev_dir = StringPiece(o->data() + prev_start, j - prev_start);
+    std::string_view prev_dir =
+        std::string_view(o->data() + prev_start, j - prev_start);
     if (prev_dir == ".") {
       j--;
     } else if (prev_dir == ".." && j != 2 /* .. */) {
@@ -314,7 +318,7 @@ void NormalizePath(std::string* o) {
         } else {
           j++;
         }
-        if (StringPiece(o->data() + j, 3) == "../") {
+        if (std::string_view(o->data() + j, 3) == "../") {
           j = orig_j;
           (*o)[j] = c;
           j++;
@@ -333,8 +337,8 @@ void NormalizePath(std::string* o) {
   o->resize(j);
 }
 
-void AbsPath(StringPiece s, std::string* o) {
-  if (s.get(0) == '/') {
+void AbsPath(std::string_view s, std::string* o) {
+  if (!s.empty() && s.front() == '/') {
     o->clear();
   } else {
     char buf[PATH_MAX];
@@ -352,7 +356,7 @@ void AbsPath(StringPiece s, std::string* o) {
 }
 
 template <typename Cond>
-size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
+size_t FindOutsideParenImpl(std::string_view s, Cond cond) {
   bool prev_backslash = false;
   std::stack<char> paren_stack;
   for (size_t i = 0; i < s.size(); i++) {
@@ -380,21 +384,21 @@ size_t FindOutsideParenImpl(StringPiece s, Cond cond) {
   return std::string::npos;
 }
 
-size_t FindOutsideParen(StringPiece s, char c) {
+size_t FindOutsideParen(std::string_view s, char c) {
   return FindOutsideParenImpl(s, [&c](char d) { return c == d; });
 }
 
-size_t FindTwoOutsideParen(StringPiece s, char c1, char c2) {
+size_t FindTwoOutsideParen(std::string_view s, char c1, char c2) {
   return FindOutsideParenImpl(
       s, [&c1, &c2](char d) { return d == c1 || d == c2; });
 }
 
-size_t FindThreeOutsideParen(StringPiece s, char c1, char c2, char c3) {
+size_t FindThreeOutsideParen(std::string_view s, char c1, char c2, char c3) {
   return FindOutsideParenImpl(
       s, [&c1, &c2, &c3](char d) { return d == c1 || d == c2 || d == c3; });
 }
 
-size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
+size_t FindEndOfLine(std::string_view s, size_t e, size_t* lf_cnt) {
   while (e < s.size()) {
     e += SkipUntil(s.data() + e, s.size() - e, "\n\\");  // skip to line end
     if (e >= s.size()) {
@@ -424,7 +428,7 @@ size_t FindEndOfLine(StringPiece s, size_t e, size_t* lf_cnt) {
   return e;
 }
 
-StringPiece TrimLeadingCurdir(StringPiece s) {
+std::string_view TrimLeadingCurdir(std::string_view s) {
   while (s.substr(0, 2) == "./")
     s = s.substr(2);
   return s;
@@ -439,22 +443,22 @@ void FormatForCommandSubstitution(std::string* s) {
   }
 }
 
-std::string SortWordsInString(StringPiece s) {
+std::string SortWordsInString(std::string_view s) {
   std::vector<std::string> toks;
-  for (StringPiece tok : WordScanner(s)) {
-    toks.push_back(tok.as_string());
+  for (std::string_view tok : WordScanner(s)) {
+    toks.push_back(std::string(tok));
   }
   sort(toks.begin(), toks.end());
   return JoinStrings(toks, " ");
 }
 
-std::string ConcatDir(StringPiece b, StringPiece n) {
+std::string ConcatDir(std::string_view b, std::string_view n) {
   std::string r;
   if (!b.empty() && (n.empty() || n[0] != '/')) {
-    b.AppendToString(&r);
+    r.append(b);
     r += '/';
   }
-  n.AppendToString(&r);
+  r.append(n);
   NormalizePath(&r);
   return r;
 }
@@ -489,7 +493,7 @@ void EscapeShell(std::string* s) {
 
   std::string r;
   for (; i < s->size();) {
-    StringPiece(*s).substr(prev, i - prev).AppendToString(&r);
+    r.append(std::string_view(*s).substr(prev, i - prev));
     char c = (*s)[i];
     r += '\\';
     if (c == '$') {
@@ -503,11 +507,11 @@ void EscapeShell(std::string* s) {
     prev = i;
     i += SkipUntil(s->c_str() + i, s->size() - i, delimiters);
   }
-  StringPiece(*s).substr(prev).AppendToString(&r);
+  r.append(std::string_view(*s).substr(prev));
   s->swap(r);
 }
 
-bool IsInteger(StringPiece s) {
+bool IsInteger(std::string_view s) {
   if (s.size() == 0) {
     return false;
   }
