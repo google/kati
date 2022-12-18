@@ -122,6 +122,7 @@ class Executor {
       }
     }
 
+    output_ts = GetTimestamp(n.output.c_str());
     done_[n.output] = output_ts;
     return output_ts;
   }
