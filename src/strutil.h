@@ -78,8 +78,6 @@ inline std::string JoinStrings(std::vector<String> v, const char* sep) {
   return r;
 }
 
-void AppendString(std::string_view str, std::string* out);
-
 bool HasPrefix(std::string_view str, std::string_view prefix);
 
 bool HasSuffix(std::string_view str, std::string_view suffix);

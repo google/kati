@@ -93,7 +93,7 @@ void WordWriter::MaybeAddWhitespace() {
 
 void WordWriter::Write(std::string_view s) {
   MaybeAddWhitespace();
-  AppendString(s, out_);
+  out_->append(s);
 }
 
 ScopedTerminator::ScopedTerminator(std::string_view s)
@@ -103,10 +103,6 @@ ScopedTerminator::ScopedTerminator(std::string_view s)
 
 ScopedTerminator::~ScopedTerminator() {
   const_cast<char*>(s_.data())[s_.size()] = c_;
-}
-
-void AppendString(std::string_view str, std::string* out) {
-  out->append(str.begin(), str.end());
 }
 
 bool HasPrefix(std::string_view str, std::string_view prefix) {
@@ -170,10 +166,10 @@ void Pattern::AppendSubst(std::string_view str,
                           std::string* out) const {
   if (percent_index_ == std::string::npos) {
     if (str == pat_) {
-      AppendString(subst, out);
+      out->append(subst);
       return;
     } else {
-      AppendString(str, out);
+      out->append(str);
       return;
     }
   }
@@ -181,17 +177,16 @@ void Pattern::AppendSubst(std::string_view str,
   if (MatchImpl(str)) {
     size_t subst_percent_index = subst.find('%');
     if (subst_percent_index == std::string::npos) {
-      AppendString(subst, out);
+      out->append(subst);
       return;
     } else {
-      AppendString(subst.substr(0, subst_percent_index), out);
-      AppendString(str.substr(percent_index_, str.size() - pat_.size() + 1),
-                   out);
-      AppendString(subst.substr(subst_percent_index + 1), out);
+      out->append(subst.substr(0, subst_percent_index));
+      out->append(str.substr(percent_index_, str.size() - pat_.size() + 1));
+      out->append(subst.substr(subst_percent_index + 1));
       return;
     }
   }
-  AppendString(str, out);
+  out->append(str);
 }
 
 void Pattern::AppendSubstRef(std::string_view str,
@@ -351,7 +346,7 @@ void AbsPath(std::string_view s, std::string* o) {
     *o = buf;
     *o += '/';
   }
-  AppendString(s, o);
+  o->append(s);
   NormalizePath(o);
 }
 
