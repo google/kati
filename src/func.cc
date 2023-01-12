@@ -134,11 +134,11 @@ void SubstFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
     size_t found = str.find(pat, index);
     if (found == std::string::npos)
       break;
-    AppendString(std::string_view(str).substr(index, found - index), s);
-    AppendString(repl, s);
+    s->append(std::string_view(str).substr(index, found - index));
+    s->append(repl);
     index = found + pat.size();
   }
-  AppendString(std::string_view(str).substr(index), s);
+  s->append(std::string_view(str).substr(index));
 }
 
 void FindstringFunc(const std::vector<Value*>& args,
@@ -147,7 +147,7 @@ void FindstringFunc(const std::vector<Value*>& args,
   const std::string&& find = args[0]->Eval(ev);
   const std::string&& in = args[1]->Eval(ev);
   if (in.find(find) != std::string::npos)
-    AppendString(find, s);
+    s->append(find);
 }
 
 void FilterFunc(const std::vector<Value*>& args,
@@ -238,7 +238,7 @@ void WordFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   for (std::string_view tok : WordScanner(text)) {
     n--;
     if (n == 0) {
-      AppendString(tok, s);
+      s->append(tok);
       break;
     }
   }
@@ -297,7 +297,7 @@ void FirstwordFunc(const std::vector<Value*>& args,
   WordScanner ws(text);
   auto begin = ws.begin();
   if (begin != ws.end()) {
-    AppendString(*begin, s);
+    s->append(*begin);
   }
 }
 
@@ -309,7 +309,7 @@ void LastwordFunc(const std::vector<Value*>& args,
   for (std::string_view tok : WordScanner(text)) {
     last = tok;
   }
-  AppendString(last, s);
+  s->append(last);
 }
 
 void JoinFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
@@ -322,8 +322,8 @@ void JoinFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   for (iter1 = ws1.begin(), iter2 = ws2.begin();
        iter1 != ws1.end() && iter2 != ws2.end(); ++iter1, ++iter2) {
     ww.Write(*iter1);
-    // Use |AppendString| not to append extra ' '.
-    AppendString(*iter2, s);
+    // Use append to not append extra ' '.
+    s->append(*iter2);
   }
   for (; iter1 != ws1.end(); ++iter1)
     ww.Write(*iter1);
@@ -413,7 +413,7 @@ void AddprefixFunc(const std::vector<Value*>& args,
   WordWriter ww(s);
   for (std::string_view tok : WordScanner(text)) {
     ww.Write(pre);
-    AppendString(tok, s);
+    s->append(tok);
   }
 }
 
@@ -486,7 +486,7 @@ void OrFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
 void ValueFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
   const std::string&& var_name = args[0]->Eval(ev);
   Var* var = ev->LookupVar(Intern(var_name));
-  AppendString(std::string(var->String()), s);
+  s->append(std::string(var->String()));
 }
 
 void EvalFunc(const std::vector<Value*>& args, Evaluator* ev, std::string*) {
@@ -1003,8 +1003,8 @@ void VariableLocationFunc(const std::vector<Value*>& args,
     Var* v = ev->PeekVar(sym);
     const Loc& loc = v->Location();
     ww.Write(loc.filename ? loc.filename : "<unknown>");
-    AppendString(":", s);
-    AppendString(std::to_string(loc.lineno > 0 ? loc.lineno : 0), s);
+    s->append(":");
+    s->append(std::to_string(loc.lineno > 0 ? loc.lineno : 0));
   }
 }
 

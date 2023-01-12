@@ -39,10 +39,9 @@ namespace {
 static std::vector<std::unique_ptr<DepNode>> g_dep_node_pool;
 
 static Symbol ReplaceSuffix(Symbol s, Symbol newsuf) {
-  std::string r;
-  AppendString(StripExt(s.str()), &r);
+  std::string r{StripExt(s.str())};
   r += '.';
-  AppendString(newsuf.str(), &r);
+  r += newsuf.str();
   return Intern(r);
 }
 
