@@ -296,10 +296,10 @@ class Parser {
   }
 
   void EnterIf(IfStmt* stmt) {
-    IfState* st = new IfState();
-    st->stmt = stmt;
-    st->is_in_else = false;
-    st->num_nest = num_if_nest_;
+    IfState st;
+    st.stmt = stmt;
+    st.is_in_else = false;
+    st.num_nest = num_if_nest_;
     if_stack_.push(st);
     out_stmts_ = &stmt->true_stmts;
   }
@@ -376,19 +376,19 @@ class Parser {
   void ParseElse(std::string_view line, std::string_view) {
     if (!CheckIfStack("else"))
       return;
-    IfState* st = if_stack_.top();
-    if (st->is_in_else) {
+    IfState& st = if_stack_.top();
+    if (st.is_in_else) {
       Error("*** only one `else' per conditional.");
       return;
     }
-    st->is_in_else = true;
-    out_stmts_ = &st->stmt->false_stmts;
+    st.is_in_else = true;
+    out_stmts_ = &st.stmt->false_stmts;
 
     std::string_view next_if = TrimLeftSpace(line);
     if (next_if.empty())
       return;
 
-    num_if_nest_ = st->num_nest + 1;
+    num_if_nest_ = st.num_nest + 1;
     if (!HandleDirective(next_if, else_if_directives_)) {
       WARN_LOC(loc_, "extraneous text after `else' directive");
     }
@@ -402,19 +402,18 @@ class Parser {
       Error("extraneous text after `endif` directive");
       return;
     }
-    IfState st = *if_stack_.top();
-    for (int t = 0; t <= st.num_nest; t++) {
-      delete if_stack_.top();
+    int num_nest = if_stack_.top().num_nest;
+    for (int i = 0; i <= num_nest; i++) {
       if_stack_.pop();
-      if (if_stack_.empty()) {
-        out_stmts_ = stmts_;
-      } else {
-        IfState* st = if_stack_.top();
-        if (st->is_in_else)
-          out_stmts_ = &st->stmt->false_stmts;
-        else
-          out_stmts_ = &st->stmt->true_stmts;
-      }
+    }
+    if (if_stack_.empty()) {
+      out_stmts_ = stmts_;
+    } else {
+      const IfState& st = if_stack_.top();
+      if (st.is_in_else)
+        out_stmts_ = &st.stmt->false_stmts;
+      else
+        out_stmts_ = &st.stmt->true_stmts;
     }
   }
 
@@ -512,7 +511,7 @@ class Parser {
   AssignDirective current_directive_;
 
   int num_if_nest_ = 0;
-  std::stack<IfState*> if_stack_;
+  std::stack<IfState> if_stack_;
 
   Loc loc_;
   bool fixed_lineno_;
