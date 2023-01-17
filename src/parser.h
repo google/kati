@@ -25,9 +25,9 @@ class Makefile;
 
 void Parse(Makefile* mk);
 void Parse(std::string_view buf, const Loc& loc, std::vector<Stmt*>* out_asts);
-void ParseNotAfterRule(std::string_view buf,
-                       const Loc& loc,
-                       std::vector<Stmt*>* out_asts);
+void ParseNoStats(std::string_view buf,
+                  const Loc& loc,
+                  std::vector<Stmt*>* out_asts);
 
 void ParseAssignStatement(std::string_view line,
                           size_t sep,

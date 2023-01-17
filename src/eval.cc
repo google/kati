@@ -553,7 +553,7 @@ void Evaluator::EvalCommand(const CommandStmt* stmt) {
 
   if (!last_rule_) {
     std::vector<Stmt*> stmts;
-    ParseNotAfterRule(stmt->orig, stmt->loc(), &stmts);
+    ParseNoStats(stmt->orig, stmt->loc(), &stmts);
     for (Stmt* a : stmts)
       a->Eval(this);
     return;
