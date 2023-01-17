@@ -28,12 +28,6 @@
 #include "stmt.h"
 #include "strutil.h"
 
-enum struct ParserState {
-  NOT_AFTER_RULE = 0,
-  AFTER_RULE,
-  MAYBE_AFTER_RULE,
-};
-
 class Parser {
   struct IfState {
     IfStmt* stmt;
@@ -48,20 +42,15 @@ class Parser {
  public:
   Parser(std::string_view buf, const char* filename, std::vector<Stmt*>* stmts)
       : buf_(buf),
-        state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
         out_stmts_(stmts),
-        num_define_nest_(0),
-        num_if_nest_(0),
         loc_(filename, 0),
         fixed_lineno_(false) {}
 
   Parser(std::string_view buf, const Loc& loc, std::vector<Stmt*>* stmts)
       : buf_(buf),
-        state_(ParserState::NOT_AFTER_RULE),
         stmts_(stmts),
         out_stmts_(stmts),
-        num_if_nest_(0),
         loc_(loc),
         fixed_lineno_(true) {}
 
@@ -92,8 +81,6 @@ class Parser {
       ERROR_LOC(Loc(loc_.filename, define_start_line_),
                 "*** missing `endef', unterminated `define'.");
   }
-
-  void set_state(ParserState st) { state_ = st; }
 
   static std::vector<ParseErrorStmt*> parse_errors;
 
@@ -127,7 +114,7 @@ class Parser {
 
     current_directive_ = AssignDirective::NONE;
 
-    if (line[0] == '\t' && state_ != ParserState::NOT_AFTER_RULE) {
+    if (line[0] == '\t' && after_rule_) {
       CommandStmt* stmt = new CommandStmt();
       stmt->set_loc(loc_);
       Loc mutable_loc(loc_);
@@ -184,7 +171,6 @@ class Parser {
       return;
     }
 
-    const bool is_rule = sep != std::string::npos && line[sep] == ':';
     RuleStmt* rule_stmt = new RuleStmt();
     rule_stmt->set_loc(loc_);
 
@@ -216,7 +202,7 @@ class Parser {
       rule_stmt->rhs = NULL;
     }
     out_stmts_->push_back(rule_stmt);
-    state_ = is_rule ? ParserState::AFTER_RULE : ParserState::MAYBE_AFTER_RULE;
+    after_rule_ = true;
   }
 
   void ParseAssign(std::string_view line, size_t separator_pos) {
@@ -249,7 +235,7 @@ class Parser {
     stmt->directive = current_directive_;
     stmt->is_final = is_final;
     out_stmts_->push_back(stmt);
-    state_ = ParserState::NOT_AFTER_RULE;
+    after_rule_ = false;
   }
 
   void ParseInclude(std::string_view line, std::string_view directive) {
@@ -259,7 +245,7 @@ class Parser {
     stmt->expr = ParseExpr(&mutable_loc, line);
     stmt->should_exist = directive[0] == 'i';
     out_stmts_->push_back(stmt);
-    state_ = ParserState::NOT_AFTER_RULE;
+    after_rule_ = false;
   }
 
   void ParseDefine(std::string_view line, std::string_view) {
@@ -271,7 +257,7 @@ class Parser {
     num_define_nest_ = 1;
     define_start_ = 0;
     define_start_line_ = loc_.lineno;
-    state_ = ParserState::NOT_AFTER_RULE;
+    after_rule_ = false;
   }
 
   void ParseInsideDefine(std::string_view line) {
@@ -509,20 +495,23 @@ class Parser {
 
   std::string_view buf_;
   size_t l_;
-  ParserState state_;
+  // Represents if we just parsed a rule or an expression.
+  // Expressions are included because they can expand into
+  // a rule, see testcase/rule_in_var.mk.
+  bool after_rule_ = false;
 
   std::vector<Stmt*>* stmts_;
   std::vector<Stmt*>* out_stmts_;
 
   std::string_view define_name_;
-  int num_define_nest_;
+  int num_define_nest_ = 0;
   size_t define_start_;
   int define_start_line_;
 
   std::string_view orig_line_with_directives_;
   AssignDirective current_directive_;
 
-  int num_if_nest_;
+  int num_if_nest_ = 0;
   std::stack<IfState*> if_stack_;
 
   Loc loc_;
@@ -537,8 +526,7 @@ class Parser {
 
 void Parse(Makefile* mk) {
   COLLECT_STATS("parse file time");
-  Parser parser(std::string_view(mk->buf()), mk->filename().c_str(),
-                mk->mutable_stmts());
+  Parser parser(mk->buf(), mk->filename().c_str(), mk->mutable_stmts());
   parser.Parse();
 }
 
@@ -546,15 +534,13 @@ void Parse(std::string_view buf,
            const Loc& loc,
            std::vector<Stmt*>* out_stmts) {
   COLLECT_STATS("parse eval time");
-  Parser parser(buf, loc, out_stmts);
-  parser.Parse();
+  ParseNoStats(buf, loc, out_stmts);
 }
 
-void ParseNotAfterRule(std::string_view buf,
-                       const Loc& loc,
-                       std::vector<Stmt*>* out_stmts) {
+void ParseNoStats(std::string_view buf,
+                  const Loc& loc,
+                  std::vector<Stmt*>* out_stmts) {
   Parser parser(buf, loc, out_stmts);
-  parser.set_state(ParserState::NOT_AFTER_RULE);
   parser.Parse();
 }
 
