@@ -202,7 +202,8 @@ class StampChecker {
     int num_envs = LOAD_INT(fp);
     for (int i = 0; i < num_envs; i++) {
       LOAD_STRING(fp, &s);
-      std::string_view val(getenv(s.c_str()));
+      const char* val_c_str = getenv(s.c_str());
+      std::string_view val(val_c_str ? val_c_str : "");
       LOAD_STRING(fp, &s2);
       if (val != s2) {
         if (g_flags.dump_kati_stamp) {
