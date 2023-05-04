@@ -64,20 +64,16 @@ cc_library_host_static {
 cc_binary_host {
     name: "ckati",
     defaults: ["ckati_defaults"],
-    srcs: ["main.cc"],
+    srcs: [
+        "main.cc",
+        "regen_dump.cc",
+    ],
     whole_static_libs: ["libckati"],
     target: {
         linux_glibc: {
-            shared_libs: ["libjemalloc"],
+            shared_libs: ["libjemalloc5"],
         },
     },
-}
-
-cc_binary_host {
-    name: "ckati_stamp_dump",
-    defaults: ["ckati_defaults"],
-    srcs: ["regen_dump.cc"],
-    static_libs: ["libckati"],
 }
 
 cc_test_host {
@@ -87,7 +83,6 @@ cc_test_host {
     srcs: [
         "find_test.cc",
         "ninja_test.cc",
-        "strutil_bench.cc",
         "strutil_test.cc",
     ],
     gtest: false,
@@ -99,6 +94,15 @@ cc_benchmark_host {
     defaults: ["ckati_defaults"],
     srcs: [
         "fileutil_bench.cc",
+    ],
+    static_libs: ["libckati"],
+}
+
+cc_test_host {
+    name: "ckati_strutil_bench",
+    defaults: ["ckati_defaults"],
+    srcs: [
+        "strutil_bench.cc",
     ],
     static_libs: ["libckati"],
 }

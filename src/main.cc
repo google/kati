@@ -37,6 +37,7 @@
 #include "ninja.h"
 #include "parser.h"
 #include "regen.h"
+#include "regen_dump.h"
 #include "stats.h"
 #include "stmt.h"
 #include "stringprintf.h"
@@ -354,9 +355,17 @@ static void HandleRealpath(int argc, char** argv) {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc >= 2 && !strcmp(argv[1], "--realpath")) {
-    HandleRealpath(argc - 2, argv + 2);
-    return 0;
+  if (argc >= 2) {
+    if (!strcmp(argv[1], "--realpath")) {
+      HandleRealpath(argc - 2, argv + 2);
+      return 0;
+    } else if (!strcmp(argv[1], "--dump_stamp_tool")) {
+      // Unfortunately, this can easily be confused with --dump_kati_stamp,
+      // which prints debug info about the stamp while executing a normal kati
+      // run. This tool flag only dumps information, and doesn't run the rest of
+      // kati.
+      return stamp_dump_main(argc, argv);
+    }
   }
   std::string orig_args;
   for (int i = 0; i < argc; i++) {
