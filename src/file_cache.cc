@@ -19,30 +19,28 @@
 #include "file.h"
 #include "file_cache.h"
 
-MakefileCacheManager::MakefileCacheManager() = default;
-
-MakefileCacheManager::~MakefileCacheManager() = default;
-
-class MakefileCacheManagerImpl : public MakefileCacheManager {
- public:
-  virtual const Makefile& ReadMakefile(const std::string& filename) override {
-    auto iter = cache_.find(filename);
-    if (iter != cache_.end()) {
-      return iter->second;
-    }
-    return (cache_.emplace(filename, filename).first)->second;
+const Makefile& MakefileCacheManager::ReadMakefile(
+    const std::string& filename) {
+  auto iter = cache_.find(filename);
+  if (iter != cache_.end()) {
+    return iter->second;
   }
+  return (cache_.emplace(filename, filename).first)->second;
+}
 
-  virtual void GetAllFilenames(std::unordered_set<std::string>* out) override {
-    for (const auto& p : cache_)
-      out->insert(p.first);
-  }
+void MakefileCacheManager::GetAllFilenames(
+    std::unordered_set<std::string>* out) {
+  for (const auto& p : cache_)
+    out->insert(p.first);
+  for (const auto& f : extra_file_deps_)
+    out->insert(f);
+}
 
- private:
-  std::unordered_map<std::string, Makefile> cache_;
-};
+void MakefileCacheManager::AddExtraFileDep(std::string_view dep) {
+  extra_file_deps_.emplace(dep);
+}
 
 MakefileCacheManager& MakefileCacheManager::Get() {
-  static MakefileCacheManagerImpl instance;
+  static MakefileCacheManager instance;
   return instance;
 }

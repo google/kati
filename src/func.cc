@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include "eval.h"
+#include "file_cache.h"
 #include "fileutil.h"
 #include "find.h"
 #include "loc.h"
@@ -1008,6 +1009,22 @@ void VariableLocationFunc(const std::vector<Value*>& args,
   }
 }
 
+void ExtraFileDepsFunc(const std::vector<Value*>& args,
+                       Evaluator* ev,
+                       std::string*) {
+  for (auto arg : args) {
+    std::string files = arg->Eval(ev);
+    for (std::string_view file : WordScanner(files)) {
+      if (!Exists(file)) {
+        std::string errorMsg = "*** file does not exist: ";
+        errorMsg += file;
+        ev->Error(errorMsg);
+      }
+      MakefileCacheManager::Get().AddExtraFileDep(file);
+    }
+  }
+}
+
 #define ENTRY(name, args...) \
   {                          \
     name, { name, args }     \
@@ -1066,6 +1083,8 @@ static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {
 
     ENTRY("KATI_profile_makefile", &ProfileFunc, 0, 0, false, false),
     ENTRY("KATI_variable_location", &VariableLocationFunc, 1, 1, false, false),
+
+    ENTRY("KATI_extra_file_deps", &ExtraFileDepsFunc, 0, 0, false, false),
 };
 
 }  // namespace
