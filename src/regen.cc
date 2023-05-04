@@ -161,7 +161,9 @@ class StampChecker {
     for (int i = 0; i < num_files; i++) {
       LOAD_STRING(fp, &s);
       double ts = GetTimestamp(s);
-      if (gen_time < ts) {
+      // GetTimestamp returns < 0 when there's an error reading the file, like
+      // when its been removed.
+      if (gen_time < ts || ts < 0) {
         if (g_flags.regen_ignoring_kati_binary) {
           if (s == GetExecutablePath()) {
             fprintf(stderr, "%s was modified, ignored.\n", s.c_str());

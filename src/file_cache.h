@@ -22,15 +22,18 @@ class Makefile;
 
 class MakefileCacheManager {
  public:
-  virtual ~MakefileCacheManager();
-
-  virtual const Makefile& ReadMakefile(const std::string& filename) = 0;
-  virtual void GetAllFilenames(std::unordered_set<std::string>* out) = 0;
+  const Makefile& ReadMakefile(const std::string& filename);
+  void GetAllFilenames(std::unordered_set<std::string>* out);
+  void AddExtraFileDep(std::string_view dep);
 
   static MakefileCacheManager& Get();
 
- protected:
-  MakefileCacheManager();
+ private:
+  MakefileCacheManager() = default;
+  MakefileCacheManager(const MakefileCacheManager&) = delete;
+  MakefileCacheManager(MakefileCacheManager&&) = delete;
+  std::unordered_map<std::string, Makefile> cache_;
+  std::unordered_set<std::string> extra_file_deps_;
 };
 
 #endif  // FILE_CACHE_H_
