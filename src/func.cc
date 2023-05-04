@@ -609,8 +609,8 @@ void ShellFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
     return;
   }
 
-  const std::string&& shell = ev->GetShell();
-  const std::string&& shellflag = ev->GetShellFlag();
+  std::string shell = ev->GetShell();
+  std::string shellflag = ev->GetShellFlag();
 
   std::string out;
   FindCommand* fc = NULL;
@@ -626,6 +626,32 @@ void ShellFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
     cr->loc = ev->loc();
     g_command_results.push_back(cr);
   }
+  *s += out;
+  ShellStatusVar::SetValue(returnCode);
+}
+
+void ShellFuncNoRerun(const std::vector<Value*>& args,
+                      Evaluator* ev,
+                      std::string* s) {
+  std::string cmd = args[0]->Eval(ev);
+  if (ev->avoid_io() && !HasNoIoInShellScript(cmd)) {
+    // In the regular ShellFunc, if it sees a $(shell) inside of a rule when in
+    // ninja mode, the shell command will just be written to the ninja file
+    // instead of run directly by kati. So it already has the benefits of not
+    // rerunning every time kati is invoked.
+    ERROR_LOC(ev->loc(),
+              "KATI_shell_no_rerun provides no benefit over regular $(shell) "
+              "inside of a rule.",
+              cmd.c_str());
+    return;
+  }
+
+  std::string shell = ev->GetShell();
+  std::string shellflag = ev->GetShellFlag();
+
+  std::string out;
+  FindCommand* fc = NULL;
+  int returnCode = ShellFuncImpl(shell, shellflag, cmd, ev->loc(), &out, &fc);
   *s += out;
   ShellStatusVar::SetValue(returnCode);
 }
@@ -1085,6 +1111,7 @@ static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {
     ENTRY("KATI_variable_location", &VariableLocationFunc, 1, 1, false, false),
 
     ENTRY("KATI_extra_file_deps", &ExtraFileDepsFunc, 0, 0, false, false),
+    ENTRY("KATI_shell_no_rerun", &ShellFuncNoRerun, 1, 1, false, false),
 };
 
 }  // namespace
