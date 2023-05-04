@@ -40,6 +40,7 @@ KATI_CXX_SRCS := \
 	ninja.cc \
 	parser.cc \
 	regen.cc \
+	regen_dump.cc \
 	rule.cc \
 	stats.cc \
 	stmt.cc \

@@ -29,9 +29,7 @@
 #include "log.h"
 #include "strutil.h"
 
-using namespace std;
-
-vector<std::string> LoadVecString(FILE* fp) {
+std::vector<std::string> LoadVecString(FILE* fp) {
   int count = LoadInt(fp);
   if (count < 0) {
     ERROR("Incomplete stamp file");
@@ -45,21 +43,22 @@ vector<std::string> LoadVecString(FILE* fp) {
   return ret;
 }
 
-int main(int argc, char* argv[]) {
+int stamp_dump_main(int argc, char* argv[]) {
   bool dump_files = false;
   bool dump_env = false;
   bool dump_globs = false;
   bool dump_cmds = false;
   bool dump_finds = false;
 
-  if (argc == 1) {
-    fprintf(stderr,
-            "Usage: ckati_stamp_dump [--env] [--files] [--globs] [--cmds] "
-            "[--finds] <stamp>\n");
+  if (argc <= 2) {
+    fprintf(
+        stderr,
+        "Usage: ckati --dump_stamp_tool [--env] [--files] [--globs] [--cmds] "
+        "[--finds] <stamp>\n");
     return 1;
   }
 
-  for (int i = 1; i < argc - 1; i++) {
+  for (int i = 2; i < argc - 1; i++) {
     const char* arg = argv[i];
     if (!strcmp(arg, "--env")) {
       dump_env = true;
@@ -72,7 +71,7 @@ int main(int argc, char* argv[]) {
     } else if (!strcmp(arg, "--finds")) {
       dump_finds = true;
     } else {
-      fprintf(stderr, "Unknown option: %s", arg);
+      fprintf(stderr, "Unknown option: %s\n", arg);
       return 1;
     }
   }
@@ -83,7 +82,7 @@ int main(int argc, char* argv[]) {
 
   FILE* fp = fopen(argv[argc - 1], "rb");
   if (!fp)
-    PERROR("fopen");
+    PERROR(argv[argc - 1]);
 
   ScopedFile sfp(fp);
   double gen_time;
@@ -117,8 +116,8 @@ int main(int argc, char* argv[]) {
   if (num_envs < 0)
     ERROR("Incomplete stamp file");
   for (int i = 0; i < num_envs; i++) {
-    string name;
-    string val;
+    std::string name;
+    std::string val;
     if (!LoadString(fp, &name))
       ERROR("Incomplete stamp file");
     if (!LoadString(fp, &val))
@@ -131,7 +130,7 @@ int main(int argc, char* argv[]) {
   if (num_globs < 0)
     ERROR("Incomplete stamp file");
   for (int i = 0; i < num_globs; i++) {
-    string pat;
+    std::string pat;
     if (!LoadString(fp, &pat))
       ERROR("Incomplete stamp file");
 
@@ -150,7 +149,7 @@ int main(int argc, char* argv[]) {
     ERROR("Incomplete stamp file");
   for (int i = 0; i < num_cmds; i++) {
     CommandOp op = static_cast<CommandOp>(LoadInt(fp));
-    string shell, shellflag, cmd, result, file;
+    std::string shell, shellflag, cmd, result, file;
     if (!LoadString(fp, &shell))
       ERROR("Incomplete stamp file");
     if (!LoadString(fp, &shellflag))
