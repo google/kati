@@ -286,7 +286,8 @@ DepNode::DepNode(Symbol o, bool p, bool r)
       is_restat(r),
       rule_vars(NULL),
       depfile_var(NULL),
-      ninja_pool_var(NULL) {}
+      ninja_pool_var(NULL),
+      tags_var(NULL) {}
 
 class DepBuilder {
  public:
@@ -300,7 +301,8 @@ class DepBuilder {
         implicit_outputs_var_name_(Intern(".KATI_IMPLICIT_OUTPUTS")),
         symlink_outputs_var_name_(Intern(".KATI_SYMLINK_OUTPUTS")),
         ninja_pool_var_name_(Intern(".KATI_NINJA_POOL")),
-        validations_var_name_(Intern(".KATI_VALIDATIONS")) {
+        validations_var_name_(Intern(".KATI_VALIDATIONS")),
+        tags_var_name_(Intern(".KATI_TAGS")) {
     ScopedTimeReporter tr("make dep (populate)");
     PopulateRules(rules);
     // TODO?
@@ -735,6 +737,8 @@ class DepBuilder {
         } else if (name == validations_var_name_) {
         } else if (name == ninja_pool_var_name_) {
           n->ninja_pool_var = new_var;
+        } else if (name == tags_var_name_) {
+          n->tags_var = new_var;
         } else {
           sv.emplace_back(new ScopedVar(cur_rule_vars_.get(), name, new_var));
         }
@@ -941,6 +945,7 @@ class DepBuilder {
   Symbol symlink_outputs_var_name_;
   Symbol ninja_pool_var_name_;
   Symbol validations_var_name_;
+  Symbol tags_var_name_;
 };
 
 void MakeDep(Evaluator* ev,

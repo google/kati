@@ -53,6 +53,7 @@ struct DepNode {
   Vars* rule_vars;
   Var* depfile_var;
   Var* ninja_pool_var;
+  Var* tags_var;
   Symbol output_pattern;
   Loc loc;
 };
