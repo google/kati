@@ -604,6 +604,13 @@ class NinjaGenerator {
     if (node->is_phony && g_flags.use_ninja_phony_output) {
       out << " phony_output = true\n";
     }
+    if (node->tags_var) {
+      std::string tags;
+      node->tags_var->Eval(ev_, &tags);
+      if (!tags.empty()) {
+        out << " tags = " << tags << "\n";
+      }
+    }
     if (node->is_default_target) {
       std::unique_lock<std::mutex> lock(mu_);
       default_target_ = node;
