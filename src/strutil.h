@@ -47,7 +47,7 @@ class WordScanner {
 class WordWriter {
  public:
   explicit WordWriter(std::string* o);
-  void MaybeAddWhitespace();
+  void MaybeAddSeparator(std::string_view sep = " ");
   void Write(std::string_view s);
 
  private:
