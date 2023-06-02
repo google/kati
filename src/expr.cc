@@ -215,7 +215,7 @@ class VarSubst : public Value {
     WordWriter ww(s);
     Pattern pat(pat_str);
     for (std::string_view tok : WordScanner(value)) {
-      ww.MaybeAddWhitespace();
+      ww.MaybeAddSeparator();
       pat.AppendSubstRef(tok, subst, s);
     }
   }

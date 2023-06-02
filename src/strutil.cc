@@ -83,16 +83,16 @@ void WordScanner::Split(std::vector<std::string_view>* o) {
 
 WordWriter::WordWriter(std::string* o) : out_(o), needs_space_(false) {}
 
-void WordWriter::MaybeAddWhitespace() {
+void WordWriter::MaybeAddSeparator(std::string_view sep) {
   if (needs_space_) {
-    out_->push_back(' ');
+    out_->append(sep);
   } else {
     needs_space_ = true;
   }
 }
 
 void WordWriter::Write(std::string_view s) {
-  MaybeAddWhitespace();
+  MaybeAddSeparator();
   out_->append(s);
 }
 

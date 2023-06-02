@@ -108,7 +108,7 @@ void PatsubstFunc(const std::vector<Value*>& args,
   WordWriter ww(s);
   Pattern pat(pat_str);
   for (std::string_view tok : WordScanner(str)) {
-    ww.MaybeAddWhitespace();
+    ww.MaybeAddSeparator();
     pat.AppendSubst(tok, repl, s);
   }
 }
@@ -721,8 +721,26 @@ void ForeachFunc(const std::vector<Value*>& args,
     std::unique_ptr<SimpleVar> v(
         new SimpleVar(std::string(tok), VarOrigin::AUTOMATIC, nullptr, Loc()));
     ScopedGlobalVar sv(Intern(varname), v.get());
-    ww.MaybeAddWhitespace();
+    ww.MaybeAddSeparator();
     args[2]->Eval(ev, s);
+  }
+  ev->IncrementEvalDepth();
+}
+
+void ForeachWithSepFunc(const std::vector<Value*>& args,
+                        Evaluator* ev,
+                        std::string* s) {
+  const std::string&& varname = args[0]->Eval(ev);
+  const std::string&& separator = args[1]->Eval(ev);
+  const std::string&& list = args[2]->Eval(ev);
+  ev->DecrementEvalDepth();
+  WordWriter ww(s);
+  for (std::string_view tok : WordScanner(list)) {
+    std::unique_ptr<SimpleVar> v(
+        new SimpleVar(std::string(tok), VarOrigin::AUTOMATIC, nullptr, Loc()));
+    ScopedGlobalVar sv(Intern(varname), v.get());
+    ww.MaybeAddSeparator(separator);
+    args[3]->Eval(ev, s);
   }
   ev->IncrementEvalDepth();
 }
@@ -1112,6 +1130,7 @@ static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {
 
     ENTRY("KATI_extra_file_deps", &ExtraFileDepsFunc, 0, 0, false, false),
     ENTRY("KATI_shell_no_rerun", &ShellFuncNoRerun, 1, 1, false, false),
+    ENTRY("KATI_foreach_sep", &ForeachWithSepFunc, 4, 4, false, false),
 };
 
 }  // namespace
