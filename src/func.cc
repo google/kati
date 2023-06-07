@@ -793,9 +793,10 @@ void ErrorFunc(const std::vector<Value*>& args, Evaluator* ev, std::string*) {
   ev->Error(StringPrintf("*** %s.", a.c_str()));
 }
 
-static void FileReadFunc(Evaluator* ev,
-                         const std::string& filename,
-                         std::string* s) {
+static void FileReadFunc_(Evaluator* ev,
+                          const std::string& filename,
+                          std::string* s,
+                          bool rerun) {
   int fd = open(filename.c_str(), O_RDONLY);
   if (fd < 0) {
     if (errno == ENOENT) {
@@ -833,7 +834,7 @@ static void FileReadFunc(Evaluator* ev,
     out.pop_back();
   }
 
-  if (ShouldStoreCommandResult(filename)) {
+  if (rerun && ShouldStoreCommandResult(filename)) {
     CommandResult* cr = new CommandResult();
     cr->op = CommandOp::READ;
     cr->cmd = filename;
@@ -843,10 +844,11 @@ static void FileReadFunc(Evaluator* ev,
   *s += out;
 }
 
-static void FileWriteFunc(Evaluator* ev,
-                          const std::string& filename,
-                          bool append,
-                          std::string text) {
+static void FileWriteFunc_(Evaluator* ev,
+                           const std::string& filename,
+                           bool append,
+                           std::string text,
+                           bool rerun) {
   FILE* f = fopen(filename.c_str(), append ? "ab" : "wb");
   if (f == NULL) {
     ev->Error("*** fopen failed.");
@@ -860,7 +862,7 @@ static void FileWriteFunc(Evaluator* ev,
     ev->Error("*** fclose failed.");
   }
 
-  if (ShouldStoreCommandResult(filename)) {
+  if (rerun && ShouldStoreCommandResult(filename)) {
     CommandResult* cr = new CommandResult();
     cr->op = CommandOp::WRITE;
     cr->cmd = filename;
@@ -870,7 +872,10 @@ static void FileWriteFunc(Evaluator* ev,
   }
 }
 
-void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
+void FileFunc_(const std::vector<Value*>& args,
+               Evaluator* ev,
+               std::string* s,
+               bool rerun) {
   if (ev->avoid_io()) {
     ev->Error("*** $(file ...) is not supported in rules.");
   }
@@ -891,7 +896,7 @@ void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
       ev->Error("*** invalid argument");
     }
 
-    FileReadFunc(ev, std::string(filename), s);
+    FileReadFunc_(ev, std::string(filename), s, rerun);
   } else if (filename[0] == '>') {
     bool append = false;
     if (filename[1] == '>') {
@@ -913,11 +918,21 @@ void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
       }
     }
 
-    FileWriteFunc(ev, std::string(filename), append, text);
+    FileWriteFunc_(ev, std::string(filename), append, text, rerun);
   } else {
     ev->Error(StringPrintf("*** Invalid file operation: %s.  Stop.",
                            std::string(filename).c_str()));
   }
+}
+
+void FileFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
+  FileFunc_(args, ev, s, true);
+}
+
+void FileFuncNoRerun(const std::vector<Value*>& args,
+                     Evaluator* ev,
+                     std::string* s) {
+  FileFunc_(args, ev, s, false);
 }
 
 void DeprecatedVarFunc(const std::vector<Value*>& args,
@@ -1131,6 +1146,7 @@ static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {
     ENTRY("KATI_extra_file_deps", &ExtraFileDepsFunc, 0, 0, false, false),
     ENTRY("KATI_shell_no_rerun", &ShellFuncNoRerun, 1, 1, false, false),
     ENTRY("KATI_foreach_sep", &ForeachWithSepFunc, 4, 4, false, false),
+    ENTRY("KATI_file_no_rerun", &FileFuncNoRerun, 2, 1, false, false),
 };
 
 }  // namespace
