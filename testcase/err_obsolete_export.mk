@@ -1,5 +1,3 @@
-# TODO(go): not implemented
-
 export A := ok
 
 $(KATI_obsolete_export Message)

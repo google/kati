@@ -1,4 +1,4 @@
-# TODO(c): Fix - "override export define A" is invalid "override" directive.
+# TODO: Fix - "override export define A" is invalid "override" directive.
 
 # GNU make 4 accepts this syntax. Note kati doesn't agree with make 4
 # either.

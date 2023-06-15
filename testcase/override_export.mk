@@ -1,4 +1,4 @@
-# TODO(c|ninja): it overrides "export A" and exports(?) "override B"
+# TODO: it overrides "export A" and exports(?) "override B"
 # ninja: can't export variable with space in name (by bash).
 
 override export A:=override_A

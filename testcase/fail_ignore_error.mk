@@ -1,4 +1,3 @@
-# TODO(go-ninja): Fix
 
 test:
 	false

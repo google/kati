@@ -1,5 +1,3 @@
-# TODO(go): not implemented
-
 A := 1
 B := 2
 export A B
@@ -10,8 +8,8 @@ export C := ok
 unexport B
 
 ifndef KATI
-$(info Makefile:9: C: export has been deprecated. Message.)
-$(info Makefile:10: B: unexport has been deprecated. Message.)
+$(info Makefile:7: C: export has been deprecated. Message.)
+$(info Makefile:8: B: unexport has been deprecated. Message.)
 endif
 
 test:

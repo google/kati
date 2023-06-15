@@ -1,5 +1,3 @@
-# TODO(go): https://github.com/google/kati/issues/83
-
 define var
 VAR:=1
 endef

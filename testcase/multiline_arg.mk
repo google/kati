@@ -1,4 +1,4 @@
-# TODO(c-ninja): We're exporting `(echo )` for the last line, while make a kati(w/o ninja) uses `echo \`
+# TODO(ninja): We're exporting `(echo )` for the last line, while make a kati(w/o ninja) uses `echo \`
 
 SHELL:=/bin/bash
 

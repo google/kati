@@ -1,4 +1,4 @@
-# TODO(c): Fix
+# TODO: Fix
 
 test: a\ b a\:b
 

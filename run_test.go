@@ -29,7 +29,6 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-var ckati bool
 var ninja bool
 var genAllTargets bool
 
@@ -39,7 +38,6 @@ func init() {
 	os.Unsetenv("MAKELEVEL")
 	os.Setenv("NINJA_STATUS", "NINJACMD: ")
 
-	flag.BoolVar(&ckati, "ckati", false, "use ckati")
 	flag.BoolVar(&ninja, "ninja", false, "use ninja")
 	flag.BoolVar(&genAllTargets, "all", false, "use --gen_all_targets")
 }
@@ -183,16 +181,7 @@ func runKati(t *testing.T, test, dir string, silent bool, tc string) string {
 		}
 	}
 
-	var cmd *exec.Cmd
-	if ckati {
-		cmd = exec.Command("../../../ckati", "--use_find_emulator")
-	} else {
-		json := tc
-		if json == "" {
-			json = "test"
-		}
-		cmd = exec.Command("../../../kati", "-save_json="+json+".json", "-log_dir=.", "--use_find_emulator")
-	}
+	cmd := exec.Command("../../../ckati", "--use_find_emulator")
 	if ninja {
 		cmd.Args = append(cmd.Args, "--ninja")
 	}
@@ -245,14 +234,9 @@ func runKatiInScript(t *testing.T, script, dir string, isNinjaTest bool) string 
 		}
 	}
 
-	args := []string{"bash", script}
-	if ckati {
-		args = append(args, "../../../ckati")
-		if isNinjaTest {
-			args = append(args, "--ninja", "--regen")
-		}
-	} else {
-		args = append(args, "../../../kati --use_cache -log_dir=.")
+	args := []string{"bash", script, "../../../ckati"}
+	if isNinjaTest {
+		args = append(args, "--ninja", "--regen")
 	}
 	args = append(args, "SHELL=/bin/bash")
 
@@ -357,12 +341,7 @@ func isExpectedFailure(c []byte, tc string) bool {
 		}
 
 		todos := strings.Split(todo[1], "|")
-		if (inList(todos, "go") && !ckati) ||
-			(inList(todos, "c") && ckati) ||
-			(inList(todos, "go-ninja") && !ckati && ninja) ||
-			(inList(todos, "c-ninja") && ckati && ninja) ||
-			(inList(todos, "c-exec") && ckati && !ninja) ||
-			(inList(todos, "ninja") && ninja) ||
+		if (inList(todos, "ninja") && ninja) ||
 			(inList(todos, "ninja-genall") && ninja && genAllTargets) ||
 			(inList(todos, "all")) {
 
@@ -379,15 +358,8 @@ func isExpectedFailure(c []byte, tc string) bool {
 }
 
 func TestKati(t *testing.T) {
-	if ckati {
-		os.Setenv("KATI_VARIANT", "c")
-		if _, err := os.Stat("ckati"); err != nil {
-			t.Fatalf("ckati must be built before testing: %s", err)
-		}
-	} else {
-		if _, err := os.Stat("kati"); err != nil {
-			t.Fatalf("kati must be built before testing: %s", err)
-		}
+	if _, err := os.Stat("ckati"); err != nil {
+		t.Fatalf("ckati must be built before testing: %s", err)
 	}
 	if ninja {
 		if _, err := exec.LookPath("ninja"); err != nil {
@@ -463,7 +435,7 @@ func TestKati(t *testing.T) {
 				}
 			} else if isShTest {
 				isNinjaTest := strings.HasPrefix(name, "ninja_")
-				if isNinjaTest && (!ckati || !ninja) {
+				if isNinjaTest && !ninja {
 					t.SkipNow()
 				}
 

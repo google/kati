@@ -1,4 +1,4 @@
-# TODO(c): Implement vpath.
+# TODO: Implement vpath.
 
 vpath %.c dir
 
