@@ -1,4 +1,4 @@
-# TODO(c): Fix
+# TODO: Fix
 
 x=FAIL
 $(foreach x,FAIL PASS,$(eval x+=$(x)))

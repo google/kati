@@ -1,6 +1,4 @@
-# TODO(go): This test is only for ckati.
 # TODO(ninja/test2|test4|test5) ninja: multiple problems
-# go: symlink support isn't enough.
 # ninja: find . finds ninja temporary files
 # ninja: escaping ! doesn't seem to be working
 # ninja: stderr gets reordered

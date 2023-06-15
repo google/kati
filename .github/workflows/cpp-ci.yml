@@ -43,11 +43,11 @@ jobs:
     - name: clang format
       run: ./clang-format-check
     - name: run standalone tests
-      run: go test --ckati
+      run: go test
     - name: run ninja tests
-      run: go test --ckati --ninja
+      run: go test --ninja
     - name: run ninja all targets tests
-      run: go test --ckati --ninja --all
+      run: go test --ninja --all
     - name: run ninja unit tests
       run: ./ninja_test
     - name: run strutil unit tests

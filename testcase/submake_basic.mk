@@ -1,4 +1,4 @@
-# TODO(go|c-ninja): Fix
+# TODO(ninja): Fix
 
 test:
 	$(MAKE) -f submake/basic.mk

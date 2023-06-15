@@ -1,4 +1,3 @@
-# TODO(go): Fix
 
 MAKEVER:=$(shell make --version | grep "Make [0-9]" | sed -E 's/.*Make ([0-9]).*/\1/')
 

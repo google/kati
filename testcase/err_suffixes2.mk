@@ -1,4 +1,3 @@
-# TODO(go): Fix
 
 test1:
 	touch a.c

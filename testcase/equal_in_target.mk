@@ -1,4 +1,4 @@
-# TODO(c) fix parser. no rule to make target "test"?
+# TODO fix parser. no rule to make target "test"?
 TSV:=test: A=PASS
 A_EQ_B:=A=B
 EQ==

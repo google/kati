@@ -1,4 +1,3 @@
-# TODO(go): Fix
 
 A := a # comment
 

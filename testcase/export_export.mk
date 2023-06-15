@@ -1,4 +1,4 @@
-# TODO(c): Fix
+# TODO: Fix
 
 export=PASS
 export export

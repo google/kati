@@ -1,4 +1,3 @@
-# TODO(go): Fix
 
 test: PASS_FAIL PASS2_FAIL2 FAIL3.FAIL4
 

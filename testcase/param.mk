@@ -1,4 +1,4 @@
-# TODO(c): Fix
+# TODO: Fix
 
 1:=foo
 $(info $(1) is foo)
