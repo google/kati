@@ -240,10 +240,13 @@ func runKatiInScript(t *testing.T, script, dir string, isNinjaTest bool) string 
 	}
 	args = append(args, "SHELL=/bin/bash")
 
+	var stderrb bytes.Buffer
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = dir
+	cmd.Stderr = &stderrb
 	output, _ := cmd.Output()
 	write("stdout", output)
+	write("stderr", stderrb.Bytes())
 	if isNinjaTest {
 		output = normalize(output, normalizeNinja)
 	}
