@@ -1086,7 +1086,9 @@ void ExtraFileDepsFunc(const std::vector<Value*>& args,
 
 #define ENTRY(name, args...) \
   {                          \
-    name, { name, args }     \
+    name, {                  \
+      name, args             \
+    }                        \
   }
 
 static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {

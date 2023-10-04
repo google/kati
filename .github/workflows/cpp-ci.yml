@@ -11,11 +11,11 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
-      CXX: clang++-12
-      CLANG_FORMAT: clang-format-12
+      CXX: clang++-14
+      CLANG_FORMAT: clang-format-14
 
     steps:
     - uses: actions/checkout@v2

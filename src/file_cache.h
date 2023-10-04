@@ -18,7 +18,7 @@
 #include <string>
 #include <unordered_set>
 
-class Makefile;
+#include "file.h"
 
 class MakefileCacheManager {
  public:
