@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-RUN apt-get update && apt-get install -y make git-core build-essential curl ninja-build python3 wget
+RUN apt-get update && apt-get install -y make git-core build-essential curl python3 wget unzip
 
 # Install Go
 RUN \
@@ -18,10 +18,18 @@ RUN \
   cd .. && \
   rm -rf tmp/
 
+# Install ninja, we need a newer version than is in apt
+RUN \
+  mkdir -p /ninja && \
+  cd /ninja && \
+  wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip && \
+  unzip ninja-linux.zip && \
+  rm ninja-linux.zip
+
 # Set environment variables for Go and Make.
 ENV GOROOT /goroot
 ENV GOPATH /gopath
-ENV PATH $GOROOT/bin:$GOPATH/bin:/make:$PATH
+ENV PATH $GOROOT/bin:$GOPATH/bin:/make:/ninja:$PATH
 
 # Copy project code.
 COPY . /src
