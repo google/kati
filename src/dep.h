@@ -46,7 +46,6 @@ struct DepNode {
   bool is_phony;
   bool is_restat;
   std::vector<Symbol> implicit_outputs;
-  std::vector<Symbol> symlink_outputs;
   std::vector<Symbol> actual_inputs;
   std::vector<Symbol> actual_order_only_inputs;
   std::vector<Symbol> actual_validations;
