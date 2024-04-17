@@ -85,6 +85,41 @@ void Var::Used(Evaluator* ev, const Symbol& sym) const {
   }
 }
 
+void Var::SetVisibilityPrefix(const std::vector<std::string>& prefixes,
+                              const char* name) {
+  const std::vector<std::string>& current_prefixes = VisibilityPrefix();
+  if (current_prefixes.size() == 0) {
+    visibility_prefix_ = prefixes;
+  } else if (current_prefixes != prefixes) {
+    ERROR("Visibility prefix conflict on variable: %s", name);
+  }
+}
+
+void Var::CheckCurrentReferencingFile(Loc loc, const char* name) {
+  const std::vector<std::string>& prefixes = VisibilityPrefix();
+  if (prefixes.size() == 0) {
+    return;
+  }
+  bool valid = false;
+  for (const std::string& prefix : prefixes) {
+    if (HasPathPrefix(loc.filename, prefix)) {
+      valid = true;
+      break;
+    }
+  }
+  if (!valid) {
+    std::string prefixesString;
+    for (const std::string& p : prefixes) {
+      prefixesString += (p + "\n");
+    }
+    prefixesString.pop_back();
+    ERROR(
+        "%s is not a valid file to reference variable %s. Line #%d.\nValid "
+        "file prefixes:\n%s",
+        loc.filename, name, loc.lineno, prefixesString.c_str());
+  }
+}
+
 const char* Var::diagnostic_message_text() const {
   auto it = diagnostic_messages_.find(this);
   return it == diagnostic_messages_.end() ? "" : it->second.c_str();

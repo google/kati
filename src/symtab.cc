@@ -14,7 +14,7 @@
 
 // +build ignore
 
-//#define ENABLE_TID_CHECK
+// #define ENABLE_TID_CHECK
 
 #include "symtab.h"
 
