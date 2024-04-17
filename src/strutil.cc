@@ -110,6 +110,11 @@ bool HasPrefix(std::string_view str, std::string_view prefix) {
   return size_diff >= 0 && str.substr(0, prefix.size()) == prefix;
 }
 
+bool HasPathPrefix(std::string_view str, std::string_view prefix) {
+  return HasPrefix(str, prefix) &&
+         (str.size() == prefix.size() || str.at(prefix.size()) == '/');
+}
+
 bool HasSuffix(std::string_view str, std::string_view suffix) {
   ssize_t size_diff = str.size() - suffix.size();
   return size_diff >= 0 && str.substr(size_diff) == suffix;

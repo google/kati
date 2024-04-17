@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <unordered_map>
 
 #include "eval.h"
@@ -510,7 +511,7 @@ void EvalFunc(const std::vector<Value*>& args, Evaluator* ev, std::string*) {
   }
 }
 
-//#define TEST_FIND_EMULATOR
+// #define TEST_FIND_EMULATOR
 
 // A hack for Android build. We need to evaluate things like $((3+4))
 // when we emit ninja file, because the result of such expressions
@@ -654,6 +655,59 @@ void ShellFuncNoRerun(const std::vector<Value*>& args,
   int returnCode = ShellFuncImpl(shell, shellflag, cmd, ev->loc(), &out, &fc);
   *s += out;
   ShellStatusVar::SetValue(returnCode);
+}
+
+void VarVisibilityFunc(const std::vector<Value*>& args,
+                       Evaluator* ev,
+                       std::string* s) {
+  std::string arg = args[0]->Eval(ev);
+  std::vector<std::string> prefixes;
+
+  std::stringstream ss(args[1]->Eval(ev));
+  std::string prefix;
+  while (ss >> prefix) {
+    if (HasPrefix(prefix, "/")) {
+      ERROR_LOC(ev->loc(), "Visibility prefix should not start with /");
+    }
+    if (HasPrefix(prefix, "../")) {
+      ERROR_LOC(ev->loc(), "Visibility prefix should not start with ../");
+    }
+
+    std::string normalizedPrefix = prefix;
+    NormalizePath(&normalizedPrefix);
+    if (prefix != normalizedPrefix) {
+      ERROR_LOC(ev->loc(),
+                "Visibility prefix %s is not normalized. Normalized prefix: %s",
+                prefix.c_str(), normalizedPrefix.c_str());
+    }
+
+    // one visibility prefix cannot be the prefix of another visibility prefix
+    for (std::vector<std::string>::iterator it = prefixes.begin();
+         it != prefixes.end(); ++it) {
+      if (HasPathPrefix(*it, prefix)) {
+        ERROR_LOC(ev->loc(),
+                  "Visibility prefix %s is the prefix of another visibility "
+                  "prefix %s",
+                  prefix.c_str(), it->c_str());
+      } else if (HasPathPrefix(prefix, *it)) {
+        ERROR_LOC(ev->loc(),
+                  "Visibility prefix %s is the prefix of another visibility "
+                  "prefix %s",
+                  it->c_str(), prefix.c_str());
+      }
+    }
+
+    prefixes.push_back(prefix);
+  }
+
+  Symbol sym = Intern(arg);
+  Var* v = ev->PeekVar(sym);
+  // If variable is not defined, create an empty variable.
+  if (!v->IsDefined()) {
+    v = new SimpleVar(VarOrigin::FILE, ev->CurrentFrame(), ev->loc());
+    sym.SetGlobalVar(v, false, nullptr);
+  }
+  v->SetVisibilityPrefix(prefixes, sym.c_str());
 }
 
 void CallFunc(const std::vector<Value*>& args, Evaluator* ev, std::string* s) {
@@ -1149,6 +1203,7 @@ static const std::unordered_map<std::string_view, FuncInfo> g_func_info_map = {
     ENTRY("KATI_shell_no_rerun", &ShellFuncNoRerun, 1, 1, false, false),
     ENTRY("KATI_foreach_sep", &ForeachWithSepFunc, 4, 4, false, false),
     ENTRY("KATI_file_no_rerun", &FileFuncNoRerun, 2, 1, false, false),
+    ENTRY("KATI_visibility_prefix", &VarVisibilityFunc, 2, 1, false, false),
 };
 
 }  // namespace

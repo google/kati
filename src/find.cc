@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-//#undef NOLOG
+// #undef NOLOG
 
 #include "fileutil.h"
 #include "log.h"

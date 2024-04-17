@@ -73,6 +73,13 @@ class Var : public Evaluable {
   bool SelfReferential() const { return self_referential_; }
   void SetSelfReferential() { self_referential_ = true; }
 
+  const std::vector<std::string>& VisibilityPrefix() const {
+    return visibility_prefix_;
+  }
+  void SetVisibilityPrefix(const std::vector<std::string>& prefixes,
+                           const char* name);
+  void CheckCurrentReferencingFile(Loc loc, const char* name);
+
   const std::string& DeprecatedMessage() const;
 
   // This variable was used (either written or read from)
@@ -101,6 +108,8 @@ class Var : public Evaluable {
   const char* diagnostic_message_text() const;
 
   static std::unordered_map<const Var*, std::string> diagnostic_messages_;
+
+  std::vector<std::string> visibility_prefix_;
 };
 
 class SimpleVar : public Var {

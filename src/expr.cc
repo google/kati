@@ -146,6 +146,7 @@ class SymRef : public Value {
     Var* v = ev->LookupVarForEval(name_);
     v->Used(ev, name_);
     v->Eval(ev, s);
+    v->CheckCurrentReferencingFile(ev->loc(), name_.c_str());
     ev->VarEvalComplete(name_);
   }
 
@@ -176,6 +177,7 @@ class VarRef : public Value {
     Var* v = ev->LookupVarForEval(sym);
     v->Used(ev, sym);
     v->Eval(ev, s);
+    v->CheckCurrentReferencingFile(ev->loc(), name.c_str());
     ev->VarEvalComplete(sym);
   }
 

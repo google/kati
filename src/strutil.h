@@ -80,6 +80,11 @@ inline std::string JoinStrings(std::vector<String> v, const char* sep) {
 
 bool HasPrefix(std::string_view str, std::string_view prefix);
 
+// Checks path-like prefixes. str and prefix and both considered as strings
+// that represent "path".
+// e.g. str "foo/bar" has path prefix "foo" but doesn't have path prefix "fo".
+bool HasPathPrefix(std::string_view str, std::string_view prefix);
+
 bool HasSuffix(std::string_view str, std::string_view suffix);
 
 bool HasWord(std::string_view str, std::string_view w);
