@@ -659,7 +659,7 @@ void ShellFuncNoRerun(const std::vector<Value*>& args,
 
 void VarVisibilityFunc(const std::vector<Value*>& args,
                        Evaluator* ev,
-                       std::string* s) {
+                       std::string*) {
   std::string arg = args[0]->Eval(ev);
   std::vector<std::string> prefixes;
 
