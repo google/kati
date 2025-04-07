@@ -16,6 +16,7 @@ package kati
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"io/ioutil"
 	"os"
@@ -25,12 +26,14 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 var ninja bool
 var genAllTargets bool
+var rkati bool
 
 func init() {
 	// suppress GNU make jobserver magic when calling "make"
@@ -40,6 +43,7 @@ func init() {
 
 	flag.BoolVar(&ninja, "ninja", false, "use ninja")
 	flag.BoolVar(&genAllTargets, "all", false, "use --gen_all_targets")
+	flag.BoolVar(&rkati, "rkati", false, "compare rkati against ckati")
 }
 
 type normalization struct {
@@ -99,6 +103,8 @@ var normalizeKati = []normalization{
 	{regexp.MustCompile(`(: )open (\S+): n(o such file or directory)\nNOTE:[^\n]*`), "${1}${2}: N${3}"},
 	// Bionic libc has different error messages than glibc
 	{regexp.MustCompile(`Too many symbolic links encountered`), "Too many levels of symbolic links"},
+	// Rust includes the numeric error code in I/O errors
+	{regexp.MustCompile(` \(os error \d+\)`), ""},
 }
 
 var normalizeNinja = []normalization{
@@ -170,7 +176,7 @@ func runMake(t *testing.T, prefix []string, dir string, silent bool, tc string) 
 	return string(output)
 }
 
-func runKati(t *testing.T, test, dir string, silent bool, tc string) string {
+func runKati(t *testing.T, test, dir string, silent bool, rust bool, tc string) string {
 	write := func(f string, data []byte) {
 		suffix := ""
 		if tc != "" {
@@ -181,7 +187,15 @@ func runKati(t *testing.T, test, dir string, silent bool, tc string) string {
 		}
 	}
 
-	cmd := exec.Command("../../../ckati", "--use_find_emulator")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	var kati string
+	if rust {
+		kati = "../../../target/debug/rkati"
+	} else {
+		kati = "../../../ckati"
+	}
+	cmd := exec.CommandContext(ctx, kati, "--use_find_emulator")
 	if ninja {
 		cmd.Args = append(cmd.Args, "--ninja")
 	}
@@ -227,21 +241,29 @@ func runKati(t *testing.T, test, dir string, silent bool, tc string) string {
 	return string(output)
 }
 
-func runKatiInScript(t *testing.T, script, dir string, isNinjaTest bool) string {
+func runKatiInScript(t *testing.T, script, dir string, isNinjaTest bool, rust bool) string {
 	write := func(f string, data []byte) {
 		if err := ioutil.WriteFile(filepath.Join(dir, f), data, 0666); err != nil {
 			t.Error(err)
 		}
 	}
 
-	args := []string{"bash", script, "../../../ckati"}
+	var kati string
+	if rust {
+		kati = "../../../target/debug/rkati"
+	} else {
+		kati = "../../../ckati"
+	}
+	args := []string{"bash", script, kati}
 	if isNinjaTest {
 		args = append(args, "--ninja", "--regen")
 	}
 	args = append(args, "SHELL=/bin/bash")
 
 	var stderrb bytes.Buffer
-	cmd := exec.Command(args[0], args[1:]...)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = dir
 	cmd.Stderr = &stderrb
 	output, _ := cmd.Output()
@@ -364,6 +386,11 @@ func TestKati(t *testing.T) {
 	if _, err := os.Stat("ckati"); err != nil {
 		t.Fatalf("ckati must be built before testing: %s", err)
 	}
+	if rkati {
+		if _, err := os.Stat("target/debug/rkati"); err != nil {
+			t.Fatalf("rkati must be built before testing: %s", err)
+		}
+	}
 	if ninja {
 		if _, err := exec.LookPath("ninja"); err != nil {
 			t.Fatal(err)
@@ -398,11 +425,18 @@ func TestKati(t *testing.T) {
 			}
 			outMake := filepath.Join(out, "make")
 			outKati := filepath.Join(out, "kati")
-			if err := os.MkdirAll(outMake, 0777); err != nil {
-				t.Fatal(err)
-			}
+			outRKati := filepath.Join(out, "rkati")
 			if err := os.MkdirAll(outKati, 0777); err != nil {
 				t.Fatal(err)
+			}
+			if rkati {
+				if err := os.MkdirAll(outRKati, 0777); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := os.MkdirAll(outMake, 0777); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			testcases := []string{""}
@@ -419,22 +453,36 @@ func TestKati(t *testing.T) {
 					}
 					os.Symlink("../../../testcase/submake", filepath.Join(dir, "submake"))
 				}
-				setup(outMake)
 				setup(outKati)
+				if rkati {
+					setup(outRKati)
+				} else {
+					setup(outMake)
+				}
 
 				testcases = uniqueTestcases(c)
 
 				isSilent := strings.HasPrefix(name, "submake_")
 
 				for _, tc := range testcases {
-					expected[tc] = runMake(t, nil, outMake, ninja || isSilent, tc)
-					expectedFiles[tc] = outputFiles(t, outMake)
+					if !rkati {
+						expected[tc] = runMake(t, nil, outMake, ninja || isSilent, tc)
+						expectedFiles[tc] = outputFiles(t, outMake)
+					} else {
+						expected[tc] = runKati(t, name, outKati, isSilent, false, tc)
+						expectedFiles[tc] = outputFiles(t, outKati)
+					}
 					expectedFailures[tc] = isExpectedFailure(c, tc)
 				}
 
 				for _, tc := range testcases {
-					got[tc] = runKati(t, name, outKati, isSilent, tc)
-					gotFiles[tc] = outputFiles(t, outKati)
+					if rkati {
+						got[tc] = runKati(t, name, outRKati, isSilent, true, tc)
+						gotFiles[tc] = outputFiles(t, outRKati)
+					} else {
+						got[tc] = runKati(t, name, outKati, isSilent, false, tc)
+						gotFiles[tc] = outputFiles(t, outKati)
+					}
 				}
 			} else if isShTest {
 				isNinjaTest := strings.HasPrefix(name, "ninja_")
@@ -444,34 +492,51 @@ func TestKati(t *testing.T) {
 
 				scriptName := "../../../testcase/" + name
 
-				expected[""] = runMake(t, []string{"bash", scriptName}, outMake, isNinjaTest, "")
+				if rkati {
+					expected[""] = runKatiInScript(t, scriptName, outKati, isNinjaTest, false)
+				} else {
+					expected[""] = runMake(t, []string{"bash", scriptName}, outMake, isNinjaTest, "")
+				}
 				expectedFailures[""] = isExpectedFailure(c, "")
 
-				got[""] = runKatiInScript(t, scriptName, outKati, isNinjaTest)
+				if rkati {
+					got[""] = runKatiInScript(t, scriptName, outRKati, isNinjaTest, true)
+				} else {
+					got[""] = runKatiInScript(t, scriptName, outKati, isNinjaTest, false)
+				}
 			}
 
 			check := func(t *testing.T, m, k string, mFiles, kFiles []string, expectFail bool) {
-				if strings.Contains(m, "FAIL") {
-					t.Fatalf("Make returned 'FAIL':\n%q", m)
+				var a, b string
+				if rkati {
+					a = "ckati"
+					b = "rkati"
+				} else {
+					a = "Make"
+					b = "Kati"
+				}
+
+				if !rkati && strings.Contains(m, "FAIL") {
+					t.Fatalf("%s returned 'FAIL':\n%q", a, m)
 				}
 
 				if !expectFail && m != k {
 					dmp := diffmatchpatch.New()
 					diffs := dmp.DiffMain(k, m, true)
 					diffs = dmp.DiffCleanupSemantic(diffs)
-					t.Errorf("Different output from kati (red) to the expected value from make (green):\n%s",
-						dmp.DiffPrettyText(diffs))
-				} else if expectFail && m == k {
+					t.Errorf("Different output from %s (red) to the expected value from %s (green):\n%s",
+						b, a, dmp.DiffPrettyText(diffs))
+				} else if expectFail && m == k && !rkati {
 					t.Errorf("Expected failure, but output is the same")
 				}
 
 				if !expectFail {
-					onlyMake, onlyKati := diffLists(mFiles, kFiles)
-					if len(onlyMake) > 0 {
-						t.Errorf("Files only created by Make:\n%q", onlyMake)
+					onlyA, onlyB := diffLists(mFiles, kFiles)
+					if len(onlyA) > 0 {
+						t.Errorf("Files only created by %s:\n%q", a, onlyA)
 					}
-					if len(onlyKati) > 0 {
-						t.Errorf("Files only created by Kati:\n%q", onlyKati)
+					if len(onlyB) > 0 {
+						t.Errorf("Files only created by %s:\n%q", b, onlyB)
 					}
 				}
 			}

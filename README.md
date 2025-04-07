@@ -55,3 +55,19 @@ For Android-N+, ckati and ninja is used automatically. There is a prebuilt
 checked in under prebuilts/build-tools that is used.
 
 All Android's build commands (m, mmm, mmma, etc.) should just work.
+
+## Rust version
+
+There's an experimental rust port in the the src-rs/... directory, though there
+are no plans for it to replace the C++ version. It should have a very similar
+feature set to the C++ version, and similar performance (in release mode).
+
+```
+$ cargo build
+$ go test --rkati
+$ go test --rkati --ninja
+$ go test --rkati --ninja --all
+```
+
+The resulting `rkati` binary in `target/*/rkati` is a drop-in replacement for
+`ckati`. Setting `KATI_LOG=trace` at runtime can enable extra debug logging.
