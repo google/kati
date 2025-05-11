@@ -63,7 +63,6 @@ struct Flags {
   bool warn_real_no_cmds;
   bool werror_real_no_cmds;
   const char* default_pool;
-  const char* goma_dir;
   const char* ignore_dirty_pattern;
   const char* no_ignore_dirty_pattern;
   const char* ignore_optional_include_pattern;

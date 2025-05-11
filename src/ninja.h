@@ -36,6 +36,5 @@ std::string GetNinjaStampFilename();
 
 // Exposed only for test.
 bool GetDepfileFromCommand(std::string* cmd, std::string* out);
-size_t GetGomaccPosForAndroidCompileCommand(std::string_view cmdline);
 
 #endif  // NINJA_H_

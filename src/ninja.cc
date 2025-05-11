@@ -71,36 +71,6 @@ static std::string_view FindCommandLineFlagWithArg(std::string_view cmd,
   return val.substr(0, index);
 }
 
-static bool StripPrefix(std::string_view p, std::string_view* s) {
-  if (!HasPrefix(*s, p))
-    return false;
-  *s = s->substr(p.size());
-  return true;
-}
-
-size_t GetGomaccPosForAndroidCompileCommand(std::string_view cmdline) {
-  size_t index = cmdline.find(' ');
-  if (index == std::string::npos)
-    return std::string::npos;
-  std::string_view cmd = cmdline.substr(0, index);
-  if (HasSuffix(cmd, "ccache")) {
-    index++;
-    size_t pos = GetGomaccPosForAndroidCompileCommand(cmdline.substr(index));
-    return pos == std::string::npos ? std::string::npos : pos + index;
-  }
-  if (!StripPrefix("prebuilts/", &cmd))
-    return std::string::npos;
-  if (!StripPrefix("gcc/", &cmd) && !StripPrefix("clang/", &cmd))
-    return std::string::npos;
-  if (!HasSuffix(cmd, "gcc") && !HasSuffix(cmd, "g++") &&
-      !HasSuffix(cmd, "clang") && !HasSuffix(cmd, "clang++")) {
-    return std::string::npos;
-  }
-
-  std::string_view rest = cmdline.substr(index);
-  return rest.find(" -c ") != std::string::npos ? 0 : std::string::npos;
-}
-
 static bool GetDepfileFromCommandImpl(std::string_view cmd, std::string* out) {
   if ((FindCommandLineFlag(cmd, " -MD") == std::string::npos &&
        FindCommandLineFlag(cmd, " -MMD") == std::string::npos) ||
@@ -186,10 +156,6 @@ class NinjaGenerator {
         start_time_(start_time),
         default_target_(NULL) {
     ev_->set_avoid_io(true);
-    const std::string use_goma_str = ev->EvalVar(Intern("USE_GOMA"));
-    use_goma_ = !(use_goma_str.empty() || use_goma_str == "false");
-    if (g_flags.goma_dir)
-      gomacc_ = StringPrintf("%s/gomacc ", g_flags.goma_dir);
   }
 
   ~NinjaGenerator() { ev_->set_avoid_io(false); }
@@ -395,12 +361,11 @@ class NinjaGenerator {
     return true;
   }
 
-  bool GenShellScript(const char* name,
+  void GenShellScript(const char* name,
                       const std::vector<Command>& commands,
                       std::string* cmd_buf,
                       std::string* description) {
     bool got_descritpion = false;
-    bool use_gomacc = false;
     auto command_count = commands.size();
     for (const Command& c : commands) {
       size_t cmd_begin = cmd_buf->size();
@@ -432,14 +397,6 @@ class NinjaGenerator {
         cmd_buf->resize(cmd_begin);
         command_count -= 1;
         continue;
-      } else if (g_flags.goma_dir) {
-        size_t pos = GetGomaccPosForAndroidCompileCommand(translated);
-        if (pos != std::string::npos) {
-          cmd_buf->insert(cmd_start + pos, gomacc_);
-          use_gomacc = true;
-        }
-      } else if (translated.find("/gomacc") != std::string::npos) {
-        use_gomacc = true;
       }
 
       if (c.ignore_error) {
@@ -449,8 +406,6 @@ class NinjaGenerator {
       if (needs_subshell)
         *cmd_buf += " )";
     }
-    return (use_goma_ || g_flags.remote_num_jobs || g_flags.goma_dir) &&
-           !use_gomacc;
   }
 
   bool GetDepfile(const DepNode* node,
@@ -485,7 +440,7 @@ class NinjaGenerator {
     const std::vector<Command>& commands = nn.commands;
 
     std::string rule_name = "phony";
-    bool use_local_pool = false;
+    bool use_local_pool = g_flags.remote_num_jobs > 0;
     if (IsSpecialTarget(node->output)) {
       return;
     }
@@ -499,8 +454,7 @@ class NinjaGenerator {
 
       std::string description = "build $out";
       std::string cmd_buf;
-      use_local_pool |= GenShellScript(node->output.c_str(), commands, &cmd_buf,
-                                       &description);
+      GenShellScript(node->output.c_str(), commands, &cmd_buf, &description);
       out << " description = " << description << "\n";
       EmitDepfile(nn, &cmd_buf, out);
 
@@ -702,8 +656,6 @@ class NinjaGenerator {
     fprintf(fp, "exec ninja -f %s ", GetNinjaFilename().c_str());
     if (g_flags.remote_num_jobs > 0) {
       fprintf(fp, "-j%d ", g_flags.remote_num_jobs);
-    } else if (g_flags.goma_dir) {
-      fprintf(fp, "-j500 ");
     }
     fprintf(fp, "\"$@\"\n");
 
@@ -802,8 +754,6 @@ class NinjaGenerator {
   Evaluator* ev_;
   SymbolSet done_;
   int rule_id_;
-  bool use_goma_;
-  std::string gomacc_;
   const std::string shell_;
   const std::string shell_flags_;
   std::map<std::string, std::string> used_envs_;
