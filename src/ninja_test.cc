@@ -66,23 +66,10 @@ void TestGetDepfile() {
   assert(!g_last_error);
 }
 
-static void TestGetGomaccPosForAndroidCompileCommand() {
-  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand(
-                "prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c"),
-            0);
-  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand(
-                "prebuilts/misc/linux-x86/ccache/ccache "
-                "prebuilts/clang/linux-x86/host/3.6/bin/clang++ -c foo.c"),
-            39);
-  ASSERT_EQ(GetGomaccPosForAndroidCompileCommand("echo foo"),
-            std::string::npos);
-}
-
 }  // namespace
 
 int main() {
   g_log_no_exit = true;
   TestGetDepfile();
-  TestGetGomaccPosForAndroidCompileCommand();
   assert(!g_failed);
 }

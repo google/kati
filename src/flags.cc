@@ -177,8 +177,6 @@ void Flags::Parse(int argc, char** argv) {
                                              &ninja_dir)) {
     } else if (!strcmp(arg, "--use_find_emulator")) {
       use_find_emulator = true;
-    } else if (ParseCommandLineOptionWithArg("--goma_dir", argv, &i,
-                                             &goma_dir)) {
     } else if (ParseCommandLineOptionWithArg(
                    "--ignore_optional_include", argv, &i,
                    &ignore_optional_include_pattern)) {

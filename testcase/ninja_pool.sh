@@ -21,7 +21,7 @@ mk="$@"
 
 cat <<EOF > Makefile
 
-test: test_pool test_none test_default test_blank test_gomacc
+test: test_pool test_none test_default test_blank
 
 test_pool: .KATI_NINJA_POOL := test_pool
 test_pool:
@@ -36,10 +36,6 @@ test_default:
 
 test_blank: .KATI_NINJA_POOL :=
 test_blank:
-	echo "PASS"
-
-test_gomacc:
-	echo ~/goma/gomacc > /dev/null
 	echo "PASS"
 EOF
 
@@ -69,9 +65,6 @@ if [ -e ninja.sh ]; then
   fi
   if grep -A1 "build test_blank:" kati.ninja | grep -q "pool ="; then
     echo "unexpected pool present for test_blank rule in build.ninja"
-  fi
-  if grep -A1 "build test_blank:" kati.ninja | grep -q "pool ="; then
-    echo "unexpected pool present for test_gomacc rule in build.ninja"
   fi
 fi
 
@@ -105,39 +98,5 @@ if [ -e ninja.sh ]; then
   fi
   if ! grep -A1 "build test_blank:" kati.ninja | grep -q "pool = default_pool"; then
     echo "default_pool not present for test_blank rule in build.ninja"
-  fi
-  if ! grep -A1 "build test_gomacc:" kati.ninja | grep -q "pool = default_pool"; then
-    echo "default_pool not present for test_gomacc rule in build.ninja"
-  fi
-fi
-
-# Test with USE_GOMA=true set
-${mk} USE_GOMA=true 2>${log}
-if [ -e ninja.sh ]; then
-  mv build.ninja kati.ninja
-  cat <<EOF > build.ninja
-pool test_pool
-  depth = 1
-pool default_pool
-  depth = 1
-include kati.ninja
-EOF
-  ./ninja.sh
-fi
-if [ -e ninja.sh ]; then
-  if ! grep -A1 "build test_pool:" kati.ninja | grep -q "pool = test_pool"; then
-    echo "test_pool not present for test_pool rule in build.ninja"
-  fi
-  if grep -A1 "build test_none:" kati.ninja | grep -q "pool = "; then
-    echo "unexpected pool present for test_none rule in build.ninja"
-  fi
-  if ! grep -A1 "build test_default:" kati.ninja | grep -q "pool = local_pool"; then
-    echo "local_pool not present for test_default rule in build.ninja"
-  fi
-  if ! grep -A1 "build test_blank:" kati.ninja | grep -q "pool = local_pool"; then
-    echo "local_pool not present for test_blank rule in build.ninja"
-  fi
-  if grep -A1 "build test_gomacc:" kati.ninja | grep -q "pool = "; then
-    echo "unexpected pool present for test_gomacc rule in build.ninja"
   fi
 fi
