@@ -16,6 +16,7 @@
 
 #include "eval.h"
 
+#include <algorithm>
 #include <ctype.h>
 #include <errno.h>
 #include <pthread.h>
