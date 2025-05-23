@@ -95,7 +95,7 @@ impl AutoCommandVar {
                 out.put_slice(&current_dep_node.output.as_bytes());
             }
             AutoCommand::Less => {
-                if let Some(ai) = current_dep_node.actual_inputs.get(0) {
+                if let Some(ai) = current_dep_node.actual_inputs.first() {
                     out.put_slice(&ai.as_bytes());
                 }
             }
@@ -217,7 +217,7 @@ impl<'a> CommandEvaluator<'a> {
     pub fn new(ev: &'a mut Evaluator) -> Result<Self> {
         let found_new_inputs = Arc::new(Mutex::new(false));
         let mut ret = Self {
-            ev: ev,
+            ev,
             current_dep_node: Arc::new(Mutex::new(None)),
             found_new_inputs: found_new_inputs.clone(),
         };
@@ -250,7 +250,7 @@ impl<'a> CommandEvaluator<'a> {
             sym,
             AutoCommandVar {
                 typ: a.clone(),
-                sym: sym,
+                sym,
                 variant: AutoCommandVariant::D,
                 current_dep_node: self.current_dep_node.clone(),
             },
@@ -261,7 +261,7 @@ impl<'a> CommandEvaluator<'a> {
             sym,
             AutoCommandVar {
                 typ: a,
-                sym: sym,
+                sym,
                 variant: AutoCommandVariant::F,
                 current_dep_node: self.current_dep_node.clone(),
             },
@@ -334,6 +334,6 @@ impl<'a> CommandEvaluator<'a> {
         self.ev.current_scope = None;
         self.ev.is_evaluating_command = false;
 
-        return Ok(result);
+        Ok(result)
     }
 }

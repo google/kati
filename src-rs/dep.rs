@@ -69,7 +69,7 @@ pub struct DepNode {
 impl DepNode {
     fn new(output: Symbol, is_phony: bool, is_restat: bool) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
-            output: output,
+            output,
             cmds: Vec::new(),
             deps: Vec::new(),
             order_onlys: Vec::new(),
@@ -97,7 +97,7 @@ fn replace_suffix(s: Symbol, newsuf: &Symbol) -> Symbol {
     let s = strip_ext(&s);
     let newsuf = newsuf.as_bytes();
     let mut r = BytesMut::with_capacity(s.len() + newsuf.len() + 1);
-    r.put_slice(&s);
+    r.put_slice(s);
     r.put_u8(b'.');
     r.put_slice(&newsuf);
     intern(r.freeze())
@@ -156,7 +156,7 @@ impl RuleTrie {
         let c = name[0];
         self.children
             .entry(c)
-            .or_insert_with(|| RuleTrie::new())
+            .or_insert_with(RuleTrie::new)
             .add(&name[1..], rule)
     }
 
@@ -178,7 +178,7 @@ impl RuleTrie {
     }
 
     fn len(&self) -> usize {
-        self.rules.len() + self.children.iter().map(|(_, c)| c.len()).sum::<usize>()
+        self.rules.len() + self.children.values().map(|c| c.len()).sum::<usize>()
     }
 }
 
@@ -321,7 +321,7 @@ impl RuleMerger {
         n.actual_order_only_inputs
             .extend(apply_output_pattern(r, output, &r.order_only_inputs));
 
-        if r.output_patterns.len() >= 1 {
+        if !r.output_patterns.is_empty() {
             assert!(r.output_patterns.len() == 1);
             n.output_pattern = Some(r.output_patterns[0]);
         }
@@ -370,8 +370,8 @@ impl RuleMerger {
         all_outputs.insert(output);
 
         for (sym, merger) in &self.implicit_outputs {
-            n.implicit_outputs.push(sym.clone());
-            all_outputs.insert(sym.clone());
+            n.implicit_outputs.push(*sym);
+            all_outputs.insert(*sym);
             let merger = merger.lock();
             for r in &merger.rules {
                 self.fill_dep_node_from_rule(output, r, &mut n);
@@ -379,7 +379,7 @@ impl RuleMerger {
         }
 
         for validation in &self.validations {
-            n.actual_validations.push(validation.clone())
+            n.actual_validations.push(*validation)
         }
     }
 }
@@ -412,7 +412,7 @@ impl<'a> DepBuilder<'a> {
         let mut ret = Self {
             ev,
             rules: HashMap::new(),
-            rule_vars: rule_vars,
+            rule_vars,
             cur_rule_vars: None,
 
             implicit_rules: RuleTrie::new(),
@@ -546,7 +546,7 @@ impl<'a> DepBuilder<'a> {
         assert!(!merger.rules.is_empty());
         for r in &merger.rules {
             for i in &r.inputs {
-                ret.push(i.clone());
+                ret.push(*i);
             }
         }
 
@@ -563,7 +563,7 @@ impl<'a> DepBuilder<'a> {
                 self.populate_explicit_rule(rule)?;
             }
         }
-        for (_, rules) in &mut self.suffix_rules {
+        for rules in self.suffix_rules.values_mut() {
             rules.reverse();
         }
         // TODO: This clone likely isn't necessary with some refactoring
@@ -578,7 +578,7 @@ impl<'a> DepBuilder<'a> {
                     let sym = intern(implicit_outputs.slice_ref(trim_leading_curdir(output)));
                     self.rules
                         .entry(sym)
-                        .or_insert_with(|| RuleMerger::new())
+                        .or_insert_with(RuleMerger::new)
                         .lock()
                         .set_implicit_output(sym, symbol, merger.clone())?;
                     merger
@@ -633,11 +633,11 @@ impl<'a> DepBuilder<'a> {
     fn populate_explicit_rule(&mut self, rule: Arc<Rule>) -> Result<()> {
         for output in &rule.outputs {
             if self.first_rule.is_none() && !is_special_target(output) {
-                self.first_rule = Some(output.clone());
+                self.first_rule = Some(*output);
             }
             self.rules
-                .entry(output.clone())
-                .or_insert_with(|| RuleMerger::new())
+                .entry(*output)
+                .or_insert_with(RuleMerger::new)
                 .lock()
                 .add_rule(*output, rule.clone())?;
             self.populate_suffix_rule(&rule, *output)?;
@@ -713,7 +713,7 @@ impl<'a> DepBuilder<'a> {
                 }
 
                 if ok {
-                    matched = Some(output_pattern.clone());
+                    matched = Some(*output_pattern);
                     break;
                 }
             }
@@ -831,9 +831,9 @@ impl<'a> DepBuilder<'a> {
         }
 
         if rule_merger.is_some() {
-            return Some((rule_merger, None, vars));
+            Some((rule_merger, None, vars))
         } else {
-            return None;
+            None
         }
     }
 
@@ -853,7 +853,7 @@ impl<'a> DepBuilder<'a> {
             self.phony.contains(&output),
             self.restat.contains(&output),
         );
-        self.done.insert(output.clone(), n.clone());
+        self.done.insert(output, n.clone());
 
         let Some((mut rule_merger, mut pattern_rule, mut vars)) = self.pick_rule(output, &n) else {
             return Ok(n);
@@ -874,7 +874,7 @@ impl<'a> DepBuilder<'a> {
         let output_str = output.as_bytes();
 
         rule_merger
-            .unwrap_or_else(|| RuleMerger::new())
+            .unwrap_or_else(RuleMerger::new)
             .lock()
             .fill_dep_node(output, &pattern_rule, &n);
 
@@ -969,7 +969,7 @@ impl<'a> DepBuilder<'a> {
 
         let implicit_outputs = n.lock().implicit_outputs.clone();
         for output in implicit_outputs {
-            self.done.insert(output.clone(), n.clone());
+            self.done.insert(output, n.clone());
 
             let output_str = output.as_bytes();
             if FLAGS.warn_phony_looks_real && n.lock().is_phony && output_str.contains(&b'/') {
@@ -1012,8 +1012,8 @@ impl<'a> DepBuilder<'a> {
 
         let actual_inputs = n.lock().actual_inputs.clone();
         for input in actual_inputs {
-            let c = self.build_plan(input.clone(), Some(output.clone()))?;
-            n.lock().deps.push((input.clone(), c.clone()));
+            let c = self.build_plan(input, Some(output))?;
+            n.lock().deps.push((input, c.clone()));
 
             let mut is_phony = c.lock().is_phony;
             if !is_phony && !c.lock().has_rule && FLAGS.top_level_phony {
@@ -1036,8 +1036,8 @@ impl<'a> DepBuilder<'a> {
 
         let actual_order_only_inputs = n.lock().actual_order_only_inputs.clone();
         for input in actual_order_only_inputs {
-            let c = self.build_plan(input.clone(), Some(output.clone()))?;
-            n.lock().order_onlys.push((input.clone(), c));
+            let c = self.build_plan(input, Some(output))?;
+            n.lock().order_onlys.push((input, c));
         }
 
         let actual_validations = n.lock().actual_validations.clone();
@@ -1048,8 +1048,8 @@ impl<'a> DepBuilder<'a> {
                     ".KATI_VALIDATIONS not allowed without --use_ninja_validations"
                 );
             }
-            let c = self.build_plan(validation.clone(), Some(output.clone()))?;
-            n.lock().validations.push((validation.clone(), c));
+            let c = self.build_plan(validation, Some(output))?;
+            n.lock().validations.push((validation, c));
         }
 
         // Block on werror_writable/werror_phony_looks_real, because otherwise we
@@ -1072,34 +1072,30 @@ impl<'a> DepBuilder<'a> {
                         "warning: target \"{output}\" has no commands or deps that could create it"
                     );
                 }
-            } else {
-                if n.actual_inputs.len() == 1 {
-                    if FLAGS.werror_real_no_cmds {
-                        error_loc!(
-                            n.loc.as_ref(),
-                            "*** target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
-                            n.actual_inputs[0]
-                        );
-                    } else if FLAGS.warn_real_no_cmds {
-                        warn_loc!(
-                            n.loc.as_ref(),
-                            "warning: target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
-                            n.actual_inputs[0]
-                        );
-                    }
-                } else {
-                    if FLAGS.werror_real_no_cmds {
-                        error_loc!(
-                            n.loc.as_ref(),
-                            "*** target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
-                        );
-                    } else if FLAGS.warn_real_no_cmds {
-                        warn_loc!(
-                            n.loc.as_ref(),
-                            "warning: target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
-                        );
-                    }
+            } else if n.actual_inputs.len() == 1 {
+                if FLAGS.werror_real_no_cmds {
+                    error_loc!(
+                        n.loc.as_ref(),
+                        "*** target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
+                        n.actual_inputs[0]
+                    );
+                } else if FLAGS.warn_real_no_cmds {
+                    warn_loc!(
+                        n.loc.as_ref(),
+                        "warning: target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
+                        n.actual_inputs[0]
+                    );
                 }
+            } else if FLAGS.werror_real_no_cmds {
+                error_loc!(
+                    n.loc.as_ref(),
+                    "*** target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
+                );
+            } else if FLAGS.warn_real_no_cmds {
+                warn_loc!(
+                    n.loc.as_ref(),
+                    "warning: target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
+                );
             }
         }
 
@@ -1109,14 +1105,14 @@ impl<'a> DepBuilder<'a> {
             n.is_default_target = self.first_rule == Some(output);
             if let Some(cur_rule_vars) = &self.cur_rule_vars {
                 let v = Vars::new();
-                v.merge_from(&cur_rule_vars);
+                v.merge_from(cur_rule_vars);
                 n.rule_vars = Some(Arc::new(v));
             } else {
                 n.rule_vars = None
             }
         }
 
-        return Ok(n);
+        Ok(n)
     }
 }
 

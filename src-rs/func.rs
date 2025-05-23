@@ -238,7 +238,7 @@ fn sort_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
 
 fn get_numeric_value_for_func(buf: &[u8]) -> Result<usize> {
     let s = std::str::from_utf8(trim_left_space(buf))?;
-    Ok(usize::from_str_radix(&s, 10)?)
+    Ok(usize::from_str_radix(s, 10)?)
 }
 
 fn word_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {
@@ -666,12 +666,12 @@ fn shell_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> 
     if should_store_command_result(&cmd) {
         COMMAND_RESULTS.lock().push(CommandResult {
             op: CommandOp::Shell,
-            shell: shell,
+            shell,
             shellflag: Bytes::from_static(shellflag),
-            cmd: cmd,
+            cmd,
             find: fc,
             result: output,
-            loc: loc,
+            loc,
         })
     }
     set_shell_status_var(exit_code);
@@ -713,13 +713,11 @@ fn call_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
     if let Some(func) = &func {
         let func = func.read();
         func.used(ev, &func_sym)?;
-    } else {
-        if FLAGS.enable_kati_warnings {
-            kati_warn_loc!(
-                ev.loc.as_ref(),
-                "*warning*: undefined user function: {func_sym}"
-            );
-        }
+    } else if FLAGS.enable_kati_warnings {
+        kati_warn_loc!(
+            ev.loc.as_ref(),
+            "*warning*: undefined user function: {func_sym}"
+        );
     }
     let mut av = Vec::with_capacity(args.len() - 1);
     for arg in &args[1..] {
@@ -977,7 +975,7 @@ fn file_func_impl(
         error_loc!(
             ev.loc.as_ref(),
             "*** Invalid file operation: {}.  Stop.",
-            String::from_utf8_lossy(&filename)
+            String::from_utf8_lossy(filename)
         );
     }
     Ok(())
@@ -1143,7 +1141,7 @@ fn profile_makefile_func(
         let files = arg.eval_to_buf(ev)?;
         for file in word_scanner(&files) {
             ev.profiled_files
-                .push(String::from_utf8_lossy(&file).into_owned());
+                .push(String::from_utf8_lossy(file).into_owned());
         }
     }
     Ok(())
@@ -1163,7 +1161,7 @@ fn variable_location_func(
             .peek_var(sym)
             .and_then(|v| v.read().loc().clone())
             .unwrap_or_default();
-        ww.write(&l.to_string().as_bytes());
+        ww.write(l.to_string().as_bytes());
     }
     Ok(())
 }
@@ -1231,7 +1229,7 @@ fn visibility_prefix_func(
             error_loc!(
                 ev.loc.as_ref(),
                 "Visibility prefix {} is not normalized. Normalized prefix: {}",
-                String::from_utf8_lossy(&prefix),
+                String::from_utf8_lossy(prefix),
                 String::from_utf8_lossy(&normalized_prefix)
             );
         }

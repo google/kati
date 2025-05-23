@@ -292,7 +292,7 @@ fn handle_realpath(args: Vec<String>) {
     for arg in args {
         if let Ok(path) = std::fs::canonicalize(&arg) {
             let _ = stdout().write_all(path.as_os_str().as_bytes());
-            println!("");
+            println!();
         }
     }
 }

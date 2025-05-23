@@ -78,7 +78,7 @@ impl Frame {
     ) -> Self {
         assert!(parent.is_none() == (frame_type == FrameType::Root));
         Self {
-            frame_type: frame_type,
+            frame_type,
             parent: parent.map(|p| Arc::downgrade(&p)),
             name,
             location: loc,
@@ -130,10 +130,7 @@ impl ScopedFrame {
             stack.last().unwrap().add(frame.clone());
             stack.push(frame);
         }
-        Self {
-            stack: stack,
-            frame: frame,
-        }
+        Self { stack, frame }
     }
     pub fn current(&self) -> Option<Arc<Frame>> {
         self.frame.clone()
@@ -177,29 +174,25 @@ impl IncludeGraph {
         for (file, node) in &self.nodes {
             if first_node {
                 first_node = false;
-                writeln!(tf, "")?;
+                writeln!(tf)?;
             } else {
                 writeln!(tf, ",")?;
             }
 
             writeln!(tf, "    {{")?;
             // TODO(lberki): Quote all these strings properly
-            writeln!(
-                tf,
-                "      \"file\": \"{}\",",
-                String::from_utf8_lossy(&file)
-            )?;
+            writeln!(tf, "      \"file\": \"{}\",", String::from_utf8_lossy(file))?;
             write!(tf, "      \"includes\": [")?;
             let mut first_include = true;
             for include in &node.includes {
                 if first_include {
                     first_include = false;
-                    writeln!(tf, "")?;
+                    writeln!(tf)?;
                 } else {
                     writeln!(tf, ",")?;
                 }
 
-                write!(tf, "        \"{}\"", String::from_utf8_lossy(&include))?;
+                write!(tf, "        \"{}\"", String::from_utf8_lossy(include))?;
             }
             writeln!(tf, "\n      ]")?;
             write!(tf, "    }}")?;
@@ -274,6 +267,12 @@ pub struct Evaluator {
     pub is_evaluating_command: bool,
 }
 
+impl Default for Evaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Evaluator {
     pub fn new() -> Self {
         Self {
@@ -330,7 +329,7 @@ impl Evaluator {
         }
 
         let tf = self.assignment_tracefile.as_mut().unwrap();
-        write!(tf, "{{\n")?;
+        writeln!(tf, "{{")?;
         write!(tf, "  \"assignments\": [")?;
         Ok(())
     }
@@ -338,7 +337,7 @@ impl Evaluator {
     pub fn finish(&mut self) -> Result<()> {
         if let Some(tf) = self.assignment_tracefile.as_mut() {
             write!(tf, " \n ]\n")?;
-            write!(tf, "}}\n")?;
+            writeln!(tf, "}}")?;
         }
         Ok(())
     }
@@ -525,7 +524,7 @@ impl Evaluator {
         let mut pattern_rule_count = 0;
         let mut targets: Vec<Symbol> = Vec::new();
         for word in word_scanner(&targets_string) {
-            let target = targets_string.slice_ref(trim_leading_curdir(&word));
+            let target = targets_string.slice_ref(trim_leading_curdir(word));
             targets.push(intern(target.clone()));
             if is_pattern_rule(&target) {
                 pattern_rule_count += 1;
@@ -905,7 +904,7 @@ impl Evaluator {
         for tok in word_scanner(&exports) {
             let equal_index = memchr(b'=', tok);
             let lhs;
-            if equal_index == None {
+            if equal_index.is_none() {
                 lhs = tok;
             } else if equal_index == Some(0)
                 || (equal_index == Some(1)

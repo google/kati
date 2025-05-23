@@ -325,10 +325,8 @@ impl DirentNode {
                         path.extend_from_slice(name);
                         if idx.is_none() {
                             results.push((path.clone(), child.clone()));
-                        } else {
-                            if !child.find_nodes(fc, results, path, rest) {
-                                return false;
-                            }
+                        } else if !child.find_nodes(fc, results, path, rest) {
+                            return false;
                         }
                         path.truncate(orig_path_size);
                     }
@@ -361,8 +359,8 @@ impl DirentNode {
     ) -> Result<bool> {
         match self.inner(fc.follows_symlink) {
             Some(NodeType::File { typ }) => {
-                self.print_if_necessary(fc, &path, *typ, d, out);
-                return Ok(true);
+                self.print_if_necessary(fc, path, *typ, d, out);
+                Ok(true)
             }
             Some(NodeType::Dir { children, .. }) => {
                 let srdt = ScopedReadDirTracker::new(self, path, cur_read_dirs);
@@ -381,7 +379,7 @@ impl DirentNode {
                 if fc
                     .prune_cond
                     .as_ref()
-                    .is_some_and(|cond| cond.is_true(&path, FileType::Dir))
+                    .is_some_and(|cond| cond.is_true(path, FileType::Dir))
                 {
                     if fc.typ != Some(FindCommandType::FindLeaves) {
                         out.push(path.clone())
@@ -460,9 +458,7 @@ impl DirentNode {
                 }
                 Ok(true)
             }
-            Some(NodeType::Symlink { to }) => {
-                return to.run_find(fc, loc, d, path, cur_read_dirs, out);
-            }
+            Some(NodeType::Symlink { to }) => to.run_find(fc, loc, d, path, cur_read_dirs, out),
             Some(NodeType::SymlinkError { err }) => {
                 if err.kind() == std::io::ErrorKind::NotFound {
                     self.print_if_necessary(fc, path, FileType::Symlink, d, out);
@@ -477,14 +473,14 @@ impl DirentNode {
                     );
                     return Ok(true);
                 }
-                return Ok(true);
+                Ok(true)
             }
             Some(NodeType::UnsupportedSymlink {}) => {
                 log!(
                     "FindEmulator does not support {}",
                     String::from_utf8_lossy(path)
                 );
-                return Ok(false);
+                Ok(false)
             }
             None => {
                 self.print_if_necessary(fc, path, FileType::Symlink, d, out);
@@ -505,11 +501,8 @@ impl DirentNode {
                 }
             } else {
                 let init_data = self.init_data.lock();
-                match init_data.as_ref() {
-                    Some(NodeTypeInitData::Symlink { .. }) => {
-                        return None;
-                    }
-                    _ => {}
+                if let Some(NodeTypeInitData::Symlink { .. }) = init_data.as_ref() {
+                    return None;
                 }
             }
         }
@@ -605,20 +598,20 @@ impl DirentNode {
                 base.clone(),
                 Arc::new(if typ.is_dir() {
                     DirentNode {
-                        base: base,
+                        base,
                         inner: OnceLock::new(),
                         init_data: Mutex::new(Some(NodeTypeInitData::Dir {
                             name: path,
-                            parent: Some(Arc::downgrade(&self)),
+                            parent: Some(Arc::downgrade(self)),
                         })),
                     }
                 } else if typ.is_symlink() {
                     DirentNode {
-                        base: base,
+                        base,
                         inner: OnceLock::new(),
                         init_data: Mutex::new(Some(NodeTypeInitData::Symlink {
                             name: path,
-                            parent: Arc::downgrade(&self),
+                            parent: Arc::downgrade(self),
                         })),
                     }
                 } else {
@@ -627,7 +620,7 @@ impl DirentNode {
                         typ: typ.try_into().unwrap(),
                     });
                     DirentNode {
-                        base: base,
+                        base,
                         inner,
                         init_data: Mutex::new(None),
                     }
@@ -636,10 +629,7 @@ impl DirentNode {
         }
         NODE_COUNT.fetch_add(children.len(), std::sync::atomic::Ordering::Relaxed);
 
-        NodeType::Dir {
-            parent: parent,
-            children: children,
-        }
+        NodeType::Dir { parent, children }
     }
 }
 
@@ -726,7 +716,7 @@ impl<'a> FindCommandParser {
             return Ok(None);
         }
         assert!(trim_left_space(&self.cur).is_empty());
-        return Ok(Some(self.fc));
+        Ok(Some(self.fc))
     }
 
     fn get_next_token(&mut self) -> Option<Bytes> {
@@ -794,10 +784,10 @@ impl<'a> FindCommandParser {
     }
 
     fn parse_test(&mut self) -> bool {
-        if self.has_if || !self.fc.testdir.is_none() {
+        if self.has_if || self.fc.testdir.is_some() {
             return false;
         }
-        if !self.get_next_token().is_some_and(|t| t.as_ref() == b"-d") {
+        if self.get_next_token().is_none_or(|t| t.as_ref() != b"-d") {
             return false;
         }
         let Some(tok) = self.get_next_token() else {
@@ -807,7 +797,7 @@ impl<'a> FindCommandParser {
             return false;
         }
         self.fc.testdir = Some(tok);
-        return true;
+        true
     }
 
     fn parse_fact(&mut self, tok: Bytes) -> Option<FindCond> {
@@ -872,16 +862,14 @@ impl<'a> FindCommandParser {
                 if tok.is_empty() {
                     return None;
                 }
-            } else {
-                if tok.as_ref() != b"-not"
-                    && tok.as_ref() != b"!"
-                    && tok.as_ref() != b"("
-                    && tok.as_ref() != b"-name"
-                    && tok.as_ref() != b"-type"
-                {
-                    self.unget_token(tok);
-                    return Some(c);
-                }
+            } else if tok.as_ref() != b"-not"
+                && tok.as_ref() != b"!"
+                && tok.as_ref() != b"("
+                && tok.as_ref() != b"-name"
+                && tok.as_ref() != b"-type"
+            {
+                self.unget_token(tok);
+                return Some(c);
             }
             let r = self.parse_fact(tok)?;
             c = FindCond::new_and(c, r);
@@ -935,7 +923,7 @@ impl<'a> FindCommandParser {
                 if self.fc.print_cond.is_none() || self.fc.prune_cond.is_some() {
                     return false;
                 }
-                if !self.get_next_token().is_some_and(|t| t == "-o") {
+                if self.get_next_token().is_none_or(|t| t != "-o") {
                     return false;
                 }
                 self.fc.prune_cond = std::mem::take(&mut self.fc.print_cond);
@@ -970,9 +958,9 @@ impl<'a> FindCommandParser {
                 };
                 self.fc.print_cond = Some(c);
             } else if tok == "2>" {
-                if !self
+                if self
                     .get_next_token()
-                    .is_some_and(|t| t.as_ref() == b"/dev/null")
+                    .is_none_or(|t| t.as_ref() != b"/dev/null")
                 {
                     return false;
                 }
@@ -1008,7 +996,7 @@ impl<'a> FindCommandParser {
                     };
                     self.fc.print_cond = Some(cond);
                 } else {
-                    if findfiles.len() < 1 {
+                    if findfiles.is_empty() {
                         return Ok(false);
                     }
                     for file in findfiles {
@@ -1091,19 +1079,19 @@ impl<'a> FindCommandParser {
                     return Ok(false);
                 }
             } else if tok.as_ref() == b"if" {
-                if !self.get_next_token().is_some_and(|t| t.as_ref() == b"[") {
+                if self.get_next_token().is_none_or(|t| t.as_ref() != b"[") {
                     return Ok(false);
                 }
                 if !self.parse_test() {
                     return Ok(false);
                 }
-                if !self.get_next_token().is_some_and(|t| t.as_ref() == b"]") {
+                if self.get_next_token().is_none_or(|t| t.as_ref() != b"]") {
                     return Ok(false);
                 }
-                if !self.get_next_token().is_some_and(|t| t.as_ref() == b";") {
+                if self.get_next_token().is_none_or(|t| t.as_ref() != b";") {
                     return Ok(false);
                 }
-                if !self.get_next_token().is_some_and(|t| t.as_ref() == b"then") {
+                if self.get_next_token().is_none_or(|t| t.as_ref() != b"then") {
                     return Ok(false);
                 }
                 self.has_if = true
@@ -1114,19 +1102,17 @@ impl<'a> FindCommandParser {
                 if !self.parse_test() {
                     return Ok(false);
                 }
-                if !self.get_next_token().is_some_and(|t| t.as_ref() == b"&&") {
+                if self.get_next_token().is_none_or(|t| t.as_ref() != b"&&") {
                     return Ok(false);
                 }
             } else if tok.as_ref() == b"find" {
                 if !self.parse_find() {
                     return Ok(false);
                 }
-                if self.has_if {
-                    if !self.get_next_token().is_some_and(|t| t.as_ref() == b"fi") {
-                        return Ok(false);
-                    }
+                if self.has_if && self.get_next_token().is_none_or(|t| t.as_ref() != b"fi") {
+                    return Ok(false);
                 }
-                if !self.get_next_token().is_some_and(|t| t.as_ref() == b"") {
+                if self.get_next_token().is_none_or(|t| t.as_ref() != b"") {
                     return Ok(false);
                 }
                 return Ok(true);
@@ -1199,7 +1185,7 @@ impl FindEmulator {
                 return Ok(false);
             }
             let Some(new_root) = root.find_dir(chdir) else {
-                if std::fs::exists(OsStr::from_bytes(&chdir)).unwrap_or(false) {
+                if std::fs::exists(OsStr::from_bytes(chdir)).unwrap_or(false) {
                     return Ok(false);
                 }
                 if !fc.redirect_to_devnull {
@@ -1250,7 +1236,7 @@ impl FindEmulator {
                 if !base.run_find(fc, loc, 0, &mut path, &cur_read_dirs, &mut results)? {
                     log!(
                         "FindEmulator: RunFind failed: {}",
-                        String::from_utf8_lossy(&cmd)
+                        String::from_utf8_lossy(cmd)
                     );
                     return Ok(false);
                 }
@@ -1365,7 +1351,7 @@ pub fn parse(cmd: &Bytes) -> Result<Option<FindCommand>> {
     FindCommand::with_cmd(cmd)
 }
 
-static FIND_EMULATOR: LazyLock<FindEmulator> = LazyLock::new(|| FindEmulator::new());
+static FIND_EMULATOR: LazyLock<FindEmulator> = LazyLock::new(FindEmulator::new);
 
 pub fn find(cmd: &Bytes, fc: &FindCommand, loc: &Loc) -> Result<Option<Bytes>> {
     let mut out = BytesMut::new();

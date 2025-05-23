@@ -103,11 +103,11 @@ impl Debug for RuleStmt {
 impl RuleStmt {
     pub fn new(loc: Loc, lhs: Arc<Value>, sep: RuleSep, rhs: Option<Arc<Value>>) -> Arc<RuleStmt> {
         Arc::new(RuleStmt {
-            loc: loc,
+            loc,
             orig: Bytes::new(),
-            lhs: lhs,
-            sep: sep,
-            rhs: rhs,
+            lhs,
+            sep,
+            rhs,
         })
     }
 }
@@ -166,14 +166,14 @@ impl AssignStmt {
         is_final: bool,
     ) -> Arc<AssignStmt> {
         Arc::new(AssignStmt {
-            loc: loc,
+            loc,
             orig: Bytes::new(),
-            lhs: lhs,
-            rhs: rhs,
+            lhs,
+            rhs,
             orig_rhs,
-            op: op,
-            directive: directive,
-            is_final: is_final,
+            op,
+            directive,
+            is_final,
             lhs_sym_cache: Mutex::new(None),
         })
     }
@@ -188,7 +188,7 @@ impl AssignStmt {
             if cache.is_none() {
                 *cache = Some(intern(v.clone()));
             }
-            return Ok(cache.clone().unwrap());
+            return Ok((*cache).unwrap());
         }
 
         let buf = self.lhs.eval_to_buf(ev)?;
@@ -271,11 +271,11 @@ impl Debug for IfStmt {
 impl IfStmt {
     pub fn new(loc: Loc, op: CondOp, lhs: Arc<Value>, rhs: Option<Arc<Value>>) -> Arc<IfStmt> {
         Arc::new(IfStmt {
-            loc: loc,
+            loc,
             orig: Bytes::new(),
-            op: op,
-            lhs: lhs,
-            rhs: rhs,
+            op,
+            lhs,
+            rhs,
             true_stmts: Arc::new(Mutex::new(Vec::new())),
             false_stmts: Arc::new(Mutex::new(Vec::new())),
         })
@@ -311,10 +311,10 @@ impl Debug for IncludeStmt {
 impl IncludeStmt {
     pub fn new(loc: Loc, expr: Arc<Value>, should_exist: bool) -> Arc<IncludeStmt> {
         Arc::new(IncludeStmt {
-            loc: loc,
+            loc,
             orig: Bytes::new(),
-            expr: expr,
-            should_exist: should_exist,
+            expr,
+            should_exist,
         })
     }
 }
@@ -352,10 +352,10 @@ impl Debug for ExportStmt {
 impl ExportStmt {
     pub fn new(loc: Loc, expr: Arc<Value>, is_export: bool) -> Arc<ExportStmt> {
         Arc::new(ExportStmt {
-            loc: loc,
+            loc,
             orig: Bytes::new(),
-            expr: expr,
-            is_export: is_export,
+            expr,
+            is_export,
         })
     }
 }

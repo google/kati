@@ -70,9 +70,9 @@ fn find_command_line_flag_with_arg(cmd: &[u8], name: &[u8]) -> Option<Vec<u8>> {
 }
 
 fn get_depfile_from_command_impl(cmd: &mut BytesMut) -> Result<Option<Vec<u8>>> {
-    if (find_command_line_flag(&cmd, b" -MD").is_none()
-        && find_command_line_flag(&cmd, b" -MMD").is_none())
-        || find_command_line_flag(&cmd, b" -c").is_none()
+    if (find_command_line_flag(cmd, b" -MD").is_none()
+        && find_command_line_flag(cmd, b" -MMD").is_none())
+        || find_command_line_flag(cmd, b" -c").is_none()
     {
         return Ok(None);
     }
@@ -432,7 +432,7 @@ impl<'a> NinjaGenerator<'a> {
 
     fn get_depfile(&mut self, node: &DepNode, cmd_buf: &mut BytesMut) -> Result<Option<Bytes>> {
         if let Some(depfile_var) = node.depfile_var.clone() {
-            let depfile = depfile_var.read().eval_to_buf(&mut self.ce.ev)?;
+            let depfile = depfile_var.read().eval_to_buf(self.ce.ev)?;
             return Ok(Some(depfile));
         }
         if !FLAGS.detect_depfiles {
@@ -578,7 +578,7 @@ impl<'a> NinjaGenerator<'a> {
             }
         }
 
-        writeln!(out, "")?;
+        writeln!(out)?;
 
         let pool = if let Some(ninja_pool_var) = &node.ninja_pool_var {
             Some(ninja_pool_var.read().eval_to_buf(self.ce.ev)?)
@@ -608,7 +608,7 @@ impl<'a> NinjaGenerator<'a> {
             if !tags.is_empty() {
                 write!(out, " tags = ")?;
                 out.write_all(&tags)?;
-                writeln!(out, "")?;
+                writeln!(out)?;
             }
         }
         if node.is_default_target {
@@ -635,7 +635,7 @@ impl<'a> NinjaGenerator<'a> {
                 out.write_all(value.as_bytes())?;
                 out.write_all(b"\n")?;
             }
-            writeln!(out, "")?;
+            writeln!(out)?;
         }
 
         if !FLAGS.no_ninja_prelude {
@@ -768,9 +768,9 @@ impl<'a> NinjaGenerator<'a> {
                 .collect();
             dump_usize(&mut out, globs.len())?;
             for (key, files) in globs.iter() {
-                dump_string(&mut out, &key)?;
+                dump_string(&mut out, key)?;
                 let Ok(files) = files.as_ref() else { continue };
-                dump_vec_string(&mut out, &files)?;
+                dump_vec_string(&mut out, files)?;
             }
 
             let crs = crate::func::COMMAND_RESULTS.lock();
@@ -786,7 +786,7 @@ impl<'a> NinjaGenerator<'a> {
 
                 if cr.op == CommandOp::Find {
                     let fc = cr.find.as_ref().unwrap();
-                    let chdir = fc.chdir.clone().unwrap_or_else(|| Bytes::new());
+                    let chdir = fc.chdir.clone().unwrap_or_else(Bytes::new);
                     let mut missing_dirs = Vec::new();
                     for fd in &fc.finddirs {
                         let d = concat_dir(&chdir, fd);

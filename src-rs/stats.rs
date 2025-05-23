@@ -133,9 +133,7 @@ impl Stats {
         let elapsed = start.elapsed();
         *self.elapsed.lock() += elapsed;
         let mut detailed = self.detailed.lock();
-        let details = detailed
-            .entry(msg.to_string())
-            .or_insert(StatsDetails::default());
+        let details = detailed.entry(msg.to_string()).or_default();
         details.count += 1;
         details.elapsed += elapsed;
         elapsed
@@ -156,7 +154,7 @@ impl ScopedStatsRecorder {
         let start = st.start();
         Self {
             st: st.clone(),
-            start: start,
+            start,
         }
     }
 }
@@ -170,10 +168,10 @@ impl Drop for ScopedStatsRecorder {
 #[macro_export]
 macro_rules! collect_stats {
     ($name:literal) => {
-        static STATS: std::sync::LazyLock<std::sync::Arc<crate::stats::Stats>> =
-            std::sync::LazyLock::new(|| crate::stats::Stats::new($name));
-        let _ssr = if crate::flags::FLAGS.enable_stat_logs {
-            Some(crate::stats::ScopedStatsRecorder::new(&STATS))
+        static STATS: std::sync::LazyLock<std::sync::Arc<$crate::stats::Stats>> =
+            std::sync::LazyLock::new(|| $crate::stats::Stats::new($name));
+        let _ssr = if $crate::flags::FLAGS.enable_stat_logs {
+            Some($crate::stats::ScopedStatsRecorder::new(&STATS))
         } else {
             None
         };
@@ -190,8 +188,8 @@ impl ScopedStatsRecorderWithSlowReport {
     pub fn new(st: &Arc<Stats>, start: Instant, msg: OsString) -> Self {
         Self {
             st: st.clone(),
-            msg: msg,
-            start: start,
+            msg,
+            start,
         }
     }
 }
@@ -214,12 +212,12 @@ impl Drop for ScopedStatsRecorderWithSlowReport {
 #[macro_export]
 macro_rules! collect_stats_with_slow_report {
     ($name:literal, $msg:expr) => {
-        static STATS: std::sync::LazyLock<std::sync::Arc<crate::stats::Stats>> =
-            std::sync::LazyLock::new(|| crate::stats::Stats::new($name));
-        let _ssr = if crate::flags::FLAGS.enable_stat_logs {
+        static STATS: std::sync::LazyLock<std::sync::Arc<$crate::stats::Stats>> =
+            std::sync::LazyLock::new(|| $crate::stats::Stats::new($name));
+        let _ssr = if $crate::flags::FLAGS.enable_stat_logs {
             let start = STATS.start();
             let msg = $msg;
-            Some(crate::stats::ScopedStatsRecorderWithSlowReport::new(
+            Some($crate::stats::ScopedStatsRecorderWithSlowReport::new(
                 &STATS, start, msg,
             ))
         } else {
@@ -229,7 +227,7 @@ macro_rules! collect_stats_with_slow_report {
 }
 
 pub fn report_all_stats() {
-    let all_stats = std::mem::replace(&mut *ALL_STATS.lock(), Vec::new());
+    let all_stats = std::mem::take(&mut *ALL_STATS.lock());
     if FLAGS.enable_stat_logs {
         for stats in all_stats {
             eprintln!("*kati*: {}", stats.to_string());

@@ -53,7 +53,7 @@ impl Rule {
             is_double_colon,
             is_suffix_rule: false,
             cmds: Vec::new(),
-            loc: loc,
+            loc,
             cmd_loc: None,
         }
     }

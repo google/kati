@@ -91,7 +91,7 @@ impl Evaluable for Value {
                 }
             }
             Value::SymRef(_, sym) => {
-                let sym = sym.clone();
+                let sym = *sym;
                 if let Some(v) = ev.lookup_var_for_eval(sym)? {
                     let v = v.read();
                     v.used(ev, &sym)?;
@@ -335,7 +335,7 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
             if let Value::Literal(_, lit) = &*vname {
                 let sym = intern(lit.clone());
                 if FLAGS.enable_kati_warnings {
-                    if let Some(found) = sym.to_string().find(&[' ', '(', '{']) {
+                    if let Some(found) = sym.to_string().find([' ', '(', '{']) {
                         kati_warn_loc!(
                             Some(&start_loc),
                             "*warning*: variable lookup with '{}': {}",
@@ -358,8 +358,8 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
                         idx,
                         Arc::new(Value::Func {
                             loc: start_loc,
-                            fi: fi,
-                            args: args,
+                            fi,
+                            args,
                         }),
                     ));
                 } else {
@@ -421,8 +421,8 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
                 Arc::new(Value::VarSubst {
                     loc: start_loc,
                     name: vname,
-                    pat: pat,
-                    subst: subst,
+                    pat,
+                    subst,
                 }),
             ));
         }

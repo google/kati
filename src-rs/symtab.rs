@@ -106,10 +106,7 @@ impl ScopedGlobalVar {
             symtab.symbol_data.resize(idx + 1, None);
         }
         symtab.symbol_data[idx] = Some(var);
-        Ok(Self {
-            sym: sym,
-            orig: orig,
-        })
+        Ok(Self { sym, orig })
     }
 }
 

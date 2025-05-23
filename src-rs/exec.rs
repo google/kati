@@ -155,7 +155,7 @@ impl<'a> Executor<'a> {
             if !FLAGS.is_dry_run {
                 let (status, output) = run_command(
                     &self.shell,
-                    &self.shellflag,
+                    self.shellflag,
                     &command.cmd,
                     RedirectStderr::Stdout,
                 )?;

@@ -156,11 +156,9 @@ impl StampChecker {
                     println!("file {s:?}: clean ({:?})", ts.unwrap())
                 }
             } else {
-                if FLAGS.regen_ignoring_kati_binary {
-                    if s == std::env::current_exe().unwrap() {
-                        eprintln!("{s:?} was modified, ignored.");
-                        continue;
-                    }
+                if FLAGS.regen_ignoring_kati_binary && s == std::env::current_exe().unwrap() {
+                    eprintln!("{s:?} was modified, ignored.");
+                    continue;
                 }
                 if should_ignore_dirty(s.as_bytes()) {
                     if FLAGS.regen_debug {
@@ -231,7 +229,7 @@ impl StampChecker {
 
         let num_crs = load!(load_usize(fp));
         for _ in 0..num_crs {
-            let op = load!(load_int(fp).and_then(|op| CommandOp::from_int(op)));
+            let op = load!(load_int(fp).and_then(CommandOp::from_int));
             let shell = load!(load_string(fp));
             let shellflag = load!(load_string(fp));
             let cmd = load!(load_string(fp));
@@ -304,23 +302,23 @@ impl StampChecker {
 
         collect_stats!("stat time (regen)");
         for dir in &sr.missing_dirs {
-            if std::fs::exists(&dir).unwrap_or(false) {
+            if std::fs::exists(dir).unwrap_or(false) {
                 return true;
             }
         }
         for file in &sr.files {
-            if !std::fs::exists(&file).unwrap_or(false) {
+            if !std::fs::exists(file).unwrap_or(false) {
                 return true;
             }
         }
         for dir in &sr.read_dirs {
             // We assume we rarely do a significant change for the top
             // directory which affects the results of find command.
-            if dir == "" || dir == "." || should_ignore_dirty(dir.as_bytes()) {
+            if dir.is_empty() || dir == "." || should_ignore_dirty(dir.as_bytes()) {
                 continue;
             }
 
-            let Ok(md) = std::fs::symlink_metadata(&dir) else {
+            let Ok(md) = std::fs::symlink_metadata(dir) else {
                 return true;
             };
             let Ok(ts) = md.modified() else {
@@ -330,7 +328,7 @@ impl StampChecker {
                 return true;
             }
             if md.is_symlink() {
-                let Ok(ts) = std::fs::metadata(&dir).and_then(|md| md.modified()) else {
+                let Ok(ts) = std::fs::metadata(dir).and_then(|md| md.modified()) else {
                     return true;
                 };
                 if gen_time < ts {
@@ -416,8 +414,8 @@ impl StampChecker {
 
         collect_stats_with_slow_report!("shell time (regen)", sr.cmd.clone());
         let (_status, output) = run_command(
-            &sr.shell.as_bytes(),
-            &sr.shellflag.as_bytes(),
+            sr.shell.as_bytes(),
+            sr.shellflag.as_bytes(),
             &cmd,
             crate::fileutil::RedirectStderr::DevNull,
         )?;
@@ -435,7 +433,7 @@ impl StampChecker {
         } else if FLAGS.regen_debug {
             println!("shell {:?}: clean (rerun)", sr.cmd);
         }
-        return Ok(false);
+        Ok(false)
     }
 
     fn check_step2(&mut self) -> Result<bool> {

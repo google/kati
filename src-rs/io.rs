@@ -51,8 +51,7 @@ pub fn dump_string(out: &mut impl Write, s: &[u8]) -> Result<()> {
 
 pub fn load_string(f: &mut impl std::io::Read) -> Option<OsString> {
     let len = load_usize(f)?;
-    let mut v = Vec::new();
-    v.resize(len, 0);
+    let mut v = vec![0; len];
     f.read_exact(&mut v[..]).ok()?;
     Some(OsString::from_vec(v))
 }
@@ -113,7 +112,7 @@ mod tests {
     fn test_empty_string() {
         let s = OsString::new();
         let mut buf = Vec::new();
-        dump_string(&mut buf, &s.as_bytes()).unwrap();
+        dump_string(&mut buf, s.as_bytes()).unwrap();
         let mut buf = &buf[..];
         assert_eq!(load_string(&mut buf), Some(s));
     }
