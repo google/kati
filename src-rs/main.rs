@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// TODO: Add docs
+#![allow(missing_docs)]
 // These are the lints enabled by default in Android
 // #![deny(missing_docs)]
 #![deny(warnings)]
