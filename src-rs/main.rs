@@ -14,15 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-use std::ffi::{CString, OsStr, OsString};
+use std::ffi::{OsStr, OsString};
 use std::io::{Write, stdout};
 use std::os::unix::ffi::OsStrExt;
 use std::sync::Arc;
 
 use anyhow::{Result, bail};
 use bytes::{BufMut, Bytes, BytesMut};
-use gperftools::{HEAP_PROFILER, PROFILER};
 use parking_lot::Mutex;
+
+#[cfg(feature = "gperf")]
+use gperftools::{HEAP_PROFILER, PROFILER};
 
 use kati::dep::{NamedDepNode, make_dep};
 use kati::fileutil::clear_glob_cache;
@@ -326,19 +328,22 @@ fn main() {
         }
     }
 
-    if let Some(path) = &FLAGS.cpu_profile_path {
-        PROFILER
-            .lock()
-            .unwrap()
-            .start(CString::new(path.as_bytes()).unwrap())
-            .unwrap();
-    }
-    if let Some(path) = &FLAGS.memory_profile_path {
-        HEAP_PROFILER
-            .lock()
-            .unwrap()
-            .start(CString::new(path.as_bytes()).unwrap())
-            .unwrap();
+    #[cfg(feature = "gperf")]
+    {
+        if let Some(path) = &FLAGS.cpu_profile_path {
+            PROFILER
+                .lock()
+                .unwrap()
+                .start(std::ffi::CString::new(path.as_bytes()).unwrap())
+                .unwrap();
+        }
+        if let Some(path) = &FLAGS.memory_profile_path {
+            HEAP_PROFILER
+                .lock()
+                .unwrap()
+                .start(std::ffi::CString::new(path.as_bytes()).unwrap())
+                .unwrap();
+        }
     }
 
     if let Some(working_dir) = &FLAGS.working_dir {
@@ -364,11 +369,14 @@ fn main() {
             1
         }
     };
-    if FLAGS.cpu_profile_path.is_some() {
-        PROFILER.lock().unwrap().stop().unwrap();
-    }
-    if FLAGS.memory_profile_path.is_some() {
-        HEAP_PROFILER.lock().unwrap().stop().unwrap();
+    #[cfg(feature = "gperf")]
+    {
+        if FLAGS.cpu_profile_path.is_some() {
+            PROFILER.lock().unwrap().stop().unwrap();
+        }
+        if FLAGS.memory_profile_path.is_some() {
+            HEAP_PROFILER.lock().unwrap().stop().unwrap();
+        }
     }
     kati::stats::report_all_stats();
     std::process::exit(ret);

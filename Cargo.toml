@@ -9,12 +9,15 @@ anyhow = "1.0.98"
 bytes = "1.10.1"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 env_logger = "0.11.8"
-gperftools = { version = "0.2.0", features = ["heap"] }
+gperftools = { version = "0.2.0", features = ["heap"], optional = true }
 libc = "0.2.172"
 log = "0.4.27"
 memchr = "2.7.4"
 os_pipe = "1.2.1"
 parking_lot = { version = "0.12.3" }
+
+[features]
+gperf = ["dep:gperftools"]
 
 [[bin]]
 name = "rkati"
