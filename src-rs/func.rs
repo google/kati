@@ -238,7 +238,7 @@ fn sort_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
 
 fn get_numeric_value_for_func(buf: &[u8]) -> Result<usize> {
     let s = std::str::from_utf8(trim_left_space(buf))?;
-    Ok(usize::from_str_radix(s, 10)?)
+    Ok(s.parse::<usize>()?)
 }
 
 fn word_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {

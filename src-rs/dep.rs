@@ -538,9 +538,7 @@ impl<'a> DepBuilder<'a> {
     }
 
     fn get_rule_inputs(&self, s: Symbol) -> Option<(Vec<Symbol>, Loc)> {
-        let Some(merger) = self.rules.get(&s) else {
-            return None;
-        };
+        let merger = self.rules.get(&s)?;
         let merger = merger.lock();
         let mut ret = Vec::new();
         assert!(!merger.rules.is_empty());
@@ -718,7 +716,7 @@ impl<'a> DepBuilder<'a> {
                 }
             }
         }
-        let Some(matched) = matched else { return None };
+        let matched = matched?;
 
         let mut rule = rule.clone();
         if rule.output_patterns.len() > 1 {
@@ -914,8 +912,9 @@ impl<'a> DepBuilder<'a> {
 
                 if *name == self.depfile_var_name {
                     n.lock().depfile_var = Some(new_var);
-                } else if *name == self.implicit_outputs_var_name {
-                } else if *name == self.validations_var_name {
+                } else if *name == self.implicit_outputs_var_name
+                    || *name == self.validations_var_name
+                {
                 } else if *name == self.ninja_pool_var_name {
                     n.lock().ninja_pool_var = Some(new_var);
                 } else if *name == self.tags_var_name {

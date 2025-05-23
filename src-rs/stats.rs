@@ -19,6 +19,7 @@ use parking_lot::Mutex;
 use std::{
     collections::{HashMap, HashSet},
     ffi::OsString,
+    fmt::Display,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -98,25 +99,6 @@ impl Stats {
         }
     }
 
-    fn to_string(&self) -> String {
-        let detailed = self.detailed.lock();
-        if !detailed.is_empty() {
-            return format!(
-                "{}: {} / {} ({} unique)",
-                self.name,
-                self.elapsed.lock().as_secs_f64(),
-                *self.count.lock(),
-                detailed.len()
-            );
-        }
-        format!(
-            "{}: {} / {}",
-            self.name,
-            self.elapsed.lock().as_secs_f64(),
-            *self.count.lock()
-        )
-    }
-
     pub fn start(&self) -> Instant {
         let start = std::time::Instant::now();
         *self.count.lock() += 1;
@@ -141,6 +123,29 @@ impl Stats {
 
     pub fn mark_interesting(&self, name: &str) {
         self.interesting.lock().insert(name.to_string());
+    }
+}
+
+impl Display for Stats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let detailed = self.detailed.lock();
+        if !detailed.is_empty() {
+            return write!(
+                f,
+                "{}: {} / {} ({} unique)",
+                self.name,
+                self.elapsed.lock().as_secs_f64(),
+                *self.count.lock(),
+                detailed.len()
+            );
+        }
+        write!(
+            f,
+            "{}: {} / {}",
+            self.name,
+            self.elapsed.lock().as_secs_f64(),
+            *self.count.lock()
+        )
     }
 }
 
@@ -230,7 +235,7 @@ pub fn report_all_stats() {
     let all_stats = std::mem::take(&mut *ALL_STATS.lock());
     if FLAGS.enable_stat_logs {
         for stats in all_stats {
-            eprintln!("*kati*: {}", stats.to_string());
+            eprintln!("*kati*: {stats}");
             stats.dump_top();
         }
         eprintln!("*kati*: {} symbols", symbol_count());

@@ -51,7 +51,7 @@ pub trait Evaluable {
     // expansion variable, and return true in that case. Implementations of this
     // function must also not mark variables as used, as that can trigger unwanted
     // warnings. They should use ev->PeekVar().
-    fn is_func(&self, ev: &Evaluator) -> bool;
+    fn is_func(&self) -> bool;
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -154,10 +154,10 @@ impl Evaluable for Value {
         Ok(())
     }
 
-    fn is_func(&self, ev: &Evaluator) -> bool {
+    fn is_func(&self) -> bool {
         match self {
             Value::Func { .. } => true,
-            Value::List(_, list) => list.iter().any(|v| v.is_func(ev)),
+            Value::List(_, list) => list.iter().any(|v| v.is_func()),
             Value::SymRef(_, sym) => {
                 // This is a heuristic, where say that if a variable has positional
                 // parameters, we think it is likely to be a function. Callers can use
@@ -171,7 +171,7 @@ impl Evaluable for Value {
             }
             Value::VarSubst {
                 name, pat, subst, ..
-            } => name.is_func(ev) || pat.is_func(ev) || subst.is_func(ev),
+            } => name.is_func() || pat.is_func() || subst.is_func(),
             Value::Literal(_, _) => false,
         }
     }
@@ -199,10 +199,7 @@ fn close_paren(c: u8) -> Option<u8> {
 }
 
 fn should_handle_comments(opt: ParseExprOpt) -> bool {
-    match opt {
-        ParseExprOpt::Define | ParseExprOpt::Command => false,
-        _ => true,
-    }
+    !matches!(opt, ParseExprOpt::Define | ParseExprOpt::Command)
 }
 
 fn skip_spaces(loc: &mut Loc, s: &[u8], terms: &[u8]) -> usize {
@@ -492,7 +489,7 @@ pub fn parse_expr_impl_ext(
                 list.push(Arc::new(Value::Literal(None, s.slice(b..i))));
             }
             let mut was_backslash = false;
-            while i < s.len() && !(s[i] == b'\n' && !was_backslash) {
+            while i < s.len() && s[i] != b'\n' || was_backslash {
                 was_backslash = !was_backslash && s[i] == b'\\';
                 i += 1;
             }

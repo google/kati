@@ -247,9 +247,7 @@ pub fn basename(s: &[u8]) -> &[u8] {
 }
 
 pub fn get_ext(s: &[u8]) -> Option<&[u8]> {
-    let Some(found) = memrchr(b'.', s) else {
-        return None;
-    };
+    let found = memrchr(b'.', s)?;
     Some(&s[found..])
 }
 
@@ -295,9 +293,7 @@ pub fn normalize_path(mut o: &[u8]) -> Bytes {
         };
         o = rest;
 
-        if dir == b"." {
-            continue;
-        } else if dir == b".." && ret.as_ref() == b"/" {
+        if dir == b"." || (dir == b".." && ret.as_ref() == b"/") {
             continue;
         } else if dir == b".." && !ret.is_empty() && ret.as_ref() != b".." && !ret.ends_with(b"/..")
         {

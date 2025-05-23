@@ -54,9 +54,7 @@ fn find_command_line_flag(cmd: &[u8], name: &[u8]) -> Option<usize> {
 }
 
 fn find_command_line_flag_with_arg(cmd: &[u8], name: &[u8]) -> Option<Vec<u8>> {
-    let Some(idx) = find_command_line_flag(cmd, name) else {
-        return None;
-    };
+    let idx = find_command_line_flag(cmd, name)?;
 
     let mut val = trim_left_space(&cmd[idx + name.len()..]);
     while let Some(idx) = memmem::find(val, name) {

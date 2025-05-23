@@ -152,8 +152,8 @@ fn libc_glob(pattern: &[u8]) -> Result<Vec<Bytes>, std::io::Error> {
         // We can't guarantee that these came from the same allocated
         // object, but this is also only temporary, and will not be
         // used past the globfree which will deallocate any memory.
-        let paths = unsafe { slice::from_raw_parts(gl.gl_pathv, gl.gl_pathc as usize) };
-        ret.reserve_exact(gl.gl_pathc as usize);
+        let paths = unsafe { slice::from_raw_parts(gl.gl_pathv, gl.gl_pathc) };
+        ret.reserve_exact(gl.gl_pathc);
         for ptr in paths {
             if !ptr.is_null() {
                 // SAFETY: This is a non-null pointer, and we assume

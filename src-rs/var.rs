@@ -138,10 +138,7 @@ impl Variable {
         Ok(())
     }
     pub fn immediate_eval(&self) -> bool {
-        match &self.value {
-            InnerVar::Simple(_) => true,
-            _ => false,
-        }
+        matches!(&self.value, InnerVar::Simple(_))
     }
     pub fn append_var(
         &mut self,
@@ -400,7 +397,7 @@ impl Evaluable for Variable {
                 for (sym, entry) in symbols {
                     if !*all {
                         if let Some(var) = sym.peek_global_var() {
-                            if var.read().is_func(ev) {
+                            if var.read().is_func() {
                                 continue;
                             }
                         }
@@ -411,10 +408,10 @@ impl Evaluable for Variable {
         }
         Ok(())
     }
-    fn is_func(&self, ev: &crate::eval::Evaluator) -> bool {
+    fn is_func(&self) -> bool {
         match &self.value {
             InnerVar::Simple(_) => false,
-            InnerVar::Recursive { v, .. } => v.is_func(ev),
+            InnerVar::Recursive { v, .. } => v.is_func(),
             InnerVar::AutoCommand(_, _) => true,
             InnerVar::ShellStatus => false,
             InnerVar::VariableNames { .. } => false,
@@ -445,9 +442,7 @@ impl Vars {
     }
 
     pub fn lookup(&self, sym: Symbol) -> Option<Var> {
-        let Some(ret) = self.0.lock().get(&sym).cloned() else {
-            return None;
-        };
+        let ret = self.0.lock().get(&sym).cloned()?;
         match ret.read().origin() {
             VarOrigin::Environment | VarOrigin::EnvironmentOverride => {
                 USED_ENV_VARS.lock().insert(sym);

@@ -512,7 +512,7 @@ impl Evaluator {
     //   <before_term> <term> <after_term>
     // parses <before_term> into Symbol instances until encountering ':'
     // Returns the remainder of <before_term>.
-    pub fn parse_rule_targets<'a>(
+    pub fn parse_rule_targets(
         loc: &Loc,
         before_term: &Bytes,
     ) -> Result<(Bytes, Vec<Symbol>, bool)> {

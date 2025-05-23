@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// TODO: Fix this
+#![allow(clippy::type_complexity)]
+
 use strutil::trim_prefix_str;
 
 pub mod command;

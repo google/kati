@@ -227,7 +227,7 @@ impl DirentNode {
                     return Some(self.clone());
                 }
                 if d == b".." {
-                    return parent.clone().and_then(|p| p.upgrade());
+                    return parent.clone()?.upgrade();
                 }
 
                 let idx = memchr(b'/', d);
@@ -240,9 +240,7 @@ impl DirentNode {
                     return self.find_dir(rest);
                 }
                 if p == b".." {
-                    let Some(parent) = parent.clone().and_then(|p| p.upgrade()) else {
-                        return None;
-                    };
+                    let parent = parent.clone()?.upgrade()?;
                     return parent.find_dir(rest);
                 }
 
@@ -695,7 +693,7 @@ struct FindCommandParser {
     unget_tok: Option<Bytes>,
 }
 
-impl<'a> FindCommandParser {
+impl FindCommandParser {
     fn new(cmd: &Bytes) -> Self {
         FindCommandParser {
             cmd: cmd.clone(),

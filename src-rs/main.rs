@@ -44,7 +44,7 @@ use kati::flags::FLAGS;
 use kati::symtab::{Symbol, intern, join_symbols};
 use kati::timeutil::ScopedTimeReporter;
 
-fn read_bootstrap_makefile(targets: &Vec<Symbol>) -> Result<Arc<Mutex<Vec<Stmt>>>> {
+fn read_bootstrap_makefile(targets: &[Symbol]) -> Result<Arc<Mutex<Vec<Stmt>>>> {
     let mut bootstrap = BytesMut::new();
     bootstrap.put_slice(b"CC?=cc\n");
     if cfg!(target_os = "macos") {
@@ -94,7 +94,7 @@ fn read_bootstrap_makefile(targets: &Vec<Symbol>) -> Result<Arc<Mutex<Vec<Stmt>>
     )
 }
 
-fn run(targets: &Vec<Symbol>, cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<i32> {
+fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<i32> {
     let start_time = std::time::SystemTime::now();
 
     if FLAGS.generate_ninja && (FLAGS.regen || FLAGS.dump_kati_stamp) {
@@ -214,7 +214,7 @@ fn run(targets: &Vec<Symbol>, cl_vars: &Vec<Bytes>, orig_args: OsString) -> Resu
             Loc::default(),
         );
         let _tr = ScopedTimeReporter::new("make dep time");
-        nodes = make_dep(&mut ev, targets.clone())?;
+        nodes = make_dep(&mut ev, targets.to_owned())?;
     }
 
     if FLAGS.is_syntax_check_only {

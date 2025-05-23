@@ -191,7 +191,9 @@ impl Parser {
             if self.is_in_export() {
                 return Ok(());
             }
-            sep.as_mut().map(|sep| *sep += orig_line.len() - line.len());
+            if let Some(sep) = sep.as_mut() {
+                *sep += orig_line.len() - line.len()
+            }
             line = orig_line.clone();
         }
 
