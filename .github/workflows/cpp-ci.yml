@@ -16,6 +16,7 @@ jobs:
     env:
       CXX: clang++-14
       CLANG_FORMAT: clang-format-14
+      CARGO_TERM_COLOR: always
 
     steps:
     - uses: actions/checkout@v2
@@ -56,3 +57,19 @@ jobs:
       run: ./find_test
     - name: run JSON dump tests
       run: testcase/dump/run.sh
+    - name: get rust version
+      run: rustup --version
+    - name: build rkati
+      run: cargo build
+    - name: run rkati tests
+      run: cargo test
+    - name: check rustfmt
+      run: cargo fmt --check
+    - name: run standalone tests with rkati
+      run: go test --rkati
+    - name: run ninja tests with rkati
+      run: go test --ninja --rkati
+    - name: run ninja all targets tests with rkati
+      run: go test --ninja --all --rkati
+    - name: run JSON dump tests with rkati
+      run: KATI=$PWD/target/debug/rkati testcase/dump/run.sh

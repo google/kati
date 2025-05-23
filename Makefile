@@ -40,4 +40,12 @@ test: all ckati_tests
 
 clean: ckati_clean
 
-.PHONY: test clean ckati_tests
+rkati:
+	cargo build
+
+rkati_test: rkati ckati
+	cargo test
+	go test --rkati
+	go test --rkati --ninja
+
+.PHONY: test clean ckati_tests rkati rkati_test
