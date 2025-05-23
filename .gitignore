@@ -17,3 +17,8 @@ string_piece_test
 strutil_bench
 strutil_test
 version.cc
+
+
+# Added by cargo
+
+/target

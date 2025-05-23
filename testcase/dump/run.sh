@@ -1,5 +1,8 @@
 #!/bin/bash -eu
 
+KATI="${KATI:=$PWD/ckati}"
+export KATI
+
 for TESTCASE in testcase/dump/*; do
   if [[ ! -d "$TESTCASE" ]]; then
     continue
