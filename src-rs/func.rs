@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 
 use crate::{
     collect_stats, collect_stats_with_slow_report, error_loc,
-    eval::{Evaluator, FrameType},
+    eval::{Evaluator, ExportAllowed, FrameType},
     expr::{Evaluable, Value},
     file_cache::add_extra_file_dep,
     fileutil::{RedirectStderr, run_command},
@@ -1101,13 +1101,15 @@ fn deprecate_export_func(
         );
     }
 
-    if ev.export_error {
-        error_loc!(ev.loc.as_ref(), "*** Export is already obsolete.");
-    } else if ev.export_message.is_some() {
-        error_loc!(ev.loc.as_ref(), "*** Export is already deprecated.");
+    match &ev.export_allowed {
+        ExportAllowed::Warning(_) => {
+            error_loc!(ev.loc.as_ref(), "*** Export is already deprecated.")
+        }
+        ExportAllowed::Error(_) => error_loc!(ev.loc.as_ref(), "*** Export is already obsolete."),
+        ExportAllowed::Allowed => {}
     }
 
-    ev.export_message = Some(msg);
+    ev.export_allowed = ExportAllowed::Warning(msg);
     Ok(())
 }
 
@@ -1125,12 +1127,11 @@ fn obsolete_export_func(
         );
     }
 
-    if ev.export_error {
+    if matches!(ev.export_allowed, ExportAllowed::Error(_)) {
         error_loc!(ev.loc.as_ref(), "*** Export is already obsolete.");
     }
 
-    ev.export_error = true;
-    ev.export_message = Some(msg);
+    ev.export_allowed = ExportAllowed::Error(msg);
     Ok(())
 }
 

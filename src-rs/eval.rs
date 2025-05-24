@@ -22,7 +22,7 @@ use std::os::unix::ffi::OsStringExt;
 use std::sync::{Arc, LazyLock, Weak};
 
 use anyhow::{Context, Result};
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, Bytes};
 use memchr::{memchr, memchr2};
 use parking_lot::Mutex;
 
@@ -45,6 +45,16 @@ pub enum RulesAllowed {
     Allowed,
     Warning,
     Error,
+}
+
+/// Whether `export` directives are allowed.
+pub enum ExportAllowed {
+    /// Export directives are allowed, the default.
+    Allowed,
+    /// Export directives result in warnings with the specified message.
+    Warning(String),
+    /// Export directives result in errors with the specified message.
+    Error(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -259,8 +269,8 @@ pub struct Evaluator {
     posix_sym: Symbol,
     is_posix: bool,
 
-    pub export_message: Option<String>,
-    pub export_error: bool,
+    /// Whether `export`/`unexport` directives are allowed.
+    pub export_allowed: ExportAllowed,
 
     pub profiled_files: Vec<String>,
 
@@ -306,8 +316,7 @@ impl Evaluator {
             posix_sym: crate::symtab::intern(".POSIX"),
             is_posix: false,
 
-            export_message: None,
-            export_error: false,
+            export_allowed: ExportAllowed::Allowed,
 
             profiled_files: Vec::new(),
 
@@ -919,20 +928,17 @@ impl Evaluator {
             let sym = intern(exports.slice_ref(lhs));
             self.exports.insert(sym, stmt.is_export);
 
-            if let Some(export_message) = &self.export_message {
-                let prefix = if stmt.is_export { "" } else { "un" };
-
-                if self.export_error {
-                    error_loc!(
-                        self.loc.as_ref(),
-                        "*** {sym}: {prefix}export is obsolete{export_message}."
-                    );
-                } else {
-                    warn_loc!(
-                        self.loc.as_ref(),
-                        "{sym}: {prefix}export has been deprecated{export_message}."
-                    );
-                }
+            let prefix = if stmt.is_export { "" } else { "un" };
+            match &self.export_allowed {
+                ExportAllowed::Allowed => {}
+                ExportAllowed::Error(msg) => error_loc!(
+                    self.loc.as_ref(),
+                    "*** {sym}: {prefix}export is obsolete{msg}."
+                ),
+                ExportAllowed::Warning(msg) => warn_loc!(
+                    self.loc.as_ref(),
+                    "{sym}: {prefix}export has been deprecated{msg}."
+                ),
             }
         }
         Ok(())
@@ -1106,17 +1112,7 @@ impl Evaluator {
         if self.is_posix { b"-ec" } else { b"-c" }
     }
 
-    pub fn get_shell_and_flag(&mut self) -> Result<Bytes> {
-        let shell = self.get_shell()?;
-        let flag = self.get_shell_flag();
-        let mut r = BytesMut::with_capacity(shell.len() + flag.len() + 1);
-        r.put_slice(&shell);
-        r.put_u8(b' ');
-        r.put_slice(flag);
-        Ok(r.freeze())
-    }
-
-    pub fn get_allow_rules(&mut self) -> Result<RulesAllowed> {
+    fn get_allow_rules(&mut self) -> Result<RulesAllowed> {
         Ok(match self.eval_var(*ALLOW_RULES_SYM)?.as_ref() {
             b"warning" => RulesAllowed::Warning,
             b"error" => RulesAllowed::Error,

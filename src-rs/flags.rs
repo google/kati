@@ -120,7 +120,7 @@ fn parse_command_line_option_with_arg(
 }
 
 impl Flags {
-    pub fn from_args(args: Vec<OsString>) -> Flags {
+    fn from_args(args: Vec<OsString>) -> Flags {
         let mut iter = args.into_iter();
         let mut flags = Flags::default();
         flags.subkati_args.push(iter.next().unwrap());
