@@ -14,6 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// These are the lints enabled by default in Android
+// #![deny(missing_docs)]
+#![deny(warnings)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 use strutil::trim_prefix_str;
 
 pub mod command;
