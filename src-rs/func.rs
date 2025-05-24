@@ -564,7 +564,7 @@ fn shell_func_impl(
         }
     }
 
-    collect_stats_with_slow_report!("func shell time", OsString::from_vec(cmd.to_vec()));
+    collect_stats_with_slow_report!("func shell time", OsStr::from_bytes(cmd));
     let (status, output) = run_command(shell, shellflag, cmd, RedirectStderr::None)?;
     let output = Bytes::from(format_for_command_substitution(output));
 
@@ -1143,8 +1143,7 @@ fn profile_makefile_func(
     for arg in args {
         let files = arg.eval_to_buf(ev)?;
         for file in word_scanner(&files) {
-            ev.profiled_files
-                .push(String::from_utf8_lossy(file).into_owned());
+            ev.profiled_files.push(OsString::from_vec(file.to_vec()));
         }
     }
     Ok(())

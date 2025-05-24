@@ -272,7 +272,7 @@ pub struct Evaluator {
     /// Whether `export`/`unexport` directives are allowed.
     pub export_allowed: ExportAllowed,
 
-    pub profiled_files: Vec<String>,
+    pub profiled_files: Vec<OsString>,
 
     pub is_evaluating_command: bool,
 }
@@ -812,7 +812,7 @@ impl Evaluator {
 
     pub fn do_include(&mut self, fname: &Bytes) -> Result<()> {
         let filename = OsString::from_vec(fname.to_vec());
-        collect_stats_with_slow_report!("included makefiles", filename.clone());
+        collect_stats_with_slow_report!("included makefiles", &filename);
 
         let Some(mk) = file_cache::get_makefile(&filename)? else {
             error_loc!(
@@ -842,10 +842,11 @@ impl Evaluator {
             stmt.eval(self)?;
         }
 
-        for mk in &self.profiled_files {
-            STATS.mark_interesting(mk);
+        if !self.profiled_files.is_empty() {
+            for mk in std::mem::take(&mut self.profiled_files) {
+                STATS.mark_interesting(mk);
+            }
         }
-        self.profiled_files.clear();
         Ok(())
     }
 

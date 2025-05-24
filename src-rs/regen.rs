@@ -412,7 +412,7 @@ impl StampChecker {
             }
         }
 
-        collect_stats_with_slow_report!("shell time (regen)", sr.cmd.clone());
+        collect_stats_with_slow_report!("shell time (regen)", &sr.cmd);
         let (_status, output) = run_command(
             sr.shell.as_bytes(),
             sr.shellflag.as_bytes(),
