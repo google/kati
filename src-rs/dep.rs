@@ -406,6 +406,13 @@ struct DepBuilder<'a> {
     tags_var_name: Symbol,
 }
 
+#[derive(Debug)]
+struct PickedRuleInfo {
+    merger: Option<Arc<Mutex<RuleMerger>>>,
+    pattern_rule: Option<Arc<Rule>>,
+    vars: Option<Arc<Vars>>,
+}
+
 impl<'a> DepBuilder<'a> {
     fn new(ev: &'a mut Evaluator) -> Result<Self> {
         let rule_vars = std::mem::take(&mut ev.rule_vars);
@@ -751,15 +758,7 @@ impl<'a> DepBuilder<'a> {
         Some(found)
     }
 
-    fn pick_rule(
-        &mut self,
-        output: Symbol,
-        n: &Arc<Mutex<DepNode>>,
-    ) -> Option<(
-        Option<Arc<Mutex<RuleMerger>>>,
-        Option<Arc<Rule>>,
-        Option<Arc<Vars>>,
-    )> {
+    fn pick_rule(&mut self, output: Symbol, n: &Arc<Mutex<DepNode>>) -> Option<PickedRuleInfo> {
         let rule_merger = self.lookup_rule_merger(output);
         let vars = self.lookup_rule_vars(output);
         if let Some(rule_merger) = &rule_merger {
@@ -768,7 +767,11 @@ impl<'a> DepBuilder<'a> {
                 for (sym, _) in &rule_merger.lock().implicit_outputs {
                     vars = self.merge_implicit_rule_vars(*sym, vars);
                 }
-                return Some((Some(rule_merger.clone()), None, vars));
+                return Some(PickedRuleInfo {
+                    merger: Some(rule_merger.clone()),
+                    pattern_rule: None,
+                    vars,
+                });
             }
         }
 
@@ -778,24 +781,40 @@ impl<'a> DepBuilder<'a> {
                 continue;
             };
             if rule_merger.is_some() {
-                return Some((rule_merger, Some(pattern_rule), vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: Some(pattern_rule),
+                    vars,
+                });
             }
             assert!(pattern_rule.output_patterns.len() == 1);
             let vars = self.merge_implicit_rule_vars(pattern_rule.output_patterns[0], vars);
-            return Some((None, Some(pattern_rule), vars));
+            return Some(PickedRuleInfo {
+                merger: None,
+                pattern_rule: Some(pattern_rule),
+                vars,
+            });
         }
 
         let output_str = output.as_bytes();
         let Some(output_suffix) = get_ext(&output_str) else {
             if rule_merger.is_some() {
-                return Some((rule_merger, None, vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: None,
+                    vars,
+                });
             } else {
                 return None;
             }
         };
         if !output_suffix.starts_with(b".") {
             if rule_merger.is_some() {
-                return Some((rule_merger, None, vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: None,
+                    vars,
+                });
             } else {
                 return None;
             }
@@ -804,7 +823,11 @@ impl<'a> DepBuilder<'a> {
 
         let Some(found) = self.suffix_rules.get(output_suffix) else {
             if rule_merger.is_some() {
-                return Some((rule_merger, None, vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: None,
+                    vars,
+                });
             } else {
                 return None;
             }
@@ -818,18 +841,30 @@ impl<'a> DepBuilder<'a> {
             }
 
             if rule_merger.is_some() {
-                return Some((rule_merger, Some(irule.clone()), vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: Some(irule.clone()),
+                    vars,
+                });
             }
             let mut vars = vars;
             if vars.is_some() {
                 assert!(irule.outputs.len() == 1);
                 vars = self.merge_implicit_rule_vars(irule.outputs[0], vars);
             }
-            return Some((rule_merger, Some(irule.clone()), vars));
+            return Some(PickedRuleInfo {
+                merger: rule_merger,
+                pattern_rule: Some(irule.clone()),
+                vars,
+            });
         }
 
         if rule_merger.is_some() {
-            Some((rule_merger, None, vars))
+            Some(PickedRuleInfo {
+                merger: rule_merger,
+                pattern_rule: None,
+                vars,
+            })
         } else {
             None
         }
@@ -853,28 +888,28 @@ impl<'a> DepBuilder<'a> {
         );
         self.done.insert(output, n.clone());
 
-        let Some((mut rule_merger, mut pattern_rule, mut vars)) = self.pick_rule(output, &n) else {
+        let Some(mut picked_rule_info) = self.pick_rule(output, &n) else {
             return Ok(n);
         };
-        if let Some(merger) = &rule_merger {
+        if let Some(merger) = &picked_rule_info.merger {
             if merger.lock().parent.is_some() {
                 output = merger.lock().parent_sym.unwrap();
                 self.done.insert(output, n.clone());
                 n.lock().output = output;
-                let Some(ret) = self.pick_rule(output, &n) else {
+                let Some(new_picked_rule_info) = self.pick_rule(output, &n) else {
                     return Ok(n);
                 };
-                rule_merger = ret.0;
-                pattern_rule = ret.1;
-                vars = ret.2;
+                // Update the picked_rule_info with the new values
+                picked_rule_info = new_picked_rule_info;
             }
         }
         let output_str = output.as_bytes();
 
-        rule_merger
+        picked_rule_info
+            .merger
             .unwrap_or_else(RuleMerger::new)
             .lock()
-            .fill_dep_node(output, &pattern_rule, &n);
+            .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
 
         let mut sv = Vec::new();
         let frame = self.ev.enter(
@@ -883,7 +918,7 @@ impl<'a> DepBuilder<'a> {
             n.lock().loc.clone().unwrap_or_default(),
         );
 
-        if let Some(vars) = &vars {
+        if let Some(vars) = &picked_rule_info.vars {
             for (name, var) in vars.0.lock().iter() {
                 let mut new_var = var.clone();
                 match var.read().assign_op {

@@ -109,10 +109,12 @@ pub fn run_command(
     Ok((res, output))
 }
 
-pub static GLOB_CACHE: LazyLock<Mutex<HashMap<Bytes, Arc<Result<Vec<Bytes>, std::io::Error>>>>> =
+pub type GlobResults = Arc<Result<Vec<Bytes>, std::io::Error>>;
+
+pub static GLOB_CACHE: LazyLock<Mutex<HashMap<Bytes, GlobResults>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub fn glob(pat: Bytes) -> Arc<Result<Vec<Bytes>, std::io::Error>> {
+pub fn glob(pat: Bytes) -> GlobResults {
     let mut cache = GLOB_CACHE.lock();
     if let Some(entry) = cache.get(&pat) {
         return entry.clone();

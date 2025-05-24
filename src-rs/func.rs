@@ -49,10 +49,12 @@ use crate::{
     warn_loc,
 };
 
+type MakeFuncImpl = fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>;
+
 #[derive(PartialEq)]
 pub struct FuncInfo {
     pub name: &'static [u8],
-    pub func: fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>,
+    pub func: MakeFuncImpl,
     pub arity: i16,
     pub min_arity: i16,
     // For all parameters.
@@ -1289,11 +1291,7 @@ fn debug_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn BufMut) ->
     Ok(())
 }
 
-const fn func(
-    name: &'static [u8],
-    f: fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>,
-    arity: i16,
-) -> FuncInfo {
+const fn func(name: &'static [u8], f: MakeFuncImpl, arity: i16) -> FuncInfo {
     FuncInfo {
         name,
         func: f,

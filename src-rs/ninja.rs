@@ -755,7 +755,7 @@ impl<'a> NinjaGenerator<'a> {
             }
 
             let globs = crate::fileutil::GLOB_CACHE.lock();
-            let globs: Vec<(&Bytes, &Arc<Result<Vec<Bytes>, std::io::Error>>)> = globs
+            let globs: Vec<(&Bytes, &crate::fileutil::GlobResults)> = globs
                 .iter()
                 .filter_map(|(key, files)| {
                     if files.is_err() {
