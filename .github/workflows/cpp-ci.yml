@@ -65,6 +65,8 @@ jobs:
       run: cargo test
     - name: check rustfmt
       run: cargo fmt --check
+    - name: run clippy
+      run: cargo clippy
     - name: run standalone tests with rkati
       run: go test --rkati
     - name: run ninja tests with rkati

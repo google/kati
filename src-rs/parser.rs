@@ -168,7 +168,7 @@ impl Parser {
     }
 
     fn parse_rule_or_assign(&mut self, line: Bytes) -> Result<()> {
-        let Some(sep) = find_outside_paren(line.as_ref(), &[b':', b'=', b';']) else {
+        let Some(sep) = find_outside_paren(line.as_ref(), b":=;") else {
             return self.parse_rule(line, None);
         };
         let s = &line[sep..];
@@ -191,7 +191,9 @@ impl Parser {
             if self.is_in_export() {
                 return Ok(());
             }
-            sep.as_mut().map(|sep| *sep += orig_line.len() - line.len());
+            if let Some(sep) = sep.as_mut() {
+                *sep += orig_line.len() - line.len()
+            }
             line = orig_line.clone();
         }
 
@@ -214,7 +216,7 @@ impl Parser {
 
         let sep_plus_one = sep.map(|sep| sep + 1).unwrap_or(0);
 
-        let found = find_outside_paren(&line[sep_plus_one..], &[b'=', b';']);
+        let found = find_outside_paren(&line[sep_plus_one..], b"=;");
         let mut mutable_loc = self.loc.clone();
         if let Some(mut found) = found {
             found += sep_plus_one;
@@ -336,7 +338,7 @@ impl Parser {
         }
 
         let assign_loc = Loc {
-            filename: self.loc.filename.clone(),
+            filename: self.loc.filename,
             line: self.define_start_line,
         };
         let mut mutable_loc = assign_loc.clone();
@@ -521,7 +523,7 @@ impl Parser {
     }
 
     fn is_in_export(&self) -> bool {
-        return self.current_directive.map_or(false, |d| d.export);
+        self.current_directive.is_some_and(|d| d.export)
     }
 
     fn create_export(&mut self, line: &Bytes, is_export: bool) -> Result<()> {
@@ -570,7 +572,7 @@ impl Parser {
     }
 
     fn remove_comment(line: &[u8]) -> &[u8] {
-        if let Some(i) = find_outside_paren(line, &[b'#']) {
+        if let Some(i) = find_outside_paren(line, b"#") {
             return &line[..i];
         }
         line
@@ -592,7 +594,7 @@ impl Parser {
         let rest = line.slice_ref(trim_right_space(Parser::remove_comment(trim_left_space(
             &line[directive.len()..],
         ))));
-        match directive.as_ref() {
+        match directive {
             b"include" | b"-include" | b"sinclude" => self.parse_include(rest, directive)?,
             b"define" => self.parse_define(rest)?,
             b"ifdef" | b"ifndef" => self.parse_ifdef(rest, directive)?,
@@ -612,7 +614,7 @@ impl Parser {
         let rest = line.slice_ref(trim_right_space(Parser::remove_comment(trim_left_space(
             &line[directive.len()..],
         ))));
-        match directive.as_ref() {
+        match directive {
             b"ifdef" | b"ifndef" => self.parse_ifdef(rest, directive)?,
             b"ifeq" | b"ifneq" => self.parse_ifeq(rest, directive)?,
             _ => return Ok(false),
@@ -625,7 +627,7 @@ impl Parser {
         let rest = line.slice_ref(trim_right_space(Parser::remove_comment(trim_left_space(
             &line[directive.len()..],
         ))));
-        match directive.as_ref() {
+        match directive {
             b"define" => self.parse_define(rest)?,
             b"override" => self.parse_override(rest)?,
             b"export" => self.parse_export(rest)?,

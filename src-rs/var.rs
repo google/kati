@@ -138,10 +138,7 @@ impl Variable {
         Ok(())
     }
     pub fn immediate_eval(&self) -> bool {
-        match &self.value {
-            InnerVar::Simple(_) => true,
-            _ => false,
-        }
+        matches!(&self.value, InnerVar::Simple(_))
     }
     pub fn append_var(
         &mut self,
@@ -176,7 +173,7 @@ impl Variable {
         match &mut self.value {
             InnerVar::Simple(s) => {
                 s.push(b' ');
-                s.extend_from_slice(&buf);
+                s.extend_from_slice(buf);
                 self.definition = Some(frame);
             }
             InnerVar::Recursive { v: prev, .. } => {
@@ -205,7 +202,7 @@ impl Variable {
         let loc = loc.clone().unwrap_or_default();
         let mut valid = false;
         for prefix in prefixes {
-            if has_path_prefix(&loc.filename.as_bytes(), &prefix.as_bytes()) {
+            if has_path_prefix(&loc.filename.as_bytes(), prefix.as_bytes()) {
                 valid = true;
                 break;
             }
@@ -226,7 +223,7 @@ impl Variable {
     pub fn string(&self) -> Result<Cow<[u8]>> {
         Ok(match &self.value {
             InnerVar::Simple(s) => Cow::Borrowed(s.as_slice()),
-            InnerVar::Recursive { v: _, orig } => Cow::Borrowed(&orig),
+            InnerVar::Recursive { v: _, orig } => Cow::Borrowed(orig),
             InnerVar::AutoCommand(sym, _) => {
                 error!("$(value {sym}) is not implemented yet");
             }
@@ -237,7 +234,7 @@ impl Variable {
                     Vec::new()
                 })
             }
-            InnerVar::VariableNames { name, .. } => Cow::Borrowed(&name),
+            InnerVar::VariableNames { name, .. } => Cow::Borrowed(name),
         })
     }
 
@@ -247,9 +244,9 @@ impl Variable {
         loc: Option<Loc>,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
-            loc: loc,
+            loc,
             definition: frame,
-            origin: origin,
+            origin,
             assign_op: None,
             readonly: false,
             deprecated: None,
@@ -266,9 +263,9 @@ impl Variable {
         loc: Option<Loc>,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
-            loc: loc,
+            loc,
             definition: frame,
-            origin: origin,
+            origin,
             assign_op: None,
             readonly: false,
             deprecated: None,
@@ -287,9 +284,9 @@ impl Variable {
     ) -> Result<Arc<RwLock<Self>>> {
         let value = v.eval_to_buf(ev)?;
         Ok(Arc::new(RwLock::new(Self {
-            loc: loc,
+            loc,
             definition: frame,
-            origin: origin,
+            origin,
             assign_op: None,
             readonly: false,
             deprecated: None,
@@ -307,9 +304,9 @@ impl Variable {
         orig: Bytes,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
-            loc: loc,
+            loc,
             definition: frame,
-            origin: origin,
+            origin,
             assign_op: None,
             readonly: false,
             deprecated: None,
@@ -400,7 +397,7 @@ impl Evaluable for Variable {
                 for (sym, entry) in symbols {
                     if !*all {
                         if let Some(var) = sym.peek_global_var() {
-                            if var.read().is_func(ev) {
+                            if var.read().is_func() {
                                 continue;
                             }
                         }
@@ -411,10 +408,10 @@ impl Evaluable for Variable {
         }
         Ok(())
     }
-    fn is_func(&self, ev: &crate::eval::Evaluator) -> bool {
+    fn is_func(&self) -> bool {
         match &self.value {
             InnerVar::Simple(_) => false,
-            InnerVar::Recursive { v, .. } => v.is_func(ev),
+            InnerVar::Recursive { v, .. } => v.is_func(),
             InnerVar::AutoCommand(_, _) => true,
             InnerVar::ShellStatus => false,
             InnerVar::VariableNames { .. } => false,
@@ -433,15 +430,19 @@ pub static USED_ENV_VARS: LazyLock<Mutex<HashSet<Symbol>>> =
 
 pub struct Vars(pub Mutex<HashMap<Symbol, Var>>);
 
+impl Default for Vars {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Vars {
     pub fn new() -> Self {
         Vars(Mutex::new(HashMap::new()))
     }
 
     pub fn lookup(&self, sym: Symbol) -> Option<Var> {
-        let Some(ret) = self.0.lock().get(&sym).cloned() else {
-            return None;
-        };
+        let ret = self.0.lock().get(&sym).cloned()?;
         match ret.read().origin() {
             VarOrigin::Environment | VarOrigin::EnvironmentOverride => {
                 USED_ENV_VARS.lock().insert(sym);
@@ -452,7 +453,7 @@ impl Vars {
     }
 
     pub fn peek(&self, sym: Symbol) -> Option<Var> {
-        self.0.lock().get(&sym).map(|v| v.clone())
+        self.0.lock().get(&sym).cloned()
     }
 
     pub fn assign(&self, sym: Symbol, var: Var, readonly: &mut bool) -> Result<()> {
@@ -513,11 +514,7 @@ impl ScopedVar {
             let mut vars = vars.0.lock();
             vars.insert(sym, var)
         };
-        Self {
-            vars: vars,
-            sym: sym,
-            orig: orig,
-        }
+        Self { vars, sym, orig }
     }
 }
 

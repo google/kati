@@ -120,7 +120,7 @@ fn parse_command_line_option_with_arg(
 }
 
 impl Flags {
-    pub fn from_args(args: Vec<OsString>) -> Flags {
+    fn from_args(args: Vec<OsString>) -> Flags {
         let mut iter = args.into_iter();
         let mut flags = Flags::default();
         flags.subkati_args.push(iter.next().unwrap());
@@ -277,14 +277,12 @@ impl Flags {
                         flags.memory_profile_path = Some(arg)
                     } else if arg.as_bytes().starts_with(b"-") {
                         panic!("Unknown flag: {}", arg.to_string_lossy());
+                    } else if arg.as_bytes().contains(&b'=') {
+                        flags.cl_vars.push(Bytes::from(arg.as_bytes().to_vec()));
                     } else {
-                        if arg.as_bytes().contains(&b'=') {
-                            flags.cl_vars.push(Bytes::from(arg.as_bytes().to_vec()));
-                        } else {
-                            should_propagate = false;
-                            let arg = Bytes::from(arg.as_bytes().to_vec());
-                            flags.targets.push(intern(arg));
-                        }
+                        should_propagate = false;
+                        let arg = Bytes::from(arg.as_bytes().to_vec());
+                        flags.targets.push(intern(arg));
                     }
                 }
             }

@@ -26,7 +26,7 @@ impl ScopedTimeReporter {
         let start = std::time::Instant::now();
         Self {
             name: name.to_string(),
-            start: start,
+            start,
         }
     }
 }

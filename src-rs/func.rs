@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 
 use crate::{
     collect_stats, collect_stats_with_slow_report, error_loc,
-    eval::{Evaluator, FrameType},
+    eval::{Evaluator, ExportAllowed, FrameType},
     expr::{Evaluable, Value},
     file_cache::add_extra_file_dep,
     fileutil::{RedirectStderr, run_command},
@@ -49,10 +49,12 @@ use crate::{
     warn_loc,
 };
 
+type MakeFuncImpl = fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>;
+
 #[derive(PartialEq)]
 pub struct FuncInfo {
     pub name: &'static [u8],
-    pub func: fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>,
+    pub func: MakeFuncImpl,
     pub arity: i16,
     pub min_arity: i16,
     // For all parameters.
@@ -238,7 +240,7 @@ fn sort_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
 
 fn get_numeric_value_for_func(buf: &[u8]) -> Result<usize> {
     let s = std::str::from_utf8(trim_left_space(buf))?;
-    Ok(usize::from_str_radix(&s, 10)?)
+    Ok(s.parse::<usize>()?)
 }
 
 fn word_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {
@@ -562,7 +564,7 @@ fn shell_func_impl(
         }
     }
 
-    collect_stats_with_slow_report!("func shell time", OsString::from_vec(cmd.to_vec()));
+    collect_stats_with_slow_report!("func shell time", OsStr::from_bytes(cmd));
     let (status, output) = run_command(shell, shellflag, cmd, RedirectStderr::None)?;
     let output = Bytes::from(format_for_command_substitution(output));
 
@@ -666,12 +668,12 @@ fn shell_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> 
     if should_store_command_result(&cmd) {
         COMMAND_RESULTS.lock().push(CommandResult {
             op: CommandOp::Shell,
-            shell: shell,
+            shell,
             shellflag: Bytes::from_static(shellflag),
-            cmd: cmd,
+            cmd,
             find: fc,
             result: output,
-            loc: loc,
+            loc,
         })
     }
     set_shell_status_var(exit_code);
@@ -713,13 +715,11 @@ fn call_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
     if let Some(func) = &func {
         let func = func.read();
         func.used(ev, &func_sym)?;
-    } else {
-        if FLAGS.enable_kati_warnings {
-            kati_warn_loc!(
-                ev.loc.as_ref(),
-                "*warning*: undefined user function: {func_sym}"
-            );
-        }
+    } else if FLAGS.enable_kati_warnings {
+        kati_warn_loc!(
+            ev.loc.as_ref(),
+            "*warning*: undefined user function: {func_sym}"
+        );
     }
     let mut av = Vec::with_capacity(args.len() - 1);
     for arg in &args[1..] {
@@ -977,7 +977,7 @@ fn file_func_impl(
         error_loc!(
             ev.loc.as_ref(),
             "*** Invalid file operation: {}.  Stop.",
-            String::from_utf8_lossy(&filename)
+            String::from_utf8_lossy(filename)
         );
     }
     Ok(())
@@ -1101,13 +1101,15 @@ fn deprecate_export_func(
         );
     }
 
-    if ev.export_error {
-        error_loc!(ev.loc.as_ref(), "*** Export is already obsolete.");
-    } else if ev.export_message.is_some() {
-        error_loc!(ev.loc.as_ref(), "*** Export is already deprecated.");
+    match &ev.export_allowed {
+        ExportAllowed::Warning(_) => {
+            error_loc!(ev.loc.as_ref(), "*** Export is already deprecated.")
+        }
+        ExportAllowed::Error(_) => error_loc!(ev.loc.as_ref(), "*** Export is already obsolete."),
+        ExportAllowed::Allowed => {}
     }
 
-    ev.export_message = Some(msg);
+    ev.export_allowed = ExportAllowed::Warning(msg);
     Ok(())
 }
 
@@ -1125,12 +1127,11 @@ fn obsolete_export_func(
         );
     }
 
-    if ev.export_error {
+    if matches!(ev.export_allowed, ExportAllowed::Error(_)) {
         error_loc!(ev.loc.as_ref(), "*** Export is already obsolete.");
     }
 
-    ev.export_error = true;
-    ev.export_message = Some(msg);
+    ev.export_allowed = ExportAllowed::Error(msg);
     Ok(())
 }
 
@@ -1142,8 +1143,7 @@ fn profile_makefile_func(
     for arg in args {
         let files = arg.eval_to_buf(ev)?;
         for file in word_scanner(&files) {
-            ev.profiled_files
-                .push(String::from_utf8_lossy(&file).into_owned());
+            ev.profiled_files.push(OsString::from_vec(file.to_vec()));
         }
     }
     Ok(())
@@ -1163,7 +1163,7 @@ fn variable_location_func(
             .peek_var(sym)
             .and_then(|v| v.read().loc().clone())
             .unwrap_or_default();
-        ww.write(&l.to_string().as_bytes());
+        ww.write(l.to_string().as_bytes());
     }
     Ok(())
 }
@@ -1231,7 +1231,7 @@ fn visibility_prefix_func(
             error_loc!(
                 ev.loc.as_ref(),
                 "Visibility prefix {} is not normalized. Normalized prefix: {}",
-                String::from_utf8_lossy(&prefix),
+                String::from_utf8_lossy(prefix),
                 String::from_utf8_lossy(&normalized_prefix)
             );
         }
@@ -1291,11 +1291,7 @@ fn debug_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn BufMut) ->
     Ok(())
 }
 
-const fn func(
-    name: &'static [u8],
-    f: fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>,
-    arity: i16,
-) -> FuncInfo {
+const fn func(name: &'static [u8], f: MakeFuncImpl, arity: i16) -> FuncInfo {
     FuncInfo {
         name,
         func: f,

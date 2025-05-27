@@ -20,22 +20,22 @@ use memchr::{memchr, memchr2, memmem, memrchr};
 use std::{borrow::Cow, env::current_dir, os::unix::ffi::OsStrExt};
 
 pub fn is_space(c: char) -> bool {
-    ('\t' <= c && c <= '\r') || c == ' '
+    ('\t'..='\r').contains(&c) || c == ' '
 }
 
 pub fn is_space_byte(c: &u8) -> bool {
     let c = *c;
-    (b'\t' <= c && c <= b'\r') || c == b' '
+    (b'\t'..=b'\r').contains(&c) || c == b' '
 }
 
 pub fn skip_until(s: &[u8], pattern: &[u8]) -> usize {
     s.iter()
         .position(|c| pattern.contains(c))
-        .unwrap_or_else(|| s.len())
+        .unwrap_or(s.len())
 }
 
 pub fn skip_until2(s: &[u8], needle1: u8, needle2: u8) -> usize {
-    memchr2(needle1, needle2, s).unwrap_or_else(|| s.len())
+    memchr2(needle1, needle2, s).unwrap_or(s.len())
 }
 
 pub fn word_scanner(s: &[u8]) -> impl Iterator<Item = &[u8]> {
@@ -50,7 +50,7 @@ pub struct WordWriter<'a> {
 impl<'a> WordWriter<'a> {
     pub fn new(out: &'a mut dyn BufMut) -> WordWriter<'a> {
         WordWriter {
-            out: out,
+            out,
             needs_space: false,
         }
     }
@@ -167,7 +167,7 @@ impl Pattern {
             }
             return subst.clone();
         }
-        return s.clone();
+        s.clone()
     }
 
     pub fn append_subst_ref(&self, s: &Bytes, subst: &Bytes) -> Bytes {
@@ -247,9 +247,7 @@ pub fn basename(s: &[u8]) -> &[u8] {
 }
 
 pub fn get_ext(s: &[u8]) -> Option<&[u8]> {
-    let Some(found) = memrchr(b'.', s) else {
-        return None;
-    };
+    let found = memrchr(b'.', s)?;
     Some(&s[found..])
 }
 
@@ -295,9 +293,7 @@ pub fn normalize_path(mut o: &[u8]) -> Bytes {
         };
         o = rest;
 
-        if dir == b"." {
-            continue;
-        } else if dir == b".." && ret.as_ref() == b"/" {
+        if dir == b"." || (dir == b".." && ret.as_ref() == b"/") {
             continue;
         } else if dir == b".." && !ret.is_empty() && ret.as_ref() != b".." && !ret.ends_with(b"/..")
         {
@@ -352,7 +348,7 @@ pub fn find_outside_paren(s: &[u8], pattern: &[u8]) -> Option<usize> {
             b'(' => paren_stack.push(b')'),
             b'{' => paren_stack.push(b'}'),
             b')' | b'}' => {
-                if paren_stack.last() == Some(&c) {
+                if paren_stack.last() == Some(c) {
                     paren_stack.pop();
                 }
             }
@@ -408,7 +404,7 @@ pub fn find_end_of_line(buf: &Bytes) -> EndOfLine {
     EndOfLine {
         line: buf.slice(..e),
         rest: buf.slice(e..),
-        lf_cnt: lf_cnt,
+        lf_cnt,
     }
 }
 
@@ -425,7 +421,7 @@ pub fn format_for_command_substitution(mut s: Vec<u8>) -> Vec<u8> {
     }
     let mut search = 0;
     while let Some(idx) = memchr(b'\n', &s[search..]) {
-        search = search + idx;
+        search += idx;
         s[search] = b' ';
     }
     s
@@ -455,7 +451,7 @@ pub fn echo_escape(s: &[u8]) -> Bytes {
 }
 
 pub fn escape_shell(s: &Bytes) -> Bytes {
-    let delimiters = &[b'"', b'$', b'\\', b'`'];
+    let delimiters = b"\"$\\`";
     let mut prev = 0;
     let mut i = skip_until(s, delimiters);
     if i == s.len() {
@@ -484,7 +480,7 @@ pub fn is_integer(str: &[u8]) -> bool {
     if str.is_empty() {
         return false;
     }
-    str.iter().all(|c| (*c as char).is_digit(10))
+    str.iter().all(|c| (*c as char).is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -653,60 +649,60 @@ mod test {
 
     #[test]
     fn test_is_integer() {
-        assert_eq!(is_integer(b"0"), true);
-        assert_eq!(is_integer(b"9"), true);
-        assert_eq!(is_integer(b"1234"), true);
-        assert_eq!(is_integer(b""), false);
-        assert_eq!(is_integer(b"a234"), false);
-        assert_eq!(is_integer(b"123a"), false);
-        assert_eq!(is_integer(b"12a4"), false);
+        assert!(is_integer(b"0"));
+        assert!(is_integer(b"9"));
+        assert!(is_integer(b"1234"));
+        assert!(!is_integer(b""));
+        assert!(!is_integer(b"a234"));
+        assert!(!is_integer(b"123a"));
+        assert!(!is_integer(b"12a4"));
     }
 
     #[test]
     fn test_find_outside_paren_simple() {
-        assert_eq!(find_outside_paren(b"abc", &[b'b']), Some(1));
-        assert_eq!(find_outside_paren(b":abc", &[b':']), Some(0));
-        assert_eq!(find_outside_paren(b"abc:", &[b':']), Some(3));
-        assert_eq!(find_outside_paren(b"abc", &[b'd']), None);
-        assert_eq!(find_outside_paren(b"", &[b'a']), None);
+        assert_eq!(find_outside_paren(b"abc", b"b"), Some(1));
+        assert_eq!(find_outside_paren(b":abc", b":"), Some(0));
+        assert_eq!(find_outside_paren(b"abc:", b":"), Some(3));
+        assert_eq!(find_outside_paren(b"abc", b"d"), None);
+        assert_eq!(find_outside_paren(b"", b"a"), None);
         assert_eq!(find_outside_paren(b"abc", &[]), None);
-        assert_eq!(find_outside_paren(b"a=b:c", &[b':', b'=']), Some(1)); // Finds '=' first
-        assert_eq!(find_outside_paren(b"a:b=c", &[b':', b'=']), Some(1)); // Finds ':' first
+        assert_eq!(find_outside_paren(b"a=b:c", b":="), Some(1)); // Finds '=' first
+        assert_eq!(find_outside_paren(b"a:b=c", b":="), Some(1)); // Finds ':' first
     }
 
     #[test]
     fn test_find_outside_paren_parentheses() {
-        assert_eq!(find_outside_paren(b"a(b:c)d", &[b':']), None); // ':' is inside ()
-        assert_eq!(find_outside_paren(b"a{b:c}d", &[b':']), None); // ':' is inside {}
-        assert_eq!(find_outside_paren(b"a(b)c:d", &[b':']), Some(5)); // ':' is outside after ()
-        assert_eq!(find_outside_paren(b"a{b}c:d", &[b':']), Some(5)); // ':' is outside after {}
-        assert_eq!(find_outside_paren(b"a:b(c)d", &[b':']), Some(1)); // ':' is outside before ()
-        assert_eq!(find_outside_paren(b"a((b:c))d", &[b':']), None); // Nested ()
-        assert_eq!(find_outside_paren(b"a{{b:c}}d", &[b':']), None); // Nested {}
-        assert_eq!(find_outside_paren(b"a({b:c})d", &[b':']), None); // Mixed nested {} inside ()
-        assert_eq!(find_outside_paren(b"a{(b:c)}d", &[b':']), None); // Mixed nested () inside {}
-        assert_eq!(find_outside_paren(b"a(b):c", &[b':']), Some(4)); // Immediately after )
-        assert_eq!(find_outside_paren(b"a{b}:c", &[b':']), Some(4)); // Immediately after }
+        assert_eq!(find_outside_paren(b"a(b:c)d", b":"), None); // ':' is inside ()
+        assert_eq!(find_outside_paren(b"a{b:c}d", b":"), None); // ':' is inside {}
+        assert_eq!(find_outside_paren(b"a(b)c:d", b":"), Some(5)); // ':' is outside after ()
+        assert_eq!(find_outside_paren(b"a{b}c:d", b":"), Some(5)); // ':' is outside after {}
+        assert_eq!(find_outside_paren(b"a:b(c)d", b":"), Some(1)); // ':' is outside before ()
+        assert_eq!(find_outside_paren(b"a((b:c))d", b":"), None); // Nested ()
+        assert_eq!(find_outside_paren(b"a{{b:c}}d", b":"), None); // Nested {}
+        assert_eq!(find_outside_paren(b"a({b:c})d", b":"), None); // Mixed nested {} inside ()
+        assert_eq!(find_outside_paren(b"a{(b:c)}d", b":"), None); // Mixed nested () inside {}
+        assert_eq!(find_outside_paren(b"a(b):c", b":"), Some(4)); // Immediately after )
+        assert_eq!(find_outside_paren(b"a{b}:c", b":"), Some(4)); // Immediately after }
         // Mismatched parens - should still find outside ones correctly before mismatch
-        assert_eq!(find_outside_paren(b"a(b:c", &[b':']), None);
-        assert_eq!(find_outside_paren(b"a)b:c", &[b':']), Some(3));
-        assert_eq!(find_outside_paren(b"a{b:c", &[b':']), None);
-        assert_eq!(find_outside_paren(b"a}b:c", &[b':']), Some(3));
+        assert_eq!(find_outside_paren(b"a(b:c", b":"), None);
+        assert_eq!(find_outside_paren(b"a)b:c", b":"), Some(3));
+        assert_eq!(find_outside_paren(b"a{b:c", b":"), None);
+        assert_eq!(find_outside_paren(b"a}b:c", b":"), Some(3));
     }
 
     #[test]
     fn test_find_outside_paren_escapes() {
-        assert_eq!(find_outside_paren(b"a\\:b:c", &[b':']), Some(4)); // Escaped ':' ignored, finds second ':'
-        assert_eq!(find_outside_paren(b"a\\\\:b", &[b':']), Some(3)); // Escaped '\\', finds ':'
+        assert_eq!(find_outside_paren(b"a\\:b:c", b":"), Some(4)); // Escaped ':' ignored, finds second ':'
+        assert_eq!(find_outside_paren(b"a\\\\:b", b":"), Some(3)); // Escaped '\\', finds ':'
         // Test case for escaped newline - find_outside_paren doesn't see the newline itself
         // as it's processed line by line after find_end_of_line.
         // Let's test a scenario where the escape is just before the target.
-        assert_eq!(find_outside_paren(b"abc\\", &[b'c']), Some(2)); // Escaped char at end
-        assert_eq!(find_outside_paren(b"abc\\:", &[b':']), None); // Escaped target char
+        assert_eq!(find_outside_paren(b"abc\\", b"c"), Some(2)); // Escaped char at end
+        assert_eq!(find_outside_paren(b"abc\\:", b":"), None); // Escaped target char
     }
 
     #[test]
     fn test_find_outside_paren_combinations() {
-        assert_eq!(find_outside_paren(b"a(b\\:c):d", &[b':']), Some(7)); // Escaped ':' inside (), find ':' outside
+        assert_eq!(find_outside_paren(b"a(b\\:c):d", b":"), Some(7)); // Escaped ':' inside (), find ':' outside
     }
 }

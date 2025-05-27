@@ -14,6 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// TODO: Add docs
+#![allow(missing_docs)]
+// These are the lints enabled by default in Android
+// #![deny(missing_docs)]
+#![deny(warnings)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 use strutil::trim_prefix_str;
 
 pub mod command;
@@ -51,7 +59,7 @@ macro_rules! log {
 #[macro_export]
 macro_rules! log_stat {
     ($fmt:expr $(, $($arg:tt)*)?) => {
-        if crate::flags::FLAGS.enable_stat_logs {
+        if $crate::flags::FLAGS.enable_stat_logs {
             eprintln!("*kati*: {}", format!($fmt, $($($arg)*)?))
         }
     };
@@ -67,7 +75,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! kati_warn {
     ($fmt:expr $(, $($arg:tt)*)?) => {
-        if crate::flags::FLAGS.enable_kati_warnings {
+        if $crate::flags::FLAGS.enable_kati_warnings {
             eprintln!($fmt, $($($arg)*)?)
         }
     };
@@ -83,15 +91,15 @@ macro_rules! error {
 #[macro_export]
 macro_rules! warn_loc {
     ($loc:expr, $fmt:expr $(, $($arg:tt)*)?) => {
-        crate::color_warn_log($loc, format!($fmt, $($($arg)*)?))
+        $crate::color_warn_log($loc, format!($fmt, $($($arg)*)?))
     };
 }
 
 #[macro_export]
 macro_rules! kati_warn_loc {
     ($loc:expr, $fmt:expr $(, $($arg:tt)*)?) => {
-        if crate::flags::FLAGS.enable_kati_warnings {
-            crate::color_warn_log($loc, format!($fmt, $($($arg)*)?))
+        if $crate::flags::FLAGS.enable_kati_warnings {
+            $crate::color_warn_log($loc, format!($fmt, $($($arg)*)?))
         }
     };
 }
@@ -99,7 +107,7 @@ macro_rules! kati_warn_loc {
 #[macro_export]
 macro_rules! error_loc {
     ($loc:expr, $fmt:expr $(, $($arg:tt)*)?) => {
-        return Err(crate::color_error_log($loc, format!($fmt, $($($arg)*)?)))
+        return Err($crate::color_error_log($loc, format!($fmt, $($($arg)*)?)))
     };
 }
 
@@ -116,9 +124,9 @@ fn color_error_log(loc: Option<&crate::loc::Loc>, msg: String) -> anyhow::Error 
     if crate::flags::FLAGS.color_warnings {
         let filtered = trim_prefix_str(&msg, "*** ");
 
-        return anyhow::format_err!("{BOLD}{loc}: {RED}error: {RESET}{BOLD}{filtered}{RESET}");
+        anyhow::format_err!("{BOLD}{loc}: {RED}error: {RESET}{BOLD}{filtered}{RESET}")
     } else {
-        return anyhow::format_err!("{loc}: {msg}");
+        anyhow::format_err!("{loc}: {msg}")
     }
 }
 

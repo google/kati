@@ -150,7 +150,7 @@ fn inner(
                 println!("  shell flagss: {shellflag:?}");
                 println!("  loc: {file:?}:{line}");
                 println!("  cmd: {cmd:?}");
-                if result.len() > 0 && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
+                if !result.is_empty() && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
                     println!("  output: {result:?}");
                 } else {
                     println!("  output: <{} bytes>", result.len());
@@ -167,7 +167,7 @@ fn inner(
                 for d in read_dirs {
                     println!("    {d:?}");
                 }
-                println!("");
+                println!();
             }
         } else if dump_cmds {
             match op {
@@ -184,7 +184,7 @@ fn inner(
             }
             println!("  loc: {file:?}:{line}");
             println!("  cmd: {cmd:?}");
-            if result.len() > 0 && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
+            if !result.is_empty() && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
                 println!("  output: {result:?}");
             } else {
                 println!("  output: <{} bytes>", result.len());

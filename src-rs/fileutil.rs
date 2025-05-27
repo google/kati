@@ -109,10 +109,12 @@ pub fn run_command(
     Ok((res, output))
 }
 
-pub static GLOB_CACHE: LazyLock<Mutex<HashMap<Bytes, Arc<Result<Vec<Bytes>, std::io::Error>>>>> =
+pub type GlobResults = Arc<Result<Vec<Bytes>, std::io::Error>>;
+
+pub static GLOB_CACHE: LazyLock<Mutex<HashMap<Bytes, GlobResults>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub fn glob(pat: Bytes) -> Arc<Result<Vec<Bytes>, std::io::Error>> {
+pub fn glob(pat: Bytes) -> GlobResults {
     let mut cache = GLOB_CACHE.lock();
     if let Some(entry) = cache.get(&pat) {
         return entry.clone();
@@ -152,8 +154,8 @@ fn libc_glob(pattern: &[u8]) -> Result<Vec<Bytes>, std::io::Error> {
         // We can't guarantee that these came from the same allocated
         // object, but this is also only temporary, and will not be
         // used past the globfree which will deallocate any memory.
-        let paths = unsafe { slice::from_raw_parts(gl.gl_pathv, gl.gl_pathc as usize) };
-        ret.reserve_exact(gl.gl_pathc as usize);
+        let paths = unsafe { slice::from_raw_parts(gl.gl_pathv, gl.gl_pathc) };
+        ret.reserve_exact(gl.gl_pathc);
         for ptr in paths {
             if !ptr.is_null() {
                 // SAFETY: This is a non-null pointer, and we assume

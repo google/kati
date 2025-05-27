@@ -77,14 +77,25 @@ cc_binary_host {
 }
 
 cc_test_host {
-    name: "ckati_test",
+    name: "ckati_find_test",
     defaults: ["ckati_defaults"],
-    test_per_src: true,
-    srcs: [
-        "find_test.cc",
-        "ninja_test.cc",
-        "strutil_test.cc",
-    ],
+    srcs: ["find_test.cc"],
+    gtest: false,
+    static_libs: ["libckati"],
+}
+
+cc_test_host {
+    name: "ckati_ninja_test",
+    defaults: ["ckati_defaults"],
+    srcs: ["ninja_test.cc"],
+    gtest: false,
+    static_libs: ["libckati"],
+}
+
+cc_test_host {
+    name: "ckati_strutil_test",
+    defaults: ["ckati_defaults"],
+    srcs: ["strutil_test.cc"],
     gtest: false,
     static_libs: ["libckati"],
 }

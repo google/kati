@@ -22,7 +22,7 @@ use std::os::unix::ffi::OsStringExt;
 use std::sync::{Arc, LazyLock, Weak};
 
 use anyhow::{Context, Result};
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, Bytes};
 use memchr::{memchr, memchr2};
 use parking_lot::Mutex;
 
@@ -45,6 +45,16 @@ pub enum RulesAllowed {
     Allowed,
     Warning,
     Error,
+}
+
+/// Whether `export` directives are allowed.
+pub enum ExportAllowed {
+    /// Export directives are allowed, the default.
+    Allowed,
+    /// Export directives result in warnings with the specified message.
+    Warning(String),
+    /// Export directives result in errors with the specified message.
+    Error(String),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -78,7 +88,7 @@ impl Frame {
     ) -> Self {
         assert!(parent.is_none() == (frame_type == FrameType::Root));
         Self {
-            frame_type: frame_type,
+            frame_type,
             parent: parent.map(|p| Arc::downgrade(&p)),
             name,
             location: loc,
@@ -130,10 +140,7 @@ impl ScopedFrame {
             stack.last().unwrap().add(frame.clone());
             stack.push(frame);
         }
-        Self {
-            stack: stack,
-            frame: frame,
-        }
+        Self { stack, frame }
     }
     pub fn current(&self) -> Option<Arc<Frame>> {
         self.frame.clone()
@@ -177,29 +184,25 @@ impl IncludeGraph {
         for (file, node) in &self.nodes {
             if first_node {
                 first_node = false;
-                writeln!(tf, "")?;
+                writeln!(tf)?;
             } else {
                 writeln!(tf, ",")?;
             }
 
             writeln!(tf, "    {{")?;
             // TODO(lberki): Quote all these strings properly
-            writeln!(
-                tf,
-                "      \"file\": \"{}\",",
-                String::from_utf8_lossy(&file)
-            )?;
+            writeln!(tf, "      \"file\": \"{}\",", String::from_utf8_lossy(file))?;
             write!(tf, "      \"includes\": [")?;
             let mut first_include = true;
             for include in &node.includes {
                 if first_include {
                     first_include = false;
-                    writeln!(tf, "")?;
+                    writeln!(tf)?;
                 } else {
                     writeln!(tf, ",")?;
                 }
 
-                write!(tf, "        \"{}\"", String::from_utf8_lossy(&include))?;
+                write!(tf, "        \"{}\"", String::from_utf8_lossy(include))?;
             }
             writeln!(tf, "\n      ]")?;
             write!(tf, "    }}")?;
@@ -266,12 +269,18 @@ pub struct Evaluator {
     posix_sym: Symbol,
     is_posix: bool,
 
-    pub export_message: Option<String>,
-    pub export_error: bool,
+    /// Whether `export`/`unexport` directives are allowed.
+    pub export_allowed: ExportAllowed,
 
-    pub profiled_files: Vec<String>,
+    pub profiled_files: Vec<OsString>,
 
     pub is_evaluating_command: bool,
+}
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Evaluator {
@@ -307,8 +316,7 @@ impl Evaluator {
             posix_sym: crate::symtab::intern(".POSIX"),
             is_posix: false,
 
-            export_message: None,
-            export_error: false,
+            export_allowed: ExportAllowed::Allowed,
 
             profiled_files: Vec::new(),
 
@@ -330,7 +338,7 @@ impl Evaluator {
         }
 
         let tf = self.assignment_tracefile.as_mut().unwrap();
-        write!(tf, "{{\n")?;
+        writeln!(tf, "{{")?;
         write!(tf, "  \"assignments\": [")?;
         Ok(())
     }
@@ -338,7 +346,7 @@ impl Evaluator {
     pub fn finish(&mut self) -> Result<()> {
         if let Some(tf) = self.assignment_tracefile.as_mut() {
             write!(tf, " \n ]\n")?;
-            write!(tf, "}}\n")?;
+            writeln!(tf, "}}")?;
         }
         Ok(())
     }
@@ -513,7 +521,7 @@ impl Evaluator {
     //   <before_term> <term> <after_term>
     // parses <before_term> into Symbol instances until encountering ':'
     // Returns the remainder of <before_term>.
-    pub fn parse_rule_targets<'a>(
+    pub fn parse_rule_targets(
         loc: &Loc,
         before_term: &Bytes,
     ) -> Result<(Bytes, Vec<Symbol>, bool)> {
@@ -525,7 +533,7 @@ impl Evaluator {
         let mut pattern_rule_count = 0;
         let mut targets: Vec<Symbol> = Vec::new();
         for word in word_scanner(&targets_string) {
-            let target = targets_string.slice_ref(trim_leading_curdir(&word));
+            let target = targets_string.slice_ref(trim_leading_curdir(word));
             targets.push(intern(target.clone()));
             if is_pattern_rule(&target) {
                 pattern_rule_count += 1;
@@ -804,7 +812,7 @@ impl Evaluator {
 
     pub fn do_include(&mut self, fname: &Bytes) -> Result<()> {
         let filename = OsString::from_vec(fname.to_vec());
-        collect_stats_with_slow_report!("included makefiles", filename.clone());
+        collect_stats_with_slow_report!("included makefiles", &filename);
 
         let Some(mk) = file_cache::get_makefile(&filename)? else {
             error_loc!(
@@ -834,10 +842,11 @@ impl Evaluator {
             stmt.eval(self)?;
         }
 
-        for mk in &self.profiled_files {
-            STATS.mark_interesting(mk);
+        if !self.profiled_files.is_empty() {
+            for mk in std::mem::take(&mut self.profiled_files) {
+                STATS.mark_interesting(mk);
+            }
         }
-        self.profiled_files.clear();
         Ok(())
     }
 
@@ -905,7 +914,7 @@ impl Evaluator {
         for tok in word_scanner(&exports) {
             let equal_index = memchr(b'=', tok);
             let lhs;
-            if equal_index == None {
+            if equal_index.is_none() {
                 lhs = tok;
             } else if equal_index == Some(0)
                 || (equal_index == Some(1)
@@ -920,20 +929,17 @@ impl Evaluator {
             let sym = intern(exports.slice_ref(lhs));
             self.exports.insert(sym, stmt.is_export);
 
-            if let Some(export_message) = &self.export_message {
-                let prefix = if stmt.is_export { "" } else { "un" };
-
-                if self.export_error {
-                    error_loc!(
-                        self.loc.as_ref(),
-                        "*** {sym}: {prefix}export is obsolete{export_message}."
-                    );
-                } else {
-                    warn_loc!(
-                        self.loc.as_ref(),
-                        "{sym}: {prefix}export has been deprecated{export_message}."
-                    );
-                }
+            let prefix = if stmt.is_export { "" } else { "un" };
+            match &self.export_allowed {
+                ExportAllowed::Allowed => {}
+                ExportAllowed::Error(msg) => error_loc!(
+                    self.loc.as_ref(),
+                    "*** {sym}: {prefix}export is obsolete{msg}."
+                ),
+                ExportAllowed::Warning(msg) => warn_loc!(
+                    self.loc.as_ref(),
+                    "{sym}: {prefix}export has been deprecated{msg}."
+                ),
             }
         }
         Ok(())
@@ -1107,17 +1113,7 @@ impl Evaluator {
         if self.is_posix { b"-ec" } else { b"-c" }
     }
 
-    pub fn get_shell_and_flag(&mut self) -> Result<Bytes> {
-        let shell = self.get_shell()?;
-        let flag = self.get_shell_flag();
-        let mut r = BytesMut::with_capacity(shell.len() + flag.len() + 1);
-        r.put_slice(&shell);
-        r.put_u8(b' ');
-        r.put_slice(flag);
-        Ok(r.freeze())
-    }
-
-    pub fn get_allow_rules(&mut self) -> Result<RulesAllowed> {
+    fn get_allow_rules(&mut self) -> Result<RulesAllowed> {
         Ok(match self.eval_var(*ALLOW_RULES_SYM)?.as_ref() {
             b"warning" => RulesAllowed::Warning,
             b"error" => RulesAllowed::Error,

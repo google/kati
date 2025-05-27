@@ -51,7 +51,7 @@ pub trait Evaluable {
     // expansion variable, and return true in that case. Implementations of this
     // function must also not mark variables as used, as that can trigger unwanted
     // warnings. They should use ev->PeekVar().
-    fn is_func(&self, ev: &Evaluator) -> bool;
+    fn is_func(&self) -> bool;
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -91,7 +91,7 @@ impl Evaluable for Value {
                 }
             }
             Value::SymRef(_, sym) => {
-                let sym = sym.clone();
+                let sym = *sym;
                 if let Some(v) = ev.lookup_var_for_eval(sym)? {
                     let v = v.read();
                     v.used(ev, &sym)?;
@@ -154,10 +154,10 @@ impl Evaluable for Value {
         Ok(())
     }
 
-    fn is_func(&self, ev: &Evaluator) -> bool {
+    fn is_func(&self) -> bool {
         match self {
             Value::Func { .. } => true,
-            Value::List(_, list) => list.iter().any(|v| v.is_func(ev)),
+            Value::List(_, list) => list.iter().any(|v| v.is_func()),
             Value::SymRef(_, sym) => {
                 // This is a heuristic, where say that if a variable has positional
                 // parameters, we think it is likely to be a function. Callers can use
@@ -171,7 +171,7 @@ impl Evaluable for Value {
             }
             Value::VarSubst {
                 name, pat, subst, ..
-            } => name.is_func(ev) || pat.is_func(ev) || subst.is_func(ev),
+            } => name.is_func() || pat.is_func() || subst.is_func(),
             Value::Literal(_, _) => false,
         }
     }
@@ -199,10 +199,7 @@ fn close_paren(c: u8) -> Option<u8> {
 }
 
 fn should_handle_comments(opt: ParseExprOpt) -> bool {
-    match opt {
-        ParseExprOpt::Define | ParseExprOpt::Command => false,
-        _ => true,
-    }
+    !matches!(opt, ParseExprOpt::Define | ParseExprOpt::Command)
 }
 
 fn skip_spaces(loc: &mut Loc, s: &[u8], terms: &[u8]) -> usize {
@@ -335,7 +332,7 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
             if let Value::Literal(_, lit) = &*vname {
                 let sym = intern(lit.clone());
                 if FLAGS.enable_kati_warnings {
-                    if let Some(found) = sym.to_string().find(&[' ', '(', '{']) {
+                    if let Some(found) = sym.to_string().find([' ', '(', '{']) {
                         kati_warn_loc!(
                             Some(&start_loc),
                             "*warning*: variable lookup with '{}': {}",
@@ -358,8 +355,8 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
                         idx,
                         Arc::new(Value::Func {
                             loc: start_loc,
-                            fi: fi,
-                            args: args,
+                            fi,
+                            args,
                         }),
                     ));
                 } else {
@@ -421,8 +418,8 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
                 Arc::new(Value::VarSubst {
                     loc: start_loc,
                     name: vname,
-                    pat: pat,
-                    subst: subst,
+                    pat,
+                    subst,
                 }),
             ));
         }
@@ -492,7 +489,7 @@ pub fn parse_expr_impl_ext(
                 list.push(Arc::new(Value::Literal(None, s.slice(b..i))));
             }
             let mut was_backslash = false;
-            while i < s.len() && !(s[i] == b'\n' && !was_backslash) {
+            while i < s.len() && s[i] != b'\n' || was_backslash {
                 was_backslash = !was_backslash && s[i] == b'\\';
                 i += 1;
             }

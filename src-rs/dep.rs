@@ -69,7 +69,7 @@ pub struct DepNode {
 impl DepNode {
     fn new(output: Symbol, is_phony: bool, is_restat: bool) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
-            output: output,
+            output,
             cmds: Vec::new(),
             deps: Vec::new(),
             order_onlys: Vec::new(),
@@ -97,7 +97,7 @@ fn replace_suffix(s: Symbol, newsuf: &Symbol) -> Symbol {
     let s = strip_ext(&s);
     let newsuf = newsuf.as_bytes();
     let mut r = BytesMut::with_capacity(s.len() + newsuf.len() + 1);
-    r.put_slice(&s);
+    r.put_slice(s);
     r.put_u8(b'.');
     r.put_slice(&newsuf);
     intern(r.freeze())
@@ -156,7 +156,7 @@ impl RuleTrie {
         let c = name[0];
         self.children
             .entry(c)
-            .or_insert_with(|| RuleTrie::new())
+            .or_insert_with(RuleTrie::new)
             .add(&name[1..], rule)
     }
 
@@ -178,7 +178,7 @@ impl RuleTrie {
     }
 
     fn len(&self) -> usize {
-        self.rules.len() + self.children.iter().map(|(_, c)| c.len()).sum::<usize>()
+        self.rules.len() + self.children.values().map(|c| c.len()).sum::<usize>()
     }
 }
 
@@ -321,7 +321,7 @@ impl RuleMerger {
         n.actual_order_only_inputs
             .extend(apply_output_pattern(r, output, &r.order_only_inputs));
 
-        if r.output_patterns.len() >= 1 {
+        if !r.output_patterns.is_empty() {
             assert!(r.output_patterns.len() == 1);
             n.output_pattern = Some(r.output_patterns[0]);
         }
@@ -370,8 +370,8 @@ impl RuleMerger {
         all_outputs.insert(output);
 
         for (sym, merger) in &self.implicit_outputs {
-            n.implicit_outputs.push(sym.clone());
-            all_outputs.insert(sym.clone());
+            n.implicit_outputs.push(*sym);
+            all_outputs.insert(*sym);
             let merger = merger.lock();
             for r in &merger.rules {
                 self.fill_dep_node_from_rule(output, r, &mut n);
@@ -379,7 +379,7 @@ impl RuleMerger {
         }
 
         for validation in &self.validations {
-            n.actual_validations.push(validation.clone())
+            n.actual_validations.push(*validation)
         }
     }
 }
@@ -406,13 +406,20 @@ struct DepBuilder<'a> {
     tags_var_name: Symbol,
 }
 
+#[derive(Debug)]
+struct PickedRuleInfo {
+    merger: Option<Arc<Mutex<RuleMerger>>>,
+    pattern_rule: Option<Arc<Rule>>,
+    vars: Option<Arc<Vars>>,
+}
+
 impl<'a> DepBuilder<'a> {
     fn new(ev: &'a mut Evaluator) -> Result<Self> {
         let rule_vars = std::mem::take(&mut ev.rule_vars);
         let mut ret = Self {
             ev,
             rules: HashMap::new(),
-            rule_vars: rule_vars,
+            rule_vars,
             cur_rule_vars: None,
 
             implicit_rules: RuleTrie::new(),
@@ -538,15 +545,13 @@ impl<'a> DepBuilder<'a> {
     }
 
     fn get_rule_inputs(&self, s: Symbol) -> Option<(Vec<Symbol>, Loc)> {
-        let Some(merger) = self.rules.get(&s) else {
-            return None;
-        };
+        let merger = self.rules.get(&s)?;
         let merger = merger.lock();
         let mut ret = Vec::new();
         assert!(!merger.rules.is_empty());
         for r in &merger.rules {
             for i in &r.inputs {
-                ret.push(i.clone());
+                ret.push(*i);
             }
         }
 
@@ -563,7 +568,7 @@ impl<'a> DepBuilder<'a> {
                 self.populate_explicit_rule(rule)?;
             }
         }
-        for (_, rules) in &mut self.suffix_rules {
+        for rules in self.suffix_rules.values_mut() {
             rules.reverse();
         }
         // TODO: This clone likely isn't necessary with some refactoring
@@ -578,7 +583,7 @@ impl<'a> DepBuilder<'a> {
                     let sym = intern(implicit_outputs.slice_ref(trim_leading_curdir(output)));
                     self.rules
                         .entry(sym)
-                        .or_insert_with(|| RuleMerger::new())
+                        .or_insert_with(RuleMerger::new)
                         .lock()
                         .set_implicit_output(sym, symbol, merger.clone())?;
                     merger
@@ -633,11 +638,11 @@ impl<'a> DepBuilder<'a> {
     fn populate_explicit_rule(&mut self, rule: Arc<Rule>) -> Result<()> {
         for output in &rule.outputs {
             if self.first_rule.is_none() && !is_special_target(output) {
-                self.first_rule = Some(output.clone());
+                self.first_rule = Some(*output);
             }
             self.rules
-                .entry(output.clone())
-                .or_insert_with(|| RuleMerger::new())
+                .entry(*output)
+                .or_insert_with(RuleMerger::new)
                 .lock()
                 .add_rule(*output, rule.clone())?;
             self.populate_suffix_rule(&rule, *output)?;
@@ -713,12 +718,12 @@ impl<'a> DepBuilder<'a> {
                 }
 
                 if ok {
-                    matched = Some(output_pattern.clone());
+                    matched = Some(*output_pattern);
                     break;
                 }
             }
         }
-        let Some(matched) = matched else { return None };
+        let matched = matched?;
 
         let mut rule = rule.clone();
         if rule.output_patterns.len() > 1 {
@@ -753,15 +758,7 @@ impl<'a> DepBuilder<'a> {
         Some(found)
     }
 
-    fn pick_rule(
-        &mut self,
-        output: Symbol,
-        n: &Arc<Mutex<DepNode>>,
-    ) -> Option<(
-        Option<Arc<Mutex<RuleMerger>>>,
-        Option<Arc<Rule>>,
-        Option<Arc<Vars>>,
-    )> {
+    fn pick_rule(&mut self, output: Symbol, n: &Arc<Mutex<DepNode>>) -> Option<PickedRuleInfo> {
         let rule_merger = self.lookup_rule_merger(output);
         let vars = self.lookup_rule_vars(output);
         if let Some(rule_merger) = &rule_merger {
@@ -770,7 +767,11 @@ impl<'a> DepBuilder<'a> {
                 for (sym, _) in &rule_merger.lock().implicit_outputs {
                     vars = self.merge_implicit_rule_vars(*sym, vars);
                 }
-                return Some((Some(rule_merger.clone()), None, vars));
+                return Some(PickedRuleInfo {
+                    merger: Some(rule_merger.clone()),
+                    pattern_rule: None,
+                    vars,
+                });
             }
         }
 
@@ -780,24 +781,40 @@ impl<'a> DepBuilder<'a> {
                 continue;
             };
             if rule_merger.is_some() {
-                return Some((rule_merger, Some(pattern_rule), vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: Some(pattern_rule),
+                    vars,
+                });
             }
             assert!(pattern_rule.output_patterns.len() == 1);
             let vars = self.merge_implicit_rule_vars(pattern_rule.output_patterns[0], vars);
-            return Some((None, Some(pattern_rule), vars));
+            return Some(PickedRuleInfo {
+                merger: None,
+                pattern_rule: Some(pattern_rule),
+                vars,
+            });
         }
 
         let output_str = output.as_bytes();
         let Some(output_suffix) = get_ext(&output_str) else {
             if rule_merger.is_some() {
-                return Some((rule_merger, None, vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: None,
+                    vars,
+                });
             } else {
                 return None;
             }
         };
         if !output_suffix.starts_with(b".") {
             if rule_merger.is_some() {
-                return Some((rule_merger, None, vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: None,
+                    vars,
+                });
             } else {
                 return None;
             }
@@ -806,7 +823,11 @@ impl<'a> DepBuilder<'a> {
 
         let Some(found) = self.suffix_rules.get(output_suffix) else {
             if rule_merger.is_some() {
-                return Some((rule_merger, None, vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: None,
+                    vars,
+                });
             } else {
                 return None;
             }
@@ -820,20 +841,32 @@ impl<'a> DepBuilder<'a> {
             }
 
             if rule_merger.is_some() {
-                return Some((rule_merger, Some(irule.clone()), vars));
+                return Some(PickedRuleInfo {
+                    merger: rule_merger,
+                    pattern_rule: Some(irule.clone()),
+                    vars,
+                });
             }
             let mut vars = vars;
             if vars.is_some() {
                 assert!(irule.outputs.len() == 1);
                 vars = self.merge_implicit_rule_vars(irule.outputs[0], vars);
             }
-            return Some((rule_merger, Some(irule.clone()), vars));
+            return Some(PickedRuleInfo {
+                merger: rule_merger,
+                pattern_rule: Some(irule.clone()),
+                vars,
+            });
         }
 
         if rule_merger.is_some() {
-            return Some((rule_merger, None, vars));
+            Some(PickedRuleInfo {
+                merger: rule_merger,
+                pattern_rule: None,
+                vars,
+            })
         } else {
-            return None;
+            None
         }
     }
 
@@ -853,30 +886,30 @@ impl<'a> DepBuilder<'a> {
             self.phony.contains(&output),
             self.restat.contains(&output),
         );
-        self.done.insert(output.clone(), n.clone());
+        self.done.insert(output, n.clone());
 
-        let Some((mut rule_merger, mut pattern_rule, mut vars)) = self.pick_rule(output, &n) else {
+        let Some(mut picked_rule_info) = self.pick_rule(output, &n) else {
             return Ok(n);
         };
-        if let Some(merger) = &rule_merger {
+        if let Some(merger) = &picked_rule_info.merger {
             if merger.lock().parent.is_some() {
                 output = merger.lock().parent_sym.unwrap();
                 self.done.insert(output, n.clone());
                 n.lock().output = output;
-                let Some(ret) = self.pick_rule(output, &n) else {
+                let Some(new_picked_rule_info) = self.pick_rule(output, &n) else {
                     return Ok(n);
                 };
-                rule_merger = ret.0;
-                pattern_rule = ret.1;
-                vars = ret.2;
+                // Update the picked_rule_info with the new values
+                picked_rule_info = new_picked_rule_info;
             }
         }
         let output_str = output.as_bytes();
 
-        rule_merger
-            .unwrap_or_else(|| RuleMerger::new())
+        picked_rule_info
+            .merger
+            .unwrap_or_else(RuleMerger::new)
             .lock()
-            .fill_dep_node(output, &pattern_rule, &n);
+            .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
 
         let mut sv = Vec::new();
         let frame = self.ev.enter(
@@ -885,7 +918,7 @@ impl<'a> DepBuilder<'a> {
             n.lock().loc.clone().unwrap_or_default(),
         );
 
-        if let Some(vars) = &vars {
+        if let Some(vars) = &picked_rule_info.vars {
             for (name, var) in vars.0.lock().iter() {
                 let mut new_var = var.clone();
                 match var.read().assign_op {
@@ -914,8 +947,9 @@ impl<'a> DepBuilder<'a> {
 
                 if *name == self.depfile_var_name {
                     n.lock().depfile_var = Some(new_var);
-                } else if *name == self.implicit_outputs_var_name {
-                } else if *name == self.validations_var_name {
+                } else if *name == self.implicit_outputs_var_name
+                    || *name == self.validations_var_name
+                {
                 } else if *name == self.ninja_pool_var_name {
                     n.lock().ninja_pool_var = Some(new_var);
                 } else if *name == self.tags_var_name {
@@ -969,7 +1003,7 @@ impl<'a> DepBuilder<'a> {
 
         let implicit_outputs = n.lock().implicit_outputs.clone();
         for output in implicit_outputs {
-            self.done.insert(output.clone(), n.clone());
+            self.done.insert(output, n.clone());
 
             let output_str = output.as_bytes();
             if FLAGS.warn_phony_looks_real && n.lock().is_phony && output_str.contains(&b'/') {
@@ -1012,8 +1046,8 @@ impl<'a> DepBuilder<'a> {
 
         let actual_inputs = n.lock().actual_inputs.clone();
         for input in actual_inputs {
-            let c = self.build_plan(input.clone(), Some(output.clone()))?;
-            n.lock().deps.push((input.clone(), c.clone()));
+            let c = self.build_plan(input, Some(output))?;
+            n.lock().deps.push((input, c.clone()));
 
             let mut is_phony = c.lock().is_phony;
             if !is_phony && !c.lock().has_rule && FLAGS.top_level_phony {
@@ -1036,8 +1070,8 @@ impl<'a> DepBuilder<'a> {
 
         let actual_order_only_inputs = n.lock().actual_order_only_inputs.clone();
         for input in actual_order_only_inputs {
-            let c = self.build_plan(input.clone(), Some(output.clone()))?;
-            n.lock().order_onlys.push((input.clone(), c));
+            let c = self.build_plan(input, Some(output))?;
+            n.lock().order_onlys.push((input, c));
         }
 
         let actual_validations = n.lock().actual_validations.clone();
@@ -1048,8 +1082,8 @@ impl<'a> DepBuilder<'a> {
                     ".KATI_VALIDATIONS not allowed without --use_ninja_validations"
                 );
             }
-            let c = self.build_plan(validation.clone(), Some(output.clone()))?;
-            n.lock().validations.push((validation.clone(), c));
+            let c = self.build_plan(validation, Some(output))?;
+            n.lock().validations.push((validation, c));
         }
 
         // Block on werror_writable/werror_phony_looks_real, because otherwise we
@@ -1072,34 +1106,30 @@ impl<'a> DepBuilder<'a> {
                         "warning: target \"{output}\" has no commands or deps that could create it"
                     );
                 }
-            } else {
-                if n.actual_inputs.len() == 1 {
-                    if FLAGS.werror_real_no_cmds {
-                        error_loc!(
-                            n.loc.as_ref(),
-                            "*** target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
-                            n.actual_inputs[0]
-                        );
-                    } else if FLAGS.warn_real_no_cmds {
-                        warn_loc!(
-                            n.loc.as_ref(),
-                            "warning: target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
-                            n.actual_inputs[0]
-                        );
-                    }
-                } else {
-                    if FLAGS.werror_real_no_cmds {
-                        error_loc!(
-                            n.loc.as_ref(),
-                            "*** target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
-                        );
-                    } else if FLAGS.warn_real_no_cmds {
-                        warn_loc!(
-                            n.loc.as_ref(),
-                            "warning: target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
-                        );
-                    }
+            } else if n.actual_inputs.len() == 1 {
+                if FLAGS.werror_real_no_cmds {
+                    error_loc!(
+                        n.loc.as_ref(),
+                        "*** target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
+                        n.actual_inputs[0]
+                    );
+                } else if FLAGS.warn_real_no_cmds {
+                    warn_loc!(
+                        n.loc.as_ref(),
+                        "warning: target \"{output}\" has no commands. Should \"{}\" be using .KATI_IMPLICIT_OUTPUTS?",
+                        n.actual_inputs[0]
+                    );
                 }
+            } else if FLAGS.werror_real_no_cmds {
+                error_loc!(
+                    n.loc.as_ref(),
+                    "*** target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
+                );
+            } else if FLAGS.warn_real_no_cmds {
+                warn_loc!(
+                    n.loc.as_ref(),
+                    "warning: target \"{output}\" has no commands that could create output file. Is a dependency missing .KATI_IMPLICIT_OUTPUTS?"
+                );
             }
         }
 
@@ -1109,14 +1139,14 @@ impl<'a> DepBuilder<'a> {
             n.is_default_target = self.first_rule == Some(output);
             if let Some(cur_rule_vars) = &self.cur_rule_vars {
                 let v = Vars::new();
-                v.merge_from(&cur_rule_vars);
+                v.merge_from(cur_rule_vars);
                 n.rule_vars = Some(Arc::new(v));
             } else {
                 n.rule_vars = None
             }
         }
 
-        return Ok(n);
+        Ok(n)
     }
 }
 
