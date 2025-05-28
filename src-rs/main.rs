@@ -52,6 +52,15 @@ use kati::flags::FLAGS;
 use kati::symtab::{Symbol, intern, join_symbols};
 use kati::timeutil::ScopedTimeReporter;
 
+#[cfg(not(feature = "gperf"))]
+use tikv_jemallocator::Jemalloc;
+
+// Use jemalloc for better performance, but gperftools will use tcmalloc for
+// heap debugging.
+#[cfg(not(feature = "gperf"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 fn read_bootstrap_makefile(targets: &[Symbol]) -> Result<Arc<Mutex<Vec<Stmt>>>> {
     let mut bootstrap = BytesMut::new();
     bootstrap.put_slice(b"CC?=cc\n");
