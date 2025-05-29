@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 
 #include "expr.h"
 #include "file.h"
