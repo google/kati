@@ -42,11 +42,14 @@ Makefile::Makefile(const std::string& filename)
   mtime_ = st.st_mtime;
   buf_.resize(len);
   exists_ = true;
-  ssize_t r = HANDLE_EINTR(read(fd, &buf_[0], len));
-  if (r != static_cast<ssize_t>(len)) {
-    if (r < 0)
+  size_t remaining = len;
+  while (remaining > 0) {
+    size_t completed = len - remaining;
+    ssize_t r = HANDLE_EINTR(read(fd, &buf_[completed], remaining));
+    if (r == -1) {
       PERROR("read failed for %s", filename.c_str());
-    ERROR("Unexpected read length=%zd expected=%zu", r, len);
+    }
+    remaining -= r;
   }
 
   if (close(fd) < 0) {
