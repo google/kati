@@ -478,7 +478,7 @@ void Evaluator::EvalRule(const RuleStmt* stmt) {
   bool is_pattern_rule;
   std::string_view after_targets =
       ParseRuleTargets(loc_, before_term, &targets, &is_pattern_rule);
-  bool is_double_colon = (after_targets[0] == ':');
+  bool is_double_colon = (after_targets != "" && after_targets[0] == ':');
   if (is_double_colon) {
     after_targets = after_targets.substr(1);
   }
