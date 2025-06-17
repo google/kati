@@ -15,6 +15,8 @@ log = "0.4.27"
 memchr = "2.7.4"
 os_pipe = "1.2.1"
 parking_lot = { version = "0.12.3" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
 tikv-jemallocator = "0.6.0"
 
 [features]

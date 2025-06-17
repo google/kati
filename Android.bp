@@ -42,8 +42,14 @@ rust_binary_host {
     rustlibs: [
         "libkati",
         "libenv_logger",
-        "libtikv_jemallocator",
     ],
+    target: {
+        linux: {
+            rustlibs: [
+                "libtikv_jemallocator",
+            ],
+        },
+    },
 }
 
 rust_test_host {
