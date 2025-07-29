@@ -338,7 +338,7 @@ fn main() {
             // run. This tool flag only dumps information, and doesn't run the rest of
             // kati.
             if let Err(err) = stamp_dump_main() {
-                eprintln!("{}", err);
+                eprintln!("{err}");
                 std::process::exit(1);
             }
             return;
@@ -381,7 +381,7 @@ fn main() {
         Ok(ret) => ret,
         Err(err) => {
             for cause in err.chain() {
-                eprintln!("{}", cause);
+                eprintln!("{cause}");
             }
             1
         }

@@ -32,12 +32,12 @@ fn main() -> Result<()> {
 
     let cmd = Bytes::from(cmd.as_bytes().to_vec());
     let Some(fc) = parse(&cmd)? else {
-        log::error!("Unsupported command: {:?}", cmd);
+        log::error!("Unsupported command: {cmd:?}");
         std::process::exit(1);
     };
 
     let Some(output) = find(&cmd, &fc, &kati::loc::Loc::default())? else {
-        log::error!("Unable to run command {:?}", cmd);
+        log::error!("Unable to run command {cmd:?}");
         std::process::exit(1);
     };
 
