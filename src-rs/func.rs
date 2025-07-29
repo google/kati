@@ -733,7 +733,7 @@ fn call_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
     let mut sv = Vec::new();
     let mut i = 1;
     loop {
-        let tmpvar_name_sym = intern(format!("{}", i));
+        let tmpvar_name_sym = intern(format!("{i}"));
         if let Some(a) = av.get(i - 1) {
             sv.push(ScopedGlobalVar::new(tmpvar_name_sym, a.clone())?);
         } else {

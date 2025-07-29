@@ -1010,7 +1010,7 @@ impl Evaluator {
         writeln!(tf, "    {{")?;
         writeln!(tf, "      \"name\": \"{name}\",")?;
         writeln!(tf, "      \"operation\": \"assign\",")?;
-        write!(tf, "      \"value\": \"{:?}\"", var)?;
+        write!(tf, "      \"value\": \"{var:?}\"")?;
         if let Some(definition) = var.read().definition().clone() {
             writeln!(tf, ",\n")?;
             writeln!(tf, "      \"value_stack\": [")?;
