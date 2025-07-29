@@ -161,7 +161,7 @@ impl Pattern {
             if let Some(subst_percent_index) = memchr(b'%', subst) {
                 let mut ret = BytesMut::with_capacity(subst.len() + s.len() - self.pat.len() + 1);
                 ret.put_slice(&subst[..subst_percent_index]);
-                ret.put_slice(&s[percent_index..(percent_index + s.len() - self.pat.len() + 1)]);
+                ret.put_slice(&s[percent_index..(percent_index + s.len() + 1 - self.pat.len())]);
                 ret.put_slice(&subst[subst_percent_index + 1..]);
                 return ret.into();
             }
@@ -555,6 +555,7 @@ mod test {
         assert_eq!(subst_pattern(b"x.c", b"x.c", b"OK"), "OK");
         assert_eq!(subst_pattern(b"x.c.c", b"x.c", b"XX"), "x.c.c");
         assert_eq!(subst_pattern(b"x.x.c", b"x.c", b"XX"), "x.x.c");
+        assert_eq!(subst_pattern(b"/", b"%/", b"%"), "");
     }
 
     #[test]
