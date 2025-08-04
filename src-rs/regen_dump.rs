@@ -78,8 +78,7 @@ fn inner(
     dump_cmds: bool,
     dump_finds: bool,
 ) -> Option<()> {
-    let gen_time = load_systemtime(fp)?;
-    eprintln!("Stamp generated at {gen_time:?}");
+    let _gen_time = load_systemtime(fp)?;
 
     //
     // See regen.rs check_step1 for how this is read normally
@@ -89,7 +88,7 @@ fn inner(
         let files = load_vec_string(fp)?;
         if dump_files {
             for file in files {
-                println!("{file:?}");
+                println!("{}", file.display());
             }
         }
     }
@@ -98,7 +97,7 @@ fn inner(
         let undefined = load_vec_string(fp)?;
         if dump_env {
             for var in undefined {
-                println!("undefined: {var:?}");
+                println!("undefined: {}", var.display());
             }
         }
     }
@@ -108,7 +107,7 @@ fn inner(
         let name = load_string(fp)?;
         let value = load_string(fp)?;
         if dump_env {
-            println!("{name:?}: {value:?}");
+            println!("{}: {}", name.display(), value.display());
         }
     }
 
@@ -118,10 +117,10 @@ fn inner(
 
         let files = load_vec_string(fp)?;
         if dump_globs {
-            println!("{pat:?}");
+            println!("{}", pat.display());
 
             for s in files {
-                println!("  {s:?}");
+                println!("  {}", s.display());
             }
         }
     }
@@ -146,26 +145,26 @@ fn inner(
 
             if dump_finds {
                 println!("cmd type: FIND");
-                println!("  shell: {shell:?}");
-                println!("  shell flagss: {shellflag:?}");
-                println!("  loc: {file:?}:{line}");
-                println!("  cmd: {cmd:?}");
+                println!("  shell: {}", shell.display());
+                println!("  shell flagss: {}", shellflag.display());
+                println!("  loc: {}:{line}", file.display());
+                println!("  cmd: {}", cmd.display());
                 if !result.is_empty() && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
-                    println!("  output: {result:?}");
+                    println!("  output: {}", result.display());
                 } else {
                     println!("  output: <{} bytes>", result.len());
                 }
                 println!("  missing dirs:");
                 for d in missing_dirs {
-                    println!("    {d:?}");
+                    println!("    {}", d.display());
                 }
                 println!("  files:");
                 for f in files {
-                    println!("    {f:?}");
+                    println!("    {}", f.display());
                 }
                 println!("  read dirs:");
                 for d in read_dirs {
-                    println!("    {d:?}");
+                    println!("    {}", d.display());
                 }
                 println!();
             }
@@ -173,8 +172,8 @@ fn inner(
             match op {
                 CommandOp::Shell => {
                     println!("cmd type: SHELL");
-                    println!("  shell: {shell:?}");
-                    println!("  shell flagss: {shellflag:?}");
+                    println!("  shell: {}", shell.display());
+                    println!("  shell flagss: {}", shellflag.display());
                 }
                 CommandOp::Read => println!("cmd type: READ"),
                 CommandOp::ReadMissing => println!("cmd type: READ_MISSING"),
@@ -182,13 +181,14 @@ fn inner(
                 CommandOp::Append => println!("cmd type: APPEND"),
                 CommandOp::Find => unreachable!(),
             }
-            println!("  loc: {file:?}:{line}");
-            println!("  cmd: {cmd:?}");
+            println!("  loc: {}:{line}", file.display());
+            println!("  cmd: {}", cmd.display());
             if !result.is_empty() && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
-                println!("  output: {result:?}");
+                println!("  output: {}", result.display());
             } else {
                 println!("  output: <{} bytes>", result.len());
             }
+            println!();
         }
     }
 
