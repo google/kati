@@ -667,7 +667,11 @@ fn shell_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> 
     out.put_slice(&output);
     if should_store_command_result(&cmd) {
         COMMAND_RESULTS.lock().push(CommandResult {
-            op: CommandOp::Shell,
+            op: if fc.is_some() {
+                CommandOp::Find
+            } else {
+                CommandOp::Shell
+            },
             shell,
             shellflag: Bytes::from_static(shellflag),
             cmd,
