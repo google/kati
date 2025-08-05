@@ -88,7 +88,7 @@ fn inner(
         let files = load_vec_string(fp)?;
         if dump_files {
             for file in files {
-                println!("{}", file.display());
+                println!("{}", file.to_string_lossy());
             }
         }
     }
@@ -97,7 +97,7 @@ fn inner(
         let undefined = load_vec_string(fp)?;
         if dump_env {
             for var in undefined {
-                println!("undefined: {}", var.display());
+                println!("undefined: {}", var.to_string_lossy());
             }
         }
     }
@@ -107,7 +107,7 @@ fn inner(
         let name = load_string(fp)?;
         let value = load_string(fp)?;
         if dump_env {
-            println!("{}: {}", name.display(), value.display());
+            println!("{}: {}", name.to_string_lossy(), value.to_string_lossy());
         }
     }
 
@@ -117,10 +117,10 @@ fn inner(
 
         let files = load_vec_string(fp)?;
         if dump_globs {
-            println!("{}", pat.display());
+            println!("{}", pat.to_string_lossy());
 
             for s in files {
-                println!("  {}", s.display());
+                println!("  {}", s.to_string_lossy());
             }
         }
     }
@@ -145,26 +145,26 @@ fn inner(
 
             if dump_finds {
                 println!("cmd type: FIND");
-                println!("  shell: {}", shell.display());
-                println!("  shell flagss: {}", shellflag.display());
-                println!("  loc: {}:{line}", file.display());
-                println!("  cmd: {}", cmd.display());
+                println!("  shell: {}", shell.to_string_lossy());
+                println!("  shell flagss: {}", shellflag.to_string_lossy());
+                println!("  loc: {}:{line}", file.to_string_lossy());
+                println!("  cmd: {}", cmd.to_string_lossy());
                 if !result.is_empty() && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
-                    println!("  output: {}", result.display());
+                    println!("  output: {}", result.to_string_lossy());
                 } else {
                     println!("  output: <{} bytes>", result.len());
                 }
                 println!("  missing dirs:");
                 for d in missing_dirs {
-                    println!("    {}", d.display());
+                    println!("    {}", d.to_string_lossy());
                 }
                 println!("  files:");
                 for f in files {
-                    println!("    {}", f.display());
+                    println!("    {}", f.to_string_lossy());
                 }
                 println!("  read dirs:");
                 for d in read_dirs {
-                    println!("    {}", d.display());
+                    println!("    {}", d.to_string_lossy());
                 }
                 println!();
             }
@@ -172,8 +172,8 @@ fn inner(
             match op {
                 CommandOp::Shell => {
                     println!("cmd type: SHELL");
-                    println!("  shell: {}", shell.display());
-                    println!("  shell flagss: {}", shellflag.display());
+                    println!("  shell: {}", shell.to_string_lossy());
+                    println!("  shell flagss: {}", shellflag.to_string_lossy());
                 }
                 CommandOp::Read => println!("cmd type: READ"),
                 CommandOp::ReadMissing => println!("cmd type: READ_MISSING"),
@@ -181,10 +181,10 @@ fn inner(
                 CommandOp::Append => println!("cmd type: APPEND"),
                 CommandOp::Find => unreachable!(),
             }
-            println!("  loc: {}:{line}", file.display());
-            println!("  cmd: {}", cmd.display());
+            println!("  loc: {}:{line}", file.to_string_lossy());
+            println!("  cmd: {}", cmd.to_string_lossy());
             if !result.is_empty() && result.len() < 500 && !result.as_bytes().contains(&b'\n') {
-                println!("  output: {}", result.display());
+                println!("  output: {}", result.to_string_lossy());
             } else {
                 println!("  output: <{} bytes>", result.len());
             }
