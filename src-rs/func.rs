@@ -51,7 +51,6 @@ use crate::{
 
 type MakeFuncImpl = fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>;
 
-#[derive(PartialEq)]
 pub struct FuncInfo {
     pub name: &'static [u8],
     pub func: MakeFuncImpl,
@@ -61,6 +60,12 @@ pub struct FuncInfo {
     pub trim_space: bool,
     // Only for the first parameter.
     pub trim_right_space_1st: bool,
+}
+
+impl PartialEq for FuncInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
 }
 
 impl Debug for FuncInfo {

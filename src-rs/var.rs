@@ -220,7 +220,7 @@ impl Variable {
         }
         Ok(())
     }
-    pub fn string(&self) -> Result<Cow<[u8]>> {
+    pub fn string(&'_ self) -> Result<Cow<'_, [u8]>> {
         Ok(match &self.value {
             InnerVar::Simple(s) => Cow::Borrowed(s.as_slice()),
             InnerVar::Recursive { v: _, orig } => Cow::Borrowed(orig),
