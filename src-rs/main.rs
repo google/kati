@@ -52,12 +52,12 @@ use kati::flags::FLAGS;
 use kati::symtab::{Symbol, intern, join_symbols};
 use kati::timeutil::ScopedTimeReporter;
 
-#[cfg(all(not(feature = "gperf"), target_os = "linux"))]
+#[cfg(all(not(feature = "gperf"), target_os = "linux", feature = "jemalloc"))]
 use tikv_jemallocator::Jemalloc;
 
 // Use jemalloc for better performance, but gperftools will use tcmalloc for
 // heap debugging.
-#[cfg(all(not(feature = "gperf"), target_os = "linux"))]
+#[cfg(all(not(feature = "gperf"), target_os = "linux", feature = "jemalloc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
