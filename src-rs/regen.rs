@@ -403,13 +403,13 @@ impl StampChecker {
         }
 
         let cmd = Bytes::from(sr.cmd.clone().into_vec());
-        if let Some(fc) = crate::find::parse(&cmd)? {
-            if fc.chdir.is_some_and(|d| should_ignore_dirty(&d)) {
-                if FLAGS.dump_kati_stamp {
-                    println!("shell {:?}: ignored", sr.cmd);
-                }
-                return Ok(false);
+        if let Some(fc) = crate::find::parse(&cmd)?
+            && fc.chdir.is_some_and(|d| should_ignore_dirty(&d))
+        {
+            if FLAGS.dump_kati_stamp {
+                println!("shell {:?}: ignored", sr.cmd);
             }
+            return Ok(false);
         }
 
         collect_stats_with_slow_report!("shell time (regen)", &sr.cmd);

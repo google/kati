@@ -220,7 +220,7 @@ impl Variable {
         }
         Ok(())
     }
-    pub fn string(&self) -> Result<Cow<[u8]>> {
+    pub fn string(&self) -> Result<Cow<'_, [u8]>> {
         Ok(match &self.value {
             InnerVar::Simple(s) => Cow::Borrowed(s.as_slice()),
             InnerVar::Recursive { v: _, orig } => Cow::Borrowed(orig),
@@ -395,12 +395,11 @@ impl Evaluable for Variable {
                     true
                 });
                 for (sym, entry) in symbols {
-                    if !*all {
-                        if let Some(var) = sym.peek_global_var() {
-                            if var.read().is_func() {
-                                continue;
-                            }
-                        }
+                    if !*all
+                        && let Some(var) = sym.peek_global_var()
+                        && var.read().is_func()
+                    {
+                        continue;
                     }
                     ww.write(&entry);
                 }

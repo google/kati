@@ -668,7 +668,7 @@ pub struct ParsedAssign<'a> {
     pub rhs: &'a [u8],
     pub op: AssignOp,
 }
-pub fn parse_assign_statement(line: &[u8], sep: usize) -> ParsedAssign {
+pub fn parse_assign_statement(line: &[u8], sep: usize) -> ParsedAssign<'_> {
     assert!(sep != 0);
     let mut op = AssignOp::Eq;
     let mut lhs = &line[..sep];

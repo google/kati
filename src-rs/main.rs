@@ -363,11 +363,11 @@ fn main() {
         }
     }
 
-    if let Some(working_dir) = &FLAGS.working_dir {
-        if let Err(e) = std::env::set_current_dir(working_dir) {
-            eprintln!("*** {}: {}", working_dir.to_string_lossy(), e);
-            std::process::exit(1);
-        }
+    if let Some(working_dir) = &FLAGS.working_dir
+        && let Err(e) = std::env::set_current_dir(working_dir)
+    {
+        eprintln!("*** {}: {}", working_dir.to_string_lossy(), e);
+        std::process::exit(1);
     }
     let orig_args = std::env::args_os()
         .collect::<Vec<OsString>>()

@@ -331,15 +331,15 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
         if t.first() == Some(&cp) || (end_paren && t.is_empty() && cp == b')') {
             if let Value::Literal(_, lit) = &*vname {
                 let sym = intern(lit.clone());
-                if FLAGS.enable_kati_warnings {
-                    if let Some(found) = sym.to_string().find([' ', '(', '{']) {
-                        kati_warn_loc!(
-                            Some(&start_loc),
-                            "*warning*: variable lookup with '{}': {}",
-                            &sym.to_string()[found..found + 1],
-                            String::from_utf8_lossy(&s)
-                        )
-                    }
+                if FLAGS.enable_kati_warnings
+                    && let Some(found) = sym.to_string().find([' ', '(', '{'])
+                {
+                    kati_warn_loc!(
+                        Some(&start_loc),
+                        "*warning*: variable lookup with '{}': {}",
+                        &sym.to_string()[found..found + 1],
+                        String::from_utf8_lossy(&s)
+                    )
                 }
                 return Ok((i + 1, Arc::new(Value::SymRef(start_loc, sym))));
             }
@@ -477,10 +477,11 @@ pub fn parse_expr_impl_ext(
 
         let remaining = &s[i..];
         let c = remaining[0];
-        if let Some(terms) = terms {
-            if save_paren.is_none() && terms[terms_ignored..].contains(&c) {
-                break;
-            }
+        if let Some(terms) = terms
+            && save_paren.is_none()
+            && terms[terms_ignored..].contains(&c)
+        {
+            break;
         }
 
         // Handle a comment
@@ -515,15 +516,15 @@ pub fn parse_expr_impl_ext(
                 continue;
             }
 
-            if let Some(terms) = terms {
-                if terms[terms_ignored..].contains(&remaining[1]) {
-                    let val = Arc::new(Value::Literal(None, Bytes::from_static(b"$")));
-                    if list.is_empty() {
-                        return Ok((i + 1, val));
-                    }
-                    list.push(val);
-                    return Ok((i + 1, Arc::new(Value::List(Some(item_loc), list))));
+            if let Some(terms) = terms
+                && terms[terms_ignored..].contains(&remaining[1])
+            {
+                let val = Arc::new(Value::Literal(None, Bytes::from_static(b"$")));
+                if list.is_empty() {
+                    return Ok((i + 1, val));
                 }
+                list.push(val);
+                return Ok((i + 1, Arc::new(Value::List(Some(item_loc), list))));
             }
 
             let (n, v) = parse_dollar(loc, s.slice(i..), end_paren)?;
@@ -572,10 +573,10 @@ pub fn parse_expr_impl_ext(
             }
             if n == b'\r' || n == b'\n' {
                 loc.line += 1;
-                if let Some(terms) = terms {
-                    if terms.contains(&b' ') {
-                        break;
-                    }
+                if let Some(terms) = terms
+                    && terms.contains(&b' ')
+                {
+                    break;
                 }
                 if i > b {
                     list.push(Arc::new(Value::Literal(

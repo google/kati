@@ -255,10 +255,10 @@ pub fn strip_ext(s: &[u8]) -> &[u8] {
     let Some(found) = memrchr(b'.', s) else {
         return s;
     };
-    if let Some(slash_index) = memrchr(b'/', s) {
-        if found < slash_index {
-            return s;
-        }
+    if let Some(slash_index) = memrchr(b'/', s)
+        && found < slash_index
+    {
+        return s;
     }
     &s[0..found]
 }
@@ -267,10 +267,10 @@ pub fn strip_ext_vec(mut s: Vec<u8>) -> Vec<u8> {
     let Some(found) = memrchr(b'.', &s) else {
         return s;
     };
-    if let Some(slash_index) = memrchr(b'/', &s) {
-        if found < slash_index {
-            return s;
-        }
+    if let Some(slash_index) = memrchr(b'/', &s)
+        && found < slash_index
+    {
+        return s;
     }
     s.truncate(found);
     s
