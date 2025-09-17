@@ -199,10 +199,10 @@ impl DirentNode {
         d: i32,
         out: &mut Vec<Vec<u8>>,
     ) {
-        if let Some(print_cond) = &fc.print_cond {
-            if !print_cond.is_true(path, typ) {
-                return;
-            }
+        if let Some(print_cond) = &fc.print_cond
+            && !print_cond.is_true(path, typ)
+        {
+            return;
         }
         if d < fc.mindepth {
             return;
@@ -1155,11 +1155,11 @@ impl FindEmulator {
         loc: &Loc,
         out: &mut BytesMut,
     ) -> Result<bool> {
-        if let Some(chdir) = &fc.chdir {
-            if !Self::can_handle(chdir) {
-                log!("FindEmulator: Cannot handle chdir ({chdir:?}): {cmd:?}");
-                return Ok(false);
-            }
+        if let Some(chdir) = &fc.chdir
+            && !Self::can_handle(chdir)
+        {
+            log!("FindEmulator: Cannot handle chdir ({chdir:?}): {cmd:?}");
+            return Ok(false);
         }
 
         if let Some(testdir) = &fc.testdir {

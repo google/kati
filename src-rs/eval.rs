@@ -217,10 +217,10 @@ impl IncludeGraph {
         if frame.frame_type == FrameType::Parse {
             self.nodes.entry(frame.name.clone()).or_default();
 
-            if let Some(parent_frame) = self.include_stack.last() {
-                if let Some(parent_node) = self.nodes.get_mut(&parent_frame.name) {
-                    parent_node.includes.insert(frame.name.clone());
-                }
+            if let Some(parent_frame) = self.include_stack.last()
+                && let Some(parent_node) = self.nodes.get_mut(&parent_frame.name)
+            {
+                parent_node.includes.insert(frame.name.clone());
             }
 
             self.include_stack.push(frame.clone());
@@ -464,10 +464,8 @@ impl Evaluator {
         if let Some(prev) = prev {
             let prev = prev.read();
             prev.used(self, &lhs)?;
-            if needs_assign {
-                if let Some(deprecated) = &prev.deprecated {
-                    result.write().deprecated = Some(deprecated.clone());
-                }
+            if needs_assign && let Some(deprecated) = &prev.deprecated {
+                result.write().deprecated = Some(deprecated.clone());
             }
         }
 
@@ -686,17 +684,11 @@ impl Evaluator {
 
         // If variable name is not empty, we have rule- or target-specific
         // variable assignment.
-        if separator == Some(b'=') {
-            if let Some(separator_pos) = separator_pos {
-                if separator_pos > 0 {
-                    return self.eval_rule_specific_assign(
-                        &targets,
-                        stmt,
-                        &after_targets,
-                        separator_pos,
-                    );
-                }
-            }
+        if separator == Some(b'=')
+            && let Some(separator_pos) = separator_pos
+            && separator_pos > 0
+        {
+            return self.eval_rule_specific_assign(&targets, stmt, &after_targets, separator_pos);
         }
 
         if separator_pos == Some(0) {
@@ -914,17 +906,17 @@ impl Evaluator {
         for tok in word_scanner(&exports) {
             let equal_index = memchr(b'=', tok);
             let lhs;
-            if equal_index.is_none() {
-                lhs = tok;
-            } else if equal_index == Some(0)
+            if equal_index == Some(0)
                 || (equal_index == Some(1)
                     && (tok.starts_with(b":") || tok.starts_with(b"?") || tok.starts_with(b"+")))
             {
                 // Do not export tokens after an assignment.
                 break;
-            } else {
-                let assign = parse_assign_statement(tok, equal_index.unwrap());
+            } else if let Some(equal_index) = equal_index {
+                let assign = parse_assign_statement(tok, equal_index);
                 lhs = assign.lhs;
+            } else {
+                lhs = tok;
             }
             let sym = intern(exports.slice_ref(lhs));
             self.exports.insert(sym, stmt.is_export);

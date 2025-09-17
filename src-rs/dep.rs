@@ -283,26 +283,28 @@ impl RuleMerger {
             );
         }
 
-        if let Some(primary_rule) = &mut self.primary_rule {
-            if !r.cmds.is_empty() && !is_suffix_rule(&output) && !r.is_double_colon {
-                if FLAGS.werror_overriding_commands {
-                    error_loc!(
-                        r.cmd_loc.as_ref(),
-                        "*** overriding commands for target `{output}', previously defined at {}",
-                        primary_rule.cmd_loc.clone().unwrap_or_default()
-                    );
-                } else {
-                    warn_loc!(
-                        r.cmd_loc.as_ref(),
-                        "warning: overriding commands for target `{output}'"
-                    );
-                    warn_loc!(
-                        primary_rule.cmd_loc.as_ref(),
-                        "warning: ignoring old commands for target `{output}'"
-                    )
-                }
-                *primary_rule = r.clone();
+        if let Some(primary_rule) = &mut self.primary_rule
+            && !r.cmds.is_empty()
+            && !is_suffix_rule(&output)
+            && !r.is_double_colon
+        {
+            if FLAGS.werror_overriding_commands {
+                error_loc!(
+                    r.cmd_loc.as_ref(),
+                    "*** overriding commands for target `{output}', previously defined at {}",
+                    primary_rule.cmd_loc.clone().unwrap_or_default()
+                );
+            } else {
+                warn_loc!(
+                    r.cmd_loc.as_ref(),
+                    "warning: overriding commands for target `{output}'"
+                );
+                warn_loc!(
+                    primary_rule.cmd_loc.as_ref(),
+                    "warning: ignoring old commands for target `{output}'"
+                )
             }
+            *primary_rule = r.clone();
         }
         if self.primary_rule.is_none() && !r.cmds.is_empty() {
             self.primary_rule = Some(r.clone());
@@ -329,10 +331,10 @@ impl RuleMerger {
 
     fn fill_dep_node_loc(&self, r: &Rule, n: &mut DepNode) {
         n.loc = Some(r.loc.clone());
-        if !r.cmds.is_empty() {
-            if let Some(cmd_loc) = r.cmd_loc.clone() {
-                n.loc = Some(cmd_loc);
-            }
+        if !r.cmds.is_empty()
+            && let Some(cmd_loc) = r.cmd_loc.clone()
+        {
+            n.loc = Some(cmd_loc);
         }
     }
 
@@ -355,10 +357,10 @@ impl RuleMerger {
         }
 
         for r in &self.rules {
-            if let Some(primary_rule) = &self.primary_rule {
-                if Arc::ptr_eq(r, primary_rule) {
-                    continue;
-                }
+            if let Some(primary_rule) = &self.primary_rule
+                && Arc::ptr_eq(r, primary_rule)
+            {
+                continue;
             }
             self.fill_dep_node_from_rule(output, r, &mut n);
             if n.loc.is_none() {
@@ -761,18 +763,18 @@ impl<'a> DepBuilder<'a> {
     fn pick_rule(&mut self, output: Symbol, n: &Arc<Mutex<DepNode>>) -> Option<PickedRuleInfo> {
         let rule_merger = self.lookup_rule_merger(output);
         let vars = self.lookup_rule_vars(output);
-        if let Some(rule_merger) = &rule_merger {
-            if rule_merger.lock().primary_rule.is_some() {
-                let mut vars = vars;
-                for (sym, _) in &rule_merger.lock().implicit_outputs {
-                    vars = self.merge_implicit_rule_vars(*sym, vars);
-                }
-                return Some(PickedRuleInfo {
-                    merger: Some(rule_merger.clone()),
-                    pattern_rule: None,
-                    vars,
-                });
+        if let Some(rule_merger) = &rule_merger
+            && rule_merger.lock().primary_rule.is_some()
+        {
+            let mut vars = vars;
+            for (sym, _) in &rule_merger.lock().implicit_outputs {
+                vars = self.merge_implicit_rule_vars(*sym, vars);
             }
+            return Some(PickedRuleInfo {
+                merger: Some(rule_merger.clone()),
+                pattern_rule: None,
+                vars,
+            });
         }
 
         let irules = self.implicit_rules.get(&output.as_bytes());
@@ -891,17 +893,17 @@ impl<'a> DepBuilder<'a> {
         let Some(mut picked_rule_info) = self.pick_rule(output, &n) else {
             return Ok(n);
         };
-        if let Some(merger) = &picked_rule_info.merger {
-            if merger.lock().parent.is_some() {
-                output = merger.lock().parent_sym.unwrap();
-                self.done.insert(output, n.clone());
-                n.lock().output = output;
-                let Some(new_picked_rule_info) = self.pick_rule(output, &n) else {
-                    return Ok(n);
-                };
-                // Update the picked_rule_info with the new values
-                picked_rule_info = new_picked_rule_info;
-            }
+        if let Some(merger) = &picked_rule_info.merger
+            && merger.lock().parent.is_some()
+        {
+            output = merger.lock().parent_sym.unwrap();
+            self.done.insert(output, n.clone());
+            n.lock().output = output;
+            let Some(new_picked_rule_info) = self.pick_rule(output, &n) else {
+                return Ok(n);
+            };
+            // Update the picked_rule_info with the new values
+            picked_rule_info = new_picked_rule_info;
         }
         let output_str = output.as_bytes();
 

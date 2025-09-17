@@ -87,13 +87,13 @@ impl Rule {
         // First, separate command. At this point separator_pos should point to ';'
         // unless null.
         let mut prereq_string = line.clone();
-        if let Some(separator_pos) = separator_pos {
-            if rule_stmt.sep != RuleSep::Semicolon {
-                assert!(line[separator_pos] == b';');
-                let value = line.slice(separator_pos + 1..);
-                self.cmds.push(Arc::new(Value::Literal(None, value)));
-                prereq_string = line.slice(..separator_pos);
-            }
+        if let Some(separator_pos) = separator_pos
+            && rule_stmt.sep != RuleSep::Semicolon
+        {
+            assert!(line[separator_pos] == b';');
+            let value = line.slice(separator_pos + 1..);
+            self.cmds.push(Arc::new(Value::Literal(None, value)));
+            prereq_string = line.slice(..separator_pos);
         }
 
         let Some(separator_pos) = memchr(b':', &prereq_string) else {

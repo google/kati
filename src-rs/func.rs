@@ -51,7 +51,6 @@ use crate::{
 
 type MakeFuncImpl = fn(&[Arc<Value>], &mut Evaluator, &mut dyn BufMut) -> Result<()>;
 
-#[derive(PartialEq)]
 pub struct FuncInfo {
     pub name: &'static [u8],
     pub func: MakeFuncImpl,
@@ -61,6 +60,13 @@ pub struct FuncInfo {
     pub trim_space: bool,
     // Only for the first parameter.
     pub trim_right_space_1st: bool,
+}
+
+// Function pointers are not comparable, so just compare by name
+impl PartialEq for FuncInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
 }
 
 impl Debug for FuncInfo {
@@ -556,12 +562,11 @@ fn shell_func_impl(
 ) -> Result<(i32, Bytes, Option<FindCommand>)> {
     log!("ShellFunc: {:?}", cmd);
 
-    if FLAGS.use_find_emulator {
-        if let Some(fc) = crate::find::parse(cmd)? {
-            if let Some(out) = crate::find::find(cmd, &fc, loc)? {
-                return Ok((0, out, Some(fc)));
-            }
-        }
+    if FLAGS.use_find_emulator
+        && let Some(fc) = crate::find::parse(cmd)?
+        && let Some(out) = crate::find::find(cmd, &fc, loc)?
+    {
+        return Ok((0, out, Some(fc)));
     }
 
     collect_stats_with_slow_report!("func shell time", OsStr::from_bytes(cmd));
