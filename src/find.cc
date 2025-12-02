@@ -661,24 +661,26 @@ class FindCommandParser {
 
     cur_ = TrimLeftSpace(cur_);
 
-    if (cur_[0] == ';') {
-      *tok = cur_.substr(0, 1);
-      cur_ = cur_.substr(1);
-      return true;
-    }
-    if (cur_[0] == '&') {
-      if (cur_.size() < 2 || cur_[1] != '&') {
-        return false;
-      }
-      *tok = cur_.substr(0, 2);
-      cur_ = cur_.substr(2);
-      return true;
-    }
-
     size_t i = 0;
-    while (i < cur_.size() && !isspace(cur_[i]) && cur_[i] != ';' &&
-           cur_[i] != '&') {
-      i++;
+    if (!cur_.empty()) {
+      if (cur_[0] == ';') {
+        *tok = cur_.substr(0, 1);
+        cur_ = cur_.substr(1);
+        return true;
+      }
+      if (cur_[0] == '&') {
+        if (cur_.size() < 2 || cur_[1] != '&') {
+          return false;
+        }
+        *tok = cur_.substr(0, 2);
+        cur_ = cur_.substr(2);
+        return true;
+      }
+
+      while (i < cur_.size() && !isspace(cur_[i]) && cur_[i] != ';' &&
+             cur_[i] != '&') {
+        i++;
+      }
     }
 
     *tok = cur_.substr(0, i);
