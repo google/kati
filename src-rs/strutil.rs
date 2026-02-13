@@ -233,7 +233,7 @@ pub fn dirname(s: &Bytes) -> Bytes {
     if found == 0 {
         return Bytes::new();
     }
-    return s.slice(..found);
+    s.slice(..found)
 }
 
 pub fn basename(s: &[u8]) -> &[u8] {
