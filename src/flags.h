@@ -46,6 +46,7 @@ struct Flags {
   bool no_ninja_prelude;
   bool use_ninja_phony_output;
   bool use_ninja_validations;
+  bool emit_sandbox_disabled;
   bool werror_find_emulator;
   bool werror_overriding_commands;
   bool warn_implicit_rules;
