@@ -939,10 +939,8 @@ impl<'a> DepBuilder<'a> {
                             );
                         }
                     }
-                    Some(AssignOp::QuestionEq) => {
-                        if self.ev.lookup_var(*name)?.is_some() {
-                            continue;
-                        }
+                    Some(AssignOp::QuestionEq) if self.ev.lookup_var(*name)?.is_some() => {
+                        continue;
                     }
                     _ => {}
                 }

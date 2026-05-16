@@ -347,10 +347,8 @@ pub fn find_outside_paren(s: &[u8], pattern: &[u8]) -> Option<usize> {
         match c {
             b'(' => paren_stack.push(b')'),
             b'{' => paren_stack.push(b'}'),
-            b')' | b'}' => {
-                if paren_stack.last() == Some(c) {
-                    paren_stack.pop();
-                }
+            b')' | b'}' if paren_stack.last() == Some(c) => {
+                paren_stack.pop();
             }
             _ => {}
         }
