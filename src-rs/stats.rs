@@ -71,7 +71,7 @@ impl Stats {
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect::<Vec<_>>();
-        detailed.sort_by(|a, b| b.1.elapsed.cmp(&a.1.elapsed));
+        detailed.sort_by_key(|b| std::cmp::Reverse(b.1.elapsed));
         // Only print the top 10
         detailed.truncate(10);
 
