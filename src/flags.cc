@@ -189,6 +189,8 @@ void Flags::Parse(int argc, char** argv) {
       writable.push_back(writable_str);
     } else if (ParseCommandLineOptionWithArg("--default_pool", argv, &i,
                                              &default_pool)) {
+    } else if (!strcmp(arg, "--emit_sandbox_disabled")) {
+      emit_sandbox_disabled = true;
     } else if (arg[0] == '-') {
       ERROR("Unknown flag: %s", arg);
     } else {

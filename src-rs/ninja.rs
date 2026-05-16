@@ -507,6 +507,9 @@ impl<'a> NinjaGenerator<'a> {
             if node.is_restat {
                 writeln!(out, " restat = 1")?;
             }
+            if FLAGS.emit_sandbox_disabled {
+                writeln!(out, " sandbox_disabled = true")?;
+            }
         }
 
         self.emit_build(nn, &node, rule_name, use_local_pool, out)

@@ -471,6 +471,9 @@ class NinjaGenerator {
       if (node->is_restat) {
         out << " restat = 1\n";
       }
+      if (g_flags.emit_sandbox_disabled) {
+        out << " sandbox_disabled = true\n";
+      }
     }
 
     EmitBuild(nn, rule_name, use_local_pool, out);
