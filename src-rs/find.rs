@@ -963,10 +963,7 @@ impl FindCommandParser {
                     return false;
                 }
                 self.fc.redirect_to_devnull = true;
-            } else if tok
-                .iter()
-                .any(|c| [b'|', b';', b'&', b'>', b'<', b'\'', b'"'].contains(c))
-            {
+            } else if tok.iter().any(|c| b"|;&><'\"".contains(c)) {
                 return false;
             } else {
                 self.fc.finddirs.push(tok);
