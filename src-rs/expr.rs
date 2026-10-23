@@ -148,8 +148,7 @@ impl Evaluable for Value {
                     let pat = Pattern::new(pat_str);
                     for tok in word_scanner(&value) {
                         ww.maybe_add_space();
-                        let tok = value.slice_ref(tok);
-                        ww.out.put_slice(&pat.append_subst_ref(&tok, &subst));
+                        pat.append_subst_ref_to(tok, &subst, ww.out);
                     }
                 }
             }

@@ -122,6 +122,37 @@ pub fn trim_suffix<'a>(s: &'a [u8], suffix: &[u8]) -> &'a [u8] {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PatternSlice<'a> {
+    pat: &'a [u8],
+    percent_index: Option<usize>,
+}
+
+impl<'a> PatternSlice<'a> {
+    #[inline]
+    pub fn new(pat: &'a [u8]) -> Self {
+        Self {
+            pat,
+            percent_index: memchr(b'%', pat),
+        }
+    }
+
+    #[inline]
+    pub fn is_literal(&self) -> bool {
+        self.percent_index.is_none()
+    }
+
+    #[inline]
+    pub fn matches(&self, str: &[u8]) -> bool {
+        if let Some(percent_index) = self.percent_index {
+            str.starts_with(&self.pat[..percent_index])
+                && str.ends_with(&self.pat[percent_index + 1..])
+        } else {
+            self.pat == str
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Pattern {
     pat: Bytes,
@@ -129,6 +160,7 @@ pub struct Pattern {
 }
 
 impl Pattern {
+    #[inline]
     pub fn new(pat: Bytes) -> Pattern {
         let idx = memchr(b'%', &pat);
         Pattern {
@@ -137,6 +169,7 @@ impl Pattern {
         }
     }
 
+    #[inline]
     pub fn matches(&self, str: &[u8]) -> bool {
         if let Some(percent_index) = self.percent_index {
             return self.match_impl(str, percent_index);
@@ -144,10 +177,12 @@ impl Pattern {
         self.pat == str
     }
 
+    #[inline]
     fn match_impl(&self, str: &[u8], percent_index: usize) -> bool {
         str.starts_with(&self.pat[..percent_index]) && str.ends_with(&self.pat[percent_index + 1..])
     }
 
+    #[inline]
     pub fn stem<'a>(&self, str: &'a [u8]) -> &'a [u8] {
         if !self.matches(str) {
             return &[];
@@ -179,6 +214,31 @@ impl Pattern {
         s.clone()
     }
 
+    #[inline]
+    pub fn append_subst_to(&self, s: &[u8], subst: &[u8], out: &mut BytesMut) {
+        let Some(percent_index) = self.percent_index else {
+            if s == self.pat.as_ref() {
+                out.put_slice(subst);
+            } else {
+                out.put_slice(s);
+            }
+            return;
+        };
+
+        if self.match_impl(s, percent_index) {
+            if let Some(subst_percent_index) = memchr(b'%', subst) {
+                out.reserve(subst.len() + s.len() - self.pat.len() + 1);
+                out.put_slice(&subst[..subst_percent_index]);
+                out.put_slice(&s[percent_index..(percent_index + s.len() + 1 - self.pat.len())]);
+                out.put_slice(&subst[subst_percent_index + 1..]);
+            } else {
+                out.put_slice(subst);
+            }
+        } else {
+            out.put_slice(s);
+        }
+    }
+
     pub fn append_subst_ref(&self, s: &Bytes, subst: &Bytes) -> Bytes {
         if self.percent_index.is_some() && subst.contains(&b'%') {
             return self.append_subst(s, subst);
@@ -188,6 +248,18 @@ impl Pattern {
         ret.put_slice(s);
         ret.put_slice(subst);
         ret.into()
+    }
+
+    #[inline]
+    pub fn append_subst_ref_to(&self, s: &[u8], subst: &[u8], out: &mut BytesMut) {
+        if self.percent_index.is_some() && subst.contains(&b'%') {
+            self.append_subst_to(s, subst, out);
+            return;
+        }
+        let s = trim_suffix(s, &self.pat);
+        out.reserve(s.len() + subst.len());
+        out.put_slice(s);
+        out.put_slice(subst);
     }
 }
 

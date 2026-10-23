@@ -41,15 +41,18 @@ use crate::{
     log,
     parser::parse_buf,
     strutil::{
-        Pattern, WordWriter, echo_escape, format_for_command_substitution, has_path_prefix,
-        normalize_path, trim_left_space, trim_space, word_scanner,
+        Pattern, PatternSlice, WordWriter, echo_escape, format_for_command_substitution,
+        has_path_prefix, is_space_byte, normalize_path, trim_left_space, trim_space, word_scanner,
     },
     symtab::{ScopedGlobalVar, intern},
-    var::{VarOrigin, Variable, set_shell_status_var},
+    var::{Var, VarOrigin, Variable, set_shell_status_var},
     warn_loc,
 };
 
 type MakeFuncImpl = fn(&[Arc<Value>], &mut Evaluator, &mut BytesMut) -> Result<()>;
+
+static EMPTY_AUTOMATIC_VAR: LazyLock<Var> =
+    LazyLock::new(|| Variable::new_simple(VarOrigin::Automatic, None, None));
 
 pub struct FuncInfo {
     pub name: &'static [u8],
@@ -140,8 +143,8 @@ fn patsubst_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) ->
     let mut ww = WordWriter::new(out);
     let pat = Pattern::new(pat_str);
     for tok in word_scanner(&s) {
-        let tok = s.slice_ref(tok);
-        ww.write(&pat.append_subst(&tok, &repl));
+        ww.maybe_add_space();
+        pat.append_subst_to(tok, &repl, ww.out);
     }
     Ok(())
 }
@@ -191,11 +194,61 @@ fn findstring_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) 
 fn filter_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
     let pat_buf = args[0].eval_to_buf(ev)?;
     let text = args[1].eval_to_buf(ev)?;
-    let pats: Vec<Pattern> = word_scanner(&pat_buf)
-        .map(|p| Pattern::new(pat_buf.slice_ref(p)))
-        .collect();
+    let mut pat_iter = word_scanner(&pat_buf);
+    let Some(first_pat) = pat_iter.next() else {
+        return Ok(());
+    };
+    let mut text_iter = word_scanner(&text);
+    let Some(first_tok) = text_iter.next() else {
+        return Ok(());
+    };
+
+    let Some(second_tok) = text_iter.next() else {
+        // Single-word text fast path: no Vec allocation needed.
+        if PatternSlice::new(first_pat).matches(first_tok)
+            || pat_iter.any(|p| PatternSlice::new(p).matches(first_tok))
+        {
+            out.put_slice(first_tok);
+        }
+        return Ok(());
+    };
+
     let mut ww = WordWriter::new(out);
-    for tok in word_scanner(&text) {
+    let Some(second_pat) = pat_iter.next() else {
+        // Single-pattern fast path.
+        let pat = PatternSlice::new(first_pat);
+        if pat.is_literal() {
+            // SIMD substring search + word boundary check across the entire text buffer.
+            for pos in memchr::memmem::find_iter(&text, first_pat) {
+                let before_ok = pos == 0 || is_space_byte(&text[pos - 1]);
+                let end = pos + first_pat.len();
+                let after_ok = end == text.len() || is_space_byte(&text[end]);
+                if before_ok && after_ok {
+                    ww.write(first_pat);
+                }
+            }
+        } else {
+            if pat.matches(first_tok) {
+                ww.write(first_tok);
+            }
+            if pat.matches(second_tok) {
+                ww.write(second_tok);
+            }
+            for tok in text_iter {
+                if pat.matches(tok) {
+                    ww.write(tok);
+                }
+            }
+        }
+        return Ok(());
+    };
+
+    let mut pats = Vec::with_capacity(4);
+    pats.push(PatternSlice::new(first_pat));
+    pats.push(PatternSlice::new(second_pat));
+    pats.extend(pat_iter.map(PatternSlice::new));
+
+    for tok in [first_tok, second_tok].into_iter().chain(text_iter) {
         for pat in &pats {
             if pat.matches(tok) {
                 ww.write(tok);
@@ -209,19 +262,54 @@ fn filter_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> R
 fn filter_out_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
     let pat_buf = args[0].eval_to_buf(ev)?;
     let text = args[1].eval_to_buf(ev)?;
-    let pats: Vec<Pattern> = word_scanner(&pat_buf)
-        .map(|p| Pattern::new(pat_buf.slice_ref(p)))
-        .collect();
+    let mut text_iter = word_scanner(&text);
+    let Some(first_tok) = text_iter.next() else {
+        return Ok(());
+    };
+    let mut pat_iter = word_scanner(&pat_buf);
+    let Some(first_pat) = pat_iter.next() else {
+        let mut ww = WordWriter::new(out);
+        ww.write(first_tok);
+        for tok in text_iter {
+            ww.write(tok);
+        }
+        return Ok(());
+    };
+
+    let Some(second_tok) = text_iter.next() else {
+        // Single-word text fast path: no Vec allocation needed.
+        if !PatternSlice::new(first_pat).matches(first_tok)
+            && !pat_iter.any(|p| PatternSlice::new(p).matches(first_tok))
+        {
+            out.put_slice(first_tok);
+        }
+        return Ok(());
+    };
+
     let mut ww = WordWriter::new(out);
-    for tok in word_scanner(&text) {
-        let mut matched = false;
-        for pat in &pats {
-            if pat.matches(tok) {
-                matched = true;
-                break;
+    let Some(second_pat) = pat_iter.next() else {
+        let pat = PatternSlice::new(first_pat);
+        if !pat.matches(first_tok) {
+            ww.write(first_tok);
+        }
+        if !pat.matches(second_tok) {
+            ww.write(second_tok);
+        }
+        for tok in text_iter {
+            if !pat.matches(tok) {
+                ww.write(tok);
             }
         }
-        if !matched {
+        return Ok(());
+    };
+
+    let mut pats = Vec::with_capacity(4);
+    pats.push(PatternSlice::new(first_pat));
+    pats.push(PatternSlice::new(second_pat));
+    pats.extend(pat_iter.map(PatternSlice::new));
+
+    for tok in [first_tok, second_tok].into_iter().chain(text_iter) {
+        if !pats.iter().any(|pat| pat.matches(tok)) {
             ww.write(tok);
         }
     }
@@ -232,7 +320,7 @@ fn sort_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> Res
     let list = args[0].eval_to_buf(ev)?;
     collect_stats!("func sort time");
     let mut toks: Vec<&[u8]> = word_scanner(&list).collect();
-    toks.sort();
+    toks.sort_unstable();
     let mut ww = WordWriter::new(out);
     let mut prev = [].as_slice();
     for tok in toks {
@@ -321,7 +409,7 @@ fn wordlist_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) ->
 fn words_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
     let text = args[0].eval_to_buf(ev)?;
     let n = word_scanner(&text).count();
-    out.put_slice(format!("{n}").as_bytes());
+    let _ = std::fmt::Write::write_fmt(&mut *out, format_args!("{n}"));
     Ok(())
 }
 
@@ -735,10 +823,22 @@ fn call_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> Res
             None,
         ));
     }
-    let mut sv = Vec::new();
-    let mut i = 1;
+    let mut sv = Vec::with_capacity(av.len() + 2);
+    let mut i = 1usize;
     loop {
-        let tmpvar_name_sym = intern(format!("{i}"));
+        let tmpvar_name_sym = if i < 10 {
+            intern(&b"0123456789"[i..i + 1])
+        } else {
+            let mut num_buf = [0u8; 20];
+            let mut n = i;
+            let mut pos = 20;
+            while n > 0 {
+                pos -= 1;
+                num_buf[pos] = b'0' + (n % 10) as u8;
+                n /= 10;
+            }
+            intern(Bytes::copy_from_slice(&num_buf[pos..]))
+        };
         if let Some(a) = av.get(i - 1) {
             sv.push(ScopedGlobalVar::new(tmpvar_name_sym, a.clone())?);
         } else {
@@ -750,8 +850,10 @@ fn call_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> Res
                 break;
             }
 
-            let v = Variable::new_simple(VarOrigin::Automatic, None, None);
-            sv.push(ScopedGlobalVar::new(tmpvar_name_sym, v)?);
+            sv.push(ScopedGlobalVar::new(
+                tmpvar_name_sym,
+                EMPTY_AUTOMATIC_VAR.clone(),
+            )?);
         }
         i += 1;
     }
@@ -775,10 +877,11 @@ fn foreach_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut) -> 
     let list = args[1].eval_to_buf(ev)?;
     ev.eval_depth -= 1;
     let mut ww = WordWriter::new(out);
+    let v = Variable::new_simple(VarOrigin::Automatic, None, None);
+    let _sv = ScopedGlobalVar::new(varname, v.clone())?;
     for tok in word_scanner(&list) {
         let tok = list.slice_ref(tok);
-        let v = Variable::with_simple_string(tok, VarOrigin::Automatic, None, None);
-        let _sv = ScopedGlobalVar::new(varname, v)?;
+        v.write().set_simple_string(tok);
         ww.maybe_add_space();
         args[2].eval(ev, ww.out)?;
     }
@@ -1191,10 +1294,11 @@ fn foreach_sep_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut BytesMut)
     let list = args[2].eval_to_buf(ev)?;
     ev.eval_depth -= 1;
     let mut ww = WordWriter::new(out);
+    let v = Variable::new_simple(VarOrigin::Automatic, None, None);
+    let _sv = ScopedGlobalVar::new(varname, v.clone())?;
     for tok in word_scanner(&list) {
         let tok = list.slice_ref(tok);
-        let v = Variable::with_simple_string(tok, VarOrigin::Automatic, None, None);
-        let _sv = ScopedGlobalVar::new(varname, v)?;
+        v.write().set_simple_string(tok);
         ww.maybe_add_separator(&separator);
         args[3].eval(ev, ww.out)?;
     }
