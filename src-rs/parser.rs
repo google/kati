@@ -120,12 +120,12 @@ impl Parser {
         }
 
         if !self.if_stack.is_empty() {
-            let mut loc = self.loc.clone();
+            let mut loc = self.loc;
             loc.line += 1;
             error_loc!(Some(&loc), "*** missing `endif'.");
         }
         if self.define_name.is_some() {
-            let mut loc = self.loc.clone();
+            let mut loc = self.loc;
             loc.line = self.define_start_line;
             error_loc!(Some(&loc), "*** missing `endef', unterminated `define'.",);
         }
@@ -145,8 +145,8 @@ impl Parser {
         self.current_directive = None;
 
         if line.starts_with(b"\t") && self.after_rule {
-            let loc = self.loc.clone();
-            let mut mutable_loc = self.loc.clone();
+            let loc = self.loc;
+            let mut mutable_loc = self.loc;
             let expr = parse_expr(&mut mutable_loc, line.slice(1..), ParseExprOpt::Command)?;
             self.out_stmts
                 .lock()
@@ -209,7 +209,7 @@ impl Parser {
             );
         }
 
-        let rule_loc = self.loc.clone();
+        let rule_loc = self.loc;
         let rule_lhs: Arc<Value>;
         let mut rule_sep = RuleSep::Null;
         let rule_rhs: Option<Arc<Value>>;
@@ -217,7 +217,7 @@ impl Parser {
         let sep_plus_one = sep.map(|sep| sep + 1).unwrap_or(0);
 
         let found = find_outside_paren(&line[sep_plus_one..], b"=;");
-        let mut mutable_loc = self.loc.clone();
+        let mut mutable_loc = self.loc;
         if let Some(mut found) = found {
             found += sep_plus_one;
             rule_lhs = parse_expr(
@@ -269,8 +269,8 @@ impl Parser {
             assign.rhs = trim_left_space(&assign.rhs[2..]);
         }
 
-        let assign_loc = self.loc.clone();
-        let mut mutable_loc = self.loc.clone();
+        let assign_loc = self.loc;
+        let mut mutable_loc = self.loc;
         let lhs = parse_expr(
             &mut mutable_loc,
             line.slice_ref(assign.lhs),
@@ -293,8 +293,8 @@ impl Parser {
     }
 
     fn parse_include(&mut self, line: Bytes, directive: &[u8]) -> Result<()> {
-        let loc = self.loc.clone();
-        let mut mutable_loc = loc.clone();
+        let loc = self.loc;
+        let mut mutable_loc = loc;
         let expr = parse_expr(&mut mutable_loc, line, ParseExprOpt::Normal)?;
         self.out_stmts
             .lock()
@@ -341,7 +341,7 @@ impl Parser {
             filename: self.loc.filename,
             line: self.define_start_line,
         };
-        let mut mutable_loc = assign_loc.clone();
+        let mut mutable_loc = assign_loc;
         let lhs = parse_expr(
             &mut mutable_loc,
             self.define_name.clone().unwrap(),
@@ -378,13 +378,13 @@ impl Parser {
     }
 
     fn parse_ifdef(&mut self, line: Bytes, directive: &[u8]) -> Result<()> {
-        let loc = self.loc.clone();
+        let loc = self.loc;
         let op = if directive[2] == b'n' {
             CondOp::Ifndef
         } else {
             CondOp::Ifdef
         };
-        let mut mutable_loc = loc.clone();
+        let mut mutable_loc = loc;
         let lhs = parse_expr(&mut mutable_loc, line, ParseExprOpt::Normal)?;
         let stmt = IfStmt::new(loc, op, lhs, None);
         self.out_stmts.lock().push(stmt.clone());
@@ -393,7 +393,7 @@ impl Parser {
     }
 
     fn parse_ifeq(&mut self, mut line: Bytes, directive: &[u8]) -> Result<()> {
-        let loc = self.loc.clone();
+        let loc = self.loc;
         let op = if directive[2] == b'n' {
             CondOp::Ifneq
         } else {
@@ -404,7 +404,7 @@ impl Parser {
             error_loc!(Some(&self.loc), "*** invalid syntax in conditional.");
         }
 
-        let mut mutable_loc = loc.clone();
+        let mut mutable_loc = loc;
         let lhs;
         let rhs;
         if line.first() == Some(&b'(') && line.last() == Some(&b')') {
@@ -527,8 +527,8 @@ impl Parser {
     }
 
     fn create_export(&mut self, line: &Bytes, is_export: bool) -> Result<()> {
-        let loc = self.loc.clone();
-        let mut mutable_loc = loc.clone();
+        let loc = self.loc;
+        let mut mutable_loc = loc;
         let expr = parse_expr(&mut mutable_loc, line.clone(), ParseExprOpt::Normal)?;
         self.out_stmts
             .lock()

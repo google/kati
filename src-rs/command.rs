@@ -275,7 +275,7 @@ impl<'a> CommandEvaluator<'a> {
         let node_cmds;
         {
             let node = n.lock();
-            self.ev.loc = node.loc.clone();
+            self.ev.loc = node.loc;
             self.ev.current_scope = node.rule_vars.clone();
             node_cmds = node.cmds.clone();
         }

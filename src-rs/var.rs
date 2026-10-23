@@ -199,7 +199,7 @@ impl Variable {
         let Some(prefixes) = &self.visibility_prefix else {
             return Ok(());
         };
-        let loc = loc.clone().unwrap_or_default();
+        let loc = (*loc).unwrap_or_default();
         let mut valid = false;
         for prefix in prefixes {
             if has_path_prefix(&loc.filename.as_bytes(), prefix.as_bytes()) {

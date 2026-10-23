@@ -78,7 +78,7 @@ pub struct RuleStmt {
 
 impl Statement for RuleStmt {
     fn loc(&self) -> Loc {
-        self.loc.clone()
+        self.loc
     }
 
     fn orig(&self) -> Bytes {
@@ -128,7 +128,7 @@ pub struct AssignStmt {
 
 impl Statement for AssignStmt {
     fn loc(&self) -> Loc {
-        self.loc.clone()
+        self.loc
     }
 
     fn orig(&self) -> Bytes {
@@ -208,7 +208,7 @@ pub struct CommandStmt {
 
 impl Statement for CommandStmt {
     fn loc(&self) -> Loc {
-        self.loc.clone()
+        self.loc
     }
     fn orig(&self) -> Bytes {
         self.orig.clone()
@@ -243,7 +243,7 @@ pub struct IfStmt {
 
 impl Statement for IfStmt {
     fn loc(&self) -> Loc {
-        self.loc.clone()
+        self.loc
     }
     fn orig(&self) -> Bytes {
         self.orig.clone()
@@ -292,7 +292,7 @@ pub struct IncludeStmt {
 
 impl Statement for IncludeStmt {
     fn loc(&self) -> Loc {
-        self.loc.clone()
+        self.loc
     }
     fn orig(&self) -> Bytes {
         self.orig.clone()
@@ -329,7 +329,7 @@ pub struct ExportStmt {
 
 impl Statement for ExportStmt {
     fn loc(&self) -> Loc {
-        self.loc.clone()
+        self.loc
     }
     fn orig(&self) -> Bytes {
         self.orig.clone()

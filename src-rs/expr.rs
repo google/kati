@@ -140,7 +140,7 @@ impl Evaluable for Value {
                 }
             }
             Value::Func { loc, fi, args } => {
-                let _frame = ev.enter(FrameType::FunCall, Bytes::from_static(fi.name), loc.clone());
+                let _frame = ev.enter(FrameType::FunCall, Bytes::from_static(fi.name), *loc);
                 log!(
                     "Invoke func {}({:?})",
                     String::from_utf8_lossy(fi.name),
@@ -180,12 +180,12 @@ impl Evaluable for Value {
 impl Value {
     pub fn loc(&self) -> Option<Loc> {
         match self {
-            Value::Literal(loc, _) => loc.clone(),
-            Value::List(loc, _) => loc.clone(),
-            Value::SymRef(loc, _) => Some(loc.clone()),
-            Value::VarRef(loc, _) => Some(loc.clone()),
-            Value::VarSubst { loc, .. } => Some(loc.clone()),
-            Value::Func { loc, .. } => Some(loc.clone()),
+            Value::Literal(loc, _) => *loc,
+            Value::List(loc, _) => *loc,
+            Value::SymRef(loc, _) => Some(*loc),
+            Value::VarRef(loc, _) => Some(*loc),
+            Value::VarSubst { loc, .. } => Some(*loc),
+            Value::Func { loc, .. } => Some(*loc),
         }
     }
 }
@@ -230,7 +230,7 @@ fn parse_func(
     mut i: usize,
     mut terms: Vec<u8>,
 ) -> Result<(usize, Vec<Arc<Value>>)> {
-    let start_loc = loc.clone();
+    let start_loc = *loc;
     terms.truncate(2);
     terms[1] = b',';
     i += skip_spaces(loc, &s[i..], &terms);
@@ -311,13 +311,10 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
     assert!(s.starts_with(b"$"));
     assert!(!s.starts_with(b"$$"));
 
-    let start_loc = loc.clone();
+    let start_loc = *loc;
 
     let Some(cp) = close_paren(s[1]) else {
-        return Ok((
-            2,
-            Arc::new(Value::SymRef(start_loc.clone(), intern(s.slice(1..2)))),
-        ));
+        return Ok((2, Arc::new(Value::SymRef(start_loc, intern(s.slice(1..2))))));
     };
 
     let mut terms = vec![cp, b':', b' '];
@@ -391,7 +388,7 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
                 return Ok((
                     i + 1,
                     Arc::new(Value::VarRef(
-                        start_loc.clone(),
+                        start_loc,
                         Arc::new(Value::List(
                             Some(start_loc),
                             vec![
@@ -434,7 +431,7 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
             );
             return Ok((
                 s.len(),
-                Arc::new(Value::SymRef(start_loc.clone(), intern(s.slice(2..found)))),
+                Arc::new(Value::SymRef(start_loc, intern(s.slice(2..found)))),
             ));
         }
 
@@ -461,7 +458,7 @@ pub fn parse_expr_impl_ext(
     // This is for compatibility with a read-past-end in ckati
     end_paren: bool,
 ) -> Result<(usize, Arc<Value>)> {
-    let list_loc = loc.clone();
+    let list_loc = *loc;
 
     let s = s.slice_ref(trim_suffix(&s, b"\r"));
 
@@ -473,7 +470,7 @@ pub fn parse_expr_impl_ext(
     let mut terms_ignored = 0;
 
     while i < s.len() {
-        let item_loc = loc.clone();
+        let item_loc = *loc;
 
         let remaining = &s[i..];
         let c = remaining[0];

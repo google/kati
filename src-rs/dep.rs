@@ -250,14 +250,14 @@ impl RuleMerger {
                     merger
                         .primary_rule
                         .as_ref()
-                        .and_then(|r| r.cmd_loc.clone())
+                        .and_then(|r| r.cmd_loc)
                         .as_ref(),
                     "*** implicit output `{output}' of `{p}' was already defined by `{}' at {}",
                     self.parent_sym.unwrap(),
                     parent
                         .primary_rule
                         .as_ref()
-                        .and_then(|r| r.cmd_loc.clone())
+                        .and_then(|r| r.cmd_loc)
                         .unwrap_or_default()
                 );
             }
@@ -292,7 +292,7 @@ impl RuleMerger {
                 error_loc!(
                     r.cmd_loc.as_ref(),
                     "*** overriding commands for target `{output}', previously defined at {}",
-                    primary_rule.cmd_loc.clone().unwrap_or_default()
+                    primary_rule.cmd_loc.unwrap_or_default()
                 );
             } else {
                 warn_loc!(
@@ -330,9 +330,9 @@ impl RuleMerger {
     }
 
     fn fill_dep_node_loc(&self, r: &Rule, n: &mut DepNode) {
-        n.loc = Some(r.loc.clone());
+        n.loc = Some(r.loc);
         if !r.cmds.is_empty()
-            && let Some(cmd_loc) = r.cmd_loc.clone()
+            && let Some(cmd_loc) = r.cmd_loc
         {
             n.loc = Some(cmd_loc);
         }
@@ -364,7 +364,7 @@ impl RuleMerger {
             }
             self.fill_dep_node_from_rule(output, r, &mut n);
             if n.loc.is_none() {
-                n.loc = Some(r.loc.clone())
+                n.loc = Some(r.loc)
             }
         }
 
@@ -557,7 +557,7 @@ impl<'a> DepBuilder<'a> {
             }
         }
 
-        Some((ret, merger.rules[0].loc.clone()))
+        Some((ret, merger.rules[0].loc))
     }
 
     fn populate_rules(&mut self) -> Result<()> {
@@ -917,7 +917,7 @@ impl<'a> DepBuilder<'a> {
         let frame = self.ev.enter(
             FrameType::Dependency,
             output_str.clone(),
-            n.lock().loc.clone().unwrap_or_default(),
+            n.lock().loc.unwrap_or_default(),
         );
 
         if let Some(vars) = &picked_rule_info.vars {
@@ -935,7 +935,7 @@ impl<'a> DepBuilder<'a> {
                                 s.freeze(),
                                 old_var.read().origin(),
                                 frame.current(),
-                                n.lock().loc.clone(),
+                                n.lock().loc,
                             );
                         }
                     }

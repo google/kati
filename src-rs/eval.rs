@@ -395,23 +395,12 @@ impl Evaluator {
         match op {
             AssignOp::ColonEq => {
                 prev = self.peek_var_in_current_scope(lhs);
-                result = Variable::with_simple_value(
-                    origin,
-                    current_frame,
-                    self.loc.clone(),
-                    self,
-                    &rhs_v,
-                )?;
+                result =
+                    Variable::with_simple_value(origin, current_frame, self.loc, self, &rhs_v)?;
             }
             AssignOp::Eq => {
                 prev = self.peek_var_in_current_scope(lhs);
-                result = Variable::new_recursive(
-                    rhs_v,
-                    origin,
-                    current_frame,
-                    self.loc.clone(),
-                    orig_rhs,
-                );
+                result = Variable::new_recursive(rhs_v, origin, current_frame, self.loc, orig_rhs);
             }
             AssignOp::PlusEq => {
                 prev = self.lookup_var_in_current_scope(lhs)?;
@@ -435,13 +424,8 @@ impl Evaluator {
                     }
                     needs_assign = false;
                 } else {
-                    result = Variable::new_recursive(
-                        rhs_v,
-                        origin,
-                        current_frame,
-                        self.loc.clone(),
-                        orig_rhs,
-                    );
+                    result =
+                        Variable::new_recursive(rhs_v, origin, current_frame, self.loc, orig_rhs);
                 }
             }
             AssignOp::QuestionEq => {
@@ -450,13 +434,8 @@ impl Evaluator {
                     result = prev;
                     needs_assign = false;
                 } else {
-                    result = Variable::new_recursive(
-                        rhs_v,
-                        origin,
-                        current_frame,
-                        self.loc.clone(),
-                        orig_rhs,
-                    );
+                    result =
+                        Variable::new_recursive(rhs_v, origin, current_frame, self.loc, orig_rhs);
                 }
             }
         }
@@ -597,7 +576,7 @@ impl Evaluator {
                     b" = "
                 };
                 Some(Arc::new(Value::List(
-                    self.loc.clone(),
+                    self.loc,
                     vec![
                         Arc::new(Value::Literal(None, after_targets.slice_ref(assign.rhs))),
                         Arc::new(Value::Literal(None, Bytes::from_static(sep))),
@@ -697,7 +676,7 @@ impl Evaluator {
             error_loc!(self.loc.as_ref(), "*** empty variable name.");
         }
 
-        let mut rule = Rule::new(self.loc.clone().unwrap(), is_double_colon);
+        let mut rule = Rule::new(self.loc.unwrap(), is_double_colon);
         if is_pattern_rule {
             rule.output_patterns = targets;
         } else {
@@ -823,7 +802,7 @@ impl Evaluator {
                     v,
                     VarOrigin::File,
                     Some(self.current_frame()),
-                    self.loc.clone(),
+                    self.loc,
                 ),
                 false,
                 None,

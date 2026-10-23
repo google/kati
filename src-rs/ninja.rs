@@ -210,7 +210,7 @@ impl<'a> NinjaGenerator<'a> {
         let is_phony;
         {
             let node = node.lock();
-            loc = node.loc.clone();
+            loc = node.loc;
             has_rule = node.has_rule;
             is_phony = node.is_phony;
         }
@@ -467,7 +467,7 @@ impl<'a> NinjaGenerator<'a> {
             return Ok(());
         }
         if FLAGS.enable_debug {
-            writeln!(out, "# {}", node.loc.clone().unwrap_or_default())?;
+            writeln!(out, "# {}", node.loc.unwrap_or_default())?;
         }
         if !commands.is_empty() {
             rule_name = format!("rule{}", nn.rule_id.unwrap());

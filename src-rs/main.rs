@@ -137,7 +137,7 @@ fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<
             makefile_list.freeze(),
             VarOrigin::File,
             Some(ev.current_frame()),
-            ev.loc.clone(),
+            ev.loc,
         ),
         false,
         None,

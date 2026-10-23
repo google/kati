@@ -530,7 +530,7 @@ fn eval_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn BufMut) -> 
             String::from_utf8_lossy(&text)
         );
     }
-    let stmts = parse_buf(&text, ev.loc.clone().unwrap_or_default())?;
+    let stmts = parse_buf(&text, ev.loc.unwrap_or_default())?;
     let stmts = stmts.lock();
     for stmt in stmts.iter() {
         log!("{:?}", stmt);
@@ -664,7 +664,7 @@ fn shell_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> 
         return Ok(());
     }
 
-    let loc = ev.loc.clone().unwrap_or_default();
+    let loc = ev.loc.unwrap_or_default();
     let shell = ev.get_shell()?;
     let shellflag = ev.get_shell_flag();
 
@@ -706,7 +706,7 @@ fn shell_no_rerun_func(
         );
     }
 
-    let loc = ev.loc.clone().unwrap_or_default();
+    let loc = ev.loc.unwrap_or_default();
     let shell = ev.get_shell()?;
     let shellflag = ev.get_shell_flag();
 
@@ -763,11 +763,7 @@ fn call_func(args: &[Arc<Value>], ev: &mut Evaluator, out: &mut dyn BufMut) -> R
     ev.eval_depth -= 1;
 
     {
-        let _frame = ev.enter(
-            FrameType::Call,
-            func_name_buf,
-            ev.loc.clone().unwrap_or_default(),
-        );
+        let _frame = ev.enter(FrameType::Call, func_name_buf, ev.loc.unwrap_or_default());
         if let Some(func) = func {
             func.read().eval(ev, out)?;
         }
@@ -834,7 +830,7 @@ fn warning_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn BufMut) 
     if ev.avoid_io {
         let mut s = BytesMut::new();
         s.put_slice(b"echo -e \"");
-        s.put_slice(ev.loc.clone().unwrap_or_default().to_string().as_bytes());
+        s.put_slice(ev.loc.unwrap_or_default().to_string().as_bytes());
         s.put_slice(b": ");
         s.put_slice(&echo_escape(&a));
         s.put_slice(b"\" 2>&1");
@@ -850,7 +846,7 @@ fn error_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn BufMut) ->
     if ev.avoid_io {
         let mut s = BytesMut::new();
         s.put_slice(b"echo -e \"");
-        s.put_slice(ev.loc.clone().unwrap_or_default().to_string().as_bytes());
+        s.put_slice(ev.loc.unwrap_or_default().to_string().as_bytes());
         s.put_slice(b": *** ");
         s.put_slice(&echo_escape(&a));
         s.put_slice(b".\" 2>&1 && false");
@@ -875,7 +871,7 @@ fn file_read_func(
                 cmd: Bytes::from(filename.as_bytes().to_vec()),
                 find: None,
                 result: Bytes::new(),
-                loc: ev.loc.clone().unwrap_or_default(),
+                loc: ev.loc.unwrap_or_default(),
             })
         }
         return Ok(());
@@ -895,7 +891,7 @@ fn file_read_func(
             cmd: Bytes::from(filename.as_bytes().to_vec()),
             find: None,
             result: buf.clone(),
-            loc: ev.loc.clone().unwrap_or_default(),
+            loc: ev.loc.unwrap_or_default(),
         })
     }
     out.put_slice(&buf);
@@ -927,7 +923,7 @@ fn file_write_func(
             cmd: Bytes::from(filename.as_bytes().to_vec()),
             find: None,
             result: text,
-            loc: ev.loc.clone().unwrap_or_default(),
+            loc: ev.loc.unwrap_or_default(),
         })
     }
 
@@ -1025,8 +1021,7 @@ fn deprecated_var_func(
         let v = match ev.peek_var(sym) {
             Some(v) => v,
             None => {
-                let v =
-                    Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc.clone());
+                let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc);
                 sym.set_global_var(v.clone(), false, None)?;
                 v
             }
@@ -1071,8 +1066,7 @@ fn obsolete_var_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn Buf
         let v = match ev.peek_var(sym) {
             Some(v) => v,
             None => {
-                let v =
-                    Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc.clone());
+                let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc);
                 sym.set_global_var(v.clone(), false, None)?;
                 v
             }
@@ -1170,7 +1164,7 @@ fn variable_location_func(
         let sym = intern(var);
         let l = ev
             .peek_var(sym)
-            .and_then(|v| v.read().loc().clone())
+            .and_then(|v| *v.read().loc())
             .unwrap_or_default();
         ww.write(l.to_string().as_bytes());
     }
@@ -1272,7 +1266,7 @@ fn visibility_prefix_func(
         v
     } else {
         // If variable is not defined, create an empty variable.
-        let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc.clone());
+        let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc);
         sym.set_global_var(v.clone(), false, None)?;
         v
     };
@@ -1285,7 +1279,7 @@ fn visibility_prefix_func(
 
 fn debug_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut dyn BufMut) -> Result<()> {
     let a = args[0].eval_to_buf(ev)?;
-    let loc = ev.loc.clone().unwrap_or_default();
+    let loc = ev.loc.unwrap_or_default();
     for tok in word_scanner(&a) {
         let tok = a.slice_ref(tok);
         let tok = intern(tok);
