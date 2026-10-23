@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 use std::borrow::Cow;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
 use std::io::BufWriter;
 use std::os::unix::ffi::OsStringExt;
@@ -23,6 +23,7 @@ use std::sync::{Arc, LazyLock, Weak};
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
+use fxhash::{FxHashMap, FxHashSet};
 use memchr::{memchr, memchr2};
 use parking_lot::Mutex;
 
@@ -164,14 +165,14 @@ struct IncludeGraphNode {
 }
 
 struct IncludeGraph {
-    nodes: HashMap<Bytes, IncludeGraphNode>,
+    nodes: FxHashMap<Bytes, IncludeGraphNode>,
     include_stack: Vec<Arc<Frame>>,
 }
 
 impl IncludeGraph {
     fn new() -> Self {
         Self {
-            nodes: HashMap::new(),
+            nodes: FxHashMap::default(),
             include_stack: Vec::new(),
         }
     }
@@ -236,14 +237,14 @@ impl IncludeGraph {
     }
 }
 
-static USED_UNDEFINED_VARS: LazyLock<Mutex<HashSet<Symbol>>> =
-    LazyLock::new(|| Mutex::new(HashSet::new()));
+static USED_UNDEFINED_VARS: LazyLock<Mutex<FxHashSet<Symbol>>> =
+    LazyLock::new(|| Mutex::new(FxHashSet::default()));
 
 pub struct Evaluator {
-    pub rule_vars: HashMap<Symbol, Arc<Vars>>,
+    pub rule_vars: FxHashMap<Symbol, Arc<Vars>>,
     pub rules: Vec<Rule>,
-    pub exports: HashMap<Symbol, bool>,
-    symbols_for_eval: HashSet<Symbol>,
+    pub exports: FxHashMap<Symbol, bool>,
+    symbols_for_eval: FxHashSet<Symbol>,
 
     in_rule: bool,
     pub current_scope: Option<Arc<Vars>>,
@@ -286,10 +287,10 @@ impl Default for Evaluator {
 impl Evaluator {
     pub fn new() -> Self {
         Self {
-            rule_vars: HashMap::new(),
+            rule_vars: FxHashMap::default(),
             rules: Vec::new(),
-            exports: HashMap::new(),
-            symbols_for_eval: HashSet::new(),
+            exports: FxHashMap::default(),
+            symbols_for_eval: FxHashSet::default(),
 
             in_rule: false,
             current_scope: None,
@@ -1106,7 +1107,7 @@ impl Evaluator {
         Ok(())
     }
 
-    pub fn used_undefined_vars() -> HashSet<Symbol> {
+    pub fn used_undefined_vars() -> FxHashSet<Symbol> {
         USED_UNDEFINED_VARS.lock().clone()
     }
 }

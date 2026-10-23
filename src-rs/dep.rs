@@ -16,14 +16,10 @@ limitations under the License.
 
 use anyhow::Result;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use fxhash::{FxHashMap, FxHashSet};
 use memchr::memchr;
 use parking_lot::Mutex;
-use std::{
-    collections::{HashMap, HashSet},
-    ffi::OsStr,
-    os::unix::ffi::OsStrExt,
-    sync::Arc,
-};
+use std::{ffi::OsStr, os::unix::ffi::OsStrExt, sync::Arc};
 
 use crate::{
     error, error_loc,
@@ -134,14 +130,14 @@ struct RuleTrieEntry {
 
 struct RuleTrie {
     rules: Vec<RuleTrieEntry>,
-    children: HashMap<u8, RuleTrie>,
+    children: FxHashMap<u8, RuleTrie>,
 }
 
 impl RuleTrie {
     fn new() -> Self {
         Self {
             rules: Vec::new(),
-            children: HashMap::new(),
+            children: FxHashMap::default(),
         }
     }
 
@@ -368,12 +364,8 @@ impl RuleMerger {
             }
         }
 
-        let mut all_outputs = HashSet::new();
-        all_outputs.insert(output);
-
         for (sym, merger) in &self.implicit_outputs {
             n.implicit_outputs.push(*sym);
-            all_outputs.insert(*sym);
             let merger = merger.lock();
             for r in &merger.rules {
                 self.fill_dep_node_from_rule(output, r, &mut n);
@@ -386,21 +378,21 @@ impl RuleMerger {
     }
 }
 
-type SuffixRuleMap = HashMap<Bytes, Vec<Arc<Rule>>>;
+type SuffixRuleMap = FxHashMap<Bytes, Vec<Arc<Rule>>>;
 
 struct DepBuilder<'a> {
     ev: &'a mut Evaluator,
-    rules: HashMap<Symbol, Arc<Mutex<RuleMerger>>>,
-    rule_vars: HashMap<Symbol, Arc<Vars>>,
+    rules: FxHashMap<Symbol, Arc<Mutex<RuleMerger>>>,
+    rule_vars: FxHashMap<Symbol, Arc<Vars>>,
     cur_rule_vars: Option<Arc<Vars>>,
 
     implicit_rules: RuleTrie,
     suffix_rules: SuffixRuleMap,
 
     first_rule: Option<Symbol>,
-    done: HashMap<Symbol, Arc<Mutex<DepNode>>>,
-    phony: HashSet<Symbol>,
-    restat: HashSet<Symbol>,
+    done: FxHashMap<Symbol, Arc<Mutex<DepNode>>>,
+    phony: FxHashSet<Symbol>,
+    restat: FxHashSet<Symbol>,
     depfile_var_name: Symbol,
     implicit_outputs_var_name: Symbol,
     ninja_pool_var_name: Symbol,
@@ -420,17 +412,17 @@ impl<'a> DepBuilder<'a> {
         let rule_vars = std::mem::take(&mut ev.rule_vars);
         let mut ret = Self {
             ev,
-            rules: HashMap::new(),
+            rules: FxHashMap::default(),
             rule_vars,
             cur_rule_vars: None,
 
             implicit_rules: RuleTrie::new(),
-            suffix_rules: HashMap::new(),
+            suffix_rules: FxHashMap::default(),
 
             first_rule: None,
-            done: HashMap::new(),
-            phony: HashSet::new(),
-            restat: HashSet::new(),
+            done: FxHashMap::default(),
+            phony: FxHashSet::default(),
+            restat: FxHashSet::default(),
             depfile_var_name: intern(".KATI_DEPFILE"),
             implicit_outputs_var_name: intern(".KATI_IMPLICIT_OUTPUTS"),
             ninja_pool_var_name: intern(".KATI_NINJA_POOL"),
@@ -501,7 +493,7 @@ impl<'a> DepBuilder<'a> {
             targets.push(first_rule);
         }
         if FLAGS.gen_all_targets {
-            let mut non_root_targets = HashSet::new();
+            let mut non_root_targets = FxHashSet::default();
             for (sym, merger) in &self.rules {
                 if is_special_target(sym) {
                     continue;

@@ -15,7 +15,6 @@ limitations under the License.
 */
 
 use std::{
-    collections::HashMap,
     fmt::{Debug, Display},
     num::NonZeroUsize,
     sync::LazyLock,
@@ -28,6 +27,7 @@ use crate::{
 };
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
+use fxhash::FxHashMap;
 use parking_lot::Mutex;
 
 static SYMTAB: LazyLock<Mutex<Symtab>> = LazyLock::new(|| Mutex::new(Symtab::new()));
@@ -121,7 +121,7 @@ impl Drop for ScopedGlobalVar {
 struct Symtab {
     symbols: Vec<Bytes>,
     symbol_data: Vec<Option<Var>>,
-    symtab: HashMap<Bytes, Symbol>,
+    symtab: FxHashMap<Bytes, Symbol>,
 }
 
 impl Symtab {
@@ -129,7 +129,7 @@ impl Symtab {
         let mut symtab = Self {
             symbols: vec![Bytes::new()],
             symbol_data: vec![],
-            symtab: HashMap::new(),
+            symtab: FxHashMap::default(),
         };
         for i in 1u8..=255 {
             assert!(symtab.symbols.len() == i as usize);

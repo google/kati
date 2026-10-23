@@ -18,9 +18,9 @@ limitations under the License.
 //! execution.
 
 use crate::{flags::FLAGS, symtab::symbol_count};
+use fxhash::{FxHashMap, FxHashSet};
 use parking_lot::Mutex;
 use std::{
-    collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
     fmt::Display,
     sync::{
@@ -43,8 +43,8 @@ pub struct Stats {
     name: String,
     count: AtomicI64,
     elapsed_nanos: AtomicU64,
-    detailed: Mutex<HashMap<OsString, StatsDetails>>,
-    interesting: Mutex<HashSet<OsString>>,
+    detailed: Mutex<FxHashMap<OsString, StatsDetails>>,
+    interesting: Mutex<FxHashSet<OsString>>,
 }
 
 impl Stats {
@@ -56,8 +56,8 @@ impl Stats {
             name: name.to_string(),
             elapsed_nanos: AtomicU64::new(0),
             count: AtomicI64::new(0),
-            detailed: Mutex::new(HashMap::new()),
-            interesting: Mutex::new(HashSet::new()),
+            detailed: Mutex::new(FxHashMap::default()),
+            interesting: Mutex::new(FxHashSet::default()),
         });
         let mut all_stats = ALL_STATS.lock();
         all_stats.push(stats.clone());

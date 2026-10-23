@@ -16,7 +16,6 @@ limitations under the License.
 
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
     ffi::OsString,
     fmt::Debug,
     os::unix::ffi::OsStrExt,
@@ -25,6 +24,7 @@ use std::{
 
 use anyhow::Result;
 use bytes::{BufMut, Bytes};
+use fxhash::{FxHashMap, FxHashSet};
 use parking_lot::{Mutex, RwLock};
 
 use crate::{
@@ -424,10 +424,10 @@ pub fn set_shell_status_var(status: i32) {
     *SHELL_STATUS.lock() = Some(status)
 }
 
-pub static USED_ENV_VARS: LazyLock<Mutex<HashSet<Symbol>>> =
-    LazyLock::new(|| Mutex::new(HashSet::new()));
+pub static USED_ENV_VARS: LazyLock<Mutex<FxHashSet<Symbol>>> =
+    LazyLock::new(|| Mutex::new(FxHashSet::default()));
 
-pub struct Vars(pub Mutex<HashMap<Symbol, Var>>);
+pub struct Vars(pub Mutex<FxHashMap<Symbol, Var>>);
 
 impl Default for Vars {
     fn default() -> Self {
@@ -437,7 +437,7 @@ impl Default for Vars {
 
 impl Vars {
     pub fn new() -> Self {
-        Vars(Mutex::new(HashMap::new()))
+        Vars(Mutex::new(FxHashMap::default()))
     }
 
     pub fn lookup(&self, sym: Symbol) -> Option<Var> {

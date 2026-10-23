@@ -17,7 +17,6 @@ limitations under the License.
 use std::io::Read;
 use std::os::unix::ffi::OsStrExt;
 use std::{
-    collections::HashMap,
     ffi::{CStr, CString, OsStr},
     process::{Command, ExitStatus},
     slice,
@@ -27,6 +26,7 @@ use std::{
 
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
+use fxhash::FxHashMap;
 use memchr::memchr2;
 use parking_lot::Mutex;
 
@@ -111,8 +111,8 @@ pub fn run_command(
 
 pub type GlobResults = Arc<Result<Vec<Bytes>, std::io::Error>>;
 
-pub static GLOB_CACHE: LazyLock<Mutex<HashMap<Bytes, GlobResults>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+pub static GLOB_CACHE: LazyLock<Mutex<FxHashMap<Bytes, GlobResults>>> =
+    LazyLock::new(|| Mutex::new(FxHashMap::default()));
 
 pub fn glob(pat: Bytes) -> GlobResults {
     let mut cache = GLOB_CACHE.lock();

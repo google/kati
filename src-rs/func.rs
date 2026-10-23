@@ -15,7 +15,6 @@ limitations under the License.
 */
 
 use std::{
-    collections::HashMap,
     ffi::{OsStr, OsString},
     fmt::Debug,
     fs::File,
@@ -26,6 +25,7 @@ use std::{
 
 use anyhow::Result;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use fxhash::FxHashMap;
 use parking_lot::Mutex;
 
 use crate::{
@@ -1412,7 +1412,7 @@ const FUNC_INFO: &[FuncInfo] = &[
     func(b"KATI_debug_var", debug_func, 1),
 ];
 
-static FUNC_INFO_MAP: LazyLock<HashMap<&'static [u8], &'static FuncInfo>> =
+static FUNC_INFO_MAP: LazyLock<FxHashMap<&'static [u8], &'static FuncInfo>> =
     LazyLock::new(|| FUNC_INFO.iter().map(|f| (f.name, f)).collect());
 
 pub fn get_func_info(name: &[u8]) -> Option<&'static FuncInfo> {

@@ -20,6 +20,7 @@ rust_defaults {
     rustlibs: [
         "libanyhow",
         "libbytes",
+        "libfxhash",
         "liblibc",
         "liblog_rust",
         "libmemchr",
