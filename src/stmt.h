@@ -92,6 +92,7 @@ struct AssignStmt : public Stmt {
   AssignOp op;
   AssignDirective directive;
   bool is_final;
+  bool is_undefine = false;
 
   AssignStmt() : is_final(false) {}
   virtual ~AssignStmt();

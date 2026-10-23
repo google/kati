@@ -263,6 +263,25 @@ class Parser {
     after_rule_ = false;
   }
 
+  void ParseUndefine(std::string_view line, std::string_view) {
+    if (line.empty()) {
+      Error("*** empty variable name.");
+      return;
+    }
+
+    AssignStmt* stmt = new AssignStmt();
+    stmt->set_loc(loc_);
+    Loc mutable_loc(loc_);
+    stmt->lhs = ParseExpr(&mutable_loc, line);
+    stmt->rhs = ParseExpr(&mutable_loc, std::string_view());
+    stmt->orig_rhs = std::string_view();
+    stmt->op = AssignOp::EQ;
+    stmt->directive = current_directive_;
+    stmt->is_undefine = true;
+    out_stmts_->push_back(stmt);
+    after_rule_ = false;
+  }
+
   void ParseInsideDefine(std::string_view line) {
     line = TrimLeftSpace(line);
     std::string_view directive = GetDirective(line);
@@ -549,6 +568,7 @@ void ParseNoStats(std::string_view buf,
 const Parser::DirectiveMap Parser::make_directives_ = {
     {"include", &Parser::ParseInclude},   {"-include", &Parser::ParseInclude},
     {"sinclude", &Parser::ParseInclude},  {"define", &Parser::ParseDefine},
+    {"undefine", &Parser::ParseUndefine},
     {"ifdef", &Parser::ParseIfdef},       {"ifndef", &Parser::ParseIfdef},
     {"ifeq", &Parser::ParseIfeq},         {"ifneq", &Parser::ParseIfeq},
     {"else", &Parser::ParseElse},         {"endif", &Parser::ParseEndif},
@@ -564,6 +584,7 @@ const Parser::DirectiveMap Parser::else_if_directives_ = {
 
 const Parser::DirectiveMap Parser::assign_directives_ = {
     {"define", &Parser::ParseDefine},
+    {"undefine", &Parser::ParseUndefine},
     {"export", &Parser::ParseExport},
     {"override", &Parser::ParseOverride},
 };
