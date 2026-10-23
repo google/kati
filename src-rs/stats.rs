@@ -23,7 +23,10 @@ use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
     fmt::Display,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicI64, AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -38,8 +41,8 @@ struct StatsDetails {
 /// `Stats` represents a single collection site.
 pub struct Stats {
     name: String,
-    count: Mutex<i64>,
-    elapsed: Mutex<Duration>,
+    count: AtomicI64,
+    elapsed_nanos: AtomicU64,
     detailed: Mutex<HashMap<OsString, StatsDetails>>,
     interesting: Mutex<HashSet<OsString>>,
 }
@@ -51,8 +54,8 @@ impl Stats {
     pub fn new(name: &str) -> Arc<Self> {
         let stats = Arc::new(Self {
             name: name.to_string(),
-            elapsed: Mutex::new(Duration::new(0, 0)),
-            count: Mutex::new(0),
+            elapsed_nanos: AtomicU64::new(0),
+            count: AtomicI64::new(0),
             detailed: Mutex::new(HashMap::new()),
             interesting: Mutex::new(HashSet::new()),
         });
@@ -121,20 +124,21 @@ impl Stats {
     }
 
     fn start(&self) -> Instant {
-        let start = std::time::Instant::now();
-        *self.count.lock() += 1;
-        start
+        self.count.fetch_add(1, Ordering::Relaxed);
+        std::time::Instant::now()
     }
 
     fn end(&self, start: Instant) -> Duration {
         let elapsed = start.elapsed();
-        *self.elapsed.lock() += elapsed;
+        self.elapsed_nanos
+            .fetch_add(elapsed.as_nanos() as u64, Ordering::Relaxed);
         elapsed
     }
 
     fn end_with_msg(&self, start: Instant, msg: &OsStr) -> Duration {
         let elapsed = start.elapsed();
-        *self.elapsed.lock() += elapsed;
+        self.elapsed_nanos
+            .fetch_add(elapsed.as_nanos() as u64, Ordering::Relaxed);
         let mut detailed = self.detailed.lock();
         if let Some(details) = detailed.get_mut(msg) {
             details.count += 1;
@@ -154,24 +158,21 @@ impl Stats {
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let elapsed_secs =
+            Duration::from_nanos(self.elapsed_nanos.load(Ordering::Relaxed)).as_secs_f64();
+        let count = self.count.load(Ordering::Relaxed);
         let detailed = self.detailed.lock();
         if !detailed.is_empty() {
             return write!(
                 f,
                 "{}: {} / {} ({} unique)",
                 self.name,
-                self.elapsed.lock().as_secs_f64(),
-                *self.count.lock(),
+                elapsed_secs,
+                count,
                 detailed.len()
             );
         }
-        write!(
-            f,
-            "{}: {} / {}",
-            self.name,
-            self.elapsed.lock().as_secs_f64(),
-            *self.count.lock()
-        )
+        write!(f, "{}: {} / {}", self.name, elapsed_secs, count)
     }
 }
 
