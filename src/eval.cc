@@ -329,6 +329,27 @@ void Evaluator::EvalAssign(const AssignStmt* stmt) {
     return;
   }
 
+  if (stmt->is_undefine) {
+    Var* current = lhs.GetGlobalVar();
+    const bool is_override =
+        (static_cast<int>(stmt->directive) &
+         static_cast<int>(AssignDirective::OVERRIDE)) != 0;
+    if (!is_override &&
+        (current->Origin() == VarOrigin::COMMAND_LINE ||
+         current->Origin() == VarOrigin::OVERRIDE ||
+         current->Origin() == VarOrigin::ENVIRONMENT_OVERRIDE)) {
+      return;
+    }
+
+    bool readonly;
+    lhs.SetGlobalVar(Var::Undefined(), true, &readonly);
+    if (readonly) {
+      Error(StringPrintf("*** cannot assign to readonly variable: %s",
+                         lhs.c_str()));
+    }
+    return;
+  }
+
   bool needs_assign;
   Var* var =
       EvalRHS(lhs, stmt->rhs, stmt->orig_rhs, stmt->op,
