@@ -126,6 +126,8 @@ class Parser {
     }
 
     line = TrimLeftSpace(line);
+    if (line.empty())
+      return;
 
     if (line[0] == '#')
       return;
@@ -166,7 +168,8 @@ class Parser {
     if (line.empty())
       return;
 
-    if (orig_line_with_directives_[0] == '\t') {
+    if (!orig_line_with_directives_.empty() &&
+        orig_line_with_directives_[0] == '\t') {
       Error("*** commands commence before first target.");
       return;
     }
@@ -327,7 +330,7 @@ class Parser {
       size_t n;
       stmt->lhs =
           ParseExprImpl(&mutable_loc, s, terms, ParseExprOpt::NORMAL, &n, true);
-      if (s[n] != ',')
+      if (n >= s.size() || s[n] != ',')
         return false;
       s = TrimLeftSpace(s.substr(n + 1));
       stmt->rhs =

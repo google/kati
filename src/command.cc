@@ -16,6 +16,7 @@
 
 #include "command.h"
 
+#include <iterator>
 #include <unordered_map>
 #include <unordered_set>
 

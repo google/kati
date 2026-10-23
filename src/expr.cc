@@ -422,7 +422,7 @@ Value* ParseDollar(Loc* loc, std::string_view s, size_t* index_out) {
     Value* vname =
         ParseExprImpl(loc, s.substr(i), terms, ParseExprOpt::NORMAL, &n);
     i += n;
-    if (s[i] == cp) {
+    if (i < s.size() && s[i] == cp) {
       *index_out = i + 1;
       if (vname->IsLiteral()) {
         Literal* lit = static_cast<Literal*>(vname);
@@ -442,7 +442,7 @@ Value* ParseDollar(Loc* loc, std::string_view s, size_t* index_out) {
       return new VarRef(start_loc, vname);
     }
 
-    if (s[i] == ' ' || s[i] == '\\') {
+    if (i < s.size() && (s[i] == ' ' || s[i] == '\\')) {
       // ${func ...}
       if (vname->IsLiteral()) {
         Literal* lit = static_cast<Literal*>(vname);
@@ -467,14 +467,14 @@ Value* ParseDollar(Loc* loc, std::string_view s, size_t* index_out) {
       continue;
     }
 
-    if (s[i] == ':') {
+    if (i < s.size() && s[i] == ':') {
       terms[2] = '\0';
       terms[1] = '=';
       size_t n;
       Value* pat =
           ParseExprImpl(loc, s.substr(i + 1), terms, ParseExprOpt::NORMAL, &n);
       i += 1 + n;
-      if (s[i] == cp) {
+      if (i < s.size() && s[i] == cp) {
         *index_out = i + 1;
         return new VarRef(
             start_loc, Value::NewExpr(start_loc, vname, new Literal(":"), pat));

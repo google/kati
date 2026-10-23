@@ -97,7 +97,7 @@ void WordWriter::Write(std::string_view s) {
 }
 
 ScopedTerminator::ScopedTerminator(std::string_view s)
-    : s_(s), c_(s[s.size()]) {
+    : s_(s), c_(s.data()[s.size()]) {
   const_cast<char*>(s_.data())[s_.size()] = '\0';
 }
 
@@ -409,13 +409,13 @@ size_t FindEndOfLine(std::string_view s, size_t e, size_t* lf_cnt) {
     if (c == '\0')
       break;
     if (c == '\\') {
-      if (s[e + 1] == '\n') {
+      if (e + 1 < s.size() && s[e + 1] == '\n') {
         e += 2;
         ++*lf_cnt;
-      } else if (s[e + 1] == '\r' && s[e + 2] == '\n') {
+      } else if (e + 2 < s.size() && s[e + 1] == '\r' && s[e + 2] == '\n') {
         e += 3;
         ++*lf_cnt;
-      } else if (s[e + 1] == '\\') {
+      } else if (e + 1 < s.size() && s[e + 1] == '\\') {
         e += 2;
       } else {
         e++;
@@ -435,7 +435,7 @@ std::string_view TrimLeadingCurdir(std::string_view s) {
 }
 
 void FormatForCommandSubstitution(std::string* s) {
-  while ((*s)[s->size() - 1] == '\n')
+  while (!s->empty() && s->back() == '\n')
     s->pop_back();
   for (size_t i = 0; i < s->size(); i++) {
     if ((*s)[i] == '\n')
