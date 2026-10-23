@@ -92,12 +92,19 @@ impl Evaluable for Value {
             }
             Value::SymRef(_, sym) => {
                 let sym = *sym;
-                if let Some(v) = ev.lookup_var_for_eval(sym)? {
+                if let Some(v) = ev.lookup_var(sym)? {
                     let v = v.read();
-                    v.used(ev, &sym)?;
-                    v.eval(ev, out)?;
-                    v.check_current_referencing_file(&ev.loc, sym)?;
-                    ev.var_eval_complete(sym);
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        out.put_slice(sv.as_slice());
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                    } else {
+                        ev.check_and_mark_var_for_eval(sym, &v)?;
+                        v.used(ev, &sym)?;
+                        v.eval(ev, out)?;
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        ev.var_eval_complete(sym);
+                    }
                 }
             }
             Value::VarRef(_, var) => {
@@ -105,12 +112,19 @@ impl Evaluable for Value {
                 let name = var.eval_to_buf(ev)?;
                 ev.eval_depth -= 1;
                 let sym = intern(name);
-                if let Some(v) = ev.lookup_var_for_eval(sym)? {
+                if let Some(v) = ev.lookup_var(sym)? {
                     let v = v.read();
-                    v.used(ev, &sym)?;
-                    v.eval(ev, out)?;
-                    v.check_current_referencing_file(&ev.loc, sym)?;
-                    ev.var_eval_complete(sym);
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        out.put_slice(sv.as_slice());
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                    } else {
+                        ev.check_and_mark_var_for_eval(sym, &v)?;
+                        v.used(ev, &sym)?;
+                        v.eval(ev, out)?;
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        ev.var_eval_complete(sym);
+                    }
                 }
             }
             Value::VarSubst {
@@ -152,6 +166,57 @@ impl Evaluable for Value {
             }
         }
         Ok(())
+    }
+
+    #[inline]
+    fn eval_to_buf(&self, ev: &mut Evaluator) -> Result<Bytes> {
+        match self {
+            Value::Literal(_, lit) => Ok(lit.clone()),
+            Value::SymRef(_, sym) => {
+                let sym = *sym;
+                if let Some(v) = ev.lookup_var(sym)? {
+                    let v = v.read();
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        let res = sv.to_bytes();
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        return Ok(res);
+                    }
+                    ev.check_and_mark_var_for_eval(sym, &v)?;
+                    v.used(ev, &sym)?;
+                    let mut out = BytesMut::new();
+                    v.eval(ev, &mut out)?;
+                    v.check_current_referencing_file(&ev.loc, sym)?;
+                    ev.var_eval_complete(sym);
+                    return Ok(out.freeze());
+                }
+                Ok(Bytes::new())
+            }
+            Value::VarRef(_, var) => {
+                ev.eval_depth += 1;
+                let name = var.eval_to_buf(ev)?;
+                ev.eval_depth -= 1;
+                let sym = intern(name);
+                if let Some(v) = ev.lookup_var(sym)? {
+                    let v = v.read();
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        let res = sv.to_bytes();
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        return Ok(res);
+                    }
+                    ev.check_and_mark_var_for_eval(sym, &v)?;
+                    v.used(ev, &sym)?;
+                    let mut out = BytesMut::new();
+                    v.eval(ev, &mut out)?;
+                    v.check_current_referencing_file(&ev.loc, sym)?;
+                    ev.var_eval_complete(sym);
+                    return Ok(out.freeze());
+                }
+                Ok(Bytes::new())
+            }
+            _ => Ok(self.eval_to_buf_mut(ev)?.freeze()),
+        }
     }
 
     fn is_func(&self) -> bool {

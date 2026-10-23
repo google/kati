@@ -415,13 +415,11 @@ impl Evaluator {
                     result = prev;
                     if result.read().immediate_eval() {
                         let buf = rhs_v.eval_to_buf(self)?;
-                        result.write().append_str(&buf, self.current_frame())?;
+                        result.write().append_str(&buf, current_frame)?;
                     } else {
-                        result.write().append_var(
-                            rhs_v,
-                            self.current_frame(),
-                            self.loc.as_ref(),
-                        )?;
+                        result
+                            .write()
+                            .append_var(rhs_v, current_frame, self.loc.as_ref())?;
                     }
                     needs_assign = false;
                 } else {
@@ -796,7 +794,9 @@ impl Evaluator {
 
         let v = fname.slice_ref(trim_leading_curdir(fname));
         if let Some(var_list) = self.lookup_var(*MAKEFILE_LIST)? {
-            var_list.write().append_str(&v, self.current_frame())?;
+            var_list
+                .write()
+                .append_str(&v, Some(self.current_frame()))?;
         } else {
             MAKEFILE_LIST.set_global_var(
                 Variable::with_simple_string(
@@ -993,15 +993,24 @@ impl Evaluator {
         Ok(())
     }
 
+    pub fn check_and_mark_var_for_eval(&mut self, name: Symbol, var: &Variable) -> Result<()> {
+        if !self.symbols_for_eval.insert(name) {
+            error_loc!(
+                var.loc().as_ref(),
+                "*** Recursive variable \"{name}\" references itself (eventually)."
+            );
+        }
+        Ok(())
+    }
+
     pub fn lookup_var_for_eval(&mut self, name: Symbol) -> Result<Option<Var>> {
         if let Some(var) = self.lookup_var(name)? {
-            if self.symbols_for_eval.contains(&name) {
+            if !self.symbols_for_eval.insert(name) {
                 error_loc!(
                     var.read().loc().as_ref(),
                     "*** Recursive variable \"{name}\" references itself (eventually)."
                 );
             }
-            self.symbols_for_eval.insert(name);
             return Ok(Some(var));
         }
         Ok(None)

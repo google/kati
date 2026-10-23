@@ -19,7 +19,7 @@ use std::{
     ffi::OsString,
     fmt::Debug,
     os::unix::ffi::OsStrExt,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, OnceLock},
 };
 
 use anyhow::Result;
@@ -42,6 +42,59 @@ use crate::{
     stmt::AssignOp,
     symtab::Symbol,
 };
+
+static SPACE_VALUE: LazyLock<Arc<Value>> =
+    LazyLock::new(|| Arc::new(Value::Literal(None, Bytes::from_static(b" "))));
+
+#[derive(Debug)]
+pub enum SimpleVar {
+    Bytes(Bytes),
+    Mut {
+        vec: Vec<u8>,
+        cached: OnceLock<Bytes>,
+    },
+}
+
+impl SimpleVar {
+    #[inline]
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            SimpleVar::Bytes(b) => b.as_ref(),
+            SimpleVar::Mut { vec, .. } => vec.as_slice(),
+        }
+    }
+
+    #[inline]
+    pub fn to_bytes(&self) -> Bytes {
+        match self {
+            SimpleVar::Bytes(b) => b.clone(),
+            SimpleVar::Mut { vec, cached } => {
+                cached.get_or_init(|| Bytes::copy_from_slice(vec)).clone()
+            }
+        }
+    }
+
+    #[inline]
+    pub fn append_slice(&mut self, buf: &[u8]) {
+        match self {
+            SimpleVar::Bytes(b) => {
+                let mut vec = Vec::with_capacity((b.len() + 1 + buf.len()).max(64));
+                vec.extend_from_slice(b);
+                vec.push(b' ');
+                vec.extend_from_slice(buf);
+                *self = SimpleVar::Mut {
+                    vec,
+                    cached: OnceLock::new(),
+                };
+            }
+            SimpleVar::Mut { vec, cached } => {
+                let _ = cached.take();
+                vec.push(b' ');
+                vec.extend_from_slice(buf);
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum VarOrigin {
@@ -88,7 +141,7 @@ pub struct Variable {
 
 #[derive(Debug)]
 pub enum InnerVar {
-    Simple(Vec<u8>),
+    Simple(SimpleVar),
     Recursive { v: Arc<Value>, orig: Bytes },
     AutoCommand(Symbol, AutoCommandVar),
     ShellStatus,
@@ -96,15 +149,27 @@ pub enum InnerVar {
 }
 
 impl Variable {
+    #[inline]
     pub fn loc(&self) -> &Option<Loc> {
         &self.loc
     }
+    #[inline]
     pub fn origin(&self) -> VarOrigin {
         self.origin
     }
+    #[inline]
     pub fn definition(&self) -> &Option<Arc<Frame>> {
         &self.definition
     }
+    #[inline]
+    pub fn inner(&self) -> &InnerVar {
+        &self.value
+    }
+    #[inline]
+    pub fn set_simple_string(&mut self, value: Bytes) {
+        self.value = InnerVar::Simple(SimpleVar::Bytes(value));
+    }
+    #[inline]
     pub fn obsolete(&self) -> bool {
         self.obsolete.is_some()
     }
@@ -120,6 +185,7 @@ impl Variable {
             InnerVar::VariableNames { .. } => "kati_variable_names",
         }
     }
+    #[inline]
     pub fn used(&self, ev: &Evaluator, sym: &Symbol) -> Result<()> {
         if let Some(obsolete) = &self.obsolete {
             error_loc!(ev.loc.as_ref(), "*** {sym} is obsolete{obsolete}.");
@@ -137,13 +203,14 @@ impl Variable {
         }
         Ok(())
     }
+    #[inline]
     pub fn immediate_eval(&self) -> bool {
         matches!(&self.value, InnerVar::Simple(_))
     }
     pub fn append_var(
         &mut self,
         v: Arc<Value>,
-        frame: Arc<Frame>,
+        frame: Option<Arc<Frame>>,
         loc: Option<&Loc>,
     ) -> Result<()> {
         match &mut self.value {
@@ -151,15 +218,16 @@ impl Variable {
                 panic!("append_var should not be used when immediate_eval returns true")
             }
             InnerVar::Recursive { v: prev, .. } => {
-                *prev = Arc::new(Value::List(
-                    prev.loc(),
-                    vec![
-                        prev.clone(),
-                        Arc::new(Value::Literal(None, Bytes::from_static(b" "))),
-                        v,
-                    ],
-                ));
-                self.definition = Some(frame);
+                if let Some(Value::List(_, list)) = Arc::get_mut(prev) {
+                    list.push(SPACE_VALUE.clone());
+                    list.push(v);
+                } else {
+                    *prev = Arc::new(Value::List(
+                        prev.loc(),
+                        vec![prev.clone(), SPACE_VALUE.clone(), v],
+                    ));
+                }
+                self.definition = frame;
             }
             InnerVar::AutoCommand(sym, _) => {
                 error_loc!(loc, "appending to ${sym} is not supported");
@@ -169,23 +237,24 @@ impl Variable {
         }
         Ok(())
     }
-    pub fn append_str(&mut self, buf: &Bytes, frame: Arc<Frame>) -> Result<()> {
+    pub fn append_str(&mut self, buf: &Bytes, frame: Option<Arc<Frame>>) -> Result<()> {
         match &mut self.value {
             InnerVar::Simple(s) => {
-                s.push(b' ');
-                s.extend_from_slice(buf);
-                self.definition = Some(frame);
+                s.append_slice(buf);
+                self.definition = frame;
             }
             InnerVar::Recursive { v: prev, .. } => {
-                *prev = Arc::new(Value::List(
-                    prev.loc(),
-                    vec![
-                        prev.clone(),
-                        Arc::new(Value::Literal(None, Bytes::from_static(b" "))),
-                        Arc::new(Value::Literal(None, buf.clone())),
-                    ],
-                ));
-                self.definition = Some(frame);
+                let lit = Arc::new(Value::Literal(None, buf.clone()));
+                if let Some(Value::List(_, list)) = Arc::get_mut(prev) {
+                    list.push(SPACE_VALUE.clone());
+                    list.push(lit);
+                } else {
+                    *prev = Arc::new(Value::List(
+                        prev.loc(),
+                        vec![prev.clone(), SPACE_VALUE.clone(), lit],
+                    ));
+                }
+                self.definition = frame;
             }
             InnerVar::AutoCommand(sym, _) => {
                 error!("appending to ${sym} is not supported");
@@ -195,14 +264,16 @@ impl Variable {
         }
         Ok(())
     }
+    #[inline]
     pub fn check_current_referencing_file(&self, loc: &Option<Loc>, sym: Symbol) -> Result<()> {
         let Some(prefixes) = &self.visibility_prefix else {
             return Ok(());
         };
-        let loc = (*loc).unwrap_or_default();
+        let loc = loc.unwrap_or_default();
         let mut valid = false;
+        let fname = loc.filename.as_bytes();
         for prefix in prefixes {
-            if has_path_prefix(&loc.filename.as_bytes(), prefix.as_bytes()) {
+            if has_path_prefix(&fname, prefix.as_bytes()) {
                 valid = true;
                 break;
             }
@@ -252,7 +323,7 @@ impl Variable {
             deprecated: None,
             obsolete: None,
             visibility_prefix: None,
-            value: InnerVar::Simple(Vec::new()),
+            value: InnerVar::Simple(SimpleVar::Bytes(Bytes::new())),
         }))
     }
 
@@ -271,7 +342,7 @@ impl Variable {
             deprecated: None,
             obsolete: None,
             visibility_prefix: None,
-            value: InnerVar::Simple(value.to_vec()),
+            value: InnerVar::Simple(SimpleVar::Bytes(value)),
         }))
     }
 
@@ -292,7 +363,7 @@ impl Variable {
             deprecated: None,
             obsolete: None,
             visibility_prefix: None,
-            value: InnerVar::Simple(value.to_vec()),
+            value: InnerVar::Simple(SimpleVar::Bytes(value)),
         })))
     }
 
@@ -366,7 +437,7 @@ impl Evaluable for Variable {
     fn eval(&self, ev: &mut crate::eval::Evaluator, out: &mut BytesMut) -> Result<()> {
         match &self.value {
             InnerVar::Simple(v) => {
-                out.put_slice(v);
+                out.put_slice(v.as_slice());
             }
             InnerVar::Recursive { v, .. } => {
                 v.eval(ev, out)?;
@@ -407,6 +478,15 @@ impl Evaluable for Variable {
         }
         Ok(())
     }
+
+    #[inline]
+    fn eval_to_buf(&self, ev: &mut crate::eval::Evaluator) -> Result<Bytes> {
+        if let InnerVar::Simple(sv) = &self.value {
+            return Ok(sv.to_bytes());
+        }
+        Ok(self.eval_to_buf_mut(ev)?.freeze())
+    }
+
     fn is_func(&self) -> bool {
         match &self.value {
             InnerVar::Simple(_) => false,
@@ -438,6 +518,11 @@ impl Default for Vars {
 impl Vars {
     pub fn new() -> Self {
         Vars(Mutex::new(FxHashMap::default()))
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.lock().is_empty()
     }
 
     pub fn lookup(&self, sym: Symbol) -> Option<Var> {
