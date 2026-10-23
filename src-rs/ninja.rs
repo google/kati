@@ -19,14 +19,12 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::OpenOptionsExt;
+use std::sync::{Arc, LazyLock};
 use std::time::SystemTime;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
 
 use anyhow::Result;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use fxhash::{FxHashMap, FxHashSet};
 use memchr::{memchr2, memmem};
 use parking_lot::Mutex;
 
@@ -45,6 +43,8 @@ use crate::{
     var::USED_ENV_VARS,
 };
 use crate::{error, file_cache};
+
+static OUT_SYM: LazyLock<Symbol> = LazyLock::new(|| intern("out"));
 
 fn find_command_line_flag(cmd: &[u8], name: &[u8]) -> Option<usize> {
     match memmem::find(cmd, name) {
@@ -148,11 +148,11 @@ struct NinjaNode {
 
 struct NinjaGenerator<'a> {
     ce: CommandEvaluator<'a>,
-    done: HashSet<Symbol>,
+    done: FxHashSet<Symbol>,
     rule_id: usize,
     shell: Bytes,
     shell_flags: Bytes,
-    used_envs: HashMap<Symbol, OsString>,
+    used_envs: FxHashMap<Symbol, OsString>,
     kati_binary: OsString,
     start_time: SystemTime,
     nodes: Vec<NinjaNode>,
@@ -166,11 +166,11 @@ impl<'a> NinjaGenerator<'a> {
         ce.ev.avoid_io = true;
         Ok(Self {
             ce,
-            done: HashSet::new(),
+            done: FxHashSet::default(),
             rule_id: 0,
             shell,
             shell_flags,
-            used_envs: HashMap::new(),
+            used_envs: FxHashMap::default(),
             kati_binary: OsString::from(std::env::current_exe().unwrap()),
             start_time,
             nodes: Vec::new(),
@@ -200,29 +200,24 @@ impl<'a> NinjaGenerator<'a> {
     }
 
     fn populate_ninja_node(&mut self, node: &Arc<Mutex<DepNode>>) -> Result<()> {
-        let output = node.lock().output;
-        if self.done.contains(&output) {
-            return Ok(());
-        }
-        self.done.insert(output);
+        let output;
         let loc;
         let has_rule;
         let is_phony;
         {
             let node = node.lock();
+            output = node.output;
+            if !self.done.insert(output) {
+                return Ok(());
+            }
             loc = node.loc;
             has_rule = node.has_rule;
             is_phony = node.is_phony;
         }
-        let _frame = self.ce.ev.enter(
-            crate::eval::FrameType::Ninja,
-            output.as_bytes(),
-            loc.unwrap_or_default(),
-        );
 
         // A hack to exclude out phony target in Android. If this exists,
         // "ninja -t clean" tries to remove this directory and fails.
-        if FLAGS.detect_android_echo && output.as_bytes().as_ref() == b"out" {
+        if FLAGS.detect_android_echo && output == *OUT_SYM {
             return Ok(());
         }
 
@@ -230,6 +225,12 @@ impl<'a> NinjaGenerator<'a> {
         if !has_rule && !is_phony {
             return Ok(());
         }
+
+        let _frame = self.ce.ev.enter(
+            crate::eval::FrameType::Ninja,
+            output.as_bytes(),
+            loc.unwrap_or_default(),
+        );
 
         let commands = self.ce.eval(node)?;
         let rule_id = if commands.is_empty() {
@@ -240,23 +241,30 @@ impl<'a> NinjaGenerator<'a> {
             Some(id)
         };
 
+        let deps;
+        let order_onlys;
+        let validations;
+        {
+            let node_guard = node.lock();
+            deps = node_guard.deps.clone();
+            order_onlys = node_guard.order_onlys.clone();
+            validations = node_guard.validations.clone();
+        }
+
         self.nodes.push(NinjaNode {
             node: node.clone(),
             commands,
             rule_id,
         });
 
-        let deps = node.lock().deps.clone();
         for (_symbol, depnode) in deps {
             self.populate_ninja_node(&depnode)?;
         }
 
-        let order_onlys = node.lock().order_onlys.clone();
         for (_symbol, depnode) in order_onlys {
             self.populate_ninja_node(&depnode)?;
         }
 
-        let validations = node.lock().validations.clone();
         for (_symbol, depnode) in validations {
             self.populate_ninja_node(&depnode)?;
         }
@@ -461,7 +469,8 @@ impl<'a> NinjaGenerator<'a> {
         let node = nn.node.lock();
         let commands = &nn.commands;
 
-        let mut rule_name = "phony".to_string();
+        let rule_name_buf;
+        let mut rule_name = "phony";
         let use_local_pool = FLAGS.remote_num_jobs > 0;
         if is_special_target(&node.output) {
             return Ok(());
@@ -470,7 +479,8 @@ impl<'a> NinjaGenerator<'a> {
             writeln!(out, "# {}", node.loc.unwrap_or_default())?;
         }
         if !commands.is_empty() {
-            rule_name = format!("rule{}", nn.rule_id.unwrap());
+            rule_name_buf = format!("rule{}", nn.rule_id.unwrap());
+            rule_name = &rule_name_buf;
             writeln!(out, "rule {rule_name}")?;
 
             let mut description = Bytes::from_static(b"build $out");
@@ -534,52 +544,65 @@ impl<'a> NinjaGenerator<'a> {
         r.freeze()
     }
 
-    fn escape_build_target(s: Symbol) -> Bytes {
-        Self::escape_ninja(&s.as_bytes())
+    fn write_escaped_build_target(s: Symbol, out: &mut impl std::io::Write) -> Result<()> {
+        let bytes = s.as_bytes();
+        if !bytes.iter().any(|&c| c == b'$' || c == b':' || c == b' ') {
+            out.write_all(&bytes)?;
+            return Ok(());
+        }
+        let mut r = Vec::with_capacity(bytes.len() + 8);
+        for &c in &bytes {
+            if c == b'$' || c == b':' || c == b' ' {
+                r.push(b'$');
+            }
+            r.push(c);
+        }
+        out.write_all(&r)?;
+        Ok(())
     }
 
     fn emit_build(
         &mut self,
         nn: &NinjaNode,
         node: &DepNode,
-        rule_name: String,
+        rule_name: &str,
         use_local_pool: bool,
         out: &mut impl std::io::Write,
     ) -> Result<()> {
-        let target = Self::escape_build_target(node.output);
-        write!(out, "build ")?;
-        out.write_all(&target)?;
+        out.write_all(b"build ")?;
+        Self::write_escaped_build_target(node.output, out)?;
         if !node.implicit_outputs.is_empty() {
-            write!(out, " |")?;
+            out.write_all(b" |")?;
             for output in &node.implicit_outputs {
                 out.write_all(b" ")?;
-                out.write_all(&Self::escape_build_target(*output))?;
+                Self::write_escaped_build_target(*output, out)?;
             }
         }
-        write!(out, ": {rule_name}")?;
+        out.write_all(b": ")?;
+        out.write_all(rule_name.as_bytes())?;
         if node.is_phony && !FLAGS.use_ninja_phony_output {
-            write!(out, " _kati_always_build_")?;
+            out.write_all(b" _kati_always_build_")?;
         }
         for (s, _) in &node.deps {
             out.write_all(b" ")?;
-            out.write_all(&Self::escape_build_target(*s))?;
+            Self::write_escaped_build_target(*s, out)?;
         }
         if !node.order_onlys.is_empty() {
-            write!(out, " ||")?;
+            out.write_all(b" ||")?;
             for (s, _) in &node.order_onlys {
                 out.write_all(b" ")?;
-                out.write_all(&Self::escape_build_target(*s))?;
+                Self::write_escaped_build_target(*s, out)?;
             }
         }
         if !node.validations.is_empty() {
-            write!(out, " |@")?;
+            out.write_all(b" |@")?;
             for (s, _) in &node.validations {
                 out.write_all(b" ")?;
-                out.write_all(&Self::escape_build_target(*s))?;
+                Self::write_escaped_build_target(*s, out)?;
             }
         }
 
-        writeln!(out)?;
+        out.write_all(b"\n")?;
 
         let pool = if let Some(ninja_pool_var) = &node.ninja_pool_var {
             Some(ninja_pool_var.read().eval_to_buf(self.ce.ev)?)
@@ -590,26 +613,26 @@ impl<'a> NinjaGenerator<'a> {
         if pool.as_ref().is_some_and(|pool| !pool.is_empty()) {
             let pool = pool.unwrap();
             if pool.as_ref() != b"none" {
-                write!(out, " pool = ")?;
+                out.write_all(b" pool = ")?;
                 out.write_all(&pool)?;
                 out.write_all(b"\n")?;
             }
         } else if !FLAGS.default_pool.is_empty() && rule_name != "phony" {
-            write!(out, " pool = ")?;
+            out.write_all(b" pool = ")?;
             out.write_all(FLAGS.default_pool.as_bytes())?;
             out.write_all(b"\n")?;
         } else if use_local_pool {
-            writeln!(out, " pool = local_pool")?;
+            out.write_all(b" pool = local_pool\n")?;
         }
         if node.is_phony && FLAGS.use_ninja_phony_output {
-            writeln!(out, " phony_output = true")?;
+            out.write_all(b" phony_output = true\n")?;
         }
         if let Some(tags_var) = &node.tags_var {
             let tags = tags_var.read().eval_to_buf(self.ce.ev)?;
             if !tags.is_empty() {
-                write!(out, " tags = ")?;
+                out.write_all(b" tags = ")?;
                 out.write_all(&tags)?;
-                writeln!(out)?;
+                out.write_all(b"\n")?;
             }
         }
         if node.is_default_target {
@@ -625,7 +648,7 @@ impl<'a> NinjaGenerator<'a> {
     fn generate_ninja(&mut self) -> Result<()> {
         let _tr = ScopedTimeReporter::new("ninja gen (emit)");
         let out = std::fs::File::create(get_ninja_filename())?;
-        let mut out = std::io::BufWriter::new(out);
+        let mut out = std::io::BufWriter::with_capacity(1024 * 1024, out);
 
         write!(out, "# Generated by kati unknown\n\n")?;
 
@@ -660,16 +683,15 @@ impl<'a> NinjaGenerator<'a> {
 
             write!(out, "\ndefault ")?;
             if FLAGS.targets.is_empty() || FLAGS.gen_all_targets {
-                out.write_all(&Self::escape_build_target(
-                    self.default_target.lock().as_ref().unwrap().lock().output,
-                ))?;
+                let default_out = self.default_target.lock().as_ref().unwrap().lock().output;
+                Self::write_escaped_build_target(default_out, &mut out)?;
             } else {
                 let mut empty = true;
                 for s in &FLAGS.targets {
                     if !empty {
                         out.write_all(b" ")?;
                     }
-                    out.write_all(&Self::escape_build_target(*s))?;
+                    Self::write_escaped_build_target(*s, &mut out)?;
                     empty = false;
                 }
             }
@@ -752,8 +774,9 @@ impl<'a> NinjaGenerator<'a> {
                 dump_systemtime(&mut out, &mtime)?;
             }
 
-            dump_usize(&mut out, Evaluator::used_undefined_vars().len())?;
-            for v in Evaluator::used_undefined_vars() {
+            let undefined_vars = Evaluator::used_undefined_vars();
+            dump_usize(&mut out, undefined_vars.len())?;
+            for v in undefined_vars {
                 dump_string(&mut out, &v.as_bytes())?;
             }
             dump_usize(&mut out, self.used_envs.len())?;

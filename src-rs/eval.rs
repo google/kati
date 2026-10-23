@@ -18,7 +18,7 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
 use std::io::BufWriter;
-use std::os::unix::ffi::OsStringExt;
+use std::os::unix::ffi::OsStrExt;
 use std::sync::{Arc, LazyLock, Weak};
 
 use anyhow::{Context, Result};
@@ -130,18 +130,27 @@ impl Frame {
 }
 
 pub struct ScopedFrame {
-    stack: Arc<Mutex<Vec<Arc<Frame>>>>,
+    stack: Option<Arc<Mutex<Vec<Arc<Frame>>>>>,
     frame: Option<Arc<Frame>>,
 }
 
 impl ScopedFrame {
-    fn new(stack: Arc<Mutex<Vec<Arc<Frame>>>>, frame: Option<Arc<Frame>>) -> Self {
-        if let Some(frame) = frame.clone() {
+    fn none() -> Self {
+        Self {
+            stack: None,
+            frame: None,
+        }
+    }
+    fn new(stack: Arc<Mutex<Vec<Arc<Frame>>>>, frame: Arc<Frame>) -> Self {
+        {
             let mut stack = stack.lock();
             stack.last().unwrap().add(frame.clone());
-            stack.push(frame);
+            stack.push(frame.clone());
         }
-        Self { stack, frame }
+        Self {
+            stack: Some(stack),
+            frame: Some(frame),
+        }
     }
     pub fn current(&self) -> Option<Arc<Frame>> {
         self.frame.clone()
@@ -150,8 +159,8 @@ impl ScopedFrame {
 
 impl Drop for ScopedFrame {
     fn drop(&mut self) {
-        if let Some(frame) = &self.frame {
-            let mut stack = self.stack.lock();
+        if let (Some(stack), Some(frame)) = (&self.stack, &self.frame) {
+            let mut stack = stack.lock();
             let last = stack.pop().unwrap();
             assert!(last.name == frame.name);
             assert!(last.location == frame.location);
@@ -371,6 +380,14 @@ impl Evaluator {
         self.stack.lock().last().unwrap().clone()
     }
 
+    pub fn current_frame_opt(&self) -> Option<Arc<Frame>> {
+        if self.trace {
+            self.stack.lock().last().cloned()
+        } else {
+            None
+        }
+    }
+
     pub fn eval_rhs(
         &mut self,
         lhs: Symbol,
@@ -384,9 +401,9 @@ impl Evaluator {
         } else if self.is_commandline {
             (VarOrigin::CommandLine, None)
         } else if is_override {
-            (VarOrigin::Override, self.stack.lock().last().cloned())
+            (VarOrigin::Override, self.current_frame_opt())
         } else {
-            (VarOrigin::File, self.stack.lock().last().cloned())
+            (VarOrigin::File, self.current_frame_opt())
         };
 
         let result: Var;
@@ -781,10 +798,10 @@ impl Evaluator {
     }
 
     pub fn do_include(&mut self, fname: &Bytes) -> Result<()> {
-        let filename = OsString::from_vec(fname.to_vec());
-        collect_stats_with_slow_report!("included makefiles", &filename);
+        let filename = OsStr::from_bytes(fname);
+        collect_stats_with_slow_report!("included makefiles", filename);
 
-        let Some(mk) = file_cache::get_makefile(&filename)? else {
+        let Some(mk) = file_cache::get_makefile(filename)? else {
             error_loc!(
                 self.loc.as_ref(),
                 "{} does not exist",
@@ -794,15 +811,13 @@ impl Evaluator {
 
         let v = fname.slice_ref(trim_leading_curdir(fname));
         if let Some(var_list) = self.lookup_var(*MAKEFILE_LIST)? {
-            var_list
-                .write()
-                .append_str(&v, Some(self.current_frame()))?;
+            var_list.write().append_str(&v, self.current_frame_opt())?;
         } else {
             MAKEFILE_LIST.set_global_var(
                 Variable::with_simple_string(
                     v,
                     VarOrigin::File,
-                    Some(self.current_frame()),
+                    self.current_frame_opt(),
                     self.loc,
                 ),
                 false,
@@ -1078,12 +1093,12 @@ impl Evaluator {
 
     pub fn enter(&mut self, frame_type: FrameType, name: Bytes, loc: Loc) -> ScopedFrame {
         if !self.trace {
-            return ScopedFrame::new(self.stack.clone(), None);
+            return ScopedFrame::none();
         }
 
         let parent = self.stack.lock().last().cloned();
         let frame = Frame::new(frame_type, parent, Some(loc), name);
-        ScopedFrame::new(self.stack.clone(), Some(Arc::new(frame)))
+        ScopedFrame::new(self.stack.clone(), Arc::new(frame))
     }
 
     pub fn get_shell(&mut self) -> Result<Bytes> {

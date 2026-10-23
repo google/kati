@@ -16,8 +16,9 @@ limitations under the License.
 
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
+use fxhash::FxHashSet;
 use parking_lot::Mutex;
-use std::{collections::HashSet, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
     dep::DepNode,
@@ -100,7 +101,7 @@ impl AutoCommandVar {
                 }
             }
             AutoCommand::Hat => {
-                let mut seen = HashSet::new();
+                let mut seen = FxHashSet::default();
                 let mut ww = WordWriter::new(out);
                 for ai in current_dep_node.actual_inputs.iter() {
                     if seen.insert(*ai) {
@@ -121,7 +122,7 @@ impl AutoCommandVar {
                 }
             }
             AutoCommand::Question { found_new_inputs } => {
-                let mut seen: HashSet<Symbol> = HashSet::new();
+                let mut seen: FxHashSet<Symbol> = FxHashSet::default();
 
                 if ev.avoid_io {
                     // Check timestamps using the shell at the start of rule execution
@@ -273,11 +274,16 @@ impl<'a> CommandEvaluator<'a> {
     pub fn eval(&mut self, n: &Arc<Mutex<DepNode>>) -> Result<Vec<Command>> {
         let mut result: Vec<Command> = Vec::new();
         let node_cmds;
+        let node_output;
         {
             let node = n.lock();
+            if node.cmds.is_empty() && self.ev.delayed_output_commands.is_empty() {
+                return Ok(result);
+            }
             self.ev.loc = node.loc;
             self.ev.current_scope = node.rule_vars.clone();
             node_cmds = node.cmds.clone();
+            node_output = node.output;
         }
         self.ev.is_evaluating_command = true;
         *self.current_dep_node.lock() = Some(n.clone());
@@ -285,7 +291,7 @@ impl<'a> CommandEvaluator<'a> {
         for v in node_cmds {
             self.ev.loc = v.loc();
             let cmds_buf = v.eval_to_buf(self.ev)?;
-            let mut cmds = cmds_buf.clone();
+            let mut cmds = cmds_buf;
             let mut global_echo = !FLAGS.is_silent_mode;
             let mut global_ignore_error = false;
             cmds = parse_command_prefixes(cmds, &mut global_echo, &mut global_ignore_error);
@@ -303,7 +309,7 @@ impl<'a> CommandEvaluator<'a> {
 
                 if !cmd.is_empty() {
                     result.push(Command {
-                        output: n.lock().output,
+                        output: node_output,
                         cmd,
                         echo,
                         ignore_error,
@@ -315,10 +321,9 @@ impl<'a> CommandEvaluator<'a> {
 
         if !self.ev.delayed_output_commands.is_empty() {
             let mut output_commands = Vec::new();
-            let node = n.lock();
             for cmd in &self.ev.delayed_output_commands {
                 output_commands.push(Command {
-                    output: node.output,
+                    output: node_output,
                     cmd: cmd.clone(),
                     echo: false,
                     ignore_error: false,

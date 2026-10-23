@@ -136,7 +136,7 @@ fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<
         Variable::with_simple_string(
             makefile_list.freeze(),
             VarOrigin::File,
-            Some(ev.current_frame()),
+            ev.current_frame_opt(),
             ev.loc,
         ),
         false,
@@ -146,13 +146,7 @@ fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<
         let v = Bytes::from(v.as_bytes().to_vec());
         let val = Arc::new(Value::Literal(None, v.clone()));
         intern(k.as_bytes().to_vec()).set_global_var(
-            Variable::new_recursive(
-                val,
-                VarOrigin::Environment,
-                Some(ev.current_frame()),
-                None,
-                v,
-            ),
+            Variable::new_recursive(val, VarOrigin::Environment, ev.current_frame_opt(), None, v),
             false,
             None,
         )?;

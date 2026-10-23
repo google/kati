@@ -1116,7 +1116,7 @@ fn deprecated_var_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut Bytes
         let v = match ev.peek_var(sym) {
             Some(v) => v,
             None => {
-                let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc);
+                let v = Variable::new_simple(VarOrigin::File, ev.current_frame_opt(), ev.loc);
                 sym.set_global_var(v.clone(), false, None)?;
                 v
             }
@@ -1161,7 +1161,7 @@ fn obsolete_var_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut BytesMu
         let v = match ev.peek_var(sym) {
             Some(v) => v,
             None => {
-                let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc);
+                let v = Variable::new_simple(VarOrigin::File, ev.current_frame_opt(), ev.loc);
                 sym.set_global_var(v.clone(), false, None)?;
                 v
             }
@@ -1362,7 +1362,7 @@ fn visibility_prefix_func(
         v
     } else {
         // If variable is not defined, create an empty variable.
-        let v = Variable::new_simple(VarOrigin::File, Some(ev.current_frame()), ev.loc);
+        let v = Variable::new_simple(VarOrigin::File, ev.current_frame_opt(), ev.loc);
         sym.set_global_var(v.clone(), false, None)?;
         v
     };

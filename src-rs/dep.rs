@@ -156,21 +156,19 @@ impl RuleTrie {
             .add(&name[1..], rule)
     }
 
-    fn get(&self, name: &[u8]) -> Vec<Arc<Rule>> {
-        let mut ret = Vec::new();
+    fn get(&self, name: &[u8], out: &mut Vec<Arc<Rule>>) {
         for ent in &self.rules {
             if (ent.suffix.is_empty() && name.is_empty()) || name.ends_with(&ent.suffix[1..]) {
-                ret.push(ent.rule.clone())
+                out.push(ent.rule.clone())
             }
         }
         if name.is_empty() {
-            return ret;
+            return;
         }
         let c = name[0];
         if let Some(child) = self.children.get(&c) {
-            ret.extend(child.get(&name[1..]));
+            child.get(&name[1..], out);
         }
-        ret
     }
 
     fn len(&self) -> usize {
@@ -508,13 +506,14 @@ impl<'a> DepBuilder<'a> {
                 }
             }
 
-            let mut rule_keys = self.rules.keys().cloned().collect::<Vec<_>>();
+            let mut rule_keys = self
+                .rules
+                .keys()
+                .copied()
+                .filter(|t| !non_root_targets.contains(t) && !is_special_target(t))
+                .collect::<Vec<_>>();
             rule_keys.sort_by_cached_key(|k| k.as_bytes());
-            for t in rule_keys {
-                if !non_root_targets.contains(&t) && !is_special_target(&t) {
-                    targets.push(t);
-                }
-            }
+            targets.extend(rule_keys);
         }
 
         // TODO: LogStats?
@@ -565,24 +564,33 @@ impl<'a> DepBuilder<'a> {
         for rules in self.suffix_rules.values_mut() {
             rules.reverse();
         }
-        // TODO: This clone likely isn't necessary with some refactoring
-        for (symbol, merger) in self.rules.clone() {
-            let Some(vars) = self.lookup_rule_vars(symbol) else {
-                continue;
-            };
+        let rule_var_symbols: Vec<(Symbol, Arc<Vars>)> = self
+            .rule_vars
+            .iter()
+            .filter_map(|(&sym, vars)| {
+                if self.rules.contains_key(&sym) {
+                    Some((sym, vars.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for (symbol, vars) in rule_var_symbols {
+            let merger = self.rules[&symbol].clone();
             if let Some(var) = vars.lookup(self.implicit_outputs_var_name) {
                 let implicit_outputs = var.read().eval_to_buf(self.ev)?;
 
                 for output in word_scanner(&implicit_outputs) {
                     let sym = intern(implicit_outputs.slice_ref(trim_leading_curdir(output)));
-                    self.rules
+                    let target_merger = self
+                        .rules
                         .entry(sym)
                         .or_insert_with(RuleMerger::new)
+                        .clone();
+                    target_merger
                         .lock()
                         .set_implicit_output(sym, symbol, merger.clone())?;
-                    merger
-                        .lock()
-                        .add_implicit_output(sym, self.rules[&sym].clone());
+                    merger.lock().add_implicit_output(sym, target_merger);
                 }
             }
 
@@ -769,7 +777,8 @@ impl<'a> DepBuilder<'a> {
             });
         }
 
-        let irules = self.implicit_rules.get(&output.as_bytes());
+        let mut irules = Vec::new();
+        self.implicit_rules.get(&output.as_bytes(), &mut irules);
         for rule in irules.into_iter().rev() {
             let Some(pattern_rule) = self.can_pick_implicit_rule(&rule, output, n.clone()) else {
                 continue;
@@ -899,11 +908,15 @@ impl<'a> DepBuilder<'a> {
         }
         let output_str = output.as_bytes();
 
-        picked_rule_info
-            .merger
-            .unwrap_or_else(RuleMerger::new)
-            .lock()
-            .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
+        if let Some(merger) = &picked_rule_info.merger {
+            merger
+                .lock()
+                .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
+        } else if picked_rule_info.pattern_rule.is_some() {
+            RuleMerger::new()
+                .lock()
+                .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
+        }
 
         let mut sv = Vec::new();
         let frame = self.ev.enter(
@@ -1129,7 +1142,9 @@ impl<'a> DepBuilder<'a> {
             let mut n = n.lock();
             n.has_rule = true;
             n.is_default_target = self.first_rule == Some(output);
-            if let Some(cur_rule_vars) = &self.cur_rule_vars {
+            if let Some(cur_rule_vars) = &self.cur_rule_vars
+                && !cur_rule_vars.is_empty()
+            {
                 let v = Vars::new();
                 v.merge_from(cur_rule_vars);
                 n.rule_vars = Some(Arc::new(v));
