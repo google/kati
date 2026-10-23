@@ -60,7 +60,7 @@ enum AutoCommandVariant {
 }
 
 impl AutoCommandVar {
-    pub fn eval(&self, ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {
+    pub fn eval(&self, ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
         match self.variant {
             AutoCommandVariant::None => self.eval_impl(ev, out)?,
             AutoCommandVariant::D => {
@@ -86,7 +86,7 @@ impl AutoCommandVar {
         Ok(())
     }
 
-    fn eval_impl(&self, ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {
+    fn eval_impl(&self, ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
         let current_dep_node = self.current_dep_node.lock();
         let current_dep_node = current_dep_node.as_ref().unwrap().lock();
 

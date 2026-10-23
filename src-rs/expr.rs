@@ -29,7 +29,7 @@ use crate::symtab::{Symbol, intern};
 use crate::{error_loc, kati_warn_loc, log};
 
 pub trait Evaluable {
-    fn eval(&self, ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()>;
+    fn eval(&self, ev: &mut Evaluator, out: &mut BytesMut) -> Result<()>;
 
     fn eval_to_buf_mut(&self, ev: &mut Evaluator) -> Result<BytesMut> {
         let mut out = BytesMut::new();
@@ -82,7 +82,7 @@ pub enum Value {
 }
 
 impl Evaluable for Value {
-    fn eval(&self, ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {
+    fn eval(&self, ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
         match self {
             Value::Literal(_, lit) => out.put_slice(lit),
             Value::List(_, vec) => {
@@ -178,6 +178,7 @@ impl Evaluable for Value {
 }
 
 impl Value {
+    #[inline]
     pub fn loc(&self) -> Option<Loc> {
         match self {
             Value::Literal(loc, _) => *loc,

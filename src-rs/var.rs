@@ -23,7 +23,7 @@ use std::{
 };
 
 use anyhow::Result;
-use bytes::{BufMut, Bytes};
+use bytes::{BufMut, Bytes, BytesMut};
 use fxhash::{FxHashMap, FxHashSet};
 use parking_lot::{Mutex, RwLock};
 
@@ -363,7 +363,7 @@ impl Variable {
 }
 
 impl Evaluable for Variable {
-    fn eval(&self, ev: &mut crate::eval::Evaluator, out: &mut dyn BufMut) -> Result<()> {
+    fn eval(&self, ev: &mut crate::eval::Evaluator, out: &mut BytesMut) -> Result<()> {
         match &self.value {
             InnerVar::Simple(v) => {
                 out.put_slice(v);
