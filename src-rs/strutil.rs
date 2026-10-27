@@ -17,6 +17,7 @@ limitations under the License.
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
 use memchr::{memchr, memchr2, memmem, memrchr};
+use smallvec::SmallVec;
 use std::{borrow::Cow, env::current_dir, os::unix::ffi::OsStrExt};
 
 #[inline]
@@ -414,7 +415,7 @@ pub fn abs_path(s: &[u8]) -> Result<Bytes> {
 
 pub fn find_outside_paren(s: &[u8], pattern: &[u8]) -> Option<usize> {
     let mut prev_backslash = false;
-    let mut paren_stack: Vec<u8> = Vec::new();
+    let mut paren_stack: SmallVec<[u8; 64]> = SmallVec::new();
     let mut pattern_set = [false; 128];
     for c in pattern {
         assert!(c.is_ascii());

@@ -26,6 +26,7 @@ rust_defaults {
         "libmemchr",
         "libos_pipe",
         "libparking_lot",
+        "libsmallvec",
     ],
 }
 
