@@ -15,14 +15,15 @@ limitations under the License.
 */
 
 use std::borrow::Cow;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
 use std::io::BufWriter;
-use std::os::unix::ffi::OsStringExt;
+use std::os::unix::ffi::OsStrExt;
 use std::sync::{Arc, LazyLock, Weak};
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
+use fxhash::{FxHashMap, FxHashSet};
 use memchr::{memchr, memchr2};
 use parking_lot::Mutex;
 
@@ -129,18 +130,27 @@ impl Frame {
 }
 
 pub struct ScopedFrame {
-    stack: Arc<Mutex<Vec<Arc<Frame>>>>,
+    stack: Option<Arc<Mutex<Vec<Arc<Frame>>>>>,
     frame: Option<Arc<Frame>>,
 }
 
 impl ScopedFrame {
-    fn new(stack: Arc<Mutex<Vec<Arc<Frame>>>>, frame: Option<Arc<Frame>>) -> Self {
-        if let Some(frame) = frame.clone() {
+    fn none() -> Self {
+        Self {
+            stack: None,
+            frame: None,
+        }
+    }
+    fn new(stack: Arc<Mutex<Vec<Arc<Frame>>>>, frame: Arc<Frame>) -> Self {
+        {
             let mut stack = stack.lock();
             stack.last().unwrap().add(frame.clone());
-            stack.push(frame);
+            stack.push(frame.clone());
         }
-        Self { stack, frame }
+        Self {
+            stack: Some(stack),
+            frame: Some(frame),
+        }
     }
     pub fn current(&self) -> Option<Arc<Frame>> {
         self.frame.clone()
@@ -149,8 +159,8 @@ impl ScopedFrame {
 
 impl Drop for ScopedFrame {
     fn drop(&mut self) {
-        if let Some(frame) = &self.frame {
-            let mut stack = self.stack.lock();
+        if let (Some(stack), Some(frame)) = (&self.stack, &self.frame) {
+            let mut stack = stack.lock();
             let last = stack.pop().unwrap();
             assert!(last.name == frame.name);
             assert!(last.location == frame.location);
@@ -164,14 +174,14 @@ struct IncludeGraphNode {
 }
 
 struct IncludeGraph {
-    nodes: HashMap<Bytes, IncludeGraphNode>,
+    nodes: FxHashMap<Bytes, IncludeGraphNode>,
     include_stack: Vec<Arc<Frame>>,
 }
 
 impl IncludeGraph {
     fn new() -> Self {
         Self {
-            nodes: HashMap::new(),
+            nodes: FxHashMap::default(),
             include_stack: Vec::new(),
         }
     }
@@ -236,14 +246,14 @@ impl IncludeGraph {
     }
 }
 
-static USED_UNDEFINED_VARS: LazyLock<Mutex<HashSet<Symbol>>> =
-    LazyLock::new(|| Mutex::new(HashSet::new()));
+static USED_UNDEFINED_VARS: LazyLock<Mutex<FxHashSet<Symbol>>> =
+    LazyLock::new(|| Mutex::new(FxHashSet::default()));
 
 pub struct Evaluator {
-    pub rule_vars: HashMap<Symbol, Arc<Vars>>,
+    pub rule_vars: FxHashMap<Symbol, Arc<Vars>>,
     pub rules: Vec<Rule>,
-    pub exports: HashMap<Symbol, bool>,
-    symbols_for_eval: HashSet<Symbol>,
+    pub exports: FxHashMap<Symbol, bool>,
+    symbols_for_eval: FxHashSet<Symbol>,
 
     in_rule: bool,
     pub current_scope: Option<Arc<Vars>>,
@@ -286,10 +296,10 @@ impl Default for Evaluator {
 impl Evaluator {
     pub fn new() -> Self {
         Self {
-            rule_vars: HashMap::new(),
+            rule_vars: FxHashMap::default(),
             rules: Vec::new(),
-            exports: HashMap::new(),
-            symbols_for_eval: HashSet::new(),
+            exports: FxHashMap::default(),
+            symbols_for_eval: FxHashSet::default(),
 
             in_rule: false,
             current_scope: None,
@@ -370,6 +380,14 @@ impl Evaluator {
         self.stack.lock().last().unwrap().clone()
     }
 
+    pub fn current_frame_opt(&self) -> Option<Arc<Frame>> {
+        if self.trace {
+            self.stack.lock().last().cloned()
+        } else {
+            None
+        }
+    }
+
     pub fn eval_rhs(
         &mut self,
         lhs: Symbol,
@@ -383,9 +401,9 @@ impl Evaluator {
         } else if self.is_commandline {
             (VarOrigin::CommandLine, None)
         } else if is_override {
-            (VarOrigin::Override, self.stack.lock().last().cloned())
+            (VarOrigin::Override, self.current_frame_opt())
         } else {
-            (VarOrigin::File, self.stack.lock().last().cloned())
+            (VarOrigin::File, self.current_frame_opt())
         };
 
         let result: Var;
@@ -395,23 +413,12 @@ impl Evaluator {
         match op {
             AssignOp::ColonEq => {
                 prev = self.peek_var_in_current_scope(lhs);
-                result = Variable::with_simple_value(
-                    origin,
-                    current_frame,
-                    self.loc.clone(),
-                    self,
-                    &rhs_v,
-                )?;
+                result =
+                    Variable::with_simple_value(origin, current_frame, self.loc, self, &rhs_v)?;
             }
             AssignOp::Eq => {
                 prev = self.peek_var_in_current_scope(lhs);
-                result = Variable::new_recursive(
-                    rhs_v,
-                    origin,
-                    current_frame,
-                    self.loc.clone(),
-                    orig_rhs,
-                );
+                result = Variable::new_recursive(rhs_v, origin, current_frame, self.loc, orig_rhs);
             }
             AssignOp::PlusEq => {
                 prev = self.lookup_var_in_current_scope(lhs)?;
@@ -425,23 +432,16 @@ impl Evaluator {
                     result = prev;
                     if result.read().immediate_eval() {
                         let buf = rhs_v.eval_to_buf(self)?;
-                        result.write().append_str(&buf, self.current_frame())?;
+                        result.write().append_str(&buf, current_frame)?;
                     } else {
-                        result.write().append_var(
-                            rhs_v,
-                            self.current_frame(),
-                            self.loc.as_ref(),
-                        )?;
+                        result
+                            .write()
+                            .append_var(rhs_v, current_frame, self.loc.as_ref())?;
                     }
                     needs_assign = false;
                 } else {
-                    result = Variable::new_recursive(
-                        rhs_v,
-                        origin,
-                        current_frame,
-                        self.loc.clone(),
-                        orig_rhs,
-                    );
+                    result =
+                        Variable::new_recursive(rhs_v, origin, current_frame, self.loc, orig_rhs);
                 }
             }
             AssignOp::QuestionEq => {
@@ -450,13 +450,8 @@ impl Evaluator {
                     result = prev;
                     needs_assign = false;
                 } else {
-                    result = Variable::new_recursive(
-                        rhs_v,
-                        origin,
-                        current_frame,
-                        self.loc.clone(),
-                        orig_rhs,
-                    );
+                    result =
+                        Variable::new_recursive(rhs_v, origin, current_frame, self.loc, orig_rhs);
                 }
             }
         }
@@ -597,7 +592,7 @@ impl Evaluator {
                     b" = "
                 };
                 Some(Arc::new(Value::List(
-                    self.loc.clone(),
+                    self.loc,
                     vec![
                         Arc::new(Value::Literal(None, after_targets.slice_ref(assign.rhs))),
                         Arc::new(Value::Literal(None, Bytes::from_static(sep))),
@@ -697,7 +692,7 @@ impl Evaluator {
             error_loc!(self.loc.as_ref(), "*** empty variable name.");
         }
 
-        let mut rule = Rule::new(self.loc.clone().unwrap(), is_double_colon);
+        let mut rule = Rule::new(self.loc.unwrap(), is_double_colon);
         if is_pattern_rule {
             rule.output_patterns = targets;
         } else {
@@ -803,10 +798,10 @@ impl Evaluator {
     }
 
     pub fn do_include(&mut self, fname: &Bytes) -> Result<()> {
-        let filename = OsString::from_vec(fname.to_vec());
-        collect_stats_with_slow_report!("included makefiles", &filename);
+        let filename = OsStr::from_bytes(fname);
+        collect_stats_with_slow_report!("included makefiles", filename);
 
-        let Some(mk) = file_cache::get_makefile(&filename)? else {
+        let Some(mk) = file_cache::get_makefile(filename)? else {
             error_loc!(
                 self.loc.as_ref(),
                 "{} does not exist",
@@ -816,14 +811,14 @@ impl Evaluator {
 
         let v = fname.slice_ref(trim_leading_curdir(fname));
         if let Some(var_list) = self.lookup_var(*MAKEFILE_LIST)? {
-            var_list.write().append_str(&v, self.current_frame())?;
+            var_list.write().append_str(&v, self.current_frame_opt())?;
         } else {
             MAKEFILE_LIST.set_global_var(
                 Variable::with_simple_string(
                     v,
                     VarOrigin::File,
-                    Some(self.current_frame()),
-                    self.loc.clone(),
+                    self.current_frame_opt(),
+                    self.loc,
                 ),
                 false,
                 None,
@@ -1013,15 +1008,24 @@ impl Evaluator {
         Ok(())
     }
 
+    pub fn check_and_mark_var_for_eval(&mut self, name: Symbol, var: &Variable) -> Result<()> {
+        if !self.symbols_for_eval.insert(name) {
+            error_loc!(
+                var.loc().as_ref(),
+                "*** Recursive variable \"{name}\" references itself (eventually)."
+            );
+        }
+        Ok(())
+    }
+
     pub fn lookup_var_for_eval(&mut self, name: Symbol) -> Result<Option<Var>> {
         if let Some(var) = self.lookup_var(name)? {
-            if self.symbols_for_eval.contains(&name) {
+            if !self.symbols_for_eval.insert(name) {
                 error_loc!(
                     var.read().loc().as_ref(),
                     "*** Recursive variable \"{name}\" references itself (eventually)."
                 );
             }
-            self.symbols_for_eval.insert(name);
             return Ok(Some(var));
         }
         Ok(None)
@@ -1089,12 +1093,12 @@ impl Evaluator {
 
     pub fn enter(&mut self, frame_type: FrameType, name: Bytes, loc: Loc) -> ScopedFrame {
         if !self.trace {
-            return ScopedFrame::new(self.stack.clone(), None);
+            return ScopedFrame::none();
         }
 
         let parent = self.stack.lock().last().cloned();
         let frame = Frame::new(frame_type, parent, Some(loc), name);
-        ScopedFrame::new(self.stack.clone(), Some(Arc::new(frame)))
+        ScopedFrame::new(self.stack.clone(), Arc::new(frame))
     }
 
     pub fn get_shell(&mut self) -> Result<Bytes> {
@@ -1127,7 +1131,7 @@ impl Evaluator {
         Ok(())
     }
 
-    pub fn used_undefined_vars() -> HashSet<Symbol> {
+    pub fn used_undefined_vars() -> FxHashSet<Symbol> {
         USED_UNDEFINED_VARS.lock().clone()
     }
 }

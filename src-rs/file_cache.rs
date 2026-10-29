@@ -15,27 +15,27 @@ limitations under the License.
 */
 
 use std::{
-    collections::HashMap,
     ffi::{OsStr, OsString},
     sync::{Arc, LazyLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::Result;
+use fxhash::FxHashMap;
 use parking_lot::Mutex;
 
 use crate::file::Makefile;
 
 static CACHE: LazyLock<Mutex<MakefileCacheManager>> = LazyLock::new(|| {
     Mutex::new(MakefileCacheManager {
-        cache: HashMap::new(),
-        extra_file_deps: HashMap::new(),
+        cache: FxHashMap::default(),
+        extra_file_deps: FxHashMap::default(),
     })
 });
 
 struct MakefileCacheManager {
-    cache: HashMap<OsString, Option<Arc<Makefile>>>,
-    extra_file_deps: HashMap<OsString, SystemTime>,
+    cache: FxHashMap<OsString, Option<Arc<Makefile>>>,
+    extra_file_deps: FxHashMap<OsString, SystemTime>,
 }
 
 impl MakefileCacheManager {
@@ -61,9 +61,9 @@ pub fn add_extra_file_dep(filename: OsString) {
     CACHE.lock().extra_file_deps.insert(filename, mtime);
 }
 
-pub fn get_all_filenames() -> HashMap<OsString, SystemTime> {
+pub fn get_all_filenames() -> FxHashMap<OsString, SystemTime> {
     let manager = CACHE.lock();
-    let mut ret = HashMap::new();
+    let mut ret = FxHashMap::default();
     for (p, mk) in &manager.cache {
         let mtime = mk
             .as_ref()

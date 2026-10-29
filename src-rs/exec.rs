@@ -94,7 +94,7 @@ impl<'a> Executor<'a> {
             }
             return Ok(*found);
         }
-        let loc = n.lock().loc.clone();
+        let loc = n.lock().loc;
         let _frame = self
             .ce
             .ev

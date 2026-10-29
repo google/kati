@@ -29,7 +29,7 @@ use crate::symtab::{Symbol, intern};
 use crate::{error_loc, kati_warn_loc, log};
 
 pub trait Evaluable {
-    fn eval(&self, ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()>;
+    fn eval(&self, ev: &mut Evaluator, out: &mut BytesMut) -> Result<()>;
 
     fn eval_to_buf_mut(&self, ev: &mut Evaluator) -> Result<BytesMut> {
         let mut out = BytesMut::new();
@@ -82,7 +82,7 @@ pub enum Value {
 }
 
 impl Evaluable for Value {
-    fn eval(&self, ev: &mut Evaluator, out: &mut dyn BufMut) -> Result<()> {
+    fn eval(&self, ev: &mut Evaluator, out: &mut BytesMut) -> Result<()> {
         match self {
             Value::Literal(_, lit) => out.put_slice(lit),
             Value::List(_, vec) => {
@@ -92,12 +92,19 @@ impl Evaluable for Value {
             }
             Value::SymRef(_, sym) => {
                 let sym = *sym;
-                if let Some(v) = ev.lookup_var_for_eval(sym)? {
+                if let Some(v) = ev.lookup_var(sym)? {
                     let v = v.read();
-                    v.used(ev, &sym)?;
-                    v.eval(ev, out)?;
-                    v.check_current_referencing_file(&ev.loc, sym)?;
-                    ev.var_eval_complete(sym);
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        out.put_slice(sv.as_slice());
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                    } else {
+                        ev.check_and_mark_var_for_eval(sym, &v)?;
+                        v.used(ev, &sym)?;
+                        v.eval(ev, out)?;
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        ev.var_eval_complete(sym);
+                    }
                 }
             }
             Value::VarRef(_, var) => {
@@ -105,12 +112,19 @@ impl Evaluable for Value {
                 let name = var.eval_to_buf(ev)?;
                 ev.eval_depth -= 1;
                 let sym = intern(name);
-                if let Some(v) = ev.lookup_var_for_eval(sym)? {
+                if let Some(v) = ev.lookup_var(sym)? {
                     let v = v.read();
-                    v.used(ev, &sym)?;
-                    v.eval(ev, out)?;
-                    v.check_current_referencing_file(&ev.loc, sym)?;
-                    ev.var_eval_complete(sym);
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        out.put_slice(sv.as_slice());
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                    } else {
+                        ev.check_and_mark_var_for_eval(sym, &v)?;
+                        v.used(ev, &sym)?;
+                        v.eval(ev, out)?;
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        ev.var_eval_complete(sym);
+                    }
                 }
             }
             Value::VarSubst {
@@ -134,13 +148,12 @@ impl Evaluable for Value {
                     let pat = Pattern::new(pat_str);
                     for tok in word_scanner(&value) {
                         ww.maybe_add_space();
-                        let tok = value.slice_ref(tok);
-                        ww.out.put_slice(&pat.append_subst_ref(&tok, &subst));
+                        pat.append_subst_ref_to(tok, &subst, ww.out);
                     }
                 }
             }
             Value::Func { loc, fi, args } => {
-                let _frame = ev.enter(FrameType::FunCall, Bytes::from_static(fi.name), loc.clone());
+                let _frame = ev.enter(FrameType::FunCall, Bytes::from_static(fi.name), *loc);
                 log!(
                     "Invoke func {}({:?})",
                     String::from_utf8_lossy(fi.name),
@@ -152,6 +165,57 @@ impl Evaluable for Value {
             }
         }
         Ok(())
+    }
+
+    #[inline]
+    fn eval_to_buf(&self, ev: &mut Evaluator) -> Result<Bytes> {
+        match self {
+            Value::Literal(_, lit) => Ok(lit.clone()),
+            Value::SymRef(_, sym) => {
+                let sym = *sym;
+                if let Some(v) = ev.lookup_var(sym)? {
+                    let v = v.read();
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        let res = sv.to_bytes();
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        return Ok(res);
+                    }
+                    ev.check_and_mark_var_for_eval(sym, &v)?;
+                    v.used(ev, &sym)?;
+                    let mut out = BytesMut::new();
+                    v.eval(ev, &mut out)?;
+                    v.check_current_referencing_file(&ev.loc, sym)?;
+                    ev.var_eval_complete(sym);
+                    return Ok(out.freeze());
+                }
+                Ok(Bytes::new())
+            }
+            Value::VarRef(_, var) => {
+                ev.eval_depth += 1;
+                let name = var.eval_to_buf(ev)?;
+                ev.eval_depth -= 1;
+                let sym = intern(name);
+                if let Some(v) = ev.lookup_var(sym)? {
+                    let v = v.read();
+                    if let crate::var::InnerVar::Simple(sv) = v.inner() {
+                        v.used(ev, &sym)?;
+                        let res = sv.to_bytes();
+                        v.check_current_referencing_file(&ev.loc, sym)?;
+                        return Ok(res);
+                    }
+                    ev.check_and_mark_var_for_eval(sym, &v)?;
+                    v.used(ev, &sym)?;
+                    let mut out = BytesMut::new();
+                    v.eval(ev, &mut out)?;
+                    v.check_current_referencing_file(&ev.loc, sym)?;
+                    ev.var_eval_complete(sym);
+                    return Ok(out.freeze());
+                }
+                Ok(Bytes::new())
+            }
+            _ => Ok(self.eval_to_buf_mut(ev)?.freeze()),
+        }
     }
 
     fn is_func(&self) -> bool {
@@ -178,14 +242,15 @@ impl Evaluable for Value {
 }
 
 impl Value {
+    #[inline]
     pub fn loc(&self) -> Option<Loc> {
         match self {
-            Value::Literal(loc, _) => loc.clone(),
-            Value::List(loc, _) => loc.clone(),
-            Value::SymRef(loc, _) => Some(loc.clone()),
-            Value::VarRef(loc, _) => Some(loc.clone()),
-            Value::VarSubst { loc, .. } => Some(loc.clone()),
-            Value::Func { loc, .. } => Some(loc.clone()),
+            Value::Literal(loc, _) => *loc,
+            Value::List(loc, _) => *loc,
+            Value::SymRef(loc, _) => Some(*loc),
+            Value::VarRef(loc, _) => Some(*loc),
+            Value::VarSubst { loc, .. } => Some(*loc),
+            Value::Func { loc, .. } => Some(*loc),
         }
     }
 }
@@ -230,7 +295,7 @@ fn parse_func(
     mut i: usize,
     mut terms: Vec<u8>,
 ) -> Result<(usize, Vec<Arc<Value>>)> {
-    let start_loc = loc.clone();
+    let start_loc = *loc;
     terms.truncate(2);
     terms[1] = b',';
     i += skip_spaces(loc, &s[i..], &terms);
@@ -311,13 +376,10 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
     assert!(s.starts_with(b"$"));
     assert!(!s.starts_with(b"$$"));
 
-    let start_loc = loc.clone();
+    let start_loc = *loc;
 
     let Some(cp) = close_paren(s[1]) else {
-        return Ok((
-            2,
-            Arc::new(Value::SymRef(start_loc.clone(), intern(s.slice(1..2)))),
-        ));
+        return Ok((2, Arc::new(Value::SymRef(start_loc, intern(s.slice(1..2))))));
     };
 
     let mut terms = vec![cp, b':', b' '];
@@ -391,7 +453,7 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
                 return Ok((
                     i + 1,
                     Arc::new(Value::VarRef(
-                        start_loc.clone(),
+                        start_loc,
                         Arc::new(Value::List(
                             Some(start_loc),
                             vec![
@@ -434,7 +496,7 @@ fn parse_dollar(loc: &mut Loc, s: Bytes, end_paren: bool) -> Result<(usize, Arc<
             );
             return Ok((
                 s.len(),
-                Arc::new(Value::SymRef(start_loc.clone(), intern(s.slice(2..found)))),
+                Arc::new(Value::SymRef(start_loc, intern(s.slice(2..found)))),
             ));
         }
 
@@ -461,7 +523,7 @@ pub fn parse_expr_impl_ext(
     // This is for compatibility with a read-past-end in ckati
     end_paren: bool,
 ) -> Result<(usize, Arc<Value>)> {
-    let list_loc = loc.clone();
+    let list_loc = *loc;
 
     let s = s.slice_ref(trim_suffix(&s, b"\r"));
 
@@ -473,7 +535,7 @@ pub fn parse_expr_impl_ext(
     let mut terms_ignored = 0;
 
     while i < s.len() {
-        let item_loc = loc.clone();
+        let item_loc = *loc;
 
         let remaining = &s[i..];
         let c = remaining[0];

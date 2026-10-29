@@ -20,11 +20,13 @@ rust_defaults {
     rustlibs: [
         "libanyhow",
         "libbytes",
+        "libfxhash",
         "liblibc",
         "liblog_rust",
         "libmemchr",
         "libos_pipe",
         "libparking_lot",
+        "libsmallvec",
     ],
 }
 

@@ -18,7 +18,7 @@ use std::{fmt::Display, sync::LazyLock};
 
 use crate::symtab::{Symbol, intern};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Loc {
     pub filename: Symbol,
     pub line: i32,

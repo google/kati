@@ -17,44 +17,52 @@ limitations under the License.
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
 use memchr::{memchr, memchr2, memmem, memrchr};
+use smallvec::SmallVec;
 use std::{borrow::Cow, env::current_dir, os::unix::ffi::OsStrExt};
 
+#[inline]
 pub fn is_space(c: char) -> bool {
     ('\t'..='\r').contains(&c) || c == ' '
 }
 
+#[inline]
 pub fn is_space_byte(c: &u8) -> bool {
     let c = *c;
-    (b'\t'..=b'\r').contains(&c) || c == b' '
+    c == b' ' || (b'\t'..=b'\r').contains(&c)
 }
 
+#[inline]
 pub fn skip_until(s: &[u8], pattern: &[u8]) -> usize {
     s.iter()
         .position(|c| pattern.contains(c))
         .unwrap_or(s.len())
 }
 
+#[inline]
 pub fn skip_until2(s: &[u8], needle1: u8, needle2: u8) -> usize {
     memchr2(needle1, needle2, s).unwrap_or(s.len())
 }
 
+#[inline]
 pub fn word_scanner(s: &[u8]) -> impl Iterator<Item = &[u8]> {
     s.split(is_space_byte).filter(|s| !s.is_empty())
 }
 
 pub struct WordWriter<'a> {
-    pub out: &'a mut dyn BufMut,
+    pub out: &'a mut BytesMut,
     needs_space: bool,
 }
 
 impl<'a> WordWriter<'a> {
-    pub fn new(out: &'a mut dyn BufMut) -> WordWriter<'a> {
+    #[inline]
+    pub fn new(out: &'a mut BytesMut) -> WordWriter<'a> {
         WordWriter {
             out,
             needs_space: false,
         }
     }
 
+    #[inline]
     pub fn maybe_add_separator(&mut self, sep: &[u8]) {
         if self.needs_space {
             self.out.put_slice(sep)
@@ -63,10 +71,12 @@ impl<'a> WordWriter<'a> {
         }
     }
 
+    #[inline]
     pub fn maybe_add_space(&mut self) {
         self.maybe_add_separator(b" ")
     }
 
+    #[inline]
     pub fn write(&mut self, s: &[u8]) {
         self.maybe_add_space();
         self.out.put_slice(s);
@@ -113,6 +123,37 @@ pub fn trim_suffix<'a>(s: &'a [u8], suffix: &[u8]) -> &'a [u8] {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PatternSlice<'a> {
+    pat: &'a [u8],
+    percent_index: Option<usize>,
+}
+
+impl<'a> PatternSlice<'a> {
+    #[inline]
+    pub fn new(pat: &'a [u8]) -> Self {
+        Self {
+            pat,
+            percent_index: memchr(b'%', pat),
+        }
+    }
+
+    #[inline]
+    pub fn is_literal(&self) -> bool {
+        self.percent_index.is_none()
+    }
+
+    #[inline]
+    pub fn matches(&self, str: &[u8]) -> bool {
+        if let Some(percent_index) = self.percent_index {
+            str.starts_with(&self.pat[..percent_index])
+                && str.ends_with(&self.pat[percent_index + 1..])
+        } else {
+            self.pat == str
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Pattern {
     pat: Bytes,
@@ -120,6 +161,7 @@ pub struct Pattern {
 }
 
 impl Pattern {
+    #[inline]
     pub fn new(pat: Bytes) -> Pattern {
         let idx = memchr(b'%', &pat);
         Pattern {
@@ -128,6 +170,7 @@ impl Pattern {
         }
     }
 
+    #[inline]
     pub fn matches(&self, str: &[u8]) -> bool {
         if let Some(percent_index) = self.percent_index {
             return self.match_impl(str, percent_index);
@@ -135,10 +178,12 @@ impl Pattern {
         self.pat == str
     }
 
+    #[inline]
     fn match_impl(&self, str: &[u8], percent_index: usize) -> bool {
         str.starts_with(&self.pat[..percent_index]) && str.ends_with(&self.pat[percent_index + 1..])
     }
 
+    #[inline]
     pub fn stem<'a>(&self, str: &'a [u8]) -> &'a [u8] {
         if !self.matches(str) {
             return &[];
@@ -170,6 +215,31 @@ impl Pattern {
         s.clone()
     }
 
+    #[inline]
+    pub fn append_subst_to(&self, s: &[u8], subst: &[u8], out: &mut BytesMut) {
+        let Some(percent_index) = self.percent_index else {
+            if s == self.pat.as_ref() {
+                out.put_slice(subst);
+            } else {
+                out.put_slice(s);
+            }
+            return;
+        };
+
+        if self.match_impl(s, percent_index) {
+            if let Some(subst_percent_index) = memchr(b'%', subst) {
+                out.reserve(subst.len() + s.len() - self.pat.len() + 1);
+                out.put_slice(&subst[..subst_percent_index]);
+                out.put_slice(&s[percent_index..(percent_index + s.len() + 1 - self.pat.len())]);
+                out.put_slice(&subst[subst_percent_index + 1..]);
+            } else {
+                out.put_slice(subst);
+            }
+        } else {
+            out.put_slice(s);
+        }
+    }
+
     pub fn append_subst_ref(&self, s: &Bytes, subst: &Bytes) -> Bytes {
         if self.percent_index.is_some() && subst.contains(&b'%') {
             return self.append_subst(s, subst);
@@ -179,6 +249,18 @@ impl Pattern {
         ret.put_slice(s);
         ret.put_slice(subst);
         ret.into()
+    }
+
+    #[inline]
+    pub fn append_subst_ref_to(&self, s: &[u8], subst: &[u8], out: &mut BytesMut) {
+        if self.percent_index.is_some() && subst.contains(&b'%') {
+            self.append_subst_to(s, subst, out);
+            return;
+        }
+        let s = trim_suffix(s, &self.pat);
+        out.reserve(s.len() + subst.len());
+        out.put_slice(s);
+        out.put_slice(subst);
     }
 }
 
@@ -333,7 +415,7 @@ pub fn abs_path(s: &[u8]) -> Result<Bytes> {
 
 pub fn find_outside_paren(s: &[u8], pattern: &[u8]) -> Option<usize> {
     let mut prev_backslash = false;
-    let mut paren_stack: Vec<u8> = Vec::new();
+    let mut paren_stack: SmallVec<[u8; 64]> = SmallVec::new();
     let mut pattern_set = [false; 128];
     for c in pattern {
         assert!(c.is_ascii());

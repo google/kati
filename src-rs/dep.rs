@@ -16,14 +16,10 @@ limitations under the License.
 
 use anyhow::Result;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use fxhash::{FxHashMap, FxHashSet};
 use memchr::memchr;
 use parking_lot::Mutex;
-use std::{
-    collections::{HashMap, HashSet},
-    ffi::OsStr,
-    os::unix::ffi::OsStrExt,
-    sync::Arc,
-};
+use std::{ffi::OsStr, os::unix::ffi::OsStrExt, sync::Arc};
 
 use crate::{
     error, error_loc,
@@ -134,14 +130,14 @@ struct RuleTrieEntry {
 
 struct RuleTrie {
     rules: Vec<RuleTrieEntry>,
-    children: HashMap<u8, RuleTrie>,
+    children: FxHashMap<u8, RuleTrie>,
 }
 
 impl RuleTrie {
     fn new() -> Self {
         Self {
             rules: Vec::new(),
-            children: HashMap::new(),
+            children: FxHashMap::default(),
         }
     }
 
@@ -160,21 +156,19 @@ impl RuleTrie {
             .add(&name[1..], rule)
     }
 
-    fn get(&self, name: &[u8]) -> Vec<Arc<Rule>> {
-        let mut ret = Vec::new();
+    fn get(&self, name: &[u8], out: &mut Vec<Arc<Rule>>) {
         for ent in &self.rules {
             if (ent.suffix.is_empty() && name.is_empty()) || name.ends_with(&ent.suffix[1..]) {
-                ret.push(ent.rule.clone())
+                out.push(ent.rule.clone())
             }
         }
         if name.is_empty() {
-            return ret;
+            return;
         }
         let c = name[0];
         if let Some(child) = self.children.get(&c) {
-            ret.extend(child.get(&name[1..]));
+            child.get(&name[1..], out);
         }
-        ret
     }
 
     fn len(&self) -> usize {
@@ -250,14 +244,14 @@ impl RuleMerger {
                     merger
                         .primary_rule
                         .as_ref()
-                        .and_then(|r| r.cmd_loc.clone())
+                        .and_then(|r| r.cmd_loc)
                         .as_ref(),
                     "*** implicit output `{output}' of `{p}' was already defined by `{}' at {}",
                     self.parent_sym.unwrap(),
                     parent
                         .primary_rule
                         .as_ref()
-                        .and_then(|r| r.cmd_loc.clone())
+                        .and_then(|r| r.cmd_loc)
                         .unwrap_or_default()
                 );
             }
@@ -292,7 +286,7 @@ impl RuleMerger {
                 error_loc!(
                     r.cmd_loc.as_ref(),
                     "*** overriding commands for target `{output}', previously defined at {}",
-                    primary_rule.cmd_loc.clone().unwrap_or_default()
+                    primary_rule.cmd_loc.unwrap_or_default()
                 );
             } else {
                 warn_loc!(
@@ -330,9 +324,9 @@ impl RuleMerger {
     }
 
     fn fill_dep_node_loc(&self, r: &Rule, n: &mut DepNode) {
-        n.loc = Some(r.loc.clone());
+        n.loc = Some(r.loc);
         if !r.cmds.is_empty()
-            && let Some(cmd_loc) = r.cmd_loc.clone()
+            && let Some(cmd_loc) = r.cmd_loc
         {
             n.loc = Some(cmd_loc);
         }
@@ -364,16 +358,12 @@ impl RuleMerger {
             }
             self.fill_dep_node_from_rule(output, r, &mut n);
             if n.loc.is_none() {
-                n.loc = Some(r.loc.clone())
+                n.loc = Some(r.loc)
             }
         }
 
-        let mut all_outputs = HashSet::new();
-        all_outputs.insert(output);
-
         for (sym, merger) in &self.implicit_outputs {
             n.implicit_outputs.push(*sym);
-            all_outputs.insert(*sym);
             let merger = merger.lock();
             for r in &merger.rules {
                 self.fill_dep_node_from_rule(output, r, &mut n);
@@ -386,21 +376,21 @@ impl RuleMerger {
     }
 }
 
-type SuffixRuleMap = HashMap<Bytes, Vec<Arc<Rule>>>;
+type SuffixRuleMap = FxHashMap<Bytes, Vec<Arc<Rule>>>;
 
 struct DepBuilder<'a> {
     ev: &'a mut Evaluator,
-    rules: HashMap<Symbol, Arc<Mutex<RuleMerger>>>,
-    rule_vars: HashMap<Symbol, Arc<Vars>>,
+    rules: FxHashMap<Symbol, Arc<Mutex<RuleMerger>>>,
+    rule_vars: FxHashMap<Symbol, Arc<Vars>>,
     cur_rule_vars: Option<Arc<Vars>>,
 
     implicit_rules: RuleTrie,
     suffix_rules: SuffixRuleMap,
 
     first_rule: Option<Symbol>,
-    done: HashMap<Symbol, Arc<Mutex<DepNode>>>,
-    phony: HashSet<Symbol>,
-    restat: HashSet<Symbol>,
+    done: FxHashMap<Symbol, Arc<Mutex<DepNode>>>,
+    phony: FxHashSet<Symbol>,
+    restat: FxHashSet<Symbol>,
     depfile_var_name: Symbol,
     implicit_outputs_var_name: Symbol,
     ninja_pool_var_name: Symbol,
@@ -420,17 +410,17 @@ impl<'a> DepBuilder<'a> {
         let rule_vars = std::mem::take(&mut ev.rule_vars);
         let mut ret = Self {
             ev,
-            rules: HashMap::new(),
+            rules: FxHashMap::default(),
             rule_vars,
             cur_rule_vars: None,
 
             implicit_rules: RuleTrie::new(),
-            suffix_rules: HashMap::new(),
+            suffix_rules: FxHashMap::default(),
 
             first_rule: None,
-            done: HashMap::new(),
-            phony: HashSet::new(),
-            restat: HashSet::new(),
+            done: FxHashMap::default(),
+            phony: FxHashSet::default(),
+            restat: FxHashSet::default(),
             depfile_var_name: intern(".KATI_DEPFILE"),
             implicit_outputs_var_name: intern(".KATI_IMPLICIT_OUTPUTS"),
             ninja_pool_var_name: intern(".KATI_NINJA_POOL"),
@@ -501,7 +491,7 @@ impl<'a> DepBuilder<'a> {
             targets.push(first_rule);
         }
         if FLAGS.gen_all_targets {
-            let mut non_root_targets = HashSet::new();
+            let mut non_root_targets = FxHashSet::default();
             for (sym, merger) in &self.rules {
                 if is_special_target(sym) {
                     continue;
@@ -516,13 +506,14 @@ impl<'a> DepBuilder<'a> {
                 }
             }
 
-            let mut rule_keys = self.rules.keys().cloned().collect::<Vec<_>>();
+            let mut rule_keys = self
+                .rules
+                .keys()
+                .copied()
+                .filter(|t| !non_root_targets.contains(t) && !is_special_target(t))
+                .collect::<Vec<_>>();
             rule_keys.sort_by_cached_key(|k| k.as_bytes());
-            for t in rule_keys {
-                if !non_root_targets.contains(&t) && !is_special_target(&t) {
-                    targets.push(t);
-                }
-            }
+            targets.extend(rule_keys);
         }
 
         // TODO: LogStats?
@@ -557,7 +548,7 @@ impl<'a> DepBuilder<'a> {
             }
         }
 
-        Some((ret, merger.rules[0].loc.clone()))
+        Some((ret, merger.rules[0].loc))
     }
 
     fn populate_rules(&mut self) -> Result<()> {
@@ -573,24 +564,33 @@ impl<'a> DepBuilder<'a> {
         for rules in self.suffix_rules.values_mut() {
             rules.reverse();
         }
-        // TODO: This clone likely isn't necessary with some refactoring
-        for (symbol, merger) in self.rules.clone() {
-            let Some(vars) = self.lookup_rule_vars(symbol) else {
-                continue;
-            };
+        let rule_var_symbols: Vec<(Symbol, Arc<Vars>)> = self
+            .rule_vars
+            .iter()
+            .filter_map(|(&sym, vars)| {
+                if self.rules.contains_key(&sym) {
+                    Some((sym, vars.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for (symbol, vars) in rule_var_symbols {
+            let merger = self.rules[&symbol].clone();
             if let Some(var) = vars.lookup(self.implicit_outputs_var_name) {
                 let implicit_outputs = var.read().eval_to_buf(self.ev)?;
 
                 for output in word_scanner(&implicit_outputs) {
                     let sym = intern(implicit_outputs.slice_ref(trim_leading_curdir(output)));
-                    self.rules
+                    let target_merger = self
+                        .rules
                         .entry(sym)
                         .or_insert_with(RuleMerger::new)
+                        .clone();
+                    target_merger
                         .lock()
                         .set_implicit_output(sym, symbol, merger.clone())?;
-                    merger
-                        .lock()
-                        .add_implicit_output(sym, self.rules[&sym].clone());
+                    merger.lock().add_implicit_output(sym, target_merger);
                 }
             }
 
@@ -777,7 +777,8 @@ impl<'a> DepBuilder<'a> {
             });
         }
 
-        let irules = self.implicit_rules.get(&output.as_bytes());
+        let mut irules = Vec::new();
+        self.implicit_rules.get(&output.as_bytes(), &mut irules);
         for rule in irules.into_iter().rev() {
             let Some(pattern_rule) = self.can_pick_implicit_rule(&rule, output, n.clone()) else {
                 continue;
@@ -907,17 +908,21 @@ impl<'a> DepBuilder<'a> {
         }
         let output_str = output.as_bytes();
 
-        picked_rule_info
-            .merger
-            .unwrap_or_else(RuleMerger::new)
-            .lock()
-            .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
+        if let Some(merger) = &picked_rule_info.merger {
+            merger
+                .lock()
+                .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
+        } else if picked_rule_info.pattern_rule.is_some() {
+            RuleMerger::new()
+                .lock()
+                .fill_dep_node(output, &picked_rule_info.pattern_rule, &n);
+        }
 
         let mut sv = Vec::new();
         let frame = self.ev.enter(
             FrameType::Dependency,
             output_str.clone(),
-            n.lock().loc.clone().unwrap_or_default(),
+            n.lock().loc.unwrap_or_default(),
         );
 
         if let Some(vars) = &picked_rule_info.vars {
@@ -935,7 +940,7 @@ impl<'a> DepBuilder<'a> {
                                 s.freeze(),
                                 old_var.read().origin(),
                                 frame.current(),
-                                n.lock().loc.clone(),
+                                n.lock().loc,
                             );
                         }
                     }
@@ -1137,7 +1142,9 @@ impl<'a> DepBuilder<'a> {
             let mut n = n.lock();
             n.has_rule = true;
             n.is_default_target = self.first_rule == Some(output);
-            if let Some(cur_rule_vars) = &self.cur_rule_vars {
+            if let Some(cur_rule_vars) = &self.cur_rule_vars
+                && !cur_rule_vars.is_empty()
+            {
                 let v = Vars::new();
                 v.merge_from(cur_rule_vars);
                 n.rule_vars = Some(Arc::new(v));
