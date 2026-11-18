@@ -157,7 +157,7 @@ impl Parser {
             let loc = self.loc;
             let mut mutable_loc = self.loc;
             let expr = parse_expr(&mut mutable_loc, line.slice(1..), ParseExprOpt::Command)?;
-            self.push_stmt(CommandStmt::new(loc, line, expr));
+            self.push_stmt(CommandStmt::new_stmt(loc, line, expr));
             return Ok(());
         }
 
@@ -254,7 +254,7 @@ impl Parser {
             rule_rhs = None;
         }
         self.after_rule = true;
-        self.push_stmt(RuleStmt::new(rule_loc, rule_lhs, rule_sep, rule_rhs));
+        self.push_stmt(RuleStmt::new_stmt(rule_loc, rule_lhs, rule_sep, rule_rhs));
         Ok(())
     }
 
@@ -285,7 +285,7 @@ impl Parser {
         let rhs = parse_expr(&mut mutable_loc, orig_rhs.clone(), ParseExprOpt::Normal)?;
 
         self.after_rule = false;
-        self.push_stmt(AssignStmt::new(
+        self.push_stmt(AssignStmt::new_stmt(
             assign_loc,
             lhs,
             rhs,
@@ -301,7 +301,11 @@ impl Parser {
         let loc = self.loc;
         let mut mutable_loc = loc;
         let expr = parse_expr(&mut mutable_loc, line, ParseExprOpt::Normal)?;
-        self.push_stmt(IncludeStmt::new(loc, expr, directive.starts_with(b"i")));
+        self.push_stmt(IncludeStmt::new_stmt(
+            loc,
+            expr,
+            directive.starts_with(b"i"),
+        ));
         self.after_rule = false;
         Ok(())
     }
@@ -358,7 +362,7 @@ impl Parser {
         };
         let rhs = parse_expr(&mut mutable_loc, orig_rhs.clone(), ParseExprOpt::Define)?;
 
-        self.push_stmt(AssignStmt::new(
+        self.push_stmt(AssignStmt::new_stmt(
             assign_loc,
             lhs,
             rhs,
@@ -508,7 +512,7 @@ impl Parser {
         let num_nest = self.if_stack.last().unwrap().num_nest;
         for _ in 0..=num_nest {
             let st = self.if_stack.pop().unwrap();
-            self.push_stmt(Arc::new(st.stmt));
+            self.push_stmt(Stmt::If(st.stmt));
         }
         Ok(())
     }
@@ -521,7 +525,7 @@ impl Parser {
         let loc = self.loc;
         let mut mutable_loc = loc;
         let expr = parse_expr(&mut mutable_loc, line.clone(), ParseExprOpt::Normal)?;
-        self.push_stmt(ExportStmt::new(loc, expr, is_export));
+        self.push_stmt(ExportStmt::new_stmt(loc, expr, is_export));
         Ok(())
     }
 
