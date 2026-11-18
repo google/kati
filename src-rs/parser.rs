@@ -19,7 +19,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::{Buf, Bytes};
 use memchr::{memchr, memchr3};
-use parking_lot::Mutex;
 
 use crate::{
     collect_stats, error_loc,
@@ -37,7 +36,7 @@ use crate::{
 };
 
 struct IfState {
-    stmt: Arc<IfStmt>,
+    stmt: IfStmt,
     is_in_else: bool,
     num_nest: i32,
 }
@@ -50,8 +49,7 @@ struct Parser {
     // a rule, see testcase/rule_in_var.mk.
     after_rule: bool,
 
-    stmts: Arc<Mutex<Vec<Stmt>>>,
-    out_stmts: Arc<Mutex<Vec<Stmt>>>,
+    top_level_stmts: Vec<Stmt>,
 
     define_name: Option<Bytes>,
     num_define_nest: i32,
@@ -69,14 +67,13 @@ struct Parser {
 }
 
 impl Parser {
-    fn with_buf(buf: &Bytes, loc: Loc, stmts: Arc<Mutex<Vec<Stmt>>>, fixed_lineno: bool) -> Self {
+    fn with_buf(buf: &Bytes, loc: Loc, fixed_lineno: bool) -> Self {
         Self {
             buf: buf.clone(),
             l: 0,
             after_rule: false,
 
-            stmts: stmts.clone(),
-            out_stmts: stmts,
+            top_level_stmts: Vec::new(),
 
             define_name: None,
             num_define_nest: 0,
@@ -94,7 +91,19 @@ impl Parser {
         }
     }
 
-    fn parse(&mut self) -> Result<()> {
+    fn push_stmt(&mut self, stmt: Stmt) {
+        if let Some(st) = self.if_stack.last_mut() {
+            if st.is_in_else {
+                st.stmt.false_stmts.push(stmt);
+            } else {
+                st.stmt.true_stmts.push(stmt);
+            }
+        } else {
+            self.top_level_stmts.push(stmt);
+        }
+    }
+
+    fn parse(mut self) -> Result<Vec<Stmt>> {
         self.l = 0;
         let buf = self.buf.clone();
 
@@ -130,7 +139,7 @@ impl Parser {
             error_loc!(Some(&loc), "*** missing `endef', unterminated `define'.",);
         }
 
-        Ok(())
+        Ok(self.top_level_stmts)
     }
 
     fn parse_line(&mut self, line: Bytes) -> Result<()> {
@@ -148,9 +157,7 @@ impl Parser {
             let loc = self.loc;
             let mut mutable_loc = self.loc;
             let expr = parse_expr(&mut mutable_loc, line.slice(1..), ParseExprOpt::Command)?;
-            self.out_stmts
-                .lock()
-                .push(CommandStmt::new(loc, line, expr));
+            self.push_stmt(CommandStmt::new(loc, line, expr));
             return Ok(());
         }
 
@@ -247,9 +254,7 @@ impl Parser {
             rule_rhs = None;
         }
         self.after_rule = true;
-        self.out_stmts
-            .lock()
-            .push(RuleStmt::new(rule_loc, rule_lhs, rule_sep, rule_rhs));
+        self.push_stmt(RuleStmt::new(rule_loc, rule_lhs, rule_sep, rule_rhs));
         Ok(())
     }
 
@@ -280,7 +285,7 @@ impl Parser {
         let rhs = parse_expr(&mut mutable_loc, orig_rhs.clone(), ParseExprOpt::Normal)?;
 
         self.after_rule = false;
-        self.out_stmts.lock().push(AssignStmt::new(
+        self.push_stmt(AssignStmt::new(
             assign_loc,
             lhs,
             rhs,
@@ -296,9 +301,7 @@ impl Parser {
         let loc = self.loc;
         let mut mutable_loc = loc;
         let expr = parse_expr(&mut mutable_loc, line, ParseExprOpt::Normal)?;
-        self.out_stmts
-            .lock()
-            .push(IncludeStmt::new(loc, expr, directive.starts_with(b"i")));
+        self.push_stmt(IncludeStmt::new(loc, expr, directive.starts_with(b"i")));
         self.after_rule = false;
         Ok(())
     }
@@ -355,7 +358,7 @@ impl Parser {
         };
         let rhs = parse_expr(&mut mutable_loc, orig_rhs.clone(), ParseExprOpt::Define)?;
 
-        self.out_stmts.lock().push(AssignStmt::new(
+        self.push_stmt(AssignStmt::new(
             assign_loc,
             lhs,
             rhs,
@@ -368,13 +371,12 @@ impl Parser {
         Ok(())
     }
 
-    fn enter_if(&mut self, stmt: Arc<IfStmt>) {
+    fn enter_if(&mut self, stmt: IfStmt) {
         self.if_stack.push(IfState {
-            stmt: stmt.clone(),
+            stmt,
             is_in_else: false,
             num_nest: self.num_if_nest,
         });
-        self.out_stmts = stmt.true_stmts.clone();
     }
 
     fn parse_ifdef(&mut self, line: Bytes, directive: &[u8]) -> Result<()> {
@@ -387,7 +389,6 @@ impl Parser {
         let mut mutable_loc = loc;
         let lhs = parse_expr(&mut mutable_loc, line, ParseExprOpt::Normal)?;
         let stmt = IfStmt::new(loc, op, lhs, None);
-        self.out_stmts.lock().push(stmt.clone());
         self.enter_if(stmt);
         Ok(())
     }
@@ -474,7 +475,6 @@ impl Parser {
         }
 
         let stmt = IfStmt::new(loc, op, lhs, Some(rhs));
-        self.out_stmts.lock().push(stmt.clone());
         self.enter_if(stmt);
         Ok(())
     }
@@ -486,7 +486,6 @@ impl Parser {
             error_loc!(Some(&self.loc), "*** only one `else' per conditional.");
         }
         st.is_in_else = true;
-        self.out_stmts = st.stmt.false_stmts.clone();
 
         let next_if = trim_left_space(&line);
         if next_if.is_empty() {
@@ -508,16 +507,8 @@ impl Parser {
         }
         let num_nest = self.if_stack.last().unwrap().num_nest;
         for _ in 0..=num_nest {
-            self.if_stack.pop();
-        }
-        if let Some(st) = self.if_stack.last() {
-            if st.is_in_else {
-                self.out_stmts = st.stmt.false_stmts.clone();
-            } else {
-                self.out_stmts = st.stmt.true_stmts.clone();
-            }
-        } else {
-            self.out_stmts = self.stmts.clone();
+            let st = self.if_stack.pop().unwrap();
+            self.push_stmt(Arc::new(st.stmt));
         }
         Ok(())
     }
@@ -530,9 +521,7 @@ impl Parser {
         let loc = self.loc;
         let mut mutable_loc = loc;
         let expr = parse_expr(&mut mutable_loc, line.clone(), ParseExprOpt::Normal)?;
-        self.out_stmts
-            .lock()
-            .push(ExportStmt::new(loc, expr, is_export));
+        self.push_stmt(ExportStmt::new(loc, expr, is_export));
         Ok(())
     }
 
@@ -637,30 +626,23 @@ impl Parser {
     }
 }
 
-pub fn parse_file(buf: &Bytes, filename: Symbol) -> Result<Arc<Mutex<Vec<Stmt>>>> {
+pub fn parse_file(buf: &Bytes, filename: Symbol) -> Result<Vec<Stmt>> {
     collect_stats!("parse file time");
     let loc = Loc { filename, line: 0 };
     parse_buf_no_stats_impl(buf, loc, false)
 }
 
-pub fn parse_buf(buf: &Bytes, loc: Loc) -> Result<Arc<Mutex<Vec<Stmt>>>> {
+pub fn parse_buf(buf: &Bytes, loc: Loc) -> Result<Vec<Stmt>> {
     collect_stats!("parse eval time");
     parse_buf_no_stats_impl(buf, loc, true)
 }
 
-pub fn parse_buf_no_stats(buf: &Bytes, loc: Loc) -> Result<Arc<Mutex<Vec<Stmt>>>> {
+pub fn parse_buf_no_stats(buf: &Bytes, loc: Loc) -> Result<Vec<Stmt>> {
     parse_buf_no_stats_impl(buf, loc, true)
 }
 
-fn parse_buf_no_stats_impl(
-    buf: &Bytes,
-    loc: Loc,
-    fixed_lineno: bool,
-) -> Result<Arc<Mutex<Vec<Stmt>>>> {
-    let stmts = Arc::new(Mutex::new(Vec::new()));
-    let mut p = Parser::with_buf(buf, loc, stmts.clone(), fixed_lineno);
-    p.parse()?;
-    Ok(stmts)
+fn parse_buf_no_stats_impl(buf: &Bytes, loc: Loc, fixed_lineno: bool) -> Result<Vec<Stmt>> {
+    Parser::with_buf(buf, loc, fixed_lineno).parse()
 }
 
 pub struct ParsedAssign<'a> {
@@ -701,5 +683,29 @@ mod tests {
             Parser::get_directive(&Bytes::from_static(b"endif")),
             Bytes::from_static(b"endif")
         );
+    }
+
+    #[test]
+    fn test_parse_if() {
+        let loc = Loc::default();
+        let stmts = parse_buf(
+            &Bytes::from_static(
+                b"ifdef A\nX:=1\nelse ifdef B\nifdef C\nY:=2\nendif\nelse\nZ:=3\nendif\n",
+            ),
+            loc,
+        )
+        .unwrap();
+        assert_eq!(stmts.len(), 1);
+        let debug = format!("{:?}", stmts[0]);
+        assert!(debug.contains("t=1 f=1"), "{debug}");
+
+        let missing_endif = parse_buf(&Bytes::from_static(b"ifdef A\nX:=1\n"), loc);
+        assert!(missing_endif.is_err());
+
+        let extra_else = parse_buf(&Bytes::from_static(b"ifdef A\nelse\nelse\nendif\n"), loc);
+        assert!(extra_else.is_err());
+
+        let extra_endif = parse_buf(&Bytes::from_static(b"endif\n"), loc);
+        assert!(extra_endif.is_err());
     }
 }

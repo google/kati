@@ -619,7 +619,6 @@ fn eval_func(args: &[Arc<Value>], ev: &mut Evaluator, _out: &mut BytesMut) -> Re
         );
     }
     let stmts = parse_buf(&text, ev.loc.unwrap_or_default())?;
-    let stmts = stmts.lock();
     for stmt in stmts.iter() {
         log!("{:?}", stmt);
         stmt.eval(ev)?;

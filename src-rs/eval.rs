@@ -738,8 +738,7 @@ impl Evaluator {
 
         if !self.in_rule {
             let stmts = parse_buf_no_stats(&stmt.orig(), stmt.loc())?;
-            let stmts = stmts.lock();
-            for a in &*stmts {
+            for a in &stmts {
                 a.eval(self)?;
             }
             return Ok(());
@@ -789,7 +788,6 @@ impl Evaluator {
             true => &stmt.true_stmts,
             false => &stmt.false_stmts,
         };
-        let stmts = stmts.lock();
         for a in stmts.iter() {
             log!("{:?}", a);
             a.eval(self)?;
@@ -824,7 +822,7 @@ impl Evaluator {
                 None,
             )?;
         }
-        for stmt in mk.stmts.lock().iter() {
+        for stmt in mk.stmts.iter() {
             log!("{stmt:?}");
             stmt.eval(self)?;
         }

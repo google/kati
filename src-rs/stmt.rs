@@ -237,8 +237,8 @@ pub struct IfStmt {
     pub op: CondOp,
     pub lhs: Arc<Value>,
     pub rhs: Option<Arc<Value>>,
-    pub true_stmts: Arc<Mutex<Vec<Stmt>>>,
-    pub false_stmts: Arc<Mutex<Vec<Stmt>>>,
+    pub true_stmts: Vec<Stmt>,
+    pub false_stmts: Vec<Stmt>,
 }
 
 impl Statement for IfStmt {
@@ -261,24 +261,24 @@ impl Debug for IfStmt {
             self.op,
             self.lhs,
             self.rhs,
-            self.true_stmts.lock().len(),
-            self.false_stmts.lock().len(),
+            self.true_stmts.len(),
+            self.false_stmts.len(),
             self.loc
         )
     }
 }
 
 impl IfStmt {
-    pub fn new(loc: Loc, op: CondOp, lhs: Arc<Value>, rhs: Option<Arc<Value>>) -> Arc<IfStmt> {
-        Arc::new(IfStmt {
+    pub fn new(loc: Loc, op: CondOp, lhs: Arc<Value>, rhs: Option<Arc<Value>>) -> IfStmt {
+        IfStmt {
             loc,
             orig: Bytes::new(),
             op,
             lhs,
             rhs,
-            true_stmts: Arc::new(Mutex::new(Vec::new())),
-            false_stmts: Arc::new(Mutex::new(Vec::new())),
-        })
+            true_stmts: Vec::new(),
+            false_stmts: Vec::new(),
+        }
     }
 }
 
