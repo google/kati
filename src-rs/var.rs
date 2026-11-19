@@ -459,12 +459,7 @@ impl Evaluable for Variable {
             }
             InnerVar::VariableNames { all, .. } => {
                 let mut ww = WordWriter::new(out);
-                let symbols = get_symbol_names(|var| {
-                    if var.read().obsolete() {
-                        return false;
-                    }
-                    true
-                });
+                let symbols = get_symbol_names(|var| !var.read().obsolete());
                 for (sym, entry) in symbols {
                     if !*all
                         && let Some(var) = sym.peek_global_var()

@@ -91,15 +91,8 @@ pub fn has_word(s: &[u8], w: &[u8]) -> bool {
     let Some(found) = memmem::find(s, w) else {
         return false;
     };
-    let start = &s[..found];
-    if start.last().is_some_and(|c| !is_space_byte(c)) {
-        return false;
-    }
-    let end = &s[found + w.len()..];
-    if end.first().is_some_and(|c| !is_space_byte(c)) {
-        return false;
-    }
-    true
+    s[..found].last().is_none_or(is_space_byte)
+        && s[found + w.len()..].first().is_none_or(is_space_byte)
 }
 
 pub fn trim_prefix_str<'a>(s: &'a str, prefix: &str) -> &'a str {
