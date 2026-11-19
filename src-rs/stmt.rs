@@ -28,13 +28,52 @@ use crate::{
     symtab::{Symbol, intern},
 };
 
-pub type Stmt = Arc<dyn Statement + Send + Sync>;
+pub type Stmt = Statement;
 
-pub trait Statement: Debug {
-    fn loc(&self) -> Loc;
-    fn orig(&self) -> Bytes;
+pub enum Statement {
+    Rule(RuleStmt),
+    Assign(AssignStmt),
+    Command(CommandStmt),
+    If(IfStmt),
+    Include(IncludeStmt),
+    Export(ExportStmt),
+}
 
-    fn eval(&self, ev: &mut Evaluator) -> Result<()>;
+impl Statement {
+    pub fn loc(&self) -> Loc {
+        match self {
+            Statement::Rule(s) => s.loc(),
+            Statement::Assign(s) => s.loc(),
+            Statement::Command(s) => s.loc(),
+            Statement::If(s) => s.loc(),
+            Statement::Include(s) => s.loc(),
+            Statement::Export(s) => s.loc(),
+        }
+    }
+
+    pub fn eval(&self, ev: &mut Evaluator) -> Result<()> {
+        match self {
+            Statement::Rule(s) => ev.eval_rule(s),
+            Statement::Assign(s) => ev.eval_assign(s),
+            Statement::Command(s) => ev.eval_command(s),
+            Statement::If(s) => ev.eval_if(s),
+            Statement::Include(s) => ev.eval_include(s),
+            Statement::Export(s) => ev.eval_export(s),
+        }
+    }
+}
+
+impl Debug for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Statement::Rule(s) => s.fmt(f),
+            Statement::Assign(s) => s.fmt(f),
+            Statement::Command(s) => s.fmt(f),
+            Statement::If(s) => s.fmt(f),
+            Statement::Include(s) => s.fmt(f),
+            Statement::Export(s) => s.fmt(f),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,25 +108,10 @@ pub enum RuleSep {
 
 pub struct RuleStmt {
     loc: Loc,
-    orig: Bytes,
 
     pub lhs: Arc<Value>,
     pub sep: RuleSep,
     pub rhs: Option<Arc<Value>>,
-}
-
-impl Statement for RuleStmt {
-    fn loc(&self) -> Loc {
-        self.loc
-    }
-
-    fn orig(&self) -> Bytes {
-        self.orig.clone()
-    }
-
-    fn eval(&self, ev: &mut Evaluator) -> Result<()> {
-        ev.eval_rule(self)
-    }
 }
 
 impl Debug for RuleStmt {
@@ -101,20 +125,17 @@ impl Debug for RuleStmt {
 }
 
 impl RuleStmt {
-    pub fn new(loc: Loc, lhs: Arc<Value>, sep: RuleSep, rhs: Option<Arc<Value>>) -> Arc<RuleStmt> {
-        Arc::new(RuleStmt {
-            loc,
-            orig: Bytes::new(),
-            lhs,
-            sep,
-            rhs,
-        })
+    pub fn new_stmt(loc: Loc, lhs: Arc<Value>, sep: RuleSep, rhs: Option<Arc<Value>>) -> Stmt {
+        Statement::Rule(RuleStmt { loc, lhs, sep, rhs })
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
     }
 }
 
 pub struct AssignStmt {
     loc: Loc,
-    orig: Bytes,
 
     pub lhs: Arc<Value>,
     pub rhs: Arc<Value>,
@@ -124,20 +145,6 @@ pub struct AssignStmt {
     pub is_final: bool,
 
     lhs_sym_cache: Mutex<Option<Symbol>>,
-}
-
-impl Statement for AssignStmt {
-    fn loc(&self) -> Loc {
-        self.loc
-    }
-
-    fn orig(&self) -> Bytes {
-        self.orig.clone()
-    }
-
-    fn eval(&self, ev: &mut Evaluator) -> Result<()> {
-        ev.eval_assign(self)
-    }
 }
 
 impl Debug for AssignStmt {
@@ -156,7 +163,7 @@ impl Debug for AssignStmt {
 }
 
 impl AssignStmt {
-    pub fn new(
+    pub fn new_stmt(
         loc: Loc,
         lhs: Arc<Value>,
         rhs: Arc<Value>,
@@ -164,10 +171,9 @@ impl AssignStmt {
         op: AssignOp,
         directive: Option<AssignDirective>,
         is_final: bool,
-    ) -> Arc<AssignStmt> {
-        Arc::new(AssignStmt {
+    ) -> Stmt {
+        Statement::Assign(AssignStmt {
             loc,
-            orig: Bytes::new(),
             lhs,
             rhs,
             orig_rhs,
@@ -176,6 +182,10 @@ impl AssignStmt {
             is_final,
             lhs_sym_cache: Mutex::new(None),
         })
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
     }
 
     pub fn get_lhs_symbol(&self, ev: &mut Evaluator) -> Result<Symbol> {
@@ -206,18 +216,6 @@ pub struct CommandStmt {
     pub expr: Arc<Value>,
 }
 
-impl Statement for CommandStmt {
-    fn loc(&self) -> Loc {
-        self.loc
-    }
-    fn orig(&self) -> Bytes {
-        self.orig.clone()
-    }
-    fn eval(&self, ev: &mut Evaluator) -> Result<()> {
-        ev.eval_command(self)
-    }
-}
-
 impl Debug for CommandStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "CommandStmt({:?}, loc={})", self.expr, self.loc)
@@ -225,32 +223,27 @@ impl Debug for CommandStmt {
 }
 
 impl CommandStmt {
-    pub fn new(loc: Loc, orig: Bytes, expr: Arc<Value>) -> Arc<CommandStmt> {
-        Arc::new(CommandStmt { loc, orig, expr })
+    pub fn new_stmt(loc: Loc, orig: Bytes, expr: Arc<Value>) -> Stmt {
+        Statement::Command(CommandStmt { loc, orig, expr })
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
+    }
+
+    pub fn orig(&self) -> &Bytes {
+        &self.orig
     }
 }
 
 pub struct IfStmt {
     loc: Loc,
-    orig: Bytes,
 
     pub op: CondOp,
     pub lhs: Arc<Value>,
     pub rhs: Option<Arc<Value>>,
-    pub true_stmts: Arc<Mutex<Vec<Stmt>>>,
-    pub false_stmts: Arc<Mutex<Vec<Stmt>>>,
-}
-
-impl Statement for IfStmt {
-    fn loc(&self) -> Loc {
-        self.loc
-    }
-    fn orig(&self) -> Bytes {
-        self.orig.clone()
-    }
-    fn eval(&self, ev: &mut Evaluator) -> Result<()> {
-        ev.eval_if(self)
-    }
+    pub true_stmts: Vec<Stmt>,
+    pub false_stmts: Vec<Stmt>,
 }
 
 impl Debug for IfStmt {
@@ -261,45 +254,35 @@ impl Debug for IfStmt {
             self.op,
             self.lhs,
             self.rhs,
-            self.true_stmts.lock().len(),
-            self.false_stmts.lock().len(),
+            self.true_stmts.len(),
+            self.false_stmts.len(),
             self.loc
         )
     }
 }
 
 impl IfStmt {
-    pub fn new(loc: Loc, op: CondOp, lhs: Arc<Value>, rhs: Option<Arc<Value>>) -> Arc<IfStmt> {
-        Arc::new(IfStmt {
+    pub fn new(loc: Loc, op: CondOp, lhs: Arc<Value>, rhs: Option<Arc<Value>>) -> IfStmt {
+        IfStmt {
             loc,
-            orig: Bytes::new(),
             op,
             lhs,
             rhs,
-            true_stmts: Arc::new(Mutex::new(Vec::new())),
-            false_stmts: Arc::new(Mutex::new(Vec::new())),
-        })
+            true_stmts: Vec::new(),
+            false_stmts: Vec::new(),
+        }
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
     }
 }
 
 pub struct IncludeStmt {
     loc: Loc,
-    orig: Bytes,
 
     pub expr: Arc<Value>,
     pub should_exist: bool,
-}
-
-impl Statement for IncludeStmt {
-    fn loc(&self) -> Loc {
-        self.loc
-    }
-    fn orig(&self) -> Bytes {
-        self.orig.clone()
-    }
-    fn eval(&self, ev: &mut Evaluator) -> Result<()> {
-        ev.eval_include(self)
-    }
 }
 
 impl Debug for IncludeStmt {
@@ -309,34 +292,24 @@ impl Debug for IncludeStmt {
 }
 
 impl IncludeStmt {
-    pub fn new(loc: Loc, expr: Arc<Value>, should_exist: bool) -> Arc<IncludeStmt> {
-        Arc::new(IncludeStmt {
+    pub fn new_stmt(loc: Loc, expr: Arc<Value>, should_exist: bool) -> Stmt {
+        Statement::Include(IncludeStmt {
             loc,
-            orig: Bytes::new(),
             expr,
             should_exist,
         })
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
     }
 }
 
 pub struct ExportStmt {
     loc: Loc,
-    orig: Bytes,
 
     pub expr: Arc<Value>,
     pub is_export: bool,
-}
-
-impl Statement for ExportStmt {
-    fn loc(&self) -> Loc {
-        self.loc
-    }
-    fn orig(&self) -> Bytes {
-        self.orig.clone()
-    }
-    fn eval(&self, ev: &mut Evaluator) -> Result<()> {
-        ev.eval_export(self)
-    }
 }
 
 impl Debug for ExportStmt {
@@ -350,12 +323,15 @@ impl Debug for ExportStmt {
 }
 
 impl ExportStmt {
-    pub fn new(loc: Loc, expr: Arc<Value>, is_export: bool) -> Arc<ExportStmt> {
-        Arc::new(ExportStmt {
+    pub fn new_stmt(loc: Loc, expr: Arc<Value>, is_export: bool) -> Stmt {
+        Statement::Export(ExportStmt {
             loc,
-            orig: Bytes::new(),
             expr,
             is_export,
         })
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
     }
 }

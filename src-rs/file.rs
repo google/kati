@@ -18,7 +18,6 @@ use std::{ffi::OsStr, io::Read, os::unix::ffi::OsStrExt, sync::Arc, time::System
 
 use anyhow::Result;
 use bytes::Bytes;
-use parking_lot::Mutex;
 
 use crate::{
     parser::parse_file,
@@ -29,7 +28,7 @@ use crate::{
 pub struct Makefile {
     pub filename: Symbol,
     pub mtime: SystemTime,
-    pub stmts: Arc<Mutex<Vec<Stmt>>>,
+    pub stmts: Vec<Stmt>,
 }
 
 impl Makefile {

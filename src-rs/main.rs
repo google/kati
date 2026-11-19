@@ -29,7 +29,6 @@ use std::sync::Arc;
 
 use anyhow::{Result, bail};
 use bytes::{BufMut, Bytes, BytesMut};
-use parking_lot::Mutex;
 
 #[cfg(feature = "gperf")]
 use gperftools::{HEAP_PROFILER, PROFILER};
@@ -61,7 +60,7 @@ use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-fn read_bootstrap_makefile(targets: &[Symbol]) -> Result<Arc<Mutex<Vec<Stmt>>>> {
+fn read_bootstrap_makefile(targets: &[Symbol]) -> Result<Vec<Stmt>> {
     let mut bootstrap = BytesMut::new();
     bootstrap.put_slice(b"CC?=cc\n");
     if cfg!(target_os = "macos") {
@@ -161,7 +160,7 @@ fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<
             Loc::default(),
         );
         ev.in_bootstrap();
-        for stmt in bootstrap_asts.lock().iter() {
+        for stmt in bootstrap_asts.iter() {
             log!("{stmt:?}");
             stmt.eval(&mut ev)?;
         }
@@ -182,7 +181,6 @@ fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<
                     line: 0,
                 },
             )?;
-            let asts = asts.lock();
             assert!(asts.len() == 1);
             asts[0].eval(&mut ev)?;
         }
@@ -206,8 +204,7 @@ fn run(targets: &[Symbol], cl_vars: &Vec<Bytes>, orig_args: OsString) -> Result<
         let Some(mk) = kati::file_cache::get_makefile(&makefile)? else {
             bail!("makefile not found")
         };
-        let stmts = mk.stmts.lock();
-        for stmt in stmts.iter() {
+        for stmt in mk.stmts.iter() {
             log!("{stmt:?}");
             stmt.eval(&mut ev)?;
         }
